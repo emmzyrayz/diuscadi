@@ -319,6 +319,7 @@ interface FilterSelectProps {
 }
 
 const FilterSelect = ({
+  id,
   icon,
   label,
   options,
@@ -352,14 +353,14 @@ const FilterSelect = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-100"
+            className={cn('fixed', 'inset-0', 'z-100')}
             onClick={() => onToggle(false)}
           />
         )}
       </AnimatePresence>
 
       {/* Trigger Button */}
-      <div className="relative shrink-0">
+      <div className={cn('relative', 'shrink-0')}>
         <motion.button
           ref={buttonRef}
           initial={{ opacity: 0, x: -10 }}
@@ -391,7 +392,7 @@ const FilterSelect = ({
           <span className={isActive ? "text-primary" : "text-slate-400"}>
             {icon}
           </span>
-          <span className="max-w-[100px] truncate">
+          <span className={cn('max-w-[100px]', 'truncate')}>
             {value === options[0] ? label : value}
           </span>
           <motion.svg
@@ -426,10 +427,9 @@ const FilterSelect = ({
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
             className={cn(
-              "fixed",
+              "fixed -mt-[385px] -ml-[60px]",
               "w-56",
-                "bg-white",
-              "-mt-[390px] -ml-[60px]",
+              "bg-white",
               "border",
               "border-slate-100",
               "rounded-xl",
@@ -442,7 +442,7 @@ const FilterSelect = ({
               left: `${dropdownPosition.left}px`,
             }}
           >
-            <div className="max-h-64 overflow-y-auto p-1">
+            <div className={cn('max-h-64', 'overflow-y-auto', 'p-1')}>
               {options.map((option, index) => (
                 <motion.button
                   key={option}
@@ -480,7 +480,7 @@ const FilterSelect = ({
                         damping: 30,
                       }}
                     >
-                      <LuCheck className="w-4 h-4 text-primary" />
+                      <LuCheck className={cn('w-4', 'h-4', 'text-primary')} />
                     </motion.div>
                   )}
                 </motion.button>

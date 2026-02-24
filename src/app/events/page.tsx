@@ -1,8 +1,9 @@
-import { EventsFilterBar } from "@/components/sections/event/eventFilter";
-import { EventsGrid } from "@/components/sections/event/eventGrid";
-import { EventsHeader } from "@/components/sections/event/eventHeader";
-import { EventsTabs } from "@/components/sections/event/eventTabs";
-import { FeaturedEvent } from "@/components/sections/event/featuredEvent";
+import { NewsletterOrCTA } from "@/components/sections/events/eventCTA";
+import { EventsFilterBar } from "@/components/sections/events/eventFilter";
+import { EventsGrid } from "@/components/sections/events/eventGrid";
+import { EventsHeader } from "@/components/sections/events/eventHeader";
+import { EventsTabs } from "@/components/sections/events/eventTabs";
+import { FeaturedEvent } from "@/components/sections/events/featuredEvent";
 import { cn } from "@/lib/utils";
 
 
@@ -16,6 +17,7 @@ export default function EventPage() {
             <FeaturedEvent />
             <EventsTabs />
             <EventsGrid />
+            <NewsletterOrCTA />
         </main>
     )
 }
