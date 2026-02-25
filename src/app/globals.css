@@ -142,3 +142,8 @@
   padding-inline: 1.5rem;
   max-width: 1280px;
 }
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}

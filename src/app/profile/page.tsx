@@ -46,7 +46,7 @@ export default function ProfilePage() {
   const completionPercentage = user.avatar && user.phone ? 100 : 75;
 
   return (
-    <main className="min-h-screen bg-slate-50/50 pb-20">
+    <main className="min-h-screen mt-15 bg-slate-50/50 pb-20">
       {/* 1. Header Section */}
       <ProfileHeader completionPercentage={completionPercentage} />
 
