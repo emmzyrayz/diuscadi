@@ -17,4 +17,6 @@ export interface Event {
   level?: "Beginner" | "Intermediate" | "Advanced";
   tags?: string[];
   image?: string;
+  enrolled?: number;
+  status?: "Upcoming" | "Completed" | "Cancelled" | "Draft";
 }

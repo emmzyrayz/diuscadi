@@ -90,7 +90,7 @@ export const Hero = () => {
             )}
           >
             Equipping Students for <br />
-            <span className="text-primary">Life Beyond</span> the Classroom
+            <span className="text-slate-400">Life Beyond</span> the Classroom
           </h1>
 
           <p
@@ -166,7 +166,7 @@ export const Hero = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className={cn("relative", "group")}
+          className={cn("relative", "group hover:scale-105 duration-700 ease-in-out transition-all")}
         >
           {/* The Main Hero Image */}
           <div
@@ -186,7 +186,7 @@ export const Hero = () => {
               src={student} // Replace with image of students or mentor
               alt="Mentorship Session"
               fill
-              className="object-cover"
+              className="object-cover "
               priority
             />
           </div>

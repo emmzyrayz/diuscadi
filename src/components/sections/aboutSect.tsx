@@ -23,7 +23,7 @@ export const AboutSection = () => {
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="relative"
+            className="relative hover:scale-102 lg:hover:scale-105 duration-700 ease-in-out transition-all"
           >
             <div
               className={cn(
