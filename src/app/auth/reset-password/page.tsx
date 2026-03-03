@@ -1,15 +1,15 @@
 import { Suspense } from "react";
 import { AuthCard } from "../components/AuthCard";
 import { AuthHeader } from "../components/AuthHeader";
-import { VerifyEmailView } from "../components/VerifyemailView";
+import { ResetPasswordForm } from "../components/ResetpasswordForm";
+import { AuthFooter } from "../components/Authfooter";
 
-// VerifyEmailView calls useSearchParams() — requires Suspense in App Router
-export default function VerifyPage() {
+export default function ResetPasswordPage() {
   return (
     <AuthCard>
       <AuthHeader
-        title="Verify Account"
-        subtitle="Use your code or the link we sent to your email and phone"
+        title="Reset Password"
+        subtitle="Set a new secure password for your account"
       />
       <Suspense
         fallback={
@@ -18,8 +18,9 @@ export default function VerifyPage() {
           </div>
         }
       >
-        <VerifyEmailView />
+        <ResetPasswordForm />
       </Suspense>
+      <AuthFooter type="reset" />
     </AuthCard>
   );
 }

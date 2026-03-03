@@ -27,8 +27,8 @@ export const AuthCard: React.FC<AuthCardProps> = ({ children }) => {
         style={{ isolation: "isolate" }}
       >
         {/* Subtle background glow */}
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
 
         <motion.div
           className="relative z-10 flex flex-col gap-8"

@@ -10,9 +10,7 @@ export default function SignupPage() {
         title="Join DIUSCADI"
         subtitle="Create your campus ecosystem account"
       />
-
       <SignupForm />
-
       <AuthFooter type="signup" />
     </AuthCard>
   );

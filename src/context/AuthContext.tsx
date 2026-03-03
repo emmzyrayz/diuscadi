@@ -8,35 +8,63 @@ import React, {
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import type {
+  EduStatus,
+  AccountRole,
+  Committee,
+  Skill,
+  PhoneNumber,
+} from "@/types/domain";
+
+// Re-export for consumers (RouteGuard, forms, etc.)
+export type { EduStatus, AccountRole, Committee, Skill };
 
 // ─── 1. Types ────────────────────────────────────────────────────────────────
 
 export interface User {
+  // From Vault
   id: string;
-  name: string;
   email: string;
-  role: "STUDENT" | "FACULTY" | "ADMIN" | "WEBMASTER";
+  phone: PhoneNumber;
+  role: AccountRole;
+  eduStatus: EduStatus;
+  isEmailVerified: boolean;
+  isPhoneVerified: boolean;
+  isAccountActive: boolean;
+
+  // From UserData
+  userDataId: string;
+  fullName: string;
   avatar?: string;
-  isVerified?: boolean;
+  schoolEmail?: string;
+  committee: Committee | null;
+  skills: Skill[];
+  membershipStatus: "pending" | "approved" | "suspended";
+  profileCompleted: boolean;
 }
 
 export interface SigninCredentials {
-  email: string;
+  identifier: string; // personal email or phone number
   password: string;
-  rememberMe?: boolean;
 }
 
 export interface SignupData {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
   confirmPassword: string;
-  accountType: "STUDENT" | "FACULTY";
+  eduStatus: EduStatus;
+  phone: PhoneNumber; // required
+  avatar?: string;
+  schoolEmail?: string; // optional — students with institutional email
+  committee?: Committee; // optional at signup, editable after
+  skills?: Skill[]; // optional at signup, editable after
 }
 
 export interface AuthError {
   message: string;
-  field?: keyof SigninCredentials | keyof SignupData | "general";
+  field?: string;
 }
 
 /**
@@ -57,16 +85,17 @@ interface AuthContextType {
 
   signin: (credentials: SigninCredentials) => Promise<void>;
   signup: (data: SignupData) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
-  verify: (token: string) => Promise<void>;
-  resetPassword: (token: string, newPassword: string) => Promise<void>;
+  verifyEmail: (code: string, email: string) => Promise<void>;
+  resendVerification: (email: string) => Promise<void>;
+  verifyResetOtp: (email: string, code: string) => Promise<string>;
+  resetPassword: (resetToken: string, newPassword: string) => Promise<void>;
   clearError: () => void;
 }
 
 // ─── 2. Helpers ──────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "diuscadi_user";
 const TOKEN_KEY = "diuscadi_token";
 
 const storage = {
@@ -81,26 +110,77 @@ const storage = {
 };
 
 const clearStoredSession = () => {
-  storage.remove(STORAGE_KEY);
   storage.remove(TOKEN_KEY);
 };
 
-const ROLE_REDIRECTS: Record<User["role"], string> = {
-  STUDENT: "/dashboard",
-  FACULTY: "/dashboard",
-  ADMIN: "/admin/analytics",
-  WEBMASTER: "/admin/system",
+export const ROLE_REDIRECTS: Record<AccountRole, string> = {
+  participant: "/home",
+  moderator: "/home",
+  admin: "/admin/analytics",
+  webmaster: "/admin/system",
 };
 
-// ─── 3. Context ───────────────────────────────────────────────────────────────
+// ─── 4. API helper ────────────────────────────────────────────────────────────
+
+async function apiFetch<T>(
+  url: string,
+  options: RequestInit = {},
+  token?: string | null,
+): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(url, { ...options, headers });
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error ?? data.message ?? "Request failed");
+  }
+  return data as T;
+}
+
+// ─── 5. Map /api/auth/me response → User ─────────────────────────────────────
+
+function parseUserFromMe(
+  vault: Record<string, unknown>,
+  userData: Record<string, unknown>,
+): User {
+  return {
+    // From Vault
+    id: vault._id as string,
+    email: vault.email as string,
+    phone: vault.phone as PhoneNumber,
+    role: vault.role as AccountRole,
+    eduStatus: vault.eduStatus as EduStatus,
+    isEmailVerified: vault.isEmailVerified as boolean,
+    isPhoneVerified: vault.isPhoneVerified as boolean,
+    isAccountActive: vault.isAccountActive as boolean,
+
+    // From UserData
+    userDataId: userData._id as string,
+    fullName: userData.fullName as string,
+    avatar: userData.avatar as string | undefined,
+    schoolEmail: userData.schoolEmail as string | undefined,
+    committee: (userData.committee ?? null) as Committee | null,
+    skills: (userData.skills ?? []) as Skill[],
+    membershipStatus: (userData.membershipStatus ??
+      "pending") as User["membershipStatus"],
+    profileCompleted: userData.profileCompleted as boolean,
+  };
+}
+
+// ─── 3. Context type ─────────────────────────────────────────────────────────
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ─── 4. Provider ──────────────────────────────────────────────────────────────
+// ─── 6. Provider ──────────────────────────────────────────────────────────────
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false); // action-level loading only
+  const [isLoading, setIsLoading] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("pending");
   const [error, setError] = useState<AuthError | null>(null);
   const router = useRouter();
@@ -109,43 +189,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // ── Session Restore on Mount ──────────────────────────────────────────────
   //
-  // Flow:
-  //   1. Read stored user + token from localStorage (SSR-safe)
-  //   2. If either is missing → unauthenticated immediately (no flash)
-  //   3. If both exist → hit /api/auth/me to validate the token server-side
-  //      so an expired/revoked token never passes isAuthenticated checks
-  //   4. On success → restore user, set sessionStatus = "restored"
-  //   5. On failure → clear storage, set sessionStatus = "unauthenticated"
-  //
-  // This runs exactly once on mount. All subsequent auth state changes go
-  // through signin / logout / etc., which update sessionStatus themselves.
+  // Reads JWT from localStorage → hits /api/auth/me to validate server-side.
+  // An expired or revoked token is caught here and clears storage silently.
   useEffect(() => {
     const restoreSession = async () => {
-      const storedUser = storage.get(STORAGE_KEY);
       const storedToken = storage.get(TOKEN_KEY);
 
-      if (!storedUser || !storedToken) {
+      if (!storedToken) {
         setSessionStatus("unauthenticated");
         return;
       }
 
       try {
-        // TODO: replace mock with real validation
-        // const res = await fetch("/api/auth/me", {
-        //   headers: { Authorization: `Bearer ${storedToken}` },
-        // });
-        // if (!res.ok) throw new Error("Session expired");
-        // const { user: freshUser } = await res.json();
-        // setUser(freshUser);
-        // storage.set(STORAGE_KEY, JSON.stringify(freshUser));
+        const { vault, userData } = await apiFetch<{
+          vault: Record<string, unknown>;
+          userData: Record<string, unknown>;
+        }>("/api/auth/me", {}, storedToken);
 
-        // Mock: simulate network latency so the splash is visible during dev
-        await new Promise((r) => setTimeout(r, 600));
-        const parsed: User = JSON.parse(storedUser);
-        setUser(parsed);
+        setUser(parseUserFromMe(vault, userData));
         setSessionStatus("restored");
       } catch {
-        // Expired or invalid token — clear everything silently
+        // Expired / invalid token — clear silently
         clearStoredSession();
         setUser(null);
         setSessionStatus("unauthenticated");
@@ -153,48 +217,66 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     restoreSession();
-  }, []); // intentionally empty — run once on mount only
+  }, []); // run once on mount only
 
-  // ── Methods ──────────────────────────────────────────────────────────────────
+  // ── Signin ────────────────────────────────────────────────────────────────
 
   const signin = useCallback(
     async (credentials: SigninCredentials) => {
       setIsLoading(true);
       setError(null);
       try {
-        // TODO: replace with real API call
-        // const res = await fetch("/api/auth/signin", {
-        //   method: "POST",
-        //   headers: { "Content-Type": "application/json" },
-        //   body: JSON.stringify(credentials),
-        // });
-        // if (!res.ok) throw new Error((await res.json()).message);
-        // const { user: authedUser, token } = await res.json();
+        const res = await fetch("/api/auth/signin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(credentials),
+        });
 
-        const authedUser: User = {
-          id: "1",
-          name: "John Admin",
-          email: credentials.email,
-          role: "ADMIN",
-          isVerified: true,
-        };
-        const token = "mock_token_abc123";
+        const data = await res.json();
 
+        // ── Unverified account — redirect to verify page ──────────────────
+        if (res.status === 403 && data.verified === false) {
+          router.push(data.redirectTo);
+          return;
+        }
+
+        // ── Cooldown enforced by server ───────────────────────────────────
+        if (res.status === 429 && data.verified === false) {
+          setError({
+            message: data.error,
+            field: "general",
+          });
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error(data.error ?? "Sign in failed.");
+        }
+
+        // ── Success — fetch full profile ──────────────────────────────────
+        const { vault, userData } = await apiFetch<{
+          vault: Record<string, unknown>;
+          userData: Record<string, unknown>;
+        }>("/api/auth/me", {}, data.token);
+
+        const authedUser = parseUserFromMe(vault, userData);
+        storage.set(TOKEN_KEY, data.token);
         setUser(authedUser);
         setSessionStatus("restored");
-        storage.set(STORAGE_KEY, JSON.stringify(authedUser));
-        storage.set(TOKEN_KEY, token);
         router.push(ROLE_REDIRECTS[authedUser.role]);
       } catch (err: unknown) {
-        const message =
-          err instanceof Error ? err.message : "Invalid email or password.";
-        setError({ message, field: "general" });
+        setError({
+          message: err instanceof Error ? err.message : "Invalid credentials.",
+          field: "general",
+        });
       } finally {
         setIsLoading(false);
       }
     },
     [router],
   );
+
+  // ── Signup ────────────────────────────────────────────────────────────────
 
   const signup = useCallback(
     async (data: SignupData) => {
@@ -204,15 +286,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (data.password !== data.confirmPassword) {
           throw new Error("Passwords do not match.");
         }
-        // TODO: replace with real API call
-        // const res = await fetch("/api/auth/signup", {
-        //   method: "POST",
-        //   headers: { "Content-Type": "application/json" },
-        //   body: JSON.stringify(data),
-        // });
-        // if (!res.ok) throw new Error((await res.json()).message);
 
-        router.push("/auth/verify");
+        await apiFetch("/api/auth/signup", {
+          method: "POST",
+          body: JSON.stringify({
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            password: data.password,
+            eduStatus: data.eduStatus,
+            phone: data.phone,
+            avatar: data.avatar,
+            schoolEmail: data.schoolEmail,
+            committee: data.committee,
+            skills: data.skills,
+          }),
+        });
+
+        // Redirect to verify page — pass email so the form can pre-fill it
+        router.push(`/auth/verify?email=${encodeURIComponent(data.email)}`);
       } catch (err: unknown) {
         const message =
           err instanceof Error
@@ -226,23 +318,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [router],
   );
 
-  const logout = useCallback(() => {
-    setUser(null);
-    setError(null);
-    setSessionStatus("unauthenticated");
-    clearStoredSession();
-    router.push("/auth");
+  // ── Logout ────────────────────────────────────────────────────────────────
+
+  const logout = useCallback(async () => {
+    const token = storage.get(TOKEN_KEY);
+    try {
+      if (token) {
+        await apiFetch("/api/auth/signout", { method: "POST" }, token);
+      }
+    } catch {
+      // Swallow — we clear client state regardless
+    } finally {
+      clearStoredSession();
+      setUser(null);
+      setError(null);
+      setSessionStatus("unauthenticated");
+      router.push("/auth");
+    }
   }, [router]);
+
+  // ── Forgot Password ───────────────────────────────────────────────────────
 
   const forgotPassword = useCallback(async (email: string) => {
     setError(null);
     try {
-      // TODO: replace with real API call
-      // await fetch("/api/auth/forgot-password", {
-      //   method: "POST",
-      //   body: JSON.stringify({ email }),
-      // });
-      console.log("Password reset sent to:", email);
+      await apiFetch("/api/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to send reset email.";
@@ -251,19 +354,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const verify = useCallback(
-    async (token: string) => {
+  // ── Verify Email (OTP) ────────────────────────────────────────────────────
+
+  const verifyEmail = useCallback(
+    async (code: string, email: string) => {
       setIsLoading(true);
       setError(null);
       try {
-        // TODO: replace with real API call
-        // const res = await fetch(`/api/auth/verify?token=${token}`);
-        // if (!res.ok) throw new Error("Invalid or expired verification link.");
-        console.log("Verifying token:", token);
+        await apiFetch("/api/auth/verify", {
+          method: "POST",
+          body: JSON.stringify({ email, code }),
+        });
         router.push("/auth");
       } catch (err: unknown) {
         const message =
-          err instanceof Error ? err.message : "Verification failed.";
+          err instanceof Error
+            ? err.message
+            : "Verification failed. Check your code and try again.";
         setError({ message, field: "general" });
         throw err;
       } finally {
@@ -273,22 +380,64 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [router],
   );
 
+  // ── Resend Verification ───────────────────────────────────────────────────
+
+  const resendVerification = useCallback(async (email: string) => {
+    setError(null);
+    try {
+      await apiFetch("/api/auth/resend-verification", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Could not resend code.";
+      setError({ message, field: "general" });
+      throw err;
+    }
+  }, []);
+
+  // ── Verify Reset OTP → returns resetToken ─────────────────────────────────
+
+  const verifyResetOtp = useCallback(
+    async (email: string, code: string): Promise<string> => {
+      setError(null);
+      try {
+        const { resetToken } = await apiFetch<{ resetToken: string }>(
+          "/api/auth/verify-reset",
+          {
+            method: "POST",
+            body: JSON.stringify({ email, code }),
+          },
+        );
+        return resetToken;
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "Invalid or expired code.";
+        setError({ message, field: "general" });
+        throw err;
+      }
+    },
+    [],
+  );
+
+  // ── Reset Password ────────────────────────────────────────────────────────
+
   const resetPassword = useCallback(
-    async (token: string, newPassword: string) => {
+    async (resetToken: string, newPassword: string) => {
       setIsLoading(true);
       setError(null);
       try {
-        // TODO: replace with real API call
-        // const res = await fetch("/api/auth/reset-password", {
-        //   method: "POST",
-        //   body: JSON.stringify({ token, password: newPassword }),
-        // });
-        // if (!res.ok) throw new Error("Reset link is invalid or has expired.");
-        console.log("Resetting password with token:", token, newPassword);
+        await apiFetch("/api/auth/reset-password", {
+          method: "POST",
+          body: JSON.stringify({ resetToken, newPassword }),
+        });
         router.push("/auth");
       } catch (err: unknown) {
         const message =
-          err instanceof Error ? err.message : "Password reset failed.";
+          err instanceof Error
+            ? err.message
+            : "Password reset failed. Try requesting a new link.";
         setError({ message, field: "general" });
         throw err;
       } finally {
@@ -297,6 +446,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     },
     [router],
   );
+
+  // ── Provider value ────────────────────────────────────────────────────────
 
   return (
     <AuthContext.Provider
@@ -310,7 +461,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signup,
         logout,
         forgotPassword,
-        verify,
+        verifyEmail,
+        resendVerification,
+        verifyResetOtp,
         resetPassword,
         clearError,
       }}
@@ -320,7 +473,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// ─── 5. Hook ─────────────────────────────────────────────────────────────────
+// ─── 7. Hook ──────────────────────────────────────────────────────────────────
 
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);

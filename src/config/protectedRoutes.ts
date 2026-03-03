@@ -1,4 +1,4 @@
-export type UserRole = "STUDENT" | "FACULTY" | "ADMIN" | "WEBMASTER";
+export type UserRole = "participant" | "moderator" | "admin" | "webmaster";
 
 interface RouteConfig {
   path: string;
@@ -8,9 +8,9 @@ interface RouteConfig {
 }
 
 export const ROUTE_MANIFEST: RouteConfig[] = [
-  { path: "/admin", authRequired: true, roles: ["ADMIN", "WEBMASTER"] },
+  { path: "/admin", authRequired: true, roles: ["admin", "webmaster"] },
   { path: "/profile", authRequired: true },
   { path: "/settings", authRequired: true },
   { path: "/tickets", authRequired: true },
-  { path: "/auth", authRequired: false, redirect: "/admin/analytics" }, // Redirect if already logged in
+  { path: "/auth", authRequired: false, redirect: "/home" }, // Redirect if already logged in
 ];
