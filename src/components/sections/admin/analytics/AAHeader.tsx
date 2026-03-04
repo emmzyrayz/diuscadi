@@ -16,7 +16,7 @@ export const AdminAnalyticsHeader: React.FC = () => {
       {/* 1. Identity & Narrative */}
       <div className="space-y-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center text-primary shadow-xl shadow-slate-900/20 border border-white/10">
+          <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center text-secondary shadow-xl shadow-slate-900/20 border border-white/10">
             <LuChartBar className="w-7 h-7" />
           </div>
           <div>
@@ -78,7 +78,7 @@ export const AdminAnalyticsHeader: React.FC = () => {
         </div>
 
         {/* ExportAnalyticsButton */}
-        <button className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl hover:bg-primary hover:text-slate-900 transition-all shadow-2xl shadow-slate-900/10 group">
+        <button className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl hover:bg-primary hover:text-slate-500 transition-all shadow-2xl shadow-slate-900/10 group">
           <LuDownload className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
           <span className="text-[11px] font-black uppercase tracking-[0.15em]">
             Generate Report

@@ -211,7 +211,6 @@ export async function POST(req: NextRequest) {
         eventsRegistered: 0,
         eventsAttended: 0,
       },
-      inviteCodes: [],
       createdAt: now,
       updatedAt: now,
     };
