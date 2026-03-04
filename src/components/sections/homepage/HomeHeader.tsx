@@ -13,7 +13,17 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "../../../lib/utils";
-import type { User } from "@/app/home/page";
+// import type { User } from "@/app/home/page";
+
+export interface User {
+  name: string;
+  avatar: string;
+  status: string;
+  skill: string;
+  interest: string;
+  projectsParticipated: string;
+  points: number;
+}
 
 interface DropdownItemProps {
   icon: React.ReactNode;
