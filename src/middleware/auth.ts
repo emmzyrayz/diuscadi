@@ -10,7 +10,9 @@ export interface AuthenticatedRequest extends NextRequest {
 
 type RouteHandler = (
   req: AuthenticatedRequest,
-  context?: { params?: Record<string, string> },
+  context?: {
+    params?: Promise<Record<string, string>> | Record<string, string>;
+  },
 ) => Promise<NextResponse>;
 
 /**
@@ -22,7 +24,9 @@ type RouteHandler = (
 export function withAuth(handler: RouteHandler) {
   return async (
     req: NextRequest,
-    context?: { params?: Record<string, string> },
+    context?: {
+      params?: Promise<Record<string, string>> | Record<string, string>;
+    },
   ): Promise<NextResponse> => {
     try {
       const authHeader = req.headers.get("authorization");
