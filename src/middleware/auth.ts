@@ -30,11 +30,21 @@ export function withAuth(handler: RouteHandler) {
   ): Promise<NextResponse> => {
     try {
       const authHeader = req.headers.get("authorization");
+      const cookieToken = req.cookies.get("diuscadi_token")?.value;
       if (!authHeader?.startsWith("Bearer ")) {
         return NextResponse.json({ error: "Missing token" }, { status: 401 });
       }
 
-      const token = authHeader.slice(7);
+      let token = "";
+      if (authHeader?.startsWith("Bearer ")) {
+        token = authHeader.slice(7);
+      } else if (cookieToken) {
+        token = cookieToken;
+      }
+
+      if (!token) {
+        return NextResponse.json({ error: "Missing token" }, { status: 401 });
+      }
       let payload: JWTPayload;
 
       try {

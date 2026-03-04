@@ -194,7 +194,23 @@ export async function POST(req: NextRequest) {
       tokenVersion: vault.tokenVersion,
     });
 
-    return NextResponse.json({ token: jwtToken });
+    // 1. Create the response object
+    const response = NextResponse.json({
+      success: true,
+      token: jwtToken, // Keep this for client-side context if needed
+      role: vault.role,
+    });
+
+    // 2. Set the HTTP-Only Cookie
+    response.cookies.set("diuscadi_token", jwtToken, {
+      httpOnly: true, // Prevents XSS (JavaScript can't read this)
+      secure: process.env.NODE_ENV === "production", // Only over HTTPS in prod
+      sameSite: "lax", // Balance between security and usability
+      path: "/", // Available across the whole site
+      maxAge: 60 * 60 * 24 * 7, // 7 Days (Matches your SESSION_DURATION_MINUTES)
+    });
+
+    return response;
   } catch (err) {
     console.error("[signin]", err);
     return NextResponse.json(

@@ -1,3 +1,4 @@
+import { EventProvider } from '@/context/EventContext';
 import { ProviderConfig } from './types';
 import { NotFoundProvider } from '@/context/notFoundContext';
 
@@ -7,13 +8,13 @@ import { NotFoundProvider } from '@/context/notFoundContext';
  * Earlier providers wrap later ones
  */
 export const providerRegistry: ProviderConfig[] = [
-  // {
-  //   id: 'auth',
-  //   provider: {
-  //     component: AuthProvider,
-  //   },
-  //   enabled: true,
-  // },
+  {
+    id: 'event',
+    provider: {
+      component: EventProvider,
+    },
+    enabled: true,
+  },
   {
     id: 'notFound',
     provider: {

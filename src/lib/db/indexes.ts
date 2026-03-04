@@ -1,5 +1,5 @@
 // lib/db/indexes.ts
-// Run once after deploy: npx ts-node lib/db/indexes.ts
+// Run once after deploy: npx ts-node --project tsconfig.json lib/db/indexes.ts
 
 import { getDb } from "../mongodb";
 
@@ -32,39 +32,38 @@ export async function createIndexes() {
     { key: { resetPasswordCode: 1 }, sparse: true, name: "vault_reset_otp" },
     { key: { resetPasswordToken: 1 }, sparse: true, name: "vault_reset_token" },
   ]);
-  console.log("✓ vault indexes");
+  console.log("✓ vault");
 
   // ── userData ───────────────────────────────────────────────────────────────
   await db.collection("userData").createIndexes([
-    { key: { vaultId: 1 }, unique: true, name: "userData_vaultId_unique" },
+    { key: { vaultId: 1 }, unique: true, name: "userData_vaultId" },
     {
       key: { signupInviteCode: 1 },
       unique: true,
       sparse: true,
-      name: "userData_inviteCode_unique",
+      name: "userData_inviteCode",
     },
     {
       key: { schoolEmail: 1 },
       unique: true,
       sparse: true,
-      name: "userData_schoolEmail_unique",
+      name: "userData_schoolEmail",
     },
   ]);
-  console.log("✓ userData indexes");
+  console.log("✓ userData");
 
   // ── sessions ───────────────────────────────────────────────────────────────
   await db.collection("sessions").createIndexes([
-    { key: { token: 1 }, unique: true, name: "sessions_token_unique" },
+    { key: { token: 1 }, unique: true, name: "sessions_token" },
     { key: { vaultId: 1 }, name: "sessions_vaultId" },
     { key: { expiresAt: 1 }, expireAfterSeconds: 0, name: "sessions_ttl" },
   ]);
-  console.log("✓ sessions indexes");
+  console.log("✓ sessions");
 
   // ── applications ───────────────────────────────────────────────────────────
   await db.collection("applications").createIndexes([
     { key: { userId: 1 }, name: "applications_userId" },
     { key: { status: 1 }, name: "applications_status" },
-    // Prevent duplicate pending applications for the same type+value per user
     {
       key: { userId: 1, type: 1, value: 1, status: 1 },
       unique: true,
@@ -72,9 +71,46 @@ export async function createIndexes() {
       name: "applications_no_duplicate_pending",
     },
   ]);
-  console.log("✓ applications indexes");
+  console.log("✓ applications");
 
-  console.log("\nAll indexes created.");
+  // ── events ─────────────────────────────────────────────────────────────────
+  await db.collection("events").createIndexes([
+    { key: { slug: 1 }, unique: true, name: "events_slug" },
+    { key: { status: 1 }, name: "events_status" },
+    { key: { eventDate: 1 }, name: "events_eventDate" },
+    { key: { registrationDeadline: 1 }, name: "events_regDeadline" },
+    { key: { targetEduStatus: 1 }, name: "events_targetEduStatus" },
+    { key: { locationScope: 1 }, name: "events_locationScope" },
+    { key: { requiredSkills: 1 }, name: "events_skills" },
+    { key: { category: 1 }, name: "events_category" },
+  ]);
+  console.log("✓ events");
+
+  // ── ticketTypes ────────────────────────────────────────────────────────────
+  await db.collection("ticketTypes").createIndexes([
+    { key: { eventId: 1 }, name: "ticketTypes_eventId" },
+    { key: { eventId: 1, name: 1 }, name: "ticketTypes_eventId_name" },
+  ]);
+  console.log("✓ ticketTypes");
+
+  // ── eventRegistrations ─────────────────────────────────────────────────────
+  await db.collection("eventRegistrations").createIndexes([
+    // Prevent duplicate registration for same user + event
+    {
+      key: { userId: 1, eventId: 1 },
+      unique: true,
+      name: "reg_user_event_unique",
+    },
+    { key: { inviteCode: 1 }, unique: true, name: "reg_inviteCode_unique" },
+    { key: { eventId: 1 }, name: "reg_eventId" },
+    { key: { userId: 1 }, name: "reg_userId" },
+    { key: { status: 1 }, name: "reg_status" },
+    // Referral tracking
+    { key: { referralCodeUsed: 1 }, sparse: true, name: "reg_referral" },
+  ]);
+  console.log("✓ eventRegistrations");
+
+  console.log("\n✅ All indexes created.");
 }
 
 if (require.main === module) {
