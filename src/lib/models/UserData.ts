@@ -33,6 +33,17 @@ export interface UserDataDocument {
   // ── Org profile ───────────────────────────────────────────────────────────
   eduStatus: EduStatus;
 
+  Institution?: {
+    Type?: "University" | "Polytechnic";
+    name?: string;
+    department?: string;
+    faculty?: string;
+    level?: string;
+    semester?: "First" | "Second";
+    graduationYear?: number; // graduates only
+    currentStatus?: string; // graduates only
+  };
+
   // One committee per user. null = not yet assigned.
   committee: Committee | null;
 
@@ -43,11 +54,6 @@ export interface UserDataDocument {
   profileCompleted: boolean;
 
   profile?: {
-    institution?: string;
-    department?: string;
-    level?: string; // students only
-    graduationYear?: number; // graduates only
-    currentStatus?: string; // graduates only
     bio?: string;
   };
 

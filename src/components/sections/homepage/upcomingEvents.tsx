@@ -2,45 +2,19 @@
 import React from "react";
 import { motion } from "framer-motion";
 import {
-//   LuCalendar,
   LuMapPin,
   LuClock,
   LuExternalLink,
   LuCircleCheck,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
+import type { ScheduledEvent } from "@/app/home/page";
 
-const userEvents = [
-  {
-    date: "18",
-    month: "FEB",
-    title: "DIUSCADI Orientation: New Members",
-    time: "10:00 AM WAT",
-    location: "Virtual (Zoom)",
-    status: "Registered",
-    type: "Webinar",
-  },
-  {
-    date: "24",
-    month: "FEB",
-    title: "CV Clinic & Portfolio Review",
-    time: "02:00 PM WAT",
-    location: "Lagos Hub / Hybrid",
-    status: "Confirmed",
-    type: "Workshop",
-  },
-  {
-    date: "02",
-    month: "MAR",
-    title: "Networking Dinner: Tech Founders",
-    time: "06:00 PM WAT",
-    location: "Victoria Island, Lagos",
-    status: "On Waitlist",
-    type: "Physical",
-  },
-];
+interface UpcomingEventsProps {
+  events: ScheduledEvent[];
+}
 
-export const UpcomingEvents = () => {
+export const UpcomingEvents = ({ events }: UpcomingEventsProps) => {
   return (
     <section
       className={cn(
@@ -87,7 +61,7 @@ export const UpcomingEvents = () => {
       </div>
 
       <div className="space-y-4">
-        {userEvents.map((event, index) => (
+        {events.map((event, index) => (
           <motion.div
             key={index}
             initial={{ opacity: 0, x: -20 }}
@@ -111,7 +85,7 @@ export const UpcomingEvents = () => {
               "border-l-primary",
             )}
           >
-            {/* Date Block */}
+            {/* Date */}
             <div
               className={cn(
                 "flex",
@@ -143,7 +117,7 @@ export const UpcomingEvents = () => {
               </span>
             </div>
 
-            {/* Content Block */}
+            {/* Content */}
             <div
               className={cn("flex-1", "md:px-8", "text-center", "md:text-left")}
             >
@@ -206,17 +180,15 @@ export const UpcomingEvents = () => {
                 )}
               >
                 <div className={cn("flex", "items-center", "gap-1.5")}>
-                  <LuClock className={cn("w-4", "h-4")} />
-                  {event.time}
+                  <LuClock className={cn("w-4", "h-4")} /> {event.time}
                 </div>
                 <div className={cn("flex", "items-center", "gap-1.5")}>
-                  <LuMapPin className={cn("w-4", "h-4")} />
-                  {event.location}
+                  <LuMapPin className={cn("w-4", "h-4")} /> {event.location}
                 </div>
               </div>
             </div>
 
-            {/* Action Block */}
+            {/* Action */}
             <div className={cn("mt-6", "md:mt-0")}>
               <button
                 className={cn(
@@ -235,8 +207,7 @@ export const UpcomingEvents = () => {
                   "group-hover:shadow-primary/20 cursor-pointer",
                 )}
               >
-                Join Info
-                <LuExternalLink className={cn("w-4", "h-4")} />
+                Join Info <LuExternalLink className={cn("w-4", "h-4")} />
               </button>
             </div>
           </motion.div>

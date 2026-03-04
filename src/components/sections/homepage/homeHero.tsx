@@ -1,31 +1,17 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
-import {
-  LuCalendar,
-  LuArrowRight,
-  LuCirclePlay,
-  //   LuCircleCheck,
-} from "react-icons/lu";
+import { LuCalendar, LuArrowRight, LuCirclePlay } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import Image1 from "@/assets/img/downloads/Diuscadi-2023-Testimonial-Thumbnail-1920x1272.webp"
+import type { FeaturedEvent, CurrentTask } from "@/app/home/page";
 
-export const HomeHero = () => {
-  // This data would eventually come from your backend/database
-  const featuredEvent = {
-    title: "Graduate Career Series: Lagos 2026",
-    date: "March 15, 2026",
-    daysLeft: 3,
-    image: Image1,
-  };
+interface HomeHeroProps {
+  featuredEvent: FeaturedEvent;
+  currentTask: CurrentTask;
+}
 
-  const currentTask = {
-    title: "CV & Cover Letter Mastery",
-    category: "Professional Branding",
-    progress: 65,
-  };
-
+export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
   return (
     <section
       className={cn(
@@ -39,7 +25,7 @@ export const HomeHero = () => {
       )}
     >
       <div className={cn("grid", "grid-cols-1", "lg:grid-cols-3", "gap-6")}>
-        {/* MAIN ACTION: Featured Event / Announcement (Spans 2 columns) */}
+        {/* Featured Event */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -58,17 +44,13 @@ export const HomeHero = () => {
             "md:p-10",
           )}
         >
-          {/* Background Image with Overlay */}
           <Image
             src={featuredEvent.image}
             alt="Featured Event"
-            width={500}
-            height={300}
+            fill
             className={cn(
               "absolute",
               "inset-0",
-              "w-full",
-              "h-full",
               "object-cover",
               "opacity-40",
               "group-hover:scale-105",
@@ -87,7 +69,6 @@ export const HomeHero = () => {
             )}
           />
 
-          {/* Content */}
           <div className={cn("relative", "z-10")}>
             <div className={cn("flex", "items-center", "gap-3", "mb-4")}>
               <span
@@ -182,7 +163,7 @@ export const HomeHero = () => {
           </div>
         </motion.div>
 
-        {/* SECONDARY ACTION: Continue Learning / Resume Progress */}
+        {/* Continue Learning */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -238,7 +219,6 @@ export const HomeHero = () => {
               {currentTask.title}
             </h4>
 
-            {/* Progress Bar Container */}
             <div className="space-y-3">
               <div
                 className={cn(

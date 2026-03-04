@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "../../../lib/utils";
+import type { User } from "@/app/home/page";
 
 interface DropdownItemProps {
   icon: React.ReactNode;
@@ -22,18 +23,12 @@ interface DropdownItemProps {
   bg: string;
 }
 
-export const HomeHeader = () => {
-  const [isOpen, setIsOpen] = useState(false);
+interface HomeHeaderProps {
+  user: User;
+}
 
-  const user = {
-    name: "Nnamdi",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Nnamdi",
-    status: "Final Year Student",
-    skill: "Web Dev",
-    Interest: "Tech",
-    Projects_participated: "6",
-    points: 450,
-  };
+export const HomeHeader = ({ user }: HomeHeaderProps) => {
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <header
@@ -58,7 +53,7 @@ export const HomeHeader = () => {
         )}
       >
         <div className={cn("flex", "items-center", "justify-between", "gap-4")}>
-          {/* LEFT: Greeting (Keep it minimal) */}
+          {/* LEFT: Greeting */}
           <div className={cn("flex", "items-center", "gap-3", "min-w-0")}>
             <div className={cn("relative", "shrink-0")}>
               <div
@@ -121,7 +116,7 @@ export const HomeHeader = () => {
             </div>
           </div>
 
-          {/* MIDDLE: Search Bar (Hidden on Mobile, visible on Tab/Desktop) */}
+          {/* MIDDLE: Search Bar */}
           <div
             className={cn("hidden", "sm:flex", "flex-1", "max-w-md", "mx-4")}
           >
@@ -161,12 +156,10 @@ export const HomeHeader = () => {
 
           {/* RIGHT: Actions */}
           <div className={cn("flex", "items-center", "gap-2", "md:gap-3")}>
-            {/* Search Toggle (Mobile Only) */}
             <button className={cn("sm:hidden", "p-2", "text-slate-600")}>
               <Search className={cn("w-5", "h-5")} />
             </button>
 
-            {/* Notifications */}
             <button
               className={cn(
                 "relative",
@@ -200,7 +193,6 @@ export const HomeHeader = () => {
               />
             </button>
 
-            {/* User Dropdown Trigger */}
             <div className="relative">
               <button
                 onClick={() => setIsOpen(!isOpen)}
@@ -223,16 +215,13 @@ export const HomeHeader = () => {
                 />
               </button>
 
-              {/* DROPDOWN MENU */}
               <AnimatePresence>
                 {isOpen && (
                   <>
-                    {/* Backdrop for closing */}
                     <div
                       className={cn("fixed", "inset-0", "z-[-1]")}
                       onClick={() => setIsOpen(false)}
                     />
-
                     <motion.div
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -303,7 +292,7 @@ export const HomeHeader = () => {
                         </span>
                       </div>
 
-                      {/* User Stats/Metadata Section */}
+                      {/* Journey Stats */}
                       <div
                         className={cn(
                           "space-y-1",
@@ -325,7 +314,6 @@ export const HomeHeader = () => {
                         >
                           My Journey
                         </p>
-
                         <DropdownItem
                           icon={<Award className={cn("w-4", "h-4")} />}
                           label="Status"
@@ -343,14 +331,14 @@ export const HomeHeader = () => {
                         <DropdownItem
                           icon={<Star className={cn("w-4", "h-4")} />}
                           label="Interest"
-                          value={user.Interest}
+                          value={user.interest}
                           color="text-purple-600"
                           bg="bg-purple-50"
                         />
                         <DropdownItem
                           icon={<Briefcase className={cn("w-4", "h-4")} />}
                           label="Projects"
-                          value={`${user.Projects_participated} Completed`}
+                          value={`${user.projectsParticipated} Completed`}
                           color="text-green-600"
                           bg="bg-green-50"
                         />
@@ -395,9 +383,6 @@ export const HomeHeader = () => {
   );
 };
 
-
-
-// Helper component for clean layout
 const DropdownItem = ({ icon, label, value, color, bg }: DropdownItemProps) => (
   <div
     className={cn(

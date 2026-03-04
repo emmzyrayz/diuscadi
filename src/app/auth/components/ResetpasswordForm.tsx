@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LuLock,
@@ -57,9 +57,12 @@ export const ResetPasswordForm: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Token + email carried from forgot-password page via URL params
-  const token = searchParams.get("token") ?? "";
-  const email = searchParams.get("email") ?? "";
+  // ── Read params directly — no useEffect needed ───────────────────────────
+  // The parent <Suspense> boundary ensures useSearchParams() is populated
+  // before this component renders. useMemo reads synchronously with no
+  // cascading setState.
+  const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
+  const email = useMemo(() => searchParams.get("email") ?? "", [searchParams]);
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -69,7 +72,9 @@ export const ResetPasswordForm: React.FC = () => {
 
   const strength = getStrength(password);
 
-  // ── Guard: no token means user landed here directly — send back ───────────
+  
+
+  // ── Guard: no token after hydration — user landed here directly ───────────
   if (!token) {
     return (
       <div className="flex flex-col items-center gap-4 py-4">
@@ -141,8 +146,6 @@ export const ResetPasswordForm: React.FC = () => {
     try {
       await resetPassword(token, password);
       setDone(true);
-      // AuthContext.resetPassword already redirects to /auth on success,
-      // but we set done=true first so the success screen shows briefly.
     } catch {
       // error already set in AuthContext
     }
@@ -152,7 +155,7 @@ export const ResetPasswordForm: React.FC = () => {
 
   return (
     <form className="w-full space-y-5" onSubmit={handleSubmit}>
-      {/* ── Sent-to badge ────────────────────────────────────────────────── */}
+      {/* ── Sent-to badge ──────────────────────────────────────────────── */}
       {email && (
         <div className="flex items-center gap-2.5 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl">
           <LuCircleCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -163,7 +166,7 @@ export const ResetPasswordForm: React.FC = () => {
         </div>
       )}
 
-      {/* ── API error banner ─────────────────────────────────────────────── */}
+      {/* ── API error banner ──────────────────────────────────────────── */}
       <AnimatePresence>
         {displayError && (
           <motion.div
@@ -178,7 +181,7 @@ export const ResetPasswordForm: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* ── Password field ───────────────────────────────────────────────── */}
+      {/* ── Password field ────────────────────────────────────────────── */}
       <div className="space-y-3">
         <AuthInput
           label="New Password"
@@ -196,7 +199,7 @@ export const ResetPasswordForm: React.FC = () => {
           <p className="text-[9px] font-bold text-red-400 px-1">{pwError}</p>
         )}
 
-        {/* Strength meter — animates in when user starts typing */}
+        {/* Strength meter */}
         <AnimatePresence>
           {password.length > 0 && (
             <motion.div
@@ -206,7 +209,6 @@ export const ResetPasswordForm: React.FC = () => {
               transition={{ duration: 0.2, ease: EASE }}
               className="space-y-2.5 px-1 overflow-hidden"
             >
-              {/* Segmented bar */}
               <div className="flex gap-1">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div
@@ -220,7 +222,6 @@ export const ResetPasswordForm: React.FC = () => {
                 ))}
               </div>
 
-              {/* Strength label */}
               <div className="flex items-center justify-between">
                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
                   Strength
@@ -232,7 +233,6 @@ export const ResetPasswordForm: React.FC = () => {
                 </span>
               </div>
 
-              {/* Rules checklist */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-0.5">
                 {RULES.map((rule) => {
                   const passed = rule.test(password);
@@ -244,9 +244,7 @@ export const ResetPasswordForm: React.FC = () => {
                         <LuCircle className="w-3 h-3 text-slate-200 shrink-0" />
                       )}
                       <span
-                        className={`text-[8px] font-bold uppercase tracking-wider transition-colors ${
-                          passed ? "text-slate-600" : "text-slate-300"
-                        }`}
+                        className={`text-[8px] font-bold uppercase tracking-wider transition-colors ${passed ? "text-slate-600" : "text-slate-300"}`}
                       >
                         {rule.label}
                       </span>
@@ -259,7 +257,7 @@ export const ResetPasswordForm: React.FC = () => {
         </AnimatePresence>
       </div>
 
-      {/* ── Confirm password ─────────────────────────────────────────────── */}
+      {/* ── Confirm password ──────────────────────────────────────────── */}
       <div className="space-y-1.5">
         <AuthInput
           label="Confirm New Password"
@@ -280,7 +278,7 @@ export const ResetPasswordForm: React.FC = () => {
         )}
       </div>
 
-      {/* ── Submit ───────────────────────────────────────────────────────── */}
+      {/* ── Submit ────────────────────────────────────────────────────── */}
       <button
         type="submit"
         disabled={isLoading}
@@ -304,4 +302,4 @@ export const ResetPasswordForm: React.FC = () => {
       </button>
     </form>
   );
-};
+};;

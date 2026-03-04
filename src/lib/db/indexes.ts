@@ -8,17 +8,12 @@ export async function createIndexes() {
 
   // ── vault ──────────────────────────────────────────────────────────────────
   await db.collection("vault").createIndexes([
-    // Primary signin identifier
     { key: { email: 1 }, unique: true, name: "vault_email_unique" },
-
-    // Second signin identifier — unique on the number itself
     {
       key: { "phone.phoneNumber": 1 },
       unique: true,
       name: "vault_phone_unique",
     },
-
-    // Verification + reset lookups (sparse = only index docs that have the field)
     {
       key: { emailVerificationCode: 1 },
       sparse: true,
@@ -48,8 +43,6 @@ export async function createIndexes() {
       sparse: true,
       name: "userData_inviteCode_unique",
     },
-
-    // Sparse so null/missing school emails don't collide
     {
       key: { schoolEmail: 1 },
       unique: true,
@@ -66,6 +59,20 @@ export async function createIndexes() {
     { key: { expiresAt: 1 }, expireAfterSeconds: 0, name: "sessions_ttl" },
   ]);
   console.log("✓ sessions indexes");
+
+  // ── applications ───────────────────────────────────────────────────────────
+  await db.collection("applications").createIndexes([
+    { key: { userId: 1 }, name: "applications_userId" },
+    { key: { status: 1 }, name: "applications_status" },
+    // Prevent duplicate pending applications for the same type+value per user
+    {
+      key: { userId: 1, type: 1, value: 1, status: 1 },
+      unique: true,
+      partialFilterExpression: { status: "pending" },
+      name: "applications_no_duplicate_pending",
+    },
+  ]);
+  console.log("✓ applications indexes");
 
   console.log("\nAll indexes created.");
 }
