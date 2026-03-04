@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { OtpInput } from "./OTPInput";
 import { useAuth } from "@/context/AuthContext";
+import { cn } from "../../../lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Tab = "code" | "link";
@@ -39,8 +40,6 @@ export const VerifyEmailView: React.FC = () => {
   const { verifyEmail, resendVerification, error, clearError } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const resentParam = searchParams.get("resent") === "true";
-  const [resentToast, setResentToast] = useState(resentParam);
 
   // URL params set by signup redirect
   const emailParam = searchParams.get("email") ?? "";
@@ -74,26 +73,19 @@ export const VerifyEmailView: React.FC = () => {
     return () => clearTimeout(id);
   }, [cooldown]);
 
-  // Auto-dismiss toast after 4 seconds
-  useEffect(() => {
-    if (!resentToast) return;
-    const id = setTimeout(() => setResentToast(false), 4000);
-    return () => clearTimeout(id);
-  }, [resentToast]);
-
   // ── Auto-verify magic link token on mount ───────────────────────────────────
-  // If ?token= is in the URL, attempt silent verification immediately.
-  // On success → show verified state.
-  // On failure → clear token from URL and fall back to code input with a notice.
+  // If ?token= is in the URL, hit GET /api/auth/verify?token= directly.
+  // Do NOT call verifyEmail() here — that hits the POST (OTP) endpoint and
+  // would either fail or interfere with the token lookup.
   useEffect(() => {
     if (!tokenParam) return;
 
     const verifyToken = async () => {
       setTokenState("checking");
       try {
-        await verifyEmail("", emailParam); // token flow: server reads token from URL
-        // Actual token verification via GET /api/auth/verify?token=
-        const res = await fetch(`/api/auth/verify?token=${tokenParam}`);
+        const res = await fetch(
+          `/api/auth/verify?token=${encodeURIComponent(tokenParam)}`,
+        );
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.error ?? "Invalid or expired link.");
@@ -103,7 +95,7 @@ export const VerifyEmailView: React.FC = () => {
         setTimeout(() => router.push("/auth"), 1800);
       } catch {
         setTokenState("failed");
-        // Strip token from URL so user sees the clean code fallback
+        // Strip token from URL so the user sees the clean code fallback
         const url = new URL(window.location.href);
         url.searchParams.delete("token");
         window.history.replaceState({}, "", url.toString());
@@ -111,7 +103,6 @@ export const VerifyEmailView: React.FC = () => {
     };
 
     verifyToken();
-    // Only run on mount — tokenParam won't change
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -183,16 +174,16 @@ export const VerifyEmailView: React.FC = () => {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] as const }}
-        className="flex flex-col items-center gap-5 py-4"
+        className={cn('flex', 'flex-col', 'items-center', 'gap-5', 'py-4')}
       >
-        <div className="w-16 h-16 rounded-[1.5rem] bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-          <LuCircleCheck className="w-8 h-8 text-emerald-600" />
+        <div className={cn('w-16', 'h-16', 'rounded-[1.5rem]', 'bg-emerald-50', 'border', 'border-emerald-100', 'flex', 'items-center', 'justify-center')}>
+          <LuCircleCheck className={cn('w-8', 'h-8', 'text-emerald-600')} />
         </div>
-        <div className="text-center space-y-1">
-          <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">
+        <div className={cn('text-center', 'space-y-1')}>
+          <p className={cn('text-[10px]', 'font-black', 'text-slate-900', 'uppercase', 'tracking-widest')}>
             Account Verified
           </p>
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+          <p className={cn('text-[9px]', 'font-bold', 'text-slate-400', 'uppercase', 'tracking-widest')}>
             Redirecting you to sign in…
           </p>
         </div>
@@ -203,15 +194,15 @@ export const VerifyEmailView: React.FC = () => {
   // ── Checking magic link screen ───────────────────────────────────────────────
   if (tokenState === "checking") {
     return (
-      <div className="flex flex-col items-center gap-5 py-4">
-        <div className="w-16 h-16 rounded-[1.5rem] bg-slate-50 border border-slate-100 flex items-center justify-center">
+      <div className={cn('flex', 'flex-col', 'items-center', 'gap-5', 'py-4')}>
+        <div className={cn('w-16', 'h-16', 'rounded-[1.5rem]', 'bg-slate-50', 'border', 'border-slate-100', 'flex', 'items-center', 'justify-center')}>
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-            className="w-7 h-7 border-2 border-slate-200 border-t-slate-900 rounded-full"
+            className={cn('w-7', 'h-7', 'border-2', 'border-slate-200', 'border-t-slate-900', 'rounded-full')}
           />
         </div>
-        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">
+        <p className={cn('text-[9px]', 'font-black', 'text-slate-400', 'uppercase', 'tracking-widest', 'text-center')}>
           Verifying your magic link…
         </p>
       </div>
@@ -220,24 +211,7 @@ export const VerifyEmailView: React.FC = () => {
 
   // ── Main view ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col items-center gap-6 w-full">
-      {/* Resent toast — shown when redirected from signin with resent=true */}
-      <AnimatePresence>
-        {resentToast && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="w-full flex items-start gap-2.5 px-4 py-3 bg-emerald-50 border border-emerald-100 rounded-xl"
-          >
-            <LuCircleCheck className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-            <p className="text-[9px] font-bold text-emerald-700 leading-relaxed">
-              Fresh verification codes sent to your email and phone. Check your
-              inbox.
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className={cn('flex', 'flex-col', 'items-center', 'gap-6', 'w-full')}>
       {/* Icon */}
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
@@ -245,10 +219,10 @@ export const VerifyEmailView: React.FC = () => {
         transition={{ type: "spring", stiffness: 200, damping: 15 }}
         className="relative"
       >
-        <div className="w-16 h-16 rounded-[1.5rem] bg-slate-50 border border-slate-100 flex items-center justify-center">
-          <LuMailCheck className="w-7 h-7 text-slate-900" />
+        <div className={cn('w-16', 'h-16', 'rounded-[1.5rem]', 'bg-slate-50', 'border', 'border-slate-100', 'flex', 'items-center', 'justify-center')}>
+          <LuMailCheck className={cn('w-7', 'h-7', 'text-slate-900')} />
         </div>
-        <span className="absolute inset-0 rounded-[1.5rem] border-2 border-primary/30 animate-ping opacity-30" />
+        <span className={cn('absolute', 'inset-0', 'rounded-[1.5rem]', 'border-2', 'border-primary/30', 'animate-ping', 'opacity-30')} />
       </motion.div>
 
       {/* Magic link failed notice */}
@@ -258,10 +232,10 @@ export const VerifyEmailView: React.FC = () => {
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="w-full flex items-start gap-2.5 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl"
+            className={cn('w-full', 'flex', 'items-start', 'gap-2.5', 'px-4', 'py-3', 'bg-amber-50', 'border', 'border-amber-100', 'rounded-xl')}
           >
-            <LuTriangleAlert className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
-            <p className="text-[9px] font-bold text-amber-700 leading-relaxed">
+            <LuTriangleAlert className={cn('w-3.5', 'h-3.5', 'text-amber-500', 'mt-0.5', 'shrink-0')} />
+            <p className={cn('text-[9px]', 'font-bold', 'text-amber-700', 'leading-relaxed')}>
               The magic link was invalid or has expired. Enter your 6-digit code
               below instead.
             </p>
@@ -270,25 +244,25 @@ export const VerifyEmailView: React.FC = () => {
       </AnimatePresence>
 
       {/* Instruction */}
-      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center leading-relaxed px-2">
+      <p className={cn('text-[9px]', 'font-bold', 'text-slate-400', 'uppercase', 'tracking-widest', 'text-center', 'leading-relaxed', 'px-2')}>
         {emailParam
           ? `A 6-digit code and a magic link were sent to ${emailParam} and your registered phone.`
           : "A 6-digit code and a magic link were sent to your email and phone."}
       </p>
 
       {/* Tab switcher */}
-      <div className="flex w-full bg-slate-50 border border-slate-100 rounded-2xl p-1 gap-1">
+      <div className={cn('flex', 'w-full', 'bg-slate-50', 'border', 'border-slate-100', 'rounded-2xl', 'p-1', 'gap-1')}>
         {(["code", "link"] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => switchTab(t)}
-            className="relative flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors"
+            className={cn('relative', 'flex-1', 'flex', 'items-center', 'justify-center', 'gap-2', 'py-2.5', 'rounded-xl', 'text-[9px]', 'font-black', 'uppercase', 'tracking-widest', 'transition-colors')}
           >
             {tab === t && (
               <motion.span
                 layoutId="verify-tab-pill"
-                className="absolute inset-0 bg-white border border-slate-200 rounded-xl shadow-sm"
+                className={cn('absolute', 'inset-0', 'bg-white', 'border', 'border-slate-200', 'rounded-xl', 'shadow-sm')}
                 transition={{ type: "spring", stiffness: 350, damping: 30 }}
               />
             )}
@@ -296,9 +270,9 @@ export const VerifyEmailView: React.FC = () => {
               className={`relative z-10 flex items-center gap-1.5 ${tab === t ? "text-slate-900" : "text-slate-400"}`}
             >
               {t === "code" ? (
-                <LuKeyRound className="w-3 h-3" />
+                <LuKeyRound className={cn('w-3', 'h-3')} />
               ) : (
-                <LuLink className="w-3 h-3" />
+                <LuLink className={cn('w-3', 'h-3')} />
               )}
               {t === "code" ? "Enter Code" : "Magic Link"}
             </span>
@@ -307,7 +281,7 @@ export const VerifyEmailView: React.FC = () => {
       </div>
 
       {/* Tab content */}
-      <div className="w-full overflow-hidden">
+      <div className={cn('w-full', 'overflow-hidden')}>
         <AnimatePresence mode="wait" custom={tabDir}>
           {/* Code tab */}
           {tab === "code" && (
@@ -318,7 +292,7 @@ export const VerifyEmailView: React.FC = () => {
               initial="enter"
               animate="center"
               exit="exit"
-              className="flex flex-col items-center gap-5 w-full"
+              className={cn('flex', 'flex-col', 'items-center', 'gap-5', 'w-full')}
             >
               {/* API-level error */}
               <AnimatePresence>
@@ -327,7 +301,7 @@ export const VerifyEmailView: React.FC = () => {
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="text-[10px] font-bold text-red-500 text-center"
+                    className={cn('text-[10px]', 'font-bold', 'text-red-500', 'text-center')}
                   >
                     {codeError || error?.message}
                   </motion.p>
@@ -345,7 +319,7 @@ export const VerifyEmailView: React.FC = () => {
                 type="button"
                 onClick={handleVerifyCode}
                 disabled={verifying || digits.some((d) => !d)}
-                className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-primary hover:text-slate-900 transition-all shadow-xl shadow-slate-900/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className={cn('w-full', 'py-4', 'bg-slate-900', 'text-white', 'rounded-2xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-[0.2em]', 'hover:bg-primary', 'hover:text-slate-900', 'transition-all', 'shadow-xl', 'shadow-slate-900/10', 'disabled:opacity-50', 'disabled:cursor-not-allowed', 'flex', 'items-center', 'justify-center', 'gap-2')}
               >
                 {verifying ? (
                   <>
@@ -356,7 +330,7 @@ export const VerifyEmailView: React.FC = () => {
                         duration: 0.7,
                         ease: "linear",
                       }}
-                      className="w-3 h-3 border-2 border-current border-t-transparent rounded-full inline-block"
+                      className={cn('w-3', 'h-3', 'border-2', 'border-current', 'border-t-transparent', 'rounded-full', 'inline-block')}
                     />
                     Verifying…
                   </>
@@ -376,14 +350,14 @@ export const VerifyEmailView: React.FC = () => {
               initial="enter"
               animate="center"
               exit="exit"
-              className="flex flex-col items-center gap-4 text-center"
+              className={cn('flex', 'flex-col', 'items-center', 'gap-4', 'text-center')}
             >
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed px-4">
+              <p className={cn('text-[9px]', 'font-bold', 'text-slate-400', 'uppercase', 'tracking-widest', 'leading-relaxed', 'px-4')}>
                 Click the link in your inbox to instantly verify your account.
                 No code needed.
               </p>
-              <div className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl">
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+              <div className={cn('w-full', 'p-4', 'bg-slate-50', 'border', 'border-slate-100', 'rounded-2xl')}>
+                <p className={cn('text-[8px]', 'font-black', 'text-slate-400', 'uppercase', 'tracking-widest')}>
                   Link expires in{" "}
                   <span className="text-slate-900">15 minutes</span>
                 </p>
@@ -394,14 +368,14 @@ export const VerifyEmailView: React.FC = () => {
       </div>
 
       {/* Resend row */}
-      <div className="flex flex-col items-center gap-3 w-full pt-2">
+      <div className={cn('flex', 'flex-col', 'items-center', 'gap-3', 'w-full', 'pt-2')}>
         <AnimatePresence>
           {resendError && (
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-[9px] font-bold text-red-400 text-center"
+              className={cn('text-[9px]', 'font-bold', 'text-red-400', 'text-center')}
             >
               {resendError}
             </motion.p>
@@ -412,7 +386,7 @@ export const VerifyEmailView: React.FC = () => {
           type="button"
           onClick={handleResend}
           disabled={resending || cooldown > 0}
-          className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className={cn('flex', 'items-center', 'gap-2', 'text-[9px]', 'font-black', 'text-slate-400', 'uppercase', 'tracking-widest', 'hover:text-slate-900', 'transition-colors', 'disabled:opacity-40', 'disabled:cursor-not-allowed')}
         >
           <motion.span
             animate={resending ? { rotate: 360 } : {}}
@@ -422,7 +396,7 @@ export const VerifyEmailView: React.FC = () => {
                 : {}
             }
           >
-            <LuRefreshCw className="w-3 h-3" />
+            <LuRefreshCw className={cn('w-3', 'h-3')} />
           </motion.span>
           {resent
             ? "Code & Link Resent!"
@@ -433,10 +407,10 @@ export const VerifyEmailView: React.FC = () => {
                 : "Resend Code & Link"}
         </button>
 
-        <div className="pt-4 border-t border-slate-50 w-full flex justify-center">
+        <div className={cn('pt-4', 'border-t', 'border-slate-50', 'w-full', 'flex', 'justify-center')}>
           <Link
             href="/auth"
-            className="text-[9px] font-black text-slate-300 uppercase tracking-widest hover:text-slate-600 transition-colors"
+            className={cn('text-[9px]', 'font-black', 'text-slate-300', 'uppercase', 'tracking-widest', 'hover:text-slate-600', 'transition-colors')}
           >
             ← Back to Sign In
           </Link>
@@ -444,4 +418,4 @@ export const VerifyEmailView: React.FC = () => {
       </div>
     </div>
   );
-};;
+};

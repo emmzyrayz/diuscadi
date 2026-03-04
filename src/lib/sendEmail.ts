@@ -63,7 +63,7 @@ export async function sendResetPasswordEmail(opts: {
   code: string;
   token: string;
 }): Promise<void> {
-  const resetUrl = `${APP_URL}/auth/forgot-password?token=${opts.token}&email=${encodeURIComponent(opts.to)}`;
+  const resetUrl = `${APP_URL}/auth/reset-password?token=${opts.token}&email=${encodeURIComponent(opts.to)}`;
 
   if (IS_DEV) {
     console.log(`[DEV EMAIL] Password reset → ${opts.to}`);

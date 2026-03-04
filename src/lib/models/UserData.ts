@@ -23,6 +23,12 @@ export interface UserDataDocument {
   // ── Phone (mirrored from Vault for display) ───────────────────────────────
   phone: PhoneNumber;
 
+  location?: {
+    country?: string;
+    state?: string;
+    city?: string;
+  };
+
   // ── School email (optional — students with active institutional email) ─────
   // Sparse unique index — two users can both have null, but not the same address.
   schoolEmail?: string;
@@ -70,13 +76,13 @@ export interface UserDataDocument {
     lastEventRegisteredAt?: Date;
   };
 
-  inviteCodes: {
-    eventId: ObjectId;
-    code: string;
-    issuedAt: Date;
-    checkedIn: boolean;
-    checkedInAt?: Date;
-  }[];
+  // inviteCodes: {
+  //   eventId: ObjectId;
+  //   code: string;
+  //   issuedAt: Date;
+  //   checkedIn: boolean;
+  //   checkedInAt?: Date;
+  // }[];
 
   createdAt: Date;
   updatedAt: Date;
