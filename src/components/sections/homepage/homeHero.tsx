@@ -4,7 +4,20 @@ import { motion } from "framer-motion";
 import { LuCalendar, LuArrowRight, LuCirclePlay } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import type { FeaturedEvent, CurrentTask } from "@/app/home/page";
+
+export interface FeaturedEvent {
+  image: string;
+  title: string;
+  daysLeft?: number;
+  date?: string;
+  category?: string;
+}
+
+export interface CurrentTask {
+  category: string;
+  title: string;
+  progress: number; // 0 to 100
+}
 
 interface HomeHeroProps {
   featuredEvent: FeaturedEvent;

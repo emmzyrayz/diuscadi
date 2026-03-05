@@ -9,7 +9,20 @@ import {
   LuStar,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import type { Recommendation } from "@/app/home/page";
+
+export type RecommendationType = "Program" | "Event" | "Resource" | "Learning" | "Registration" | "Application" | string;
+
+export interface Recommendation {
+  id?: string | number;
+  title: string;
+  type: RecommendationType;
+  /** e.g., "4 Modules" or "Dec 12, 2024" */
+  meta: string;
+  /** The small italic tag at the bottom, e.g., "Personalized" */
+  tag: string;
+  /** Optional URL for the action button */
+  href?: string;
+}
 
 // Visual config stays in the component — derived from item.type
 const TYPE_CONFIG: Record<

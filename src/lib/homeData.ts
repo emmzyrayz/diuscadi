@@ -61,14 +61,21 @@ export interface HomeScheduledEvent {
   title: string;
   time: string;
   location: string;
-  status: "registered" | "checked-in" | "cancelled";
+  status:
+    | "registered"
+    | "checked-in"
+    | "cancelled"
+    | "Confirmed"
+    | "On Waitlist"
+    | "Completed";
   type: string;
   inviteCode: string;
   slug: string;
 }
 
 export interface HomeRecommendation {
-  type: string;
+  id?: string | number;
+  type: "Learning" | "Registration" | "Application" | string;
   title: string;
   meta: string;
   tag: string;
@@ -422,3 +429,9 @@ export function getStaticContinueItems() {
     },
   ];
 }
+
+// Example of how to fix it in the mapping stage
+export const continueItems = getStaticContinueItems().map(item => ({
+  ...item,
+  type: item.type as "Learning" | "Application" | "Registration"
+}));

@@ -8,7 +8,31 @@ import {
   LuCircleCheck,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import type { ScheduledEvent } from "@/app/home/page";
+export type EventStatus =
+  | "registered"
+  | "checked-in"
+  | "cancelled"
+  | "Confirmed"
+  | "On Waitlist"
+  | "Completed";;
+
+export interface ScheduledEvent {
+  id: string | number;
+  /** e.g., "24" */
+  date: string;
+  /** e.g., "OCT" */
+  month: string;
+  /** e.g., "Workshop" or "Webinar" */
+  type: string;
+  title: string;
+  /** e.g., "10:00 AM - 11:30 AM" */
+  time: string;
+  /** e.g., "Main Hall" or "Zoom" */
+  location: string;
+  status: EventStatus;
+  /** URL for the "Join Info" button */
+  link?: string;
+}
 
 interface UpcomingEventsProps {
   events: ScheduledEvent[];

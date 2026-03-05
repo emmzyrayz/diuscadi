@@ -9,7 +9,13 @@ import {
   LuChevronRight,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import type { Activity } from "@/app/home/page";
+
+export interface Activity {
+  id: string | number;
+  content: string;
+  target: string;
+  time: string;
+}
 
 // Icon + style mapped by activity target keyword — fully presentational
 const resolveStyle = (

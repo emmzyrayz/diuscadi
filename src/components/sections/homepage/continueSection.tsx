@@ -8,7 +8,15 @@ import {
   LuChevronRight,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import type { ContinueItem } from "@/app/home/page";
+
+export interface ContinueItem {
+  type: 'Learning' | 'Registration' | 'Application' | string;
+  title: string;
+  status: string;
+  link: string;
+  action: string;
+}
+
 
 // Visual config stays in the component — derived from item.type
 const TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string }> = {

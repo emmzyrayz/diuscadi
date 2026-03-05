@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
@@ -7,14 +7,16 @@ import {
   Settings,
   ChevronDown,
   Award,
-  Briefcase,
   Zap,
-  Star,
+  // X,
+  CheckCheck,
 } from "lucide-react";
 import Image from "next/image";
-import { cn } from "../../../lib/utils";
-// import type { User } from "@/app/home/page";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
+// --- Types & Interfaces ---
 export interface User {
   name: string;
   avatar: string;
@@ -38,7 +40,51 @@ interface HomeHeaderProps {
 }
 
 export const HomeHeader = ({ user }: HomeHeaderProps) => {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      title: "New Workshop",
+      desc: "Advanced React patterns is now live.",
+      time: "2m ago",
+      isNew: true,
+    },
+    {
+      id: 2,
+      title: "Project Approved",
+      desc: "Your submission for 'Design Sprint' was accepted.",
+      time: "1h ago",
+      isNew: true,
+    },
+    {
+      id: 3,
+      title: "System Update",
+      desc: "Maintenance scheduled for tonight at 12 AM.",
+      time: "5h ago",
+      isNew: false,
+    },
+  ]);
+
+  const hasUnread = notifications.some((n) => n.isNew);
+
+  const markAllAsRead = () => {
+    setNotifications(notifications.map((n) => ({ ...n, isNew: false })));
+  };
+
+  const initials = user.name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
+
+  // ── Search loading simulation ─────────────────────────────────────────────
+  // useMemo derives isSearching synchronously from searchQuery —
+  // no useEffect + setState needed, which avoids cascading renders.
+  // For real search, replace this with a debounced fetch.
+  const isSearching = useMemo(() => searchQuery.length > 0, [searchQuery]);
 
   return (
     <header
@@ -63,9 +109,18 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
         )}
       >
         <div className={cn("flex", "items-center", "justify-between", "gap-4")}>
-          {/* LEFT: Greeting */}
+          {/* LEFT: Greeting & Profile */}
           <div className={cn("flex", "items-center", "gap-3", "min-w-0")}>
-            <div className={cn("relative", "shrink-0")}>
+            <Link
+              href="/profile"
+              className={cn(
+                "relative",
+                "shrink-0",
+                "group",
+                "transition-transform",
+                "hover:scale-105",
+              )}
+            >
               <div
                 className={cn(
                   "w-10",
@@ -76,16 +131,25 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                   "overflow-hidden",
                   "border",
                   "border-slate-200",
+                  "bg-slate-100",
+                  "flex",
+                  "items-center",
+                  "justify-center",
                 )}
               >
-                <Image
-                  width={48}
-                  height={48}
-                  src={user.avatar}
-                  alt={user.name}
-                  unoptimized
-                  className="object-cover"
-                />
+                {user.avatar ? (
+                  <Image
+                    width={48}
+                    height={48}
+                    src={user.avatar}
+                    alt={user.name}
+                    className={cn("object-cover", "w-full", "h-full")}
+                  />
+                ) : (
+                  <span className={cn("text-slate-400", "font-bold")}>
+                    {initials}
+                  </span>
+                )}
               </div>
               <div
                 className={cn(
@@ -100,7 +164,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                   "rounded-full",
                 )}
               />
-            </div>
+            </Link>
             <div className="truncate">
               <h1
                 className={cn(
@@ -128,7 +192,14 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
 
           {/* MIDDLE: Search Bar */}
           <div
-            className={cn("hidden", "sm:flex", "flex-1", "max-w-md", "mx-4")}
+            className={cn(
+              "hidden",
+              "sm:flex",
+              "flex-1",
+              "max-w-md",
+              "mx-4",
+              "relative",
+            )}
           >
             <div
               className={cn(
@@ -149,6 +220,8 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
               <Search className={cn("w-4", "h-4", "text-slate-400")} />
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search workshops..."
                 className={cn(
                   "bg-transparent",
@@ -158,51 +231,157 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                   "ml-2",
                   "w-full",
                   "text-slate-600",
-                  "placeholder:text-slate-400",
                 )}
               />
             </div>
+
+            <AnimatePresence>
+              {searchQuery.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className={cn(
+                    "absolute",
+                    "top-full",
+                    "left-0",
+                    "right-0",
+                    "mt-2",
+                    "bg-white",
+                    "border",
+                    "border-slate-100",
+                    "shadow-xl",
+                    "rounded-xl",
+                    "p-4",
+                    "min-h-[100px]",
+                  )}
+                >
+                  {isSearching ? (
+                    <div className="space-y-3">
+                      <div
+                        className={cn(
+                          "h-4",
+                          "w-3/4",
+                          "bg-slate-100",
+                          "rounded",
+                          "animate-pulse",
+                        )}
+                      />
+                      <div
+                        className={cn(
+                          "h-4",
+                          "w-1/2",
+                          "bg-slate-100",
+                          "rounded",
+                          "animate-pulse",
+                        )}
+                      />
+                    </div>
+                  ) : (
+                    <p
+                      className={cn(
+                        "text-sm",
+                        "text-slate-400",
+                        "text-center",
+                        "py-4",
+                      )}
+                    >
+                      No results found for &apos;{searchQuery}&apos;
+                    </p>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* RIGHT: Actions */}
           <div className={cn("flex", "items-center", "gap-2", "md:gap-3")}>
-            <button className={cn("sm:hidden", "p-2", "text-slate-600")}>
-              <Search className={cn("w-5", "h-5")} />
-            </button>
-
-            <button
-              className={cn(
-                "relative",
-                "p-2",
-                "hover:bg-slate-50",
-                "rounded-lg",
-                "transition-colors",
-                "group",
-              )}
-            >
-              <Bell
+            {/* Notifications */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
                 className={cn(
-                  "w-5",
-                  "h-5",
-                  "text-slate-600",
-                  "group-hover:text-primary",
+                  "relative",
+                  "p-2",
+                  "hover:bg-slate-50",
+                  "rounded-lg",
+                  "transition-colors",
+                  "group",
                 )}
-              />
-              <span
-                className={cn(
-                  "absolute",
-                  "top-2",
-                  "right-2",
-                  "w-2",
-                  "h-2",
-                  "bg-primary",
-                  "rounded-full",
-                  "border-2",
-                  "border-white",
-                )}
-              />
-            </button>
+              >
+                <Bell
+                  className={cn(
+                    "w-5 h-5 text-slate-600 group-hover:text-primary",
+                    showNotifications && "text-primary",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "absolute",
+                    "top-2",
+                    "right-2",
+                    "w-2",
+                    "h-2",
+                    "bg-primary",
+                    "rounded-full",
+                    "border-2",
+                    "border-white",
+                  )}
+                />
+              </button>
 
+              <AnimatePresence>
+                {showNotifications && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className={cn('absolute', 'right-0', 'mt-3', 'w-80', 'bg-white', 'border', 'border-slate-100', 'shadow-2xl', 'rounded-2xl', 'overflow-hidden', 'z-50')}
+                  >
+                    <div className={cn('p-4', 'border-b', 'border-slate-50', 'flex', 'justify-between', 'items-center', 'bg-slate-50/50')}>
+                      <div>
+                        <h3 className={cn('font-bold', 'text-slate-900', 'text-sm')}>
+                          Notifications
+                        </h3>
+                        {hasUnread && (
+                          <p className={cn('text-[10px]', 'text-primary', 'font-medium')}>
+                            You have unread messages
+                          </p>
+                        )}
+                      </div>
+                      {hasUnread && (
+                        <button
+                          onClick={markAllAsRead}
+                          className={cn('flex', 'items-center', 'gap-1', 'text-[10px]', 'font-bold', 'text-primary', 'hover:bg-primary/10', 'px-2', 'py-1', 'rounded-md', 'transition-colors')}
+                        >
+                          <CheckCheck className={cn('w-3', 'h-3')} /> Mark all
+                        </button>
+                      )}
+                    </div>
+
+                    <div className={cn('max-h-[300px]', 'overflow-y-auto', 'p-2', 'space-y-1')}>
+                      {notifications.length > 0 ? (
+                        notifications.map((n) => (
+                          <NotificationItem
+                            key={n.id}
+                            title={n.title}
+                            desc={n.desc}
+                            time={n.time}
+                            isNew={n.isNew}
+                          />
+                        ))
+                      ) : (
+                        <div className={cn('py-8', 'text-center', 'text-slate-400', 'text-xs')}>
+                          No notifications yet
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Settings */}
             <div className="relative">
               <button
                 onClick={() => setIsOpen(!isOpen)}
@@ -227,162 +406,127 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
 
               <AnimatePresence>
                 {isOpen && (
-                  <>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className={cn(
+                      "absolute",
+                      "right-0",
+                      "mt-3",
+                      "w-72",
+                      "bg-white",
+                      "border",
+                      "border-slate-100",
+                      "shadow-xl",
+                      "rounded-2xl",
+                      "overflow-hidden",
+                      "p-2",
+                      "z-50",
+                    )}
+                  >
+                    {/* Points Card */}
                     <div
-                      className={cn("fixed", "inset-0", "z-[-1]")}
-                      onClick={() => setIsOpen(false)}
-                    />
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
                       className={cn(
-                        "absolute",
-                        "right-0",
-                        "mt-3",
-                        "w-72",
-                        "bg-white",
-                        "border",
-                        "border-slate-100",
-                        "shadow-xl",
-                        "rounded-2xl",
-                        "overflow-hidden",
-                        "p-2",
+                        "bg-orange-50",
+                        "p-4",
+                        "rounded-xl",
+                        "mb-2",
+                        "flex",
+                        "items-center",
+                        "justify-between",
                       )}
                     >
-                      {/* Points Card */}
-                      <div
-                        className={cn(
-                          "bg-orange-50",
-                          "p-4",
-                          "rounded-xl",
-                          "mb-2",
-                          "flex",
-                          "items-center",
-                          "justify-between",
-                        )}
-                      >
-                        <div className={cn("flex", "items-center", "gap-2")}>
-                          <div
-                            className={cn(
-                              "w-8",
-                              "h-8",
-                              "bg-primary",
-                              "rounded-full",
-                              "flex",
-                              "items-center",
-                              "justify-center",
-                              "text-white",
-                              "text-xs",
-                              "font-bold",
-                              "shadow-lg",
-                              "shadow-primary/20",
-                            )}
-                          >
-                            P
-                          </div>
-                          <span
-                            className={cn(
-                              "text-sm",
-                              "font-bold",
-                              "text-orange-900",
-                            )}
-                          >
-                            Career Points
-                          </span>
+                      <div className={cn("flex", "items-center", "gap-2")}>
+                        <div
+                          className={cn(
+                            "w-8",
+                            "h-8",
+                            "bg-primary",
+                            "rounded-full",
+                            "flex",
+                            "items-center",
+                            "justify-center",
+                            "text-white",
+                            "text-xs",
+                            "font-bold",
+                            "shadow-lg",
+                            "shadow-primary/20",
+                          )}
+                        >
+                          P
                         </div>
                         <span
                           className={cn(
-                            "text-lg",
-                            "font-black",
-                            "text-primary",
+                            "text-sm",
+                            "font-bold",
+                            "text-orange-900",
                           )}
                         >
-                          {user.points}
+                          Career Points
                         </span>
                       </div>
+                      <span
+                        className={cn("text-lg", "font-black", "text-primary")}
+                      >
+                        {user.points}
+                      </span>
+                    </div>
 
-                      {/* Journey Stats */}
-                      <div
+                    <div
+                      className={cn(
+                        "space-y-1",
+                        "py-2",
+                        "border-t",
+                        "border-slate-50",
+                      )}
+                    >
+                      <DropdownItem
+                        icon={<Award className={cn("w-4", "h-4")} />}
+                        label="Status"
+                        value={user.status}
+                        color="text-blue-600"
+                        bg="bg-blue-50"
+                      />
+                      <DropdownItem
+                        icon={<Zap className={cn("w-4", "h-4")} />}
+                        label="Core Skill"
+                        value={user.skill}
+                        color="text-amber-600"
+                        bg="bg-amber-50"
+                      />
+                    </div>
+
+                    <div
+                      className={cn(
+                        "mt-2",
+                        "pt-2",
+                        "border-t",
+                        "border-slate-100",
+                      )}
+                    >
+                      <button
+                        onClick={() => router.push("/settings")}
                         className={cn(
-                          "space-y-1",
+                          "w-full",
+                          "flex",
+                          "items-center",
+                          "gap-2",
+                          "px-3",
                           "py-2",
-                          "border-t",
-                          "border-slate-50",
+                          "text-sm",
+                          "text-slate-600",
+                          "hover:bg-slate-50",
+                          "rounded-lg",
+                          "transition-colors",
+                          "cursor-pointer",
                         )}
                       >
-                        <p
-                          className={cn(
-                            "px-3",
-                            "text-[10px]",
-                            "font-bold",
-                            "text-slate-400",
-                            "uppercase",
-                            "tracking-widest",
-                            "mb-2",
-                          )}
-                        >
-                          My Journey
-                        </p>
-                        <DropdownItem
-                          icon={<Award className={cn("w-4", "h-4")} />}
-                          label="Status"
-                          value={user.status}
-                          color="text-blue-600"
-                          bg="bg-blue-50"
-                        />
-                        <DropdownItem
-                          icon={<Zap className={cn("w-4", "h-4")} />}
-                          label="Core Skill"
-                          value={user.skill}
-                          color="text-amber-600"
-                          bg="bg-amber-50"
-                        />
-                        <DropdownItem
-                          icon={<Star className={cn("w-4", "h-4")} />}
-                          label="Interest"
-                          value={user.interest}
-                          color="text-purple-600"
-                          bg="bg-purple-50"
-                        />
-                        <DropdownItem
-                          icon={<Briefcase className={cn("w-4", "h-4")} />}
-                          label="Projects"
-                          value={`${user.projectsParticipated} Completed`}
-                          color="text-green-600"
-                          bg="bg-green-50"
-                        />
-                      </div>
-
-                      <div
-                        className={cn(
-                          "mt-2",
-                          "pt-2",
-                          "border-t",
-                          "border-slate-100",
-                        )}
-                      >
-                        <button
-                          className={cn(
-                            "w-full",
-                            "flex",
-                            "items-center",
-                            "gap-2",
-                            "px-3",
-                            "py-2",
-                            "text-sm",
-                            "text-slate-600",
-                            "hover:bg-slate-50",
-                            "rounded-lg",
-                            "transition-colors",
-                          )}
-                        >
-                          <Settings className={cn("w-4", "h-4")} /> Account
-                          Settings
-                        </button>
-                      </div>
-                    </motion.div>
-                  </>
+                        <Settings className={cn("w-4", "h-4")} /> Account
+                        Settings
+                      </button>
+                    </div>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
@@ -392,6 +536,35 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
     </header>
   );
 };
+
+// --- Sub-components ---
+
+const NotificationItem = ({
+  title,
+  desc,
+  time,
+  isNew,
+}: {
+  title: string;
+  desc: string;
+  time: string;
+  isNew?: boolean;
+}) => (
+  <div
+    className={cn(
+      "p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer mb-1",
+      isNew && "bg-blue-50/50",
+    )}
+  >
+    <div className={cn("flex", "justify-between", "items-start", "mb-1")}>
+      <span className={cn("text-sm", "font-bold", "text-slate-900")}>
+        {title}
+      </span>
+      <span className={cn("text-[10px]", "text-slate-400")}>{time}</span>
+    </div>
+    <p className={cn("text-xs", "text-slate-500", "line-clamp-2")}>{desc}</p>
+  </div>
+);
 
 const DropdownItem = ({ icon, label, value, color, bg }: DropdownItemProps) => (
   <div

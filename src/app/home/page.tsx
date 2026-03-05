@@ -120,7 +120,15 @@ export default async function HomePage() {
       <HomeHeader user={user} />
 
       <HomeHero
-        featuredEvent={featuredEvent ?? undefined}
+        // Use a fallback object if featuredEvent is null/undefined
+        featuredEvent={
+          featuredEvent ?? {
+            title: "No Upcoming Featured Events",
+            category: "Announcement",
+            date: "TBD",
+            image: "/default-hero.jpg",
+          }
+        }
         currentTask={currentTask}
       />
 

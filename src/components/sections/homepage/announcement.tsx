@@ -3,7 +3,13 @@ import React from "react";
 import { motion } from "framer-motion";
 import { LuMegaphone, LuInfo, LuSparkles, LuArrowRight } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import type { Announcement } from "@/app/home/page";
+
+export interface Announcement {
+  id: string | number;
+  type: "Update" | "New" | "Alert";
+  title: string;
+  desc: string;
+}
 
 // Visual config stays in component — derived from item.type
 const TYPE_CONFIG: Record<

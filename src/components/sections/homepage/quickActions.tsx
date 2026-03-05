@@ -9,7 +9,12 @@ import {
   LuArrowUpRight,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import type { QuickAction } from "@/app/home/page";
+
+export interface QuickAction {
+  title: string;
+  desc: string;
+  link: string;
+}
 
 // Icons are presentation-only — mapped by index/order, not passed as data
 const ACTION_ICONS = [
