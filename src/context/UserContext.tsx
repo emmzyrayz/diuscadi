@@ -2,9 +2,19 @@
 // context/UserContext.tsx
 //
 // Owns the full UserData profile for the authenticated user.
-// AuthContext is the source of truth for authentication + role.
-// UserContext reads the initial data from AuthContext (/me response)
-// and keeps a local copy that updates optimistically on PATCH.
+// Auth state (JWT, session, role) lives in AuthContext — this context
+// manages platform profile data only.
+//
+// Data flow:
+//   1. Mount        → seed from AuthContext.user (populated by /api/auth/me)
+//                     Gives the UI instant basic data with zero extra fetches.
+//   2. Profile page → call refreshProfile() to load Institution, bio, analytics
+//                     from GET /api/users/profile
+//   3. Updates      → dedicated methods each calling their own endpoint:
+//                     updateProfile()     → PATCH /api/users/profile
+//                     updateInstitution() → PATCH /api/users/institution
+//                     updateSkills()      → PATCH /api/users/skills
+//                     updateCommittee()   → PATCH /api/users/committee
 
 import React, {
   createContext,
@@ -23,33 +33,39 @@ import type {
   PhoneNumber,
 } from "@/types/domain";
 
-// ─── UserProfile type ─────────────────────────────────────────────────────────
-// Mirrors UserDataDocument but with string _id (serialized from ObjectId).
+// ─── Types ────────────────────────────────────────────────────────────────────
+// Mirrors UserDataDocument with string _id (ObjectId is not serialisable).
+
+export interface Institution {
+  Type?: "University" | "Polytechnic";
+  name?: string;
+  department?: string;
+  faculty?: string;
+  level?: string;
+  semester?: "First" | "Second";
+  graduationYear?: number;
+  currentStatus?: string;
+}
 
 export interface UserProfile {
-  id: string; // UserData._id
-  vaultId: string; // Vault._id
+  id: string; // UserData._id stringified
   fullName: string;
   email: string;
   avatar?: string;
-  phone: PhoneNumber;
+  phone?: PhoneNumber; // { countryCode: number, phoneNumber: number }
   schoolEmail?: string;
-  role: AccountRole;
-  eduStatus: EduStatus;
-  committee: Committee | null;
-  skills: Skill[];
+  role: AccountRole; // "participant" | "moderator" | "admin" | "webmaster"
+  eduStatus: EduStatus; // "STUDENT" | "GRADUATE"
+  committee: Committee | null; // "socials" | "media" | ... | null
+  skills: Skill[]; // "photography" | "design" | ...
   profileCompleted: boolean;
   membershipStatus: "pending" | "approved" | "suspended";
-  Institution?: {
-    Type?: "University" | "Polytechnic";
-    name?: string;
-    department?: string;
-    faculty?: string;
-    level?: string;
-    semester?: "First" | "Second";
-    graduationYear?: number;
-    currentStatus?: string;
+  location?: {
+    country?: string;
+    state?: string;
+    city?: string;
   };
+  Institution?: Institution;
   profile?: {
     bio?: string;
   };
@@ -63,16 +79,6 @@ export interface UserProfile {
   updatedAt: string;
 }
 
-// ─── Section update payloads ──────────────────────────────────────────────────
-
-export type ProfileSection =
-  | "identity"
-  | "contact"
-  | "institution"
-  | "skills"
-  | "committee"
-  | "bio";
-
 export interface UpdateResult {
   success: boolean;
   error?: string;
@@ -85,21 +91,28 @@ interface UserContextType {
   isLoading: boolean;
   error: string | null;
 
-  // Update a section of the profile
-  updateProfile: (
-    section: ProfileSection,
-    data: Record<string, unknown>,
-  ) => Promise<UpdateResult>;
-
-  // Submit a committee or skill application
-  applyFor: (
-    type: "committee" | "skill",
-    value: string,
-    note?: string,
-  ) => Promise<UpdateResult>;
-
-  // Refresh profile from server (after admin changes etc.)
+  // Fetches full document from GET /api/users/profile
+  // (Institution, bio, analytics not included in the auth/me seed)
   refreshProfile: () => Promise<void>;
+
+  // PATCH /api/users/profile — fullName, avatar, bio, phone
+  updateProfile: (data: {
+    fullName?: string;
+    avatar?: string;
+    bio?: string;
+    phone?: PhoneNumber;
+  }) => Promise<UpdateResult>;
+
+  // PATCH /api/users/institution
+  updateInstitution: (data: Partial<Institution>) => Promise<UpdateResult>;
+
+  // PATCH /api/users/skills
+  // Valid: "photography" | "design" | "electronics" | "fashion" | "tech" | "programming"
+  updateSkills: (skills: Skill[]) => Promise<UpdateResult>;
+
+  // PATCH /api/users/committee
+  // Valid: "socials" | "media" | "logistics" | "innovation" | "mentorship" | "protocol" | null
+  updateCommittee: (committee: Committee | null) => Promise<UpdateResult>;
 
   clearError: () => void;
 }
@@ -108,34 +121,82 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Internal helpers ─────────────────────────────────────────────────────────
 
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("diuscadi_token");
+}
+
+function authHeaders(): HeadersInit {
+  const token = getToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+// Converts raw API response (MongoDB doc with stringified _id) → UserProfile
 function parseProfile(raw: Record<string, unknown>): UserProfile {
   return {
-    id: raw._id as string,
-    vaultId: raw.vaultId as string,
-    fullName: raw.fullName as string,
-    email: raw.email as string,
+    id: String(raw._id ?? ""),
+    fullName: String(raw.fullName ?? ""),
+    email: String(raw.email ?? ""),
     avatar: raw.avatar as string | undefined,
-    phone: raw.phone as PhoneNumber,
+    phone: raw.phone as PhoneNumber | undefined,
     schoolEmail: raw.schoolEmail as string | undefined,
-    role: raw.role as AccountRole,
-    eduStatus: raw.eduStatus as EduStatus,
+    role: (raw.role ?? "participant") as AccountRole,
+    eduStatus: (raw.eduStatus ?? "STUDENT") as EduStatus,
     committee: (raw.committee ?? null) as Committee | null,
     skills: (raw.skills ?? []) as Skill[],
-    profileCompleted: raw.profileCompleted as boolean,
+    profileCompleted: Boolean(raw.profileCompleted),
     membershipStatus: (raw.membershipStatus ??
       "pending") as UserProfile["membershipStatus"],
-    Institution: raw.Institution as UserProfile["Institution"],
+    location: raw.location as UserProfile["location"],
+    Institution: raw.Institution as Institution | undefined,
     profile: raw.profile as UserProfile["profile"],
     analytics: (raw.analytics ?? {
       eventsRegistered: 0,
       eventsAttended: 0,
     }) as UserProfile["analytics"],
-    signupInviteCode: raw.signupInviteCode as string,
-    createdAt: raw.createdAt as string,
-    updatedAt: raw.updatedAt as string,
+    signupInviteCode: String(raw.signupInviteCode ?? ""),
+    createdAt: String(raw.createdAt ?? ""),
+    updatedAt: String(raw.updatedAt ?? ""),
   };
+}
+
+// Generic PATCH helper — calls endpoint, updates state on success
+async function callPatch(
+  endpoint: string,
+  body: Record<string, unknown>,
+  setProfile: React.Dispatch<React.SetStateAction<UserProfile | null>>,
+  setError: React.Dispatch<React.SetStateAction<string | null>>,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+): Promise<UpdateResult> {
+  setLoading(true);
+  setError(null);
+  try {
+    const res = await fetch(endpoint, {
+      method: "PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+    });
+    const data = (await res.json()) as Record<string, unknown>;
+    if (!res.ok) {
+      const msg = String(data.error ?? "Update failed");
+      setError(msg);
+      return { success: false, error: msg };
+    }
+    // Every PATCH route returns { message, profile: sanitizedUserData }
+    setProfile(parseProfile(data.profile as Record<string, unknown>));
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Update failed";
+    setError(msg);
+    return { success: false, error: msg };
+  } finally {
+    setLoading(false);
+  }
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -147,29 +208,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Fetch full profile from /api/user/profile ─────────────────────────────
-  const fetchProfile = useCallback(async () => {
-    const token = localStorage.getItem("diuscadi_token");
-    if (!token) return;
-
-    setIsLoading(true);
-    try {
-      const res = await fetch("/api/user/profile", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to load profile.");
-      const data = await res.json();
-      setProfile(parseProfile(data.userData));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load profile.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // ── Seed profile from AuthContext user on auth state change ───────────────
-  // AuthContext /me already returns userData — use it to populate immediately
-  // without an extra fetch. Then offer refreshProfile for manual re-syncs.
+  // ── Step 1: seed from AuthContext on login ────────────────────────────────
+  // /api/auth/me returns the fields below — use them immediately so the
+  // UI is populated without waiting for an extra network call.
+  // Institution, bio, full analytics are loaded lazily via refreshProfile().
   useEffect(() => {
     if (sessionStatus === "pending") return;
 
@@ -178,22 +220,22 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // Map AuthContext User → UserProfile (subset — enough for most UI)
-    // A full fetch via refreshProfile() loads Institution, bio, analytics, etc.
     setProfile({
-      id: user.userDataId,
-      vaultId: user.id,
-      fullName: user.fullName,
-      email: user.email,
+      id: user.userDataId ?? "",
+      fullName: user.fullName ?? "",
+      email: user.email ?? "",
       avatar: user.avatar,
       phone: user.phone,
       schoolEmail: user.schoolEmail,
       role: user.role,
       eduStatus: user.eduStatus,
-      committee: user.committee,
-      skills: user.skills,
-      profileCompleted: user.profileCompleted,
-      membershipStatus: user.membershipStatus,
+      committee: user.committee ?? null,
+      skills: user.skills ?? [],
+      profileCompleted: user.profileCompleted ?? false,
+      membershipStatus: user.membershipStatus ?? "pending",
+      location: undefined,
+      Institution: undefined,
+      profile: undefined,
       analytics: { eventsRegistered: 0, eventsAttended: 0 },
       signupInviteCode: "",
       createdAt: "",
@@ -201,95 +243,79 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [isAuthenticated, sessionStatus, user]);
 
-  // ── refreshProfile ────────────────────────────────────────────────────────
+  // ── Step 2: refreshProfile → GET /api/users/profile ──────────────────────
+  // Call this on profile pages or any page that needs Institution / bio.
   const refreshProfile = useCallback(async () => {
-    await fetchProfile();
-  }, [fetchProfile]);
+    if (!isAuthenticated) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/users/profile", { headers: authHeaders() });
+      const data = (await res.json()) as Record<string, unknown>;
+      if (!res.ok)
+        throw new Error(String(data.error ?? "Failed to load profile"));
+      setProfile(parseProfile(data.profile as Record<string, unknown>));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load profile");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated]);
 
-  // ── updateProfile ─────────────────────────────────────────────────────────
+  // ── updateProfile → PATCH /api/users/profile ─────────────────────────────
   const updateProfile = useCallback(
-    async (
-      section: ProfileSection,
-      data: Record<string, unknown>,
-    ): Promise<UpdateResult> => {
-      const token = localStorage.getItem("diuscadi_token");
-      if (!token) return { success: false, error: "Not authenticated." };
-
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const res = await fetch("/api/user/profile", {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ section, data }),
-        });
-
-        const json = await res.json();
-
-        if (!res.ok) {
-          const msg = json.error ?? "Update failed.";
-          setError(msg);
-          return { success: false, error: msg };
-        }
-
-        // Optimistic update — merge returned userData into local profile
-        setProfile(parseProfile(json.userData));
-        return { success: true };
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Update failed.";
-        setError(msg);
-        return { success: false, error: msg };
-      } finally {
-        setIsLoading(false);
-      }
-    },
+    (data: {
+      fullName?: string;
+      avatar?: string;
+      bio?: string;
+      phone?: PhoneNumber;
+    }) =>
+      callPatch(
+        "/api/users/profile",
+        data as Record<string, unknown>,
+        setProfile,
+        setError,
+        setIsLoading,
+      ),
     [],
   );
 
-  // ── applyFor ──────────────────────────────────────────────────────────────
-  const applyFor = useCallback(
-    async (
-      type: "committee" | "skill",
-      value: string,
-      note?: string,
-    ): Promise<UpdateResult> => {
-      const token = localStorage.getItem("diuscadi_token");
-      if (!token) return { success: false, error: "Not authenticated." };
+  // ── updateInstitution → PATCH /api/users/institution ─────────────────────
+  const updateInstitution = useCallback(
+    (data: Partial<Institution>) =>
+      callPatch(
+        "/api/users/institution",
+        data as Record<string, unknown>,
+        setProfile,
+        setError,
+        setIsLoading,
+      ),
+    [],
+  );
 
-      setIsLoading(true);
-      setError(null);
+  // ── updateSkills → PATCH /api/users/skills ────────────────────────────────
+  const updateSkills = useCallback(
+    (skills: Skill[]) =>
+      callPatch(
+        "/api/users/skills",
+        { skills },
+        setProfile,
+        setError,
+        setIsLoading,
+      ),
+    [],
+  );
 
-      try {
-        const res = await fetch("/api/user/apply", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ type, value, note }),
-        });
-
-        const json = await res.json();
-
-        if (!res.ok) {
-          const msg = json.error ?? "Application failed.";
-          setError(msg);
-          return { success: false, error: msg };
-        }
-
-        return { success: true };
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Application failed.";
-        setError(msg);
-        return { success: false, error: msg };
-      } finally {
-        setIsLoading(false);
-      }
-    },
+  // ── updateCommittee → PATCH /api/users/committee ──────────────────────────
+  const updateCommittee = useCallback(
+    (committee: Committee | null) =>
+      callPatch(
+        "/api/users/committee",
+        { committee },
+        setProfile,
+        setError,
+        setIsLoading,
+      ),
     [],
   );
 
@@ -301,9 +327,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         profile,
         isLoading,
         error,
-        updateProfile,
-        applyFor,
         refreshProfile,
+        updateProfile,
+        updateInstitution,
+        updateSkills,
+        updateCommittee,
         clearError,
       }}
     >
@@ -316,6 +344,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
 export const useUser = (): UserContextType => {
   const ctx = useContext(UserContext);
-  if (!ctx) throw new Error("useUser must be used within a UserProvider.");
+  if (!ctx) throw new Error("useUser must be used within a UserProvider");
   return ctx;
 };

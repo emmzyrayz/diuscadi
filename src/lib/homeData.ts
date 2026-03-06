@@ -1,37 +1,40 @@
 // lib/homeData.ts
 // Server-side data fetchers for the homepage.
 // All functions run on the server — never imported by client components.
+// No ObjectId or Date objects cross the server→client boundary — all
+// values are serialised to strings/numbers before being returned.
 
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
 import { verifyJWT } from "@/lib/auth";
 import { cookies } from "next/headers";
-import { TargetEduStatus } from "./models/Events";
+import type { EduStatus } from "@/types/domain"; // ← single source of truth
 
 // ─── Auth helper ──────────────────────────────────────────────────────────────
 // Reads the JWT from the cookie store (server-side).
-// Returns null if unauthenticated.
+// Client-side auth uses localStorage — set the cookie in your signin route
+// alongside localStorage so server components can read it.
 
 async function getServerAuth() {
   const cookieStore = await cookies();
   const token = cookieStore.get("diuscadi_token")?.value;
   if (!token) return null;
   try {
-    const payload = verifyJWT(token);
-    return payload;
+    return verifyJWT(token);
   } catch {
     return null;
   }
 }
 
-// ─── Types (serialisable — no ObjectId, no Date) ──────────────────────────────
+// ─── Serialisable return types ────────────────────────────────────────────────
+// All dates → ISO strings, all ObjectIds → plain strings.
 
 export interface HomeUser {
   name: string;
   avatar: string;
   role: string;
-  eduStatus: TargetEduStatus;
+  eduStatus: EduStatus; // "STUDENT" | "GRADUATE"
   skills: string[];
   committee: string | null;
   profileCompleted: boolean;
@@ -56,31 +59,54 @@ export interface HomeFeaturedEvent {
 
 export interface HomeScheduledEvent {
   id: string;
-  date: string; // day number e.g. "18"
+  date: string; // day number padded e.g. "18"
   month: string; // e.g. "FEB"
   title: string;
   time: string;
   location: string;
-  status:
-    | "registered"
-    | "checked-in"
-    | "cancelled"
-    | "Confirmed"
-    | "On Waitlist"
-    | "Completed";
+  status: "registered" | "checked-in" | "cancelled";
   type: string;
   inviteCode: string;
   slug: string;
 }
 
 export interface HomeRecommendation {
-  id?: string | number;
-  type: "Learning" | "Registration" | "Application" | string;
+  type: string;
   title: string;
   meta: string;
   tag: string;
   slug: string;
   image: string;
+}
+
+// ─── Static stub types (used for systems not yet built) ───────────────────────
+
+export interface QuickAction {
+  title: string;
+  desc: string;
+  link: string;
+}
+
+export interface StaticAnnouncement {
+  id: number;
+  title: string;
+  desc: string;
+  type: "Update" | "New" | "Alert";
+}
+
+export interface StaticActivity {
+  id: number;
+  content: string;
+  target: string;
+  time: string;
+}
+
+export interface ContinueItem {
+  type: "Learning" | "Registration" | "Application";
+  title: string;
+  status: string;
+  link: string;
+  action: string;
 }
 
 // ─── Fetch user data ──────────────────────────────────────────────────────────
@@ -121,10 +147,10 @@ export async function fetchHomeUser(): Promise<HomeUser | null> {
     name: userData.fullName,
     avatar: userData.avatar ?? "",
     role: vault.role,
-    eduStatus: userData.eduStatus,
+    eduStatus: userData.eduStatus as EduStatus,
     skills: userData.skills ?? [],
     committee: userData.committee ?? null,
-    profileCompleted: userData.profileCompleted,
+    profileCompleted: userData.profileCompleted ?? false,
     membershipStatus: userData.membershipStatus,
     eventsRegistered: userData.analytics?.eventsRegistered ?? 0,
     eventsAttended: userData.analytics?.eventsAttended ?? 0,
@@ -132,7 +158,8 @@ export async function fetchHomeUser(): Promise<HomeUser | null> {
   };
 }
 
-// ─── Fetch featured event (next upcoming published event) ─────────────────────
+// ─── Fetch featured event ─────────────────────────────────────────────────────
+// Returns the next upcoming published event with open registration.
 
 export async function fetchFeaturedEvent(): Promise<HomeFeaturedEvent | null> {
   const db = await getDb();
@@ -149,7 +176,7 @@ export async function fetchFeaturedEvent(): Promise<HomeFeaturedEvent | null> {
     { $sort: { eventDate: 1 } },
     { $limit: 1 },
 
-    // Get slot count
+    // Count active registrations for slot calculation
     {
       $lookup: {
         from: "eventRegistrations",
@@ -171,7 +198,7 @@ export async function fetchFeaturedEvent(): Promise<HomeFeaturedEvent | null> {
       },
     },
 
-    // Get first active ticket type
+    // Get the first active ticket type
     {
       $lookup: {
         from: "ticketTypes",
@@ -211,7 +238,7 @@ export async function fetchFeaturedEvent(): Promise<HomeFeaturedEvent | null> {
     image: event.image,
     location: locationStr,
     format: event.format,
-    slotsRemaining: Math.max(0, event.capacity - event.registered),
+    slotsRemaining: Math.max(0, event.capacity - (event.registered as number)),
     ticketTypeId: event.ticketTypeDoc?._id?.toString() ?? "",
   };
 }
@@ -237,8 +264,6 @@ export async function fetchUpcomingEvents(
         status: { $ne: "cancelled" },
       },
     },
-
-    // Join event
     {
       $lookup: {
         from: "events",
@@ -248,8 +273,6 @@ export async function fetchUpcomingEvents(
       },
     },
     { $unwind: "$event" },
-
-    // Only future events
     { $match: { "event.eventDate": { $gt: now } } },
     { $sort: { "event.eventDate": 1 } },
     { $limit: 5 },
@@ -260,7 +283,7 @@ export async function fetchUpcomingEvents(
     .toArray();
 
   return regs.map((r) => {
-    const d = new Date(r.event.eventDate);
+    const d = new Date(r.event.eventDate as Date);
     const month = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
     const day = d.getDate().toString().padStart(2, "0");
     const time = d.toLocaleTimeString("en-US", {
@@ -269,34 +292,39 @@ export async function fetchUpcomingEvents(
       timeZoneName: "short",
     });
     const loc = r.event.location
-      ? [r.event.location.venue, r.event.location.city]
+      ? ([r.event.location.venue, r.event.location.city] as string[])
           .filter(Boolean)
           .join(" · ")
-      : r.event.format;
+      : String(r.event.format);
 
     return {
       id: r._id.toString(),
       date: day,
       month,
-      title: r.event.title,
+      title: String(r.event.title),
       time,
       location: loc,
       status: r.status as HomeScheduledEvent["status"],
-      type: r.event.format,
-      inviteCode: r.inviteCode,
-      slug: r.event.slug,
+      type: String(r.event.format),
+      inviteCode: String(r.inviteCode),
+      slug: String(r.event.slug),
     };
   });
 }
 
-// ─── Fetch recommendations (events matching user profile) ─────────────────────
+// ─── Fetch recommendations ────────────────────────────────────────────────────
+// Returns published upcoming events matching the user's eduStatus or skills.
 
 export async function fetchRecommendations(
-  userData: { skills: string[]; eduStatus: TargetEduStatus },
+  userData: { skills: string[]; eduStatus: EduStatus },
   limit = 3,
 ): Promise<HomeRecommendation[]> {
   const db = await getDb();
   const now = new Date();
+
+  // targetEduStatus on EventDocument: "ALL" | "STUDENT" | "GRADUATE" (uppercase)
+  // EduStatus in domain.ts:           "STUDENT" | "GRADUATE"  (also uppercase)
+  // No mapping needed — query directly.
 
   const events = await Collections.events(db)
     .find({
@@ -304,7 +332,7 @@ export async function fetchRecommendations(
       eventDate: { $gt: now },
       registrationDeadline: { $gt: now },
       $or: [
-        { targetEduStatus: "ALL" },
+        { targetEduStatus: "ALL" as const },
         { targetEduStatus: userData.eduStatus },
         { requiredSkills: { $in: userData.skills } },
       ],
@@ -315,11 +343,12 @@ export async function fetchRecommendations(
 
   return events.map((e) => {
     const metaParts: string[] = [];
-    if (e.format)
+    if (e.format) {
       metaParts.push(e.format.charAt(0).toUpperCase() + e.format.slice(1));
+    }
     if (e.eventDate) {
       metaParts.push(
-        new Date(e.eventDate).toLocaleDateString("en-US", {
+        new Date(e.eventDate as Date).toLocaleDateString("en-US", {
           month: "long",
           day: "numeric",
           year: "numeric",
@@ -327,30 +356,32 @@ export async function fetchRecommendations(
       );
     }
 
-    const tag = e.requiredSkills?.some((s: string) =>
+    const skillMatch = (e.requiredSkills as string[] | undefined)?.some((s) =>
       userData.skills.includes(s),
-    )
+    );
+    const statusLabel =
+      userData.eduStatus === "STUDENT" ? "Students" : "Graduates";
+    const tag = skillMatch
       ? "Matches your Skills"
       : e.targetEduStatus === userData.eduStatus
-        ? `For ${e.targetEduStatus}s`
+        ? `For ${statusLabel}`
         : "Recommended for You";
 
     return {
-      type: e.category ?? "Event",
-      title: e.title,
+      type: String(e.category ?? "Event"),
+      title: String(e.title),
       meta: metaParts.join(" · "),
       tag,
-      slug: e.slug,
-      image: e.image,
+      slug: String(e.slug),
+      image: String(e.image),
     };
   });
 }
 
-// ─── Dummy data stubs (for systems not yet built) ─────────────────────────────
-// These return static data until their own context/system is built.
-// Replace each with a real DB call when ready.
+// ─── Static stubs ─────────────────────────────────────────────────────────────
+// Replace each with a real DB call when the corresponding system is built.
 
-export function getStaticQuickActions() {
+export function getStaticQuickActions(): QuickAction[] {
   return [
     { title: "Browse Programs", desc: "Career workshops", link: "/programs" },
     { title: "View Events", desc: "Upcoming seminars", link: "/events" },
@@ -359,30 +390,30 @@ export function getStaticQuickActions() {
   ];
 }
 
-export function getStaticAnnouncements() {
+export function getStaticAnnouncements(): StaticAnnouncement[] {
   return [
     {
       id: 1,
       title: "DevFest Lagos 2026 Schedule Released!",
       desc: "The full lineup of speakers and workshop tracks is now live.",
-      type: "Update" as const,
+      type: "Update",
     },
     {
       id: 2,
       title: "New Career Mentorship Program",
-      desc: "Applications are now open for the Q2 Senior Executive Mentorship cohort.",
-      type: "New" as const,
+      desc: "Applications now open for the Q2 Senior Executive Mentorship cohort.",
+      type: "New",
     },
     {
       id: 3,
       title: "Platform Maintenance Notice",
       desc: "The portal will be offline for 2 hours this Sunday for security upgrades.",
-      type: "Alert" as const,
+      type: "Alert",
     },
   ];
 }
 
-export function getStaticActivities() {
+export function getStaticActivities(): StaticActivity[] {
   return [
     {
       id: 1,
@@ -411,7 +442,7 @@ export function getStaticActivities() {
   ];
 }
 
-export function getStaticContinueItems() {
+export function getStaticContinueItems(): ContinueItem[] {
   return [
     {
       type: "Learning",
@@ -429,9 +460,3 @@ export function getStaticContinueItems() {
     },
   ];
 }
-
-// Example of how to fix it in the mapping stage
-export const continueItems = getStaticContinueItems().map(item => ({
-  ...item,
-  type: item.type as "Learning" | "Application" | "Registration"
-}));

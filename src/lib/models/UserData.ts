@@ -76,14 +76,6 @@ export interface UserDataDocument {
     lastEventRegisteredAt?: Date;
   };
 
-  // inviteCodes: {
-  //   eventId: ObjectId;
-  //   code: string;
-  //   issuedAt: Date;
-  //   checkedIn: boolean;
-  //   checkedInAt?: Date;
-  // }[];
-
   createdAt: Date;
   updatedAt: Date;
 }

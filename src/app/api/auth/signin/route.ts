@@ -12,16 +12,28 @@ import { ObjectId } from "mongodb";
 import { sendVerificationEmail } from "@/lib/sendEmail";
 
 const SESSION_DURATION_MINUTES = 60 * 24 * 7; // 7 days
+const MAX_SESSIONS_PER_USER = 5; // cap across all devices
 
-// attempt 1 → 20s | 2 → 60s | 3 → 5min | 4 → 15min | 5+ → 30min
 const COOLDOWN_SECONDS = [20, 60, 300, 900, 1800];
-
 function getCooldownSeconds(attemptCount: number): number {
   return COOLDOWN_SECONDS[Math.min(attemptCount, COOLDOWN_SECONDS.length - 1)];
 }
 
 function isPhoneIdentifier(identifier: string): boolean {
   return /^\+?\d+$/.test(identifier.trim());
+}
+
+// ── IP extraction ─────────────────────────────────────────────────────────────
+// x-forwarded-for is set by Vercel/Nginx with the real client IP.
+// In local dev this will always be ::1 (IPv6 localhost) — that is correct
+// and expected. The real IP will appear automatically in production.
+function extractIp(req: NextRequest): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0].trim();
+    if (first) return first;
+  }
+  return req.headers.get("x-real-ip") ?? "unknown";
 }
 
 export async function POST(req: NextRequest) {
@@ -40,9 +52,8 @@ export async function POST(req: NextRequest) {
     const db = await getDb();
     const trimmed = identifier.trim();
 
-    // ── Resolve vault by email or phone ───────────────────────────────────────
+    // ── Resolve vault ─────────────────────────────────────────────────────────
     let vault;
-
     if (isPhoneIdentifier(trimmed)) {
       const phoneNumber = parseInt(trimmed.replace(/^\+/, ""), 10);
       vault = await Collections.vault(db).findOne({
@@ -77,7 +88,6 @@ export async function POST(req: NextRequest) {
       const cooldownSecs = getCooldownSeconds(attemptCount);
       const lastAt = vault.verificationResendLastAt;
 
-      // Enforce cooldown window
       if (lastAt) {
         const elapsedMs = now.getTime() - lastAt.getTime();
         const cooldownMs = cooldownSecs * 1000;
@@ -94,7 +104,6 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Generate fresh codes
       const emailOTP = generateOTP();
       const emailToken = generateSecureToken();
       const phoneOTP = generateOTP();
@@ -119,29 +128,17 @@ export async function POST(req: NextRequest) {
         },
       );
 
-      console.log(`[MOCK EMAIL] Resend to: ${vault.email}`);
-      console.log(`  OTP: ${emailOTP}`);
-      console.log(
-        `  Magic link: ${process.env.NEXT_PUBLIC_APP_URL}/auth/verify?token=${emailToken}&email=${encodeURIComponent(vault.email)}`,
-      );
-      console.log(
-        `[MOCK SMS] +${vault.phone.countryCode}${vault.phone.phoneNumber}`,
-      );
-      console.log(`  OTP: ${phoneOTP}`);
-
       await sendVerificationEmail({
         to: vault.email,
-        name: vault.email, // Vault doesn't store name — use email as fallback until you join UserData
+        name: vault.email,
         code: emailOTP,
         token: emailToken,
       });
 
-      const redirectTo = `/auth/verify?email=${encodeURIComponent(vault.email)}&resent=true`;
-
       return NextResponse.json(
         {
           verified: false,
-          redirectTo,
+          redirectTo: `/auth/verify?email=${encodeURIComponent(vault.email)}&resent=true`,
           cooldownSeconds: nextCooldown,
           message: "Verification codes resent. Check your email and phone.",
           ...(process.env.NODE_ENV === "development" && {
@@ -160,33 +157,68 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── Create session ────────────────────────────────────────────────────────
-    const sessionId = new ObjectId();
-    const token = generateSecureToken();
+    // ── Session upsert ────────────────────────────────────────────────────────
+    // One session per device (userAgent). Same device re-login → update existing
+    // session with fresh token + expiry. New device → insert, then prune if over cap.
     const now = new Date();
-
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      req.headers.get("x-real-ip") ??
-      "unknown";
+    const ip = extractIp(req);
     const userAgent = req.headers.get("user-agent") ?? "unknown";
+    const expiresAt = minutesFromNow(SESSION_DURATION_MINUTES);
+    const token = generateSecureToken();
 
-    await Collections.sessions(db).insertOne({
-      _id: sessionId,
-      userId: vault._id!,
+    const existingSession = await Collections.sessions(db).findOne({
       vaultId: vault._id!,
-      token,
       userAgent,
-      ip,
-      expiresAt: minutesFromNow(SESSION_DURATION_MINUTES),
-      createdAt: now,
     });
 
+    let sessionId: ObjectId;
+
+    if (existingSession) {
+      // Same device — refresh the existing session
+      sessionId = existingSession._id as ObjectId;
+      await Collections.sessions(db).updateOne(
+        { _id: sessionId },
+        { $set: { token, ip, expiresAt, lastUsedAt: now } },
+      );
+    } else {
+      // New device — create a fresh session
+      sessionId = new ObjectId();
+      await Collections.sessions(db).insertOne({
+        _id: sessionId,
+        userId: vault._id!,
+        vaultId: vault._id!,
+        token,
+        userAgent,
+        ip,
+        expiresAt,
+        createdAt: now,
+        lastUsedAt: now,
+      });
+
+      // Prune oldest sessions if user exceeds cap
+      const sessionCount = await Collections.sessions(db).countDocuments({
+        vaultId: vault._id!,
+      });
+      if (sessionCount > MAX_SESSIONS_PER_USER) {
+        const oldest = await Collections.sessions(db)
+          .find({ vaultId: vault._id! })
+          .sort({ createdAt: 1 })
+          .limit(sessionCount - MAX_SESSIONS_PER_USER)
+          .toArray();
+        const oldIds = oldest.map((s) => s._id as ObjectId);
+        if (oldIds.length > 0) {
+          await Collections.sessions(db).deleteMany({ _id: { $in: oldIds } });
+        }
+      }
+    }
+
+    // ── Update vault last login ───────────────────────────────────────────────
     await Collections.vault(db).updateOne(
       { _id: vault._id },
       { $set: { lastLoginAt: now, updatedAt: now } },
     );
 
+    // ── Sign JWT with sessionId ───────────────────────────────────────────────
     const jwtToken = signJWT({
       vaultId: vault._id!.toString(),
       sessionId: sessionId.toString(),
@@ -194,20 +226,19 @@ export async function POST(req: NextRequest) {
       tokenVersion: vault.tokenVersion,
     });
 
-    // 1. Create the response object
+    // ── Return token + set httpOnly cookie ────────────────────────────────────
     const response = NextResponse.json({
       success: true,
-      token: jwtToken, // Keep this for client-side context if needed
+      token: jwtToken,
       role: vault.role,
     });
 
-    // 2. Set the HTTP-Only Cookie
     response.cookies.set("diuscadi_token", jwtToken, {
-      httpOnly: true, // Prevents XSS (JavaScript can't read this)
-      secure: process.env.NODE_ENV === "production", // Only over HTTPS in prod
-      sameSite: "lax", // Balance between security and usability
-      path: "/", // Available across the whole site
-      maxAge: 60 * 60 * 24 * 7, // 7 Days (Matches your SESSION_DURATION_MINUTES)
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return response;
