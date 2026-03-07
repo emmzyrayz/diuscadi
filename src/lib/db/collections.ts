@@ -6,6 +6,9 @@ import { ApplicationDocument } from "@/lib/models/Application";
 import { EventDocument } from "@/lib/models/Events";
 import { TicketTypeDocument } from "@/lib/models/ticketType";
 import { EventRegistrationDocument } from "@/lib/models/EventRegistration";
+import { InstitutionDocument } from "@/lib/models/institution";
+import { FacultyDocument } from "@/lib/models/Faculty";
+import { DepartmentDocument } from "@/lib/models/Department";
 
 export const Collections = {
   vault: (db: Db) => db.collection<VaultDocument>("vault"),
@@ -16,4 +19,7 @@ export const Collections = {
   ticketTypes: (db: Db) => db.collection<TicketTypeDocument>("ticketTypes"),
   eventRegistrations: (db: Db) =>
     db.collection<EventRegistrationDocument>("eventRegistrations"),
+  institutions: (db: Db) => db.collection<InstitutionDocument>("institutions"),
+  faculties: (db: Db) => db.collection<FacultyDocument>("faculties"),
+  departments: (db: Db) => db.collection<DepartmentDocument>("departments"),
 };

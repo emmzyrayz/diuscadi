@@ -1,17 +1,11 @@
 // lib/services/userService.ts
 // All UserData read/write logic lives here.
-// Routes import from here — keeping handlers thin and logic testable.
+// Validates against domain.ts values exactly as defined.
 
-import { Db, ObjectId, Filter, UpdateFilter } from "mongodb";
+import { Db, ObjectId } from "mongodb";
 import { Collections } from "@/lib/db/collections";
 import { UserDataDocument, PhoneNumber } from "@/lib/models/UserData";
-import {
-  COMMITTEES,
-  SKILLS,
-  Committee,
-  Skill,
-  EduStatus,
-} from "@/types/domain";
+import { COMMITTEES, SKILLS, Committee, Skill } from "@/types/domain";
 
 // ─── Read ─────────────────────────────────────────────────────────────────────
 
@@ -26,7 +20,7 @@ export async function getUserProfile(
 
 export function validatePhone(phone: unknown): PhoneNumber | string {
   if (typeof phone !== "object" || phone === null) {
-    return "phone must be an object { countryCode: number, phoneNumber: number }";
+    return "phone must be { countryCode: number, phoneNumber: number }";
   }
   const p = phone as Record<string, unknown>;
   if (typeof p.countryCode !== "number" || typeof p.phoneNumber !== "number") {
@@ -38,42 +32,49 @@ export function validatePhone(phone: unknown): PhoneNumber | string {
   return { countryCode: p.countryCode, phoneNumber: p.phoneNumber };
 }
 
-export function validateEduStatus(value: unknown): value is EduStatus {
-  return value === "STUDENT" || value === "GRADUATE";
-}
-
 export function validateSkills(value: unknown): Skill[] | string {
   if (!Array.isArray(value)) return "skills must be an array";
+  // domain.ts SKILLS: "photography" | "design" | "electronics" | "fashion" | "tech" | "programming"
   const invalid = (value as string[]).filter(
     (s) => !SKILLS.includes(s as Skill),
   );
   if (invalid.length > 0) {
-    return `Invalid skills: ${invalid.join(", ")}. Valid: ${SKILLS.join(", ")}`;
+    return `Invalid skills: ${invalid.join(", ")}. Valid values: ${SKILLS.join(", ")}`;
   }
   return value as Skill[];
 }
 
-export function validateCommittee(value: unknown): Committee | null | string {
-  if (value === null) return null;
-  if (!COMMITTEES.includes(value as Committee)) {
-    return `Invalid committee. Must be one of: ${COMMITTEES.join(", ")} or null`;
+// Returns a result object to avoid the string collision bug:
+// valid committee values like "innovation" are strings, so the old
+// typeof === "string" error check would falsely treat them as errors.
+export function validateCommittee(
+  value: unknown,
+): { ok: true; value: Committee | null } | { ok: false; error: string } {
+  if (value === null) return { ok: true, value: null };
+  if (typeof value !== "string" || !COMMITTEES.includes(value as Committee)) {
+    return {
+      ok: false,
+      error: `Invalid committee. Must be one of: ${COMMITTEES.join(", ")} or null`,
+    };
   }
-  return value as Committee;
+  return { ok: true, value: value as Committee };
 }
 
-// ─── Update: basic profile ────────────────────────────────────────────────────
-
-export interface UpdateProfilePayload {
-  fullName?: string;
-  avatar?: string;
-  bio?: string;
-  phone?: unknown;
-}
+// ─── Service result ───────────────────────────────────────────────────────────
 
 export interface ServiceResult {
   error?: string;
   status?: number;
   updated?: UserDataDocument;
+}
+
+// ─── Update: basic profile ────────────────────────────────────────────────────
+
+export interface UpdateProfilePayload {
+  fullName?: unknown;
+  avatar?: unknown;
+  bio?: unknown;
+  phone?: unknown;
 }
 
 export async function updateUserProfile(
@@ -113,7 +114,7 @@ export async function updateUserProfile(
     if (typeof phone === "string") {
       errors.push(phone);
     } else {
-      // Check uniqueness across other users
+      // Check uniqueness — another vault can't have this phone number
       const conflict = await Collections.vault(db).findOne({
         "phone.phoneNumber": phone.phoneNumber,
         _id: { $ne: vaultId },
@@ -122,7 +123,7 @@ export async function updateUserProfile(
         errors.push("Phone number is already registered to another account");
       } else {
         $set["phone"] = phone;
-        // Mirror to Vault — phone is stored in both for auth lookups
+        // Mirror to Vault — auth lookups use phone stored there
         await Collections.vault(db).updateOne(
           { _id: vaultId },
           { $set: { phone, updatedAt: new Date() } },
@@ -131,12 +132,9 @@ export async function updateUserProfile(
     }
   }
 
-  if (errors.length > 0) {
-    return { error: errors.join(". "), status: 400 };
-  }
+  if (errors.length > 0) return { error: errors.join(". "), status: 400 };
 
   await Collections.userData(db).updateOne({ vaultId }, { $set });
-
   const updated = await Collections.userData(db).findOne({ vaultId });
   return { updated: updated ?? undefined };
 }
@@ -144,14 +142,14 @@ export async function updateUserProfile(
 // ─── Update: institution ──────────────────────────────────────────────────────
 
 export interface UpdateInstitutionPayload {
-  Type?: string;
-  name?: string;
-  department?: string;
-  faculty?: string;
-  level?: string;
-  semester?: string;
+  Type?: unknown;
+  name?: unknown;
+  department?: unknown;
+  faculty?: unknown;
+  level?: unknown;
+  semester?: unknown;
   graduationYear?: unknown;
-  currentStatus?: string;
+  currentStatus?: unknown;
 }
 
 export async function updateUserInstitution(
@@ -181,12 +179,12 @@ export async function updateUserInstitution(
     "currentStatus",
   ] as const;
   for (const field of stringFields) {
-    if (payload[field] !== undefined) {
-      if (typeof payload[field] !== "string") {
+    const val = payload[field];
+    if (val !== undefined) {
+      if (typeof val !== "string") {
         errors.push(`Institution.${field} must be a string`);
       } else {
-        $set[`Institution.${field}`] =
-          (payload[field] as string).trim() || undefined;
+        $set[`Institution.${field}`] = val.trim() || undefined;
       }
     }
   }
@@ -209,19 +207,20 @@ export async function updateUserInstitution(
     const yr = Number(payload.graduationYear);
     if (isNaN(yr) || yr < 1990 || yr > 2100) {
       errors.push(
-        "Institution.graduationYear must be a valid year between 1990 and 2100",
+        "Institution.graduationYear must be a valid year (1990–2100)",
       );
     } else {
       $set["Institution.graduationYear"] = yr;
     }
   }
 
-  if (errors.length > 0) {
-    return { error: errors.join(". "), status: 400 };
-  }
+  if (errors.length > 0) return { error: errors.join(". "), status: 400 };
 
-  // Recompute profileCompleted after institution update
-  const current = await Collections.userData(db).findOne({ vaultId });
+  // Recompute profileCompleted: fullName + Institution.name + Institution.department
+  const current = await Collections.userData(db).findOne(
+    { vaultId },
+    { projection: { fullName: 1, Institution: 1 } },
+  );
   const mergedInst = {
     ...current?.Institution,
     ...Object.fromEntries(
@@ -249,9 +248,7 @@ export async function updateUserSkills(
   skills: unknown,
 ): Promise<ServiceResult> {
   const validated = validateSkills(skills);
-  if (typeof validated === "string") {
-    return { error: validated, status: 400 };
-  }
+  if (typeof validated === "string") return { error: validated, status: 400 };
 
   await Collections.userData(db).updateOne(
     { vaultId },
@@ -268,28 +265,25 @@ export async function updateUserCommittee(
   vaultId: ObjectId,
   committee: unknown,
 ): Promise<ServiceResult> {
-  const validated = validateCommittee(committee);
-  if (typeof validated === "string") {
-    return { error: validated, status: 400 };
-  }
+  const result = validateCommittee(committee);
+  if (!result.ok) return { error: result.error, status: 400 };
 
   await Collections.userData(db).updateOne(
     { vaultId },
-    { $set: { committee: validated, updatedAt: new Date() } },
+    { $set: { committee: result.value, updatedAt: new Date() } },
   );
   const updated = await Collections.userData(db).findOne({ vaultId });
   return { updated: updated ?? undefined };
 }
 
 // ─── Strip internal fields before sending to client ──────────────────────────
-// Never expose vaultId, analytics internals, or signupInviteCode unless needed.
 
 export function sanitizeProfile(
   doc: UserDataDocument,
 ): Record<string, unknown> {
-  const {
-    vaultId: _vaultId, // internal reference — not needed by client
-    ...rest
-  } = doc as UserDataDocument & { vaultId: unknown };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { vaultId: _vaultId, ...rest } = doc as UserDataDocument & {
+    vaultId: unknown;
+  };
   return rest as Record<string, unknown>;
 }

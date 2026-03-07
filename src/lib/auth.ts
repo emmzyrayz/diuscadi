@@ -1,64 +1,71 @@
+// lib/auth.ts
+// Auth utilities: JWT signing/verification, password hashing,
+// token/OTP/invite code generation, and time helpers.
+
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) throw new Error('Missing environment variable "JWT_SECRET"');
-
-const JWT_EXPIRES_IN = "15m";
+const JWT_SECRET = process.env.JWT_SECRET!;
 const BCRYPT_ROUNDS = 12;
+
+// ─── JWT ──────────────────────────────────────────────────────────────────────
 
 export interface JWTPayload {
   vaultId: string;
   sessionId: string;
   role: string;
   tokenVersion: number;
-  iat?: number;
-  exp?: number;
+}
+
+export function signJWT(payload: JWTPayload, expiresIn = "7d"): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn } as jwt.SignOptions);
+}
+
+export function verifyJWT(token: string): JWTPayload {
+  return jwt.verify(token, JWT_SECRET) as JWTPayload;
 }
 
 // ─── Password ─────────────────────────────────────────────────────────────────
 
-export async function hashPassword(plain: string): Promise<string> {
-  return bcrypt.hash(plain, BCRYPT_ROUNDS);
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
 export async function verifyPassword(
-  plain: string,
+  password: string,
   hash: string,
 ): Promise<boolean> {
-  return bcrypt.compare(plain, hash);
+  return bcrypt.compare(password, hash);
 }
 
-// ─── JWT ─────────────────────────────────────────────────────────────────────
+// ─── Token + OTP generators ───────────────────────────────────────────────────
 
-export function signJWT(payload: Omit<JWTPayload, "iat" | "exp">): string {
-  return jwt.sign(payload, JWT_SECRET!, { expiresIn: JWT_EXPIRES_IN });
+/** Cryptographically secure URL-safe token (default 32 bytes → 64 hex chars) */
+export function generateSecureToken(bytes = 32): string {
+  return crypto.randomBytes(bytes).toString("hex");
 }
 
-export function verifyJWT(token: string): JWTPayload {
-  return jwt.verify(token, JWT_SECRET!) as JWTPayload;
-}
-
-// ─── Tokens & OTPs ───────────────────────────────────────────────────────────
-
-/** Cryptographically random 6-digit OTP */
+/** 6-digit numeric OTP */
 export function generateOTP(): string {
-  return crypto.randomInt(100_000, 999_999).toString();
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-/** 64-char hex token for magic links / reset tokens */
-export function generateSecureToken(): string {
-  return crypto.randomBytes(32).toString("hex");
-}
-
-/** Unique 6-char alphanumeric invite code */
-export function generateInviteCode(): string {
-  return crypto.randomBytes(4).toString("hex").toUpperCase().slice(0, 6);
+/** 6-char alphanumeric invite/signup code (uppercase) */
+export function generateInviteCode(length = 6): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const bytes = crypto.randomBytes(length);
+  return Array.from(bytes)
+    .map((b) => chars[b % chars.length])
+    .join("");
 }
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
 
 export function minutesFromNow(minutes: number): Date {
   return new Date(Date.now() + minutes * 60 * 1000);
+}
+
+export function hoursFromNow(hours: number): Date {
+  return minutesFromNow(hours * 60);
 }

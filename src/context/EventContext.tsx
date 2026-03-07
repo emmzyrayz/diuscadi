@@ -1,81 +1,68 @@
 "use client";
 // context/EventContext.tsx
 //
-// Lazy-loading context — only fetches when the user visits /events or /my-tickets.
-// Call `loadFeed()` or `loadRegistrations()` explicitly from those pages.
-// Automatically resets on logout.
+// Owns event feed and single event detail for the authenticated user.
+// Lazy — nothing is fetched on mount. Pages call loadFeed() / loadEvent()
+// explicitly when they mount, keeping network usage predictable.
+//
+// EventContext handles:
+//   - Personalized feed (GET /api/events/feed)
+//   - Public events     (GET /api/events/public)
+//   - Single event      (GET /api/events/[slug])
+//   - Register          (POST /api/events/register)
+//   - Cancel            (DELETE /api/events/register/[id])
 
 import React, {
   createContext,
   useContext,
   useState,
   useCallback,
-  useEffect,
   ReactNode,
 } from "react";
 import { useAuth } from "@/context/AuthContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface EventTicketType {
-  _id: string;
+export interface TicketTypeSummary {
+  id: string;
   name: string;
   price: number;
   currency: string;
+  maxQuantity: number;
+  availableFrom: string | null;
+  availableUntil: string | null;
 }
 
-export interface EventLocation {
-  venue?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  address?: string;
-}
-
-export interface FeedEvent {
-  _id: string;
+export interface EventSummary {
+  id: string;
   slug: string;
   title: string;
   overview: string;
-  image: string;
-  format: "physical" | "virtual" | "hybrid";
-  location?: EventLocation;
-  eventDate: string;
-  endDate?: string;
-  registrationDeadline: string;
-  duration?: string;
-  level?: string;
   category: string;
   tags: string[];
+  level: string | null;
+  format: string;
+  location: Record<string, string> | null;
+  eventDate: string;
+  endDate: string | null;
+  registrationDeadline: string;
+  duration: string | null;
   capacity: number;
-  slotsRemaining: number;
   registeredCount: number;
-  isRegistered: boolean;
-  ticketType?: EventTicketType;
-  status: string;
+  slotsRemaining: number;
+  image: string;
+  instructor: string | null;
+  targetEduStatus: string;
+  requiredSkills: string[];
+  locationScope: string;
+  ticketTypes: TicketTypeSummary[];
+  // Only present on feed events (requires auth)
+  isRegistered?: boolean;
+  myRegistrationId?: string | null;
 }
 
-export interface MyRegistration {
-  _id: string;
-  status: "registered" | "checked-in" | "cancelled";
-  inviteCode: string;
-  registeredAt: string;
-  checkedInAt?: string;
-  referralCodeUsed?: string;
-  event: {
-    _id: string;
-    slug: string;
-    title: string;
-    overview: string;
-    image: string;
-    format: string;
-    location?: EventLocation;
-    eventDate: string;
-    endDate?: string;
-    status: string;
-    category: string;
-  };
-  ticketType?: EventTicketType;
+export interface EventDetail extends EventSummary {
+  learningOutcomes: string[];
 }
 
 export interface Pagination {
@@ -83,40 +70,51 @@ export interface Pagination {
   limit: number;
   total: number;
   totalPages: number;
-  hasMore: boolean;
+  hasNext: boolean;
+  hasPrev: boolean;
 }
 
 export interface RegisterResult {
   success: boolean;
-  registrationId?: string;
+  error?: string;
   inviteCode?: string;
+  registrationId?: string;
+}
+
+export interface CancelResult {
+  success: boolean;
   error?: string;
 }
 
-// ─── Context type ─────────────────────────────────────────────────────────────
-
 interface EventContextType {
-  // Feed
-  feed: FeedEvent[];
+  // Feed (authenticated, personalised)
+  feed: EventSummary[];
   feedPagination: Pagination | null;
   feedLoading: boolean;
   feedError: string | null;
   loadFeed: (page?: number) => Promise<void>;
   refreshFeed: () => Promise<void>;
 
-  // My registrations
-  myRegistrations: MyRegistration[];
-  registrationsLoading: boolean;
-  registrationsError: string | null;
-  loadRegistrations: (status?: string) => Promise<void>;
-  refreshRegistrations: () => Promise<void>;
+  // Public events (no auth required)
+  publicEvents: EventSummary[];
+  publicEventsLoading: boolean;
+  publicEventsError: string | null;
+  loadPublicEvents: (limit?: number, category?: string) => Promise<void>;
 
-  // Actions
+  // Single event detail
+  currentEvent: EventDetail | null;
+  currentEventLoading: boolean;
+  currentEventError: string | null;
+  loadEvent: (slug: string) => Promise<void>;
+  clearCurrentEvent: () => void;
+
+  // Registration actions
   registerForEvent: (
     eventId: string,
     ticketTypeId: string,
     referralCode?: string,
   ) => Promise<RegisterResult>;
+  cancelRegistration: (registrationId: string) => Promise<CancelResult>;
 
   clearErrors: () => void;
 }
@@ -128,6 +126,7 @@ const EventContext = createContext<EventContextType | undefined>(undefined);
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getToken(): string | null {
+  if (typeof window === "undefined") return null;
   return localStorage.getItem("diuscadi_token");
 }
 
@@ -142,54 +141,47 @@ function authHeaders(): HeadersInit {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export const EventProvider = ({ children }: { children: ReactNode }) => {
-  const { isAuthenticated, sessionStatus } = useAuth();
+  const { isAuthenticated } = useAuth();
 
-  // ── Feed state ────────────────────────────────────────────────────────────
-  const [feed, setFeed] = useState<FeedEvent[]>([]);
+  // Feed state
+  const [feed, setFeed] = useState<EventSummary[]>([]);
   const [feedPagination, setFeedPagination] = useState<Pagination | null>(null);
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedError, setFeedError] = useState<string | null>(null);
+  const [currentFeedPage, setCurrentFeedPage] = useState(1);
 
-  // ── Registrations state ───────────────────────────────────────────────────
-  const [myRegistrations, setMyRegistrations] = useState<MyRegistration[]>([]);
-  const [registrationsLoading, setRegistrationsLoading] = useState(false);
-  const [registrationsError, setRegistrationsError] = useState<string | null>(
+  // Public events state
+  const [publicEvents, setPublicEvents] = useState<EventSummary[]>([]);
+  const [publicEventsLoading, setPublicEventsLoading] = useState(false);
+  const [publicEventsError, setPublicEventsError] = useState<string | null>(
     null,
   );
 
-  // ── Reset on logout ───────────────────────────────────────────────────────
-  useEffect(() => {
-    if (sessionStatus === "pending") return;
-    if (!isAuthenticated) {
-      setFeed([]);
-      setFeedPagination(null);
-      setMyRegistrations([]);
-      setFeedError(null);
-      setRegistrationsError(null);
-    }
-  }, [isAuthenticated, sessionStatus]);
+  // Current event state
+  const [currentEvent, setCurrentEvent] = useState<EventDetail | null>(null);
+  const [currentEventLoading, setCurrentEventLoading] = useState(false);
+  const [currentEventError, setCurrentEventError] = useState<string | null>(
+    null,
+  );
 
-  // ── loadFeed ──────────────────────────────────────────────────────────────
+  // ── Load personalised feed ─────────────────────────────────────────────────
   const loadFeed = useCallback(
     async (page = 1) => {
       if (!isAuthenticated) return;
       setFeedLoading(true);
       setFeedError(null);
       try {
-        const res = await fetch(`/api/events/feed?page=${page}&limit=20`, {
+        const res = await fetch(`/api/events/feed?page=${page}&limit=10`, {
           headers: authHeaders(),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load events.");
-
-        // Append on pagination, replace on first page
-        setFeed((prev) =>
-          page === 1 ? data.events : [...prev, ...data.events],
-        );
+        if (!res.ok) throw new Error(data.error ?? "Failed to load events");
+        setFeed(data.events);
         setFeedPagination(data.pagination);
+        setCurrentFeedPage(page);
       } catch (err) {
         setFeedError(
-          err instanceof Error ? err.message : "Failed to load events.",
+          err instanceof Error ? err.message : "Failed to load events",
         );
       } finally {
         setFeedLoading(false);
@@ -198,49 +190,60 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
     [isAuthenticated],
   );
 
-  const refreshFeed = useCallback(() => loadFeed(1), [loadFeed]);
-
-  // ── loadRegistrations ─────────────────────────────────────────────────────
-  const loadRegistrations = useCallback(
-    async (status?: string) => {
-      if (!isAuthenticated) return;
-      setRegistrationsLoading(true);
-      setRegistrationsError(null);
-      try {
-        const url = status
-          ? `/api/events/my-registrations?status=${status}`
-          : `/api/events/my-registrations`;
-        const res = await fetch(url, { headers: authHeaders() });
-        const data = await res.json();
-        if (!res.ok)
-          throw new Error(data.error ?? "Failed to load registrations.");
-        setMyRegistrations(data.registrations);
-      } catch (err) {
-        setRegistrationsError(
-          err instanceof Error ? err.message : "Failed to load registrations.",
-        );
-      } finally {
-        setRegistrationsLoading(false);
-      }
-    },
-    [isAuthenticated],
+  const refreshFeed = useCallback(
+    () => loadFeed(currentFeedPage),
+    [loadFeed, currentFeedPage],
   );
 
-  const refreshRegistrations = useCallback(
-    () => loadRegistrations(),
-    [loadRegistrations],
-  );
+  // ── Load public events ─────────────────────────────────────────────────────
+  const loadPublicEvents = useCallback(async (limit = 6, category?: string) => {
+    setPublicEventsLoading(true);
+    setPublicEventsError(null);
+    try {
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (category) params.set("category", category);
+      const res = await fetch(`/api/events/public?${params.toString()}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to load events");
+      setPublicEvents(data.events);
+    } catch (err) {
+      setPublicEventsError(
+        err instanceof Error ? err.message : "Failed to load events",
+      );
+    } finally {
+      setPublicEventsLoading(false);
+    }
+  }, []);
 
-  // ── registerForEvent ──────────────────────────────────────────────────────
+  // ── Load single event by slug ──────────────────────────────────────────────
+  const loadEvent = useCallback(async (slug: string) => {
+    setCurrentEventLoading(true);
+    setCurrentEventError(null);
+    try {
+      const res = await fetch(`/api/events/${slug}`, {
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Event not found");
+      setCurrentEvent(data.event);
+    } catch (err) {
+      setCurrentEventError(
+        err instanceof Error ? err.message : "Failed to load event",
+      );
+    } finally {
+      setCurrentEventLoading(false);
+    }
+  }, []);
+
+  const clearCurrentEvent = useCallback(() => setCurrentEvent(null), []);
+
+  // ── Register for event ─────────────────────────────────────────────────────
   const registerForEvent = useCallback(
     async (
       eventId: string,
       ticketTypeId: string,
       referralCode?: string,
     ): Promise<RegisterResult> => {
-      if (!isAuthenticated)
-        return { success: false, error: "Not authenticated." };
-
       try {
         const res = await fetch("/api/events/register", {
           method: "POST",
@@ -253,43 +256,99 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
         });
         const data = await res.json();
         if (!res.ok)
-          return {
-            success: false,
-            error: data.error ?? "Registration failed.",
-          };
+          return { success: false, error: data.error ?? "Registration failed" };
 
-        // Optimistically update isRegistered on the feed item
+        // Optimistically update feed — mark event as registered
         setFeed((prev) =>
           prev.map((e) =>
-            e._id === eventId
+            e.id === eventId
               ? {
                   ...e,
                   isRegistered: true,
-                  slotsRemaining: e.slotsRemaining - 1,
-                  registeredCount: e.registeredCount + 1,
+                  myRegistrationId: data.registration.id,
+                  slotsRemaining: Math.max(0, e.slotsRemaining - 1),
                 }
               : e,
           ),
         );
+        // Update current event if loaded
+        setCurrentEvent((prev) =>
+          prev?.id === eventId
+            ? {
+                ...prev,
+                isRegistered: true,
+                myRegistrationId: data.registration.id,
+                slotsRemaining: Math.max(0, prev.slotsRemaining - 1),
+              }
+            : prev,
+        );
 
         return {
           success: true,
-          registrationId: data.registrationId,
-          inviteCode: data.inviteCode,
+          inviteCode: data.registration.inviteCode,
+          registrationId: data.registration.id,
         };
       } catch (err) {
         return {
           success: false,
-          error: err instanceof Error ? err.message : "Registration failed.",
+          error: err instanceof Error ? err.message : "Registration failed",
         };
       }
     },
-    [isAuthenticated],
+    [],
+  );
+
+  // ── Cancel registration ────────────────────────────────────────────────────
+  const cancelRegistration = useCallback(
+    async (registrationId: string): Promise<CancelResult> => {
+      try {
+        const res = await fetch(`/api/events/register/${registrationId}`, {
+          method: "DELETE",
+          headers: authHeaders(),
+        });
+        const data = await res.json();
+        if (!res.ok)
+          return { success: false, error: data.error ?? "Cancellation failed" };
+
+        // Optimistically update feed
+        setFeed((prev) =>
+          prev.map((e) =>
+            e.myRegistrationId === registrationId
+              ? {
+                  ...e,
+                  isRegistered: false,
+                  myRegistrationId: null,
+                  slotsRemaining: e.slotsRemaining + 1,
+                }
+              : e,
+          ),
+        );
+        setCurrentEvent((prev) =>
+          prev?.myRegistrationId === registrationId
+            ? {
+                ...prev,
+                isRegistered: false,
+                myRegistrationId: null,
+                slotsRemaining: prev.slotsRemaining + 1,
+              }
+            : prev,
+        );
+
+        return { success: true };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : "Cancellation failed",
+        };
+      }
+    },
+    [],
   );
 
   const clearErrors = useCallback(() => {
     setFeedError(null);
-    setRegistrationsError(null);
+    setPublicEventsError(null);
+    setCurrentEventError(null);
   }, []);
 
   return (
@@ -301,12 +360,17 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
         feedError,
         loadFeed,
         refreshFeed,
-        myRegistrations,
-        registrationsLoading,
-        registrationsError,
-        loadRegistrations,
-        refreshRegistrations,
+        publicEvents,
+        publicEventsLoading,
+        publicEventsError,
+        loadPublicEvents,
+        currentEvent,
+        currentEventLoading,
+        currentEventError,
+        loadEvent,
+        clearCurrentEvent,
         registerForEvent,
+        cancelRegistration,
         clearErrors,
       }}
     >
@@ -319,6 +383,6 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
 
 export const useEvents = (): EventContextType => {
   const ctx = useContext(EventContext);
-  if (!ctx) throw new Error("useEvents must be used within an EventProvider.");
+  if (!ctx) throw new Error("useEvents must be used within an EventProvider");
   return ctx;
 };

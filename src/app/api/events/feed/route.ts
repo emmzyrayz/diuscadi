@@ -1,169 +1,212 @@
-// app/api/events/feed/route.ts
 // GET /api/events/feed
-// Returns a personalized, filtered list of published upcoming events.
-// Filtering happens entirely in MongoDB — no in-memory filtering.
+// Auth required. Returns personalized paginated event feed filtered by
+// the user's eduStatus and skills. Includes registration state per event.
+// Query params: ?page=1&limit=10
 
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
-import { Filter } from "mongodb";
-import { EventDocument } from "@/lib/models/Events";
 import { ObjectId } from "mongodb";
 
-async function handler(req: AuthenticatedRequest): Promise<NextResponse> {
+export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
-    const db = await getDb();
-    const vaultId = new ObjectId(req.auth.vaultId);
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
+    const limit = Math.min(20, parseInt(searchParams.get("limit") ?? "10"));
+    const skip = (page - 1) * limit;
     const now = new Date();
 
-    // ── Fetch user profile for personalization ────────────────────────────────
-    const userData = await Collections.userData(db).findOne({ vaultId });
+    const db = await getDb();
+    const vaultId = new ObjectId(req.auth.vaultId);
+
+    // Get user's eduStatus + skills for personalisation
+    const userData = await Collections.userData(db).findOne(
+      { vaultId },
+      { projection: { _id: 1, eduStatus: 1, skills: 1 } },
+    );
+
     if (!userData) {
-      return NextResponse.json(
-        { error: "User profile not found." },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // ── Build personalized MongoDB filter ─────────────────────────────────────
-    // Base: only published events with open registration and future event date
-    const filter: Filter<EventDocument> = {
+    const userDataId = userData._id as ObjectId;
+    const eduStatus = userData.eduStatus as string;
+    const skills = (userData.skills ?? []) as string[];
+
+    const matchStage = {
       status: "published",
-      registrationDeadline: { $gt: now },
       eventDate: { $gt: now },
+      registrationDeadline: { $gt: now },
+      $or: [
+        { targetEduStatus: "ALL" },
+        { targetEduStatus: eduStatus },
+        { requiredSkills: { $in: skills.length > 0 ? skills : ["__none__"] } },
+      ],
     };
 
-    // EduStatus targeting
-    // Show events targeting "all", or events specifically targeting the user's status
-    if (userData.eduStatus) {
-      filter["$or"] = [
-        { targetEduStatus: "ALL" },
-        { targetEduStatus: userData.eduStatus },
-      ];
-    }
-
-    // Skills matching (optional boost — show events matching any of user's skills,
-    // plus events with no required skills)
-    if (userData.skills?.length > 0) {
-      filter["$or"] = [
-        ...(filter["$or"] ?? []),
-        { requiredSkills: { $size: 0 } },
-        { requiredSkills: { $in: userData.skills } },
-      ];
-    }
-
-    // Parse pagination
-    const url = new URL(req.url);
-    const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1"));
-    const limit = Math.min(50, parseInt(url.searchParams.get("limit") ?? "20"));
-    const skip = (page - 1) * limit;
-
-    // ── Fetch events + slot counts in a single aggregation ────────────────────
     const pipeline = [
-      { $match: filter },
+      { $match: matchStage },
+      { $sort: { eventDate: 1 as const } },
 
-      // Count active registrations per event (for slotsRemaining)
+      // Count total for pagination
       {
-        $lookup: {
-          from: "eventRegistrations",
-          let: { eventId: "$_id" },
-          pipeline: [
+        $facet: {
+          total: [{ $count: "count" }],
+          events: [
+            { $skip: skip },
+            { $limit: limit },
+
+            // Count active registrations
             {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ["$eventId", "$$eventId"] },
-                    { $ne: ["$status", "cancelled"] },
-                  ],
-                },
+              $lookup: {
+                from: "eventRegistrations",
+                let: { eid: "$_id" },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ["$eventId", "$$eid"] },
+                          { $ne: ["$status", "cancelled"] },
+                        ],
+                      },
+                    },
+                  },
+                  { $count: "total" },
+                ],
+                as: "regCount",
               },
             },
-            { $count: "total" },
-          ],
-          as: "registrationCount",
-        },
-      },
 
-      // Attach free ticket type (price info)
-      {
-        $lookup: {
-          from: "ticketTypes",
-          localField: "_id",
-          foreignField: "eventId",
-          as: "ticketTypes",
-        },
-      },
-
-      // Check if current user is already registered
-      {
-        $lookup: {
-          from: "eventRegistrations",
-          let: { eventId: "$_id" },
-          pipeline: [
+            // Check if this user is registered
             {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ["$eventId", "$$eventId"] },
-                    { $eq: ["$userId", userData._id] },
-                    { $ne: ["$status", "cancelled"] },
-                  ],
-                },
+              $lookup: {
+                from: "eventRegistrations",
+                let: { eid: "$_id" },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ["$eventId", "$$eid"] },
+                          { $eq: ["$userId", userDataId] },
+                          { $ne: ["$status", "cancelled"] },
+                        ],
+                      },
+                    },
+                  },
+                  { $limit: 1 },
+                ],
+                as: "myReg",
               },
             },
-            { $limit: 1 },
-          ],
-          as: "userRegistration",
-        },
-      },
 
-      {
-        $addFields: {
-          registeredCount: {
-            $ifNull: [{ $arrayElemAt: ["$registrationCount.total", 0] }, 0],
-          },
-          slotsRemaining: {
-            $subtract: [
-              "$capacity",
-              {
-                $ifNull: [{ $arrayElemAt: ["$registrationCount.total", 0] }, 0],
+            // Get active ticket types
+            {
+              $lookup: {
+                from: "ticketTypes",
+                localField: "_id",
+                foreignField: "eventId",
+                pipeline: [{ $match: { isActive: true } }],
+                as: "ticketTypes",
               },
-            ],
-          },
-          isRegistered: { $gt: [{ $size: "$userRegistration" }, 0] },
-          ticketType: { $arrayElemAt: ["$ticketTypes", 0] },
+            },
+
+            {
+              $addFields: {
+                registeredCount: {
+                  $ifNull: [{ $arrayElemAt: ["$regCount.total", 0] }, 0],
+                },
+                slotsRemaining: {
+                  $max: [
+                    0,
+                    {
+                      $subtract: [
+                        "$capacity",
+                        {
+                          $ifNull: [
+                            { $arrayElemAt: ["$regCount.total", 0] },
+                            0,
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                isRegistered: { $gt: [{ $size: "$myReg" }, 0] },
+                myRegistration: { $arrayElemAt: ["$myReg", 0] },
+              },
+            },
+            { $project: { regCount: 0, myReg: 0 } },
+          ],
         },
       },
-
-      { $unset: ["registrationCount", "userRegistration", "ticketTypes"] },
-      { $sort: { eventDate: 1 } },
-      { $skip: skip },
-      { $limit: limit },
     ];
 
-    const [events, total] = await Promise.all([
-      Collections.events(db).aggregate(pipeline).toArray(),
-      Collections.events(db).countDocuments(filter),
-    ]);
+    const [result] = await Collections.events(db).aggregate(pipeline).toArray();
+    const totalCount = (result.total[0]?.count ?? 0) as number;
+    const events = result.events as Array<Record<string, unknown>>;
+
+    const serialised = events.map((e) => ({
+      id: e._id!.toString(),
+      slug: e.slug,
+      title: e.title,
+      overview: e.overview,
+      category: e.category,
+      tags: e.tags,
+      level: e.level ?? null,
+      format: e.format,
+      location: e.location ?? null,
+      eventDate: (e.eventDate as Date).toISOString(),
+      endDate: e.endDate ? (e.endDate as Date).toISOString() : null,
+      registrationDeadline: (e.registrationDeadline as Date).toISOString(),
+      duration: e.duration ?? null,
+      capacity: e.capacity,
+      registeredCount: e.registeredCount,
+      slotsRemaining: e.slotsRemaining,
+      image: e.image,
+      instructor: e.instructor ?? null,
+      targetEduStatus: e.targetEduStatus,
+      requiredSkills: e.requiredSkills,
+      locationScope: e.locationScope,
+      isRegistered: e.isRegistered,
+      myRegistrationId: e.myRegistration
+        ? (e.myRegistration as Record<string, unknown>)._id!.toString()
+        : null,
+      ticketTypes: (e.ticketTypes as Array<Record<string, unknown>>).map(
+        (t) => ({
+          id: t._id!.toString(),
+          name: t.name,
+          price: t.price,
+          currency: t.currency,
+          maxQuantity: t.maxQuantity,
+          availableFrom: t.availableFrom
+            ? (t.availableFrom as Date).toISOString()
+            : null,
+          availableUntil: t.availableUntil
+            ? (t.availableUntil as Date).toISOString()
+            : null,
+        }),
+      ),
+    }));
 
     return NextResponse.json({
-      events,
+      events: serialised,
       pagination: {
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        hasMore: page * limit < total,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasNext: page * limit < totalCount,
+        hasPrev: page > 1,
       },
     });
   } catch (err) {
     console.error("[GET /api/events/feed]", err);
     return NextResponse.json(
-      { error: "Internal server error." },
+      { error: "Internal server error" },
       { status: 500 },
     );
   }
-}
-
-export const GET = withAuth(handler);
+});
