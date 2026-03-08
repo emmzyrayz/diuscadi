@@ -83,7 +83,7 @@ export default async function HomePage() {
         avatar: homeUser.avatar,
         status: `${homeUser.eduStatus.charAt(0).toUpperCase()}${homeUser.eduStatus.slice(1)}`,
         skill: homeUser.skills[0] ?? "",
-        interest: homeUser.committee ?? "General",
+        interest: homeUser.committeeMembership?.committee ?? "General",
         projectsParticipated: String(homeUser.eventsAttended),
         points: homeUser.eventsRegistered * 50, // placeholder formula
       }

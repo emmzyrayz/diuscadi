@@ -11,11 +11,9 @@ import {
 import { ObjectId } from "mongodb";
 import {
   EduStatus,
-  Committee,
   Skill,
   PhoneNumber,
   EDU_STATUSES,
-  COMMITTEES,
   SKILLS,
 } from "@/types/domain";
 import { VaultDocument } from "@/lib/models/vault";
@@ -34,8 +32,7 @@ export async function POST(req: NextRequest) {
       phone, // { countryCode: number, phoneNumber: number } — required
       avatar,
       schoolEmail, // optional
-      committee, // optional
-      skills, // optional
+      skills, // optional — committee entry requires application after signup
     } = body;
 
     // ── Validate required fields ──────────────────────────────────────────────
@@ -70,17 +67,9 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Validate eduStatus ────────────────────────────────────────────────────
-    if (!EDU_STATUSES.includes(eduStatus)) {
+    if (!(EDU_STATUSES as string[]).includes(eduStatus)) {
       return NextResponse.json(
         { error: `eduStatus must be one of: ${EDU_STATUSES.join(", ")}` },
-        { status: 400 },
-      );
-    }
-
-    // ── Validate optional committee ───────────────────────────────────────────
-    if (committee != null && !COMMITTEES.includes(committee)) {
-      return NextResponse.json(
-        { error: `committee must be one of: ${COMMITTEES.join(", ")}` },
         { status: 400 },
       );
     }
@@ -94,7 +83,7 @@ export async function POST(req: NextRequest) {
         );
       }
       const invalid = (skills as string[]).filter(
-        (s) => !SKILLS.includes(s as Skill),
+        (s) => !(SKILLS as string[]).includes(s),
       );
       if (invalid.length > 0) {
         return NextResponse.json(
@@ -152,11 +141,8 @@ export async function POST(req: NextRequest) {
     const vaultId = new ObjectId();
     const userDataId = new ObjectId();
 
-    // Email OTP + magic link
     const emailOTP = generateOTP();
     const emailToken = generateSecureToken();
-
-    // Phone OTP (SMS — mocked until CAC/provider is set up)
     const phoneOTP = generateOTP();
 
     const defaultRole = "participant" as const;
@@ -192,17 +178,18 @@ export async function POST(req: NextRequest) {
     await Collections.vault(db).insertOne(vaultDoc);
 
     // ── Create UserData document ──────────────────────────────────────────────
+    // committeeMembership starts as null — user must apply after signup.
     const userDataDoc: UserDataDocument = {
       _id: userDataId,
       vaultId,
       fullName: `${firstName.trim()} ${lastName.trim()}`,
       email: emailLower,
-      phone: phoneData, // mirrored from Vault
+      phone: phoneData,
       schoolEmail: schoolEmailLower,
-      role: defaultRole, // mirrored from Vault
+      role: defaultRole,
       eduStatus: eduStatus as EduStatus,
       avatar: avatar ?? undefined,
-      committee: (committee as Committee) ?? null,
+      committeeMembership: null,
       skills: (skills as Skill[]) ?? [],
       profileCompleted: false,
       membershipStatus: "pending",
@@ -217,7 +204,7 @@ export async function POST(req: NextRequest) {
 
     await Collections.userData(db).insertOne(userDataDoc);
 
-    // ── Email OTP ────────────────────────────────────────────────────────
+    // ── Send verification email ───────────────────────────────────────────────
     await sendVerificationEmail({
       to: emailLower,
       name: `${firstName.trim()} ${lastName.trim()}`,
@@ -234,7 +221,6 @@ export async function POST(req: NextRequest) {
       {
         message:
           "Account created. Verification codes sent to your email and phone.",
-        // In dev, expose which channels were used — remove in production
         ...(process.env.NODE_ENV === "development" && {
           _dev: { emailOTP, phoneOTP, emailToken },
         }),
