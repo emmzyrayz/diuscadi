@@ -14,7 +14,7 @@
 //                     updateProfile()     → PATCH /api/users/profile
 //                     updateInstitution() → PATCH /api/users/institution
 //                     updateSkills()      → PATCH /api/users/skills
-//                     updateCommittee()   → PATCH /api/users/committee
+//                     updateCommittee()   → PATCH /api/users/committee (leave only)
 
 import React, {
   createContext,
@@ -29,12 +29,12 @@ import type {
   EduStatus,
   AccountRole,
   Committee,
+  CommitteeMembership,
   Skill,
   PhoneNumber,
 } from "@/types/domain";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-// Mirrors UserDataDocument with string _id (ObjectId is not serialisable).
 
 export interface Institution {
   Type?: "University" | "Polytechnic";
@@ -48,16 +48,19 @@ export interface Institution {
 }
 
 export interface UserProfile {
-  id: string; // UserData._id stringified
+  id: string;
   fullName: string;
   email: string;
   avatar?: string;
-  phone?: PhoneNumber; // { countryCode: number, phoneNumber: number }
+  phone?: PhoneNumber;
   schoolEmail?: string;
-  role: AccountRole; // "participant" | "moderator" | "admin" | "webmaster"
-  eduStatus: EduStatus; // "STUDENT" | "GRADUATE"
-  committee: Committee | null; // "socials" | "media" | ... | null
-  skills: Skill[]; // "photography" | "design" | ...
+  role: AccountRole;
+  eduStatus: EduStatus;
+
+  // Single committee membership — null = not in any committee yet
+  committeeMembership: CommitteeMembership | null;
+
+  skills: Skill[];
   profileCompleted: boolean;
   membershipStatus: "pending" | "approved" | "suspended";
   location?: {
@@ -91,29 +94,17 @@ interface UserContextType {
   isLoading: boolean;
   error: string | null;
 
-  // Fetches full document from GET /api/users/profile
-  // (Institution, bio, analytics not included in the auth/me seed)
   refreshProfile: () => Promise<void>;
-
-  // PATCH /api/users/profile — fullName, avatar, bio, phone
   updateProfile: (data: {
     fullName?: string;
     avatar?: string;
     bio?: string;
     phone?: PhoneNumber;
   }) => Promise<UpdateResult>;
-
-  // PATCH /api/users/institution
   updateInstitution: (data: Partial<Institution>) => Promise<UpdateResult>;
-
-  // PATCH /api/users/skills
-  // Valid: "photography" | "design" | "electronics" | "fashion" | "tech" | "programming"
   updateSkills: (skills: Skill[]) => Promise<UpdateResult>;
-
-  // PATCH /api/users/committee
-  // Valid: "socials" | "media" | "logistics" | "innovation" | "mentorship" | "protocol" | null
+  // Only supports leaving (null) — joining requires POST /api/applications
   updateCommittee: (committee: Committee | null) => Promise<UpdateResult>;
-
   clearError: () => void;
 }
 
@@ -136,7 +127,6 @@ function authHeaders(): HeadersInit {
   };
 }
 
-// Converts raw API response (MongoDB doc with stringified _id) → UserProfile
 function parseProfile(raw: Record<string, unknown>): UserProfile {
   return {
     id: String(raw._id ?? ""),
@@ -147,7 +137,8 @@ function parseProfile(raw: Record<string, unknown>): UserProfile {
     schoolEmail: raw.schoolEmail as string | undefined,
     role: (raw.role ?? "participant") as AccountRole,
     eduStatus: (raw.eduStatus ?? "STUDENT") as EduStatus,
-    committee: (raw.committee ?? null) as Committee | null,
+    committeeMembership: (raw.committeeMembership ??
+      null) as CommitteeMembership | null,
     skills: (raw.skills ?? []) as Skill[],
     profileCompleted: Boolean(raw.profileCompleted),
     membershipStatus: (raw.membershipStatus ??
@@ -165,7 +156,6 @@ function parseProfile(raw: Record<string, unknown>): UserProfile {
   };
 }
 
-// Generic PATCH helper — calls endpoint, updates state on success
 async function callPatch(
   endpoint: string,
   body: Record<string, unknown>,
@@ -187,7 +177,6 @@ async function callPatch(
       setError(msg);
       return { success: false, error: msg };
     }
-    // Every PATCH route returns { message, profile: sanitizedUserData }
     setProfile(parseProfile(data.profile as Record<string, unknown>));
     return { success: true };
   } catch (err) {
@@ -209,9 +198,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
 
   // ── Step 1: seed from AuthContext on login ────────────────────────────────
-  // /api/auth/me returns the fields below — use them immediately so the
-  // UI is populated without waiting for an extra network call.
-  // Institution, bio, full analytics are loaded lazily via refreshProfile().
   useEffect(() => {
     if (sessionStatus === "pending") return;
 
@@ -229,7 +215,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       schoolEmail: user.schoolEmail,
       role: user.role,
       eduStatus: user.eduStatus,
-      committee: user.committee ?? null,
+      committeeMembership: user.committeeMembership ?? null,
       skills: user.skills ?? [],
       profileCompleted: user.profileCompleted ?? false,
       membershipStatus: user.membershipStatus ?? "pending",
@@ -244,7 +230,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   }, [isAuthenticated, sessionStatus, user]);
 
   // ── Step 2: refreshProfile → GET /api/users/profile ──────────────────────
-  // Call this on profile pages or any page that needs Institution / bio.
   const refreshProfile = useCallback(async () => {
     if (!isAuthenticated) return;
     setIsLoading(true);
@@ -262,7 +247,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isAuthenticated]);
 
-  // ── updateProfile → PATCH /api/users/profile ─────────────────────────────
   const updateProfile = useCallback(
     (data: {
       fullName?: string;
@@ -280,7 +264,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
-  // ── updateInstitution → PATCH /api/users/institution ─────────────────────
   const updateInstitution = useCallback(
     (data: Partial<Institution>) =>
       callPatch(
@@ -293,7 +276,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
-  // ── updateSkills → PATCH /api/users/skills ────────────────────────────────
   const updateSkills = useCallback(
     (skills: Skill[]) =>
       callPatch(
@@ -306,7 +288,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
-  // ── updateCommittee → PATCH /api/users/committee ──────────────────────────
+  // Only supports leaving (null). Joining requires POST /api/applications.
   const updateCommittee = useCallback(
     (committee: Committee | null) =>
       callPatch(
