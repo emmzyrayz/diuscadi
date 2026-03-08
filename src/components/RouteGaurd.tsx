@@ -11,8 +11,8 @@ import { cn } from "../lib/utils";
 const ROLE_HOME: Record<AccountRole, string> = {
   participant: "/home",
   moderator: "/home",
-  admin: "/admin/analytics",
-  webmaster: "/admin/system",
+  admin: "/admin",
+  webmaster: "/admin",
 };
 
 // Routes the guard itself redirects to — never block these or you get a loop

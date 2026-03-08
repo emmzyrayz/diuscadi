@@ -1,44 +1,49 @@
-// app/api/users/committee/route.ts
-// PATCH — assign or clear committee membership
-// Body example:
-// { "committee": "INNOVATION" }
-// { "committee": null }          ← clears assignment
+// PATCH /api/users/committee
+// Authenticated user requests to join or leave a committee.
+// Joining requires an approved application — direct assignment is blocked.
+// Leaving (setting null) is always allowed.
+// Body: { "committee": "media" }   ← request to join (creates application)
+//       { "committee": null }       ← leave current committee
 
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
+import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
-import {
-  updateUserCommittee,
-  sanitizeProfile,
-} from "@/lib/services/userService";
+import { COMMITTEES } from "@/types/domain";
 
-async function patchHandler(req: AuthenticatedRequest): Promise<NextResponse> {
+export const PATCH = withAuth(async (req: AuthenticatedRequest) => {
   try {
-    const body = await req.json();
-    const db = await getDb();
-    const vaultId = new ObjectId(req.auth.vaultId);
+    const { committee } = await req.json();
 
-    if (!("committee" in body)) {
+    // null = leave committee
+    if (committee === null) {
+      const db = await getDb();
+      const vaultId = new ObjectId(req.auth.vaultId);
+      await Collections.userData(db).updateOne(
+        { vaultId },
+        { $set: { committeeMembership: null, updatedAt: new Date() } },
+      );
+      return NextResponse.json({ message: "Left committee successfully" });
+    }
+
+    // Validate committee value
+    if (!(COMMITTEES as string[]).includes(committee)) {
       return NextResponse.json(
-        { error: 'Body must include a "committee" field (string or null)' },
+        { error: `committee must be one of: ${COMMITTEES.join(", ")}` },
         { status: 400 },
       );
     }
 
-    const result = await updateUserCommittee(db, vaultId, body.committee);
-
-    if (result.error) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: result.status ?? 400 },
-      );
-    }
-
-    return NextResponse.json({
-      message: "Committee updated successfully",
-      profile: sanitizeProfile(result.updated!),
-    });
+    // Block direct join — must go through application flow
+    return NextResponse.json(
+      {
+        error:
+          "To join a committee, submit an application via POST /api/applications",
+        hint: { type: "committee", requestedCommittee: committee },
+      },
+      { status: 403 },
+    );
   } catch (err) {
     console.error("[PATCH /api/users/committee]", err);
     return NextResponse.json(
@@ -46,6 +51,4 @@ async function patchHandler(req: AuthenticatedRequest): Promise<NextResponse> {
       { status: 500 },
     );
   }
-}
-
-export const PATCH = withAuth(patchHandler);
+});

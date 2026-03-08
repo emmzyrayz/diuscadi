@@ -9,7 +9,7 @@ import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
 import { verifyJWT } from "@/lib/auth";
 import { cookies } from "next/headers";
-import type { EduStatus } from "@/types/domain"; // ← single source of truth
+import type { EduStatus, CommitteeMembership } from "@/types/domain"; // ← single source of truth
 
 // ─── Auth helper ──────────────────────────────────────────────────────────────
 // Reads the JWT from the cookie store (server-side).
@@ -36,7 +36,7 @@ export interface HomeUser {
   role: string;
   eduStatus: EduStatus; // "STUDENT" | "GRADUATE"
   skills: string[];
-  committee: string | null;
+  committeeMembership: CommitteeMembership | null;
   profileCompleted: boolean;
   membershipStatus: string;
   eventsRegistered: number;
@@ -131,7 +131,7 @@ export async function fetchHomeUser(): Promise<HomeUser | null> {
           avatar: 1,
           eduStatus: 1,
           skills: 1,
-          committee: 1,
+          committeeMembership: 1,
           profileCompleted: 1,
           membershipStatus: 1,
           analytics: 1,
@@ -149,7 +149,7 @@ export async function fetchHomeUser(): Promise<HomeUser | null> {
     role: vault.role,
     eduStatus: userData.eduStatus as EduStatus,
     skills: userData.skills ?? [],
-    committee: userData.committee ?? null,
+    committeeMembership: userData.committeeMembership ?? null,
     profileCompleted: userData.profileCompleted ?? false,
     membershipStatus: userData.membershipStatus,
     eventsRegistered: userData.analytics?.eventsRegistered ?? 0,

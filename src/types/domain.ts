@@ -1,19 +1,7 @@
-// lib/types/domain.ts
-// ─────────────────────────────────────────────────────────────────────────────
-// Single source of truth for all domain types used across models,
-// API routes, and the frontend AuthContext.
-// ─────────────────────────────────────────────────────────────────────────────
+import { ObjectId } from "mongodb";
 
-// ── 1. Education status ───────────────────────────────────────────────────────
 export type EduStatus = "STUDENT" | "GRADUATE";
-
-// ── 2. Platform role ──────────────────────────────────────────────────────────
-// Lives in Vault (source of truth) + mirrored to UserData (display).
-// Default at signup = "participant". Elevated by admin/webmaster only.
 export type AccountRole = "participant" | "moderator" | "admin" | "webmaster";
-
-// ── 3. Committee ─────────────────────────────────────────────────────────────
-// One committee per user. null = not yet assigned.
 export type Committee =
   | "socials"
   | "media"
@@ -21,9 +9,6 @@ export type Committee =
   | "innovation"
   | "mentorship"
   | "protocol";
-
-// ── 4. Skills ────────────────────────────────────────────────────────────────
-// Multiple skills per user.
 export type Skill =
   | "photography"
   | "design"
@@ -31,27 +16,29 @@ export type Skill =
   | "fashion"
   | "tech"
   | "programming";
+export type CommitteeRole = "MEMBER" | "COORDINATOR" | "HEAD" | "ADMIN";
 
-// ── 5. Phone number ───────────────────────────────────────────────────────────
-// Lives in Vault (source of truth for auth) + mirrored to UserData (display).
-// countryCode: numeric dial code e.g. 234 for Nigeria, 1 for USA
-// phoneNumber: local number without leading zero e.g. 8012345678
 export interface PhoneNumber {
   countryCode: number;
   phoneNumber: number;
 }
 
-// ── Convenience arrays (for validation & UI dropdowns) ───────────────────────
+// A user's single committee membership with an attached role.
+// null = not in any committee yet.
+export interface CommitteeMembership {
+  committee: Committee;
+  role: CommitteeRole;
+  joinedAt: Date;
+  assignedBy?: ObjectId; // → Vault._id of admin who assigned/changed the role
+}
 
 export const EDU_STATUSES: EduStatus[] = ["STUDENT", "GRADUATE"];
-
 export const ACCOUNT_ROLES: AccountRole[] = [
   "participant",
   "moderator",
   "admin",
   "webmaster",
 ];
-
 export const COMMITTEES: Committee[] = [
   "socials",
   "media",
@@ -60,7 +47,6 @@ export const COMMITTEES: Committee[] = [
   "mentorship",
   "protocol",
 ];
-
 export const SKILLS: Skill[] = [
   "photography",
   "design",
@@ -68,4 +54,10 @@ export const SKILLS: Skill[] = [
   "fashion",
   "tech",
   "programming",
+];
+export const COMMITTEE_ROLES: CommitteeRole[] = [
+  "MEMBER",
+  "COORDINATOR",
+  "HEAD",
+  "ADMIN",
 ];

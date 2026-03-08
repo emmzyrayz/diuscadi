@@ -20,6 +20,8 @@ export interface EventDocument {
   category: string;
   tags: string[];
   level?: EventLevel;
+  description: string;
+  shortDescription: string;
 
   // ── Targeting (personalized feed filtering) ───────────────────────────────
   requiredSkills: string[]; // matched against user.skills

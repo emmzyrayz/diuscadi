@@ -12,12 +12,13 @@ import type {
   EduStatus,
   AccountRole,
   Committee,
+  CommitteeMembership,
   Skill,
   PhoneNumber,
 } from "@/types/domain";
 
 // Re-export for consumers (RouteGuard, forms, etc.)
-export type { EduStatus, AccountRole, Committee, Skill };
+export type { EduStatus, AccountRole, Committee, CommitteeMembership, Skill };
 
 // ─── 1. Types ────────────────────────────────────────────────────────────────
 
@@ -37,7 +38,7 @@ export interface User {
   fullName: string;
   avatar?: string;
   schoolEmail?: string;
-  committee: Committee | null;
+  committeeMembership: CommitteeMembership | null;
   skills: Skill[];
   membershipStatus: "pending" | "approved" | "suspended";
   profileCompleted: boolean;
@@ -55,11 +56,10 @@ export interface SignupData {
   password: string;
   confirmPassword: string;
   eduStatus: EduStatus;
-  phone: PhoneNumber; // required
+  phone: PhoneNumber;
   avatar?: string;
-  schoolEmail?: string; // optional — students with institutional email
-  committee?: Committee; // optional at signup, editable after
-  skills?: Skill[]; // optional at signup, editable after
+  schoolEmail?: string;
+  skills?: Skill[];
 }
 
 export interface AuthError {
@@ -76,6 +76,7 @@ export type SessionStatus = "pending" | "restored" | "unauthenticated";
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   /** True only during signin / signup / resetPassword actions — NOT during session restore */
   isLoading: boolean;
@@ -109,18 +110,16 @@ const storage = {
   },
 };
 
-const clearStoredSession = () => {
-  storage.remove(TOKEN_KEY);
-};
+const clearStoredSession = () => storage.remove(TOKEN_KEY);
 
 export const ROLE_REDIRECTS: Record<AccountRole, string> = {
   participant: "/home",
   moderator: "/home",
-  admin: "/admin/analytics",
-  webmaster: "/admin/system",
+  admin: "/admin",
+  webmaster: "/admin",
 };
 
-// ─── 4. API helper ────────────────────────────────────────────────────────────
+// ─── 3. API helper ────────────────────────────────────────────────────────────
 
 async function apiFetch<T>(
   url: string,
@@ -136,13 +135,11 @@ async function apiFetch<T>(
   const res = await fetch(url, { ...options, headers });
   const data = await res.json();
 
-  if (!res.ok) {
-    throw new Error(data.error ?? data.message ?? "Request failed");
-  }
+  if (!res.ok) throw new Error(data.error ?? data.message ?? "Request failed");
   return data as T;
 }
 
-// ─── 5. Map /api/auth/me response → User ─────────────────────────────────────
+// ─── 4. Map /api/auth/me response → User ─────────────────────────────────────
 
 function parseUserFromMe(
   vault: Record<string, unknown>,
@@ -164,7 +161,8 @@ function parseUserFromMe(
     fullName: userData.fullName as string,
     avatar: userData.avatar as string | undefined,
     schoolEmail: userData.schoolEmail as string | undefined,
-    committee: (userData.committee ?? null) as Committee | null,
+    committeeMembership: (userData.committeeMembership ??
+      null) as CommitteeMembership | null,
     skills: (userData.skills ?? []) as Skill[],
     membershipStatus: (userData.membershipStatus ??
       "pending") as User["membershipStatus"],
@@ -172,7 +170,7 @@ function parseUserFromMe(
   };
 }
 
-// ─── 3. Context type ─────────────────────────────────────────────────────────
+// ─── 5. Context ───────────────────────────────────────────────────────────────
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -182,24 +180,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("pending");
+  const [token, setToken] = useState<string | null>(() =>
+    storage.get(TOKEN_KEY),
+  );
   const [error, setError] = useState<AuthError | null>(null);
   const router = useRouter();
 
   const clearError = useCallback(() => setError(null), []);
 
   // ── Session Restore on Mount ──────────────────────────────────────────────
-  //
-  // Reads JWT from localStorage → hits /api/auth/me to validate server-side.
-  // An expired or revoked token is caught here and clears storage silently.
   useEffect(() => {
     const restoreSession = async () => {
       const storedToken = storage.get(TOKEN_KEY);
-
       if (!storedToken) {
         setSessionStatus("unauthenticated");
         return;
       }
-
       try {
         const { vault, userData } = await apiFetch<{
           vault: Record<string, unknown>;
@@ -207,20 +203,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }>("/api/auth/me", {}, storedToken);
 
         setUser(parseUserFromMe(vault, userData));
+        setToken(storedToken);
         setSessionStatus("restored");
       } catch {
-        // Expired / invalid token — clear silently
         clearStoredSession();
         setUser(null);
+        setToken(null);
         setSessionStatus("unauthenticated");
       }
     };
 
     restoreSession();
-  }, []); // run once on mount only
+  }, []);
 
   // ── Signin ────────────────────────────────────────────────────────────────
-
   const signin = useCallback(
     async (credentials: SigninCredentials) => {
       setIsLoading(true);
@@ -231,29 +227,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(credentials),
         });
-
         const data = await res.json();
 
-        // ── Unverified account — redirect to verify page ──────────────────
         if (res.status === 403 && data.verified === false) {
           router.push(data.redirectTo);
           return;
         }
-
-        // ── Cooldown enforced by server ───────────────────────────────────
         if (res.status === 429 && data.verified === false) {
-          setError({
-            message: data.error,
-            field: "general",
-          });
+          setError({ message: data.error, field: "general" });
           return;
         }
+        if (!res.ok) throw new Error(data.error ?? "Sign in failed.");
 
-        if (!res.ok) {
-          throw new Error(data.error ?? "Sign in failed.");
-        }
-
-        // ── Success — fetch full profile ──────────────────────────────────
         const { vault, userData } = await apiFetch<{
           vault: Record<string, unknown>;
           userData: Record<string, unknown>;
@@ -261,6 +246,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         const authedUser = parseUserFromMe(vault, userData);
         storage.set(TOKEN_KEY, data.token);
+        setToken(data.token);
         setUser(authedUser);
         setSessionStatus("restored");
         router.push(ROLE_REDIRECTS[authedUser.role]);
@@ -277,7 +263,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 
   // ── Signup ────────────────────────────────────────────────────────────────
-
   const signup = useCallback(
     async (data: SignupData) => {
       setIsLoading(true);
@@ -286,7 +271,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (data.password !== data.confirmPassword) {
           throw new Error("Passwords do not match.");
         }
-
         await apiFetch("/api/auth/signup", {
           method: "POST",
           body: JSON.stringify({
@@ -298,19 +282,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             phone: data.phone,
             avatar: data.avatar,
             schoolEmail: data.schoolEmail,
-            committee: data.committee,
             skills: data.skills,
           }),
         });
-
-        // Redirect to verify page — pass email so the form can pre-fill it
         router.push(`/auth/verify?email=${encodeURIComponent(data.email)}`);
       } catch (err: unknown) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : "Registration failed. Please try again.";
-        setError({ message, field: "general" });
+        setError({
+          message:
+            err instanceof Error
+              ? err.message
+              : "Registration failed. Please try again.",
+          field: "general",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -319,17 +302,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 
   // ── Logout ────────────────────────────────────────────────────────────────
-
   const logout = useCallback(async () => {
-    const token = storage.get(TOKEN_KEY);
+    const storedToken = storage.get(TOKEN_KEY);
     try {
-      if (token) {
-        await apiFetch("/api/auth/signout", { method: "POST" }, token);
+      if (storedToken) {
+        await apiFetch("/api/auth/signout", { method: "POST" }, storedToken);
       }
     } catch {
-      // Swallow — we clear client state regardless
+      // Swallow — clear client state regardless
     } finally {
       clearStoredSession();
+      setToken(null);
       setUser(null);
       setError(null);
       setSessionStatus("unauthenticated");
@@ -338,7 +321,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [router]);
 
   // ── Forgot Password ───────────────────────────────────────────────────────
-
   const forgotPassword = useCallback(async (email: string) => {
     setError(null);
     try {
@@ -350,12 +332,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const message =
         err instanceof Error ? err.message : "Failed to send reset email.";
       setError({ message, field: "general" });
-      throw err; // re-throw so the form can react
+      throw err;
     }
   }, []);
 
   // ── Verify Email (OTP) ────────────────────────────────────────────────────
-
   const verifyEmail = useCallback(
     async (code: string, email: string) => {
       setIsLoading(true);
@@ -381,7 +362,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 
   // ── Resend Verification ───────────────────────────────────────────────────
-
   const resendVerification = useCallback(async (email: string) => {
     setError(null);
     try {
@@ -397,18 +377,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // ── Verify Reset OTP → returns resetToken ─────────────────────────────────
-
+  // ── Verify Reset OTP ──────────────────────────────────────────────────────
   const verifyResetOtp = useCallback(
     async (email: string, code: string): Promise<string> => {
       setError(null);
       try {
         const { resetToken } = await apiFetch<{ resetToken: string }>(
           "/api/auth/verify-reset",
-          {
-            method: "POST",
-            body: JSON.stringify({ email, code }),
-          },
+          { method: "POST", body: JSON.stringify({ email, code }) },
         );
         return resetToken;
       } catch (err: unknown) {
@@ -422,7 +398,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 
   // ── Reset Password ────────────────────────────────────────────────────────
-
   const resetPassword = useCallback(
     async (resetToken: string, newPassword: string) => {
       setIsLoading(true);
@@ -448,11 +423,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 
   // ── Provider value ────────────────────────────────────────────────────────
-
   return (
     <AuthContext.Provider
       value={{
         user,
+        token,
         isAuthenticated: !!user,
         isLoading,
         sessionStatus,

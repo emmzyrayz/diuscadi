@@ -1,34 +1,38 @@
 // lib/models/Application.ts
-import { ObjectId } from "mongodb";
-import { Committee, Skill } from "@/types/domain";
+// Committee or skill change requests submitted by users.
+// Reviewed by admin or moderator.
+//
+// Committee application flow:
+//   1. User applies for a committee (type: "committee") — role defaults to MEMBER
+//   2. Admin approves → user gets committeeMembership: { committee, role: "MEMBER", joinedAt }
+//   3. Admin separately assigns a higher role via PATCH /api/admin/users/[id]/committee-role
 
-export type ApplicationType = "committee" | "skill";
+import { ObjectId } from "mongodb";
+
+export type ApplicationType = "committee" | "skills";
 export type ApplicationStatus = "pending" | "approved" | "rejected";
 
 export interface ApplicationDocument {
   _id?: ObjectId;
 
-  // ── Who applied ───────────────────────────────────────────────────────────
   userId: ObjectId; // → UserData._id
-  vaultId: ObjectId; // → Vault._id (for auth checks)
+  vaultId: ObjectId; // → Vault._id
 
-  // ── What they applied for ─────────────────────────────────────────────────
   type: ApplicationType;
-  value: Committee | Skill; // the specific committee or skill requested
-
-  // ── Current value at time of application (for context in admin review) ────
-  currentValue: Committee | Skill | null;
-
-  // ── Status ────────────────────────────────────────────────────────────────
   status: ApplicationStatus;
 
-  // ── Optional note from the applicant ─────────────────────────────────────
-  note?: string;
+  // Committee application
+  requestedCommittee?: string; // which committee they want to join
 
-  // ── Admin review ──────────────────────────────────────────────────────────
-  reviewedBy?: ObjectId; // → Vault._id of admin/mod who reviewed
-  reviewedAt?: Date;
+  // Skills application
+  requestedSkills?: string[];
+
+  reason?: string; // optional message from user
+
+  // Review
+  reviewedBy?: ObjectId;
   reviewNote?: string;
+  reviewedAt?: Date;
 
   createdAt: Date;
   updatedAt: Date;

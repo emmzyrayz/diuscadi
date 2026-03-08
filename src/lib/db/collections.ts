@@ -9,6 +9,8 @@ import { EventRegistrationDocument } from "@/lib/models/EventRegistration";
 import { InstitutionDocument } from "@/lib/models/institution";
 import { FacultyDocument } from "@/lib/models/Faculty";
 import { DepartmentDocument } from "@/lib/models/Department";
+import { InviteDocument } from "@/lib/models/invite";
+import { HealthReportDocument } from "@/lib/models/healthReport";
 
 export const Collections = {
   vault: (db: Db) => db.collection<VaultDocument>("vault"),
@@ -22,4 +24,7 @@ export const Collections = {
   institutions: (db: Db) => db.collection<InstitutionDocument>("institutions"),
   faculties: (db: Db) => db.collection<FacultyDocument>("faculties"),
   departments: (db: Db) => db.collection<DepartmentDocument>("departments"),
+  invites: (db: Db) => db.collection<InviteDocument>("invites"),
+  healthReports: (db: Db) =>
+    db.collection<HealthReportDocument>("healthReports"),
 };

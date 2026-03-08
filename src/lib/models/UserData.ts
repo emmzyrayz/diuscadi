@@ -4,11 +4,19 @@ import {
   EduStatus,
   AccountRole,
   Committee,
+  CommitteeMembership,
   Skill,
   PhoneNumber,
 } from "@/types/domain";
 
-export type { EduStatus, AccountRole, Committee, Skill, PhoneNumber };
+export type {
+  EduStatus,
+  AccountRole,
+  Committee,
+  CommitteeMembership,
+  Skill,
+  PhoneNumber,
+};
 
 export interface UserDataDocument {
   _id?: ObjectId;
@@ -50,8 +58,9 @@ export interface UserDataDocument {
     currentStatus?: string; // graduates only
   };
 
-  // One committee per user. null = not yet assigned.
-  committee: Committee | null;
+  // One committee membership per user. null = not in any committee yet.
+  // Entry is via approved application. Role is assigned/promoted by admin.
+  committeeMembership: CommitteeMembership | null;
 
   // Multiple skills. [] = not yet set.
   skills: Skill[];
