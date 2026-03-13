@@ -71,7 +71,7 @@ export const PreferencesSection = () => {
       className={cn(
         "bg-background",
         "border-2",
-        "border-border
+        "border-border",
         "rounded-[2.5rem]",
         "p-8",
         "md:p-10",
