@@ -46,9 +46,9 @@ export const AdminSidebar = () => {
       className={cn(
         "w-72",
         "min-h-screen",
-        "bg-slate-900",
+        "bg-foreground",
         "border-r",
-        "border-white/5",
+        "border-background/5",
         "flex",
         "flex-col",
         "sticky",
@@ -57,7 +57,13 @@ export const AdminSidebar = () => {
     >
       {/* 1. Admin Brand Area */}
       <div className={cn("p-8", "pb-10")}>
-        <div className={cn("flex w-full h-auto", "items-center justify-center", "gap-3")}>
+        <div
+          className={cn(
+            "flex w-full h-auto",
+            "items-center justify-center",
+            "gap-3",
+          )}
+        >
           <div
             className={cn(
               "w-10",
@@ -79,7 +85,7 @@ export const AdminSidebar = () => {
                 "block",
                 "text-sm",
                 "font-black",
-                "text-white",
+                "text-background",
                 "tracking-tighter",
                 "leading-none",
               )}
@@ -90,7 +96,7 @@ export const AdminSidebar = () => {
               className={cn(
                 "text-[10px]",
                 "font-bold",
-                "text-slate-500",
+                "text-muted-foreground",
                 "uppercase",
                 "tracking-[0.2em]",
                 "mt-1",
@@ -109,7 +115,7 @@ export const AdminSidebar = () => {
             "px-4",
             "text-[9px]",
             "font-black",
-            "text-slate-500",
+            "text-muted-foreground",
             "uppercase",
             "tracking-widest",
             "mb-4",
@@ -130,13 +136,13 @@ export const AdminSidebar = () => {
                 flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all group
                 ${
                   isActive
-                    ? "bg-primary text-slate-900 shadow-xl shadow-primary/10"
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
+                    ? "bg-primary text-foreground shadow-xl shadow-primary/10"
+                    : "text-muted-foreground hover:text-background hover:bg-background/5"
                 }
               `}
             >
               <Icon
-                className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? "text-slate-900" : "text-slate-500"}`}
+                className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? "text-foreground" : "text-muted-foreground"}`}
               />
               <span
                 className={cn(
@@ -157,18 +163,18 @@ export const AdminSidebar = () => {
       <div className={cn("p-6", "mt-auto")}>
         <div
           className={cn(
-            "bg-white/5",
+            "bg-background/5",
             "rounded-3xl",
             "p-4",
             "border",
-            "border-white/5",
+            "border-background/5",
           )}
         >
           <p
             className={cn(
               "text-[10px]",
               "font-bold",
-              "text-slate-400",
+              "text-muted-foreground",
               "leading-relaxed",
               "mb-4",
             )}
@@ -186,7 +192,7 @@ export const AdminSidebar = () => {
               "py-3",
               "bg-slate-800",
               "hover:bg-slate-700",
-              "text-white",
+              "text-background",
               "rounded-xl",
               "text-[10px]",
               "font-black",

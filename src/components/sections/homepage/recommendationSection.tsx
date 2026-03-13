@@ -9,22 +9,17 @@ import {
   LuStar,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-
-export type RecommendationType = "Program" | "Event" | "Resource" | "Learning" | "Registration" | "Application" | string;
+import { useRouter } from "next/navigation";
 
 export interface Recommendation {
   id?: string | number;
   title: string;
-  type: RecommendationType;
-  /** e.g., "4 Modules" or "Dec 12, 2024" */
+  type: string;
   meta: string;
-  /** The small italic tag at the bottom, e.g., "Personalized" */
   tag: string;
-  /** Optional URL for the action button */
-  href?: string;
+  href?: string; // optional navigation target
 }
 
-// Visual config stays in the component — derived from item.type
 const TYPE_CONFIG: Record<
   string,
   { icon: React.ReactNode; color: string; bg: string; border: string }
@@ -49,6 +44,13 @@ const TYPE_CONFIG: Record<
   },
 };
 
+const FALLBACK_CONFIG = {
+  icon: <LuSparkles className={cn("w-4", "h-4")} />,
+  color: "text-slate-600",
+  bg: "bg-muted",
+  border: "border-border",
+};
+
 interface RecommendedSectionProps {
   recommendations: Recommendation[];
   userInterests: string;
@@ -58,6 +60,8 @@ export const RecommendedSection = ({
   recommendations,
   userInterests,
 }: RecommendedSectionProps) => {
+  const router = useRouter();
+
   return (
     <section
       className={cn(
@@ -79,13 +83,13 @@ export const RecommendedSection = ({
             className={cn(
               "text-xl",
               "font-black",
-              "text-slate-900",
+              "text-foreground",
               "leading-none",
             )}
           >
             Recommended for you
           </h3>
-          <p className={cn("text-sm", "text-slate-500", "mt-1")}>
+          <p className={cn("text-sm", "text-muted-foreground", "mt-1")}>
             Based on your interests in {userInterests}
           </p>
         </div>
@@ -93,15 +97,10 @@ export const RecommendedSection = ({
 
       <div className={cn("grid", "grid-cols-1", "md:grid-cols-3", "gap-6")}>
         {recommendations.map((item, index) => {
-          const config = TYPE_CONFIG[item.type] ?? {
-            icon: <LuSparkles className={cn("w-4", "h-4")} />,
-            color: "text-slate-600",
-            bg: "bg-slate-50",
-            border: "border-slate-100",
-          };
+          const config = TYPE_CONFIG[item.type] ?? FALLBACK_CONFIG;
           return (
             <motion.div
-              key={index}
+              key={item.id ?? index}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.1 }}
@@ -109,9 +108,9 @@ export const RecommendedSection = ({
               className={cn(
                 "group",
                 "relative",
-                "bg-white",
+                "bg-background",
                 "border",
-                "border-slate-100",
+                "border-border",
                 "rounded-[2rem]",
                 "p-2",
                 "shadow-sm",
@@ -154,7 +153,7 @@ export const RecommendedSection = ({
                   className={cn(
                     "text-lg",
                     "font-bold",
-                    "text-slate-900",
+                    "text-foreground",
                     "group-hover:text-primary",
                     "transition-colors",
                     "mb-2",
@@ -169,7 +168,7 @@ export const RecommendedSection = ({
                     "flex",
                     "items-center",
                     "gap-2",
-                    "text-slate-400",
+                    "text-muted-foreground",
                     "text-xs",
                     "font-medium",
                     "mb-6",
@@ -193,7 +192,7 @@ export const RecommendedSection = ({
                     className={cn(
                       "text-[10px]",
                       "font-bold",
-                      "text-slate-400",
+                      "text-muted-foreground",
                       "uppercase",
                       "italic",
                     )}
@@ -201,11 +200,12 @@ export const RecommendedSection = ({
                     {item.tag}
                   </span>
                   <button
+                    onClick={() => item.href && router.push(item.href)}
                     className={cn(
                       "p-2",
-                      "bg-slate-50",
+                      "bg-muted",
                       "group-hover:bg-primary",
-                      "group-hover:text-white",
+                      "group-hover:text-background",
                       "rounded-full",
                       "transition-all",
                     )}

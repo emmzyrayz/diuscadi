@@ -7,7 +7,7 @@ import mentor from "@/assets/img/downloads/Dr-Ikechukwu-Umeh-1440x1920.webp"
 
 export const AboutSection = () => {
   return (
-    <section className={cn("py-24", "bg-white", "overflow-hidden")}>
+    <section className={cn("py-24", "bg-background", "overflow-hidden")}>
       <div className={cn("container", "mx-auto", "px-6")}>
         <div
           className={cn(
@@ -47,13 +47,13 @@ export const AboutSection = () => {
             <div
               className={cn(
                 "absolute -bottom-8 -right-4 md:-right-8 p-6 max-w-xs rounded-2xl",
-                "bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl",
+                "bg-background/10 backdrop-blur-xl border border-background/20 shadow-2xl",
                 "hover:bg-black/60 transition-all duration-500 group",
               )}
             >
               <p
                 className={cn(
-                  "text-white",
+                  "text-background",
                   "font-bold",
                   "text-lg",
                   "leading-tight",
@@ -61,7 +61,7 @@ export const AboutSection = () => {
               >
                 Dr. Ikechukwu Umeh
               </p>
-              <p className={cn("text-white/70", "text-sm", "mt-1")}>
+              <p className={cn("text-background/70", "text-sm", "mt-1")}>
                 Founder, DIUSCADI & Convener of LASCADSS
               </p>
               <div
@@ -130,9 +130,9 @@ export const AboutSection = () => {
                 className={cn(
                   "p-6",
                   "rounded-2xl",
-                  "bg-slate-50",
+                  "bg-muted",
                   "border",
-                  "border-slate-100",
+                  "border-border",
                   "group scale-100 hover:scale-105 duration-800 transition-all ease-in-out",
                   "hover:border-primary/30 hover:scale-105",
                   "transition-colors",
@@ -167,9 +167,9 @@ export const AboutSection = () => {
                 className={cn(
                   "p-6",
                   "rounded-2xl",
-                  "bg-slate-50",
+                  "bg-muted",
                   "border",
-                  "border-slate-100",
+                  "border-border",
                   "group scale-100 hover:scale-105 duration-800 transition-all ease-in-out ",
                   "hover:border-primary/30",
                   "transition-colors",

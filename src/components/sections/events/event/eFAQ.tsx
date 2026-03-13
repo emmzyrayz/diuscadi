@@ -1,161 +1,129 @@
 "use client";
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LuPlus, LuMinus, LuInfo, LuMail, LuPhone } from "react-icons/lu";
-import { cn } from "../../../../lib/utils";
+import { LuCircleHelp, LuChevronDown } from "react-icons/lu";
+import { cn } from "@/lib/utils";
+import type { EventDetail } from "@/app/events/[eventId]/page";
 
-interface FAQItem {
-  question: string;
-  answer: string;
-}
-
-interface FAQSectionProps {
-  customFaqs?: FAQItem[];
-}
-
-const DEFAULT_FAQS: FAQItem[] = [
+// Static FAQ items that apply to all events — replace with per-event FAQ
+// when an faq[] field is added to EventDocument.
+const DEFAULT_FAQS = [
   {
-    question: "Is there a certificate of participation?",
-    answer:
-      "Yes! All registered attendees who complete the full session will receive a digital certificate of participation via their registered email within 7 working days after the event.",
+    q: "Is this event free to attend?",
+    a: "Check the entry fee displayed in the sticky bar above. Many DIUSCADI events are free for registered members.",
   },
   {
-    question: "Do I need to bring a laptop?",
-    answer:
-      "For workshop-heavy sessions, a laptop is highly recommended. However, for general seminars and networking mixers, a notepad and pen are sufficient.",
+    q: "What happens after I register?",
+    a: "You will receive a confirmation email with your unique invite code. Bring it (or the QR code) for check-in on the event day.",
   },
   {
-    question: "What is the dress code for this event?",
-    answer:
-      "The standard dress code is Business Casual. We encourage professional attire as there will be significant networking opportunities with industry leaders.",
+    q: "Can I cancel my registration?",
+    a: "Yes — open your Tickets page and cancel before the registration deadline. Refunds (if applicable) are processed within 5 business days.",
   },
   {
-    question: "Can I register on the day of the event?",
-    answer:
-      "On-site registration is subject to seat availability. We strongly recommend registering online in advance as our events typically reach full capacity 48 hours before the start time.",
+    q: "Will this event be recorded?",
+    a: "Select sessions may be recorded and shared with attendees afterward. Check back on the event page for updates.",
   },
   {
-    question: "How can I contact DIUSCADI for partnership?",
-    answer:
-      "For partnership opportunities, please contact us via email at info@diuscadi.org.ng or reach out to us through our phone number +234 803 590 6416.",
+    q: "Who can attend?",
+    a: "The event details specify the target audience. Most events are open to all DIUSCADI members.",
   },
 ];
 
-export const FAQSection = ({ customFaqs }: FAQSectionProps) => {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
-  const faqs = customFaqs || DEFAULT_FAQS;
+export const FAQSection = ({ event: _event }: { event: EventDetail }) => {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section id="faqs" className={cn('py-20', 'bg-white')}>
-      <div className={cn('max-w-7xl', 'mx-auto', 'px-4', 'sm:px-6', 'lg:px-8')}>
-        <div className={cn('flex', 'flex-col', 'lg:flex-row', 'gap-12', 'lg:gap-20')}>
-          {/* LEFT SIDE: Header & Contact */}
-          <div className="lg:w-1/3">
-            <div className={cn('lg:sticky', 'lg:top-32')}>
-              <div className={cn('inline-flex', 'items-center', 'gap-2', 'px-3', 'py-1', 'rounded-lg', 'bg-primary/10', 'text-primary', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'mb-6')}>
-                <LuInfo className={cn('w-3.5', 'h-3.5')} />
-                <span>Support Center</span>
-              </div>
-
-              <h2 className={cn('text-3xl', 'md:text-5xl', 'font-black', 'text-slate-900', 'mb-6', 'tracking-tighter', 'leading-tight')}>
-                Common <span className="text-primary">Questions.</span>
-              </h2>
-
-              <p className={cn('text-slate-500', 'font-medium', 'mb-8', 'leading-relaxed')}>
-                Everything you need to know about the event logistics and
-                participation. Can&apos;t find what you&apos;re looking for?
-              </p>
-
-              {/* Contact Card */}
-              <div className={cn('p-8', 'bg-slate-50', 'rounded-[2rem]', 'border', 'border-slate-100', 'space-y-6')}>
-                <p className={cn('font-black', 'text-slate-900', 'text-sm', 'uppercase', 'tracking-widest')}>
-                  Still need help?
-                </p>
-                <div className="space-y-4">
-                  <a
-                    href="mailto:info@diuscadi.org.ng"
-                    className={cn('flex', 'items-center', 'gap-3', 'text-sm', 'font-bold', 'text-slate-600', 'hover:text-primary', 'transition-colors')}
-                  >
-                    <div className={cn('w-8', 'h-8', 'rounded-lg', 'bg-white', 'flex', 'items-center', 'justify-center', 'shadow-sm')}>
-                      <LuMail className={cn('w-4', 'h-4')} />
-                    </div>
-                    info@diuscadi.org.ng
-                  </a>
-                  <a
-                    href="tel:+2348035906416"
-                    className={cn('flex', 'items-center', 'gap-3', 'text-sm', 'font-bold', 'text-slate-600', 'hover:text-primary', 'transition-colors')}
-                  >
-                    <div className={cn('w-8', 'h-8', 'rounded-lg', 'bg-white', 'flex', 'items-center', 'justify-center', 'shadow-sm')}>
-                      <LuPhone className={cn('w-4', 'h-4')} />
-                    </div>
-                    +234 803 590 6416
-                  </a>
-                </div>
-              </div>
-            </div>
+    <section className={cn("w-full", "py-16")}>
+      <div className={cn("max-w-3xl", "mx-auto", "px-4", "sm:px-6", "lg:px-8")}>
+        <div className={cn("flex", "items-center", "gap-3", "mb-10")}>
+          <div className={cn("p-2", "bg-primary/10", "rounded-xl")}>
+            <LuCircleHelp className={cn("w-5", "h-5", "text-primary")} />
           </div>
+          <h2
+            className={cn(
+              "text-2xl",
+              "font-black",
+              "text-foreground",
+              "tracking-tight",
+            )}
+          >
+            Frequently Asked Questions
+          </h2>
+        </div>
 
-          {/* RIGHT SIDE: Accordion */}
-          <div className={cn('lg:w-2/3', 'space-y-4')}>
-            {faqs.map((item, index) => {
-              const isOpen = openIndex === index;
-              return (
-                <div
-                  key={index}
+        <div className="space-y-3">
+          {DEFAULT_FAQS.map((faq, i) => {
+            const isOpen = openIndex === i;
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+                className={cn(
+                  "border",
+                  "border-border",
+                  "rounded-2xl",
+                  "overflow-hidden",
+                  "bg-background",
+                )}
+              >
+                <button
+                  onClick={() => setOpenIndex(isOpen ? null : i)}
                   className={cn(
-                    "rounded-[2rem] border-2 transition-all duration-300",
-                    isOpen
-                      ? "border-primary bg-slate-50"
-                      : "border-slate-100 bg-white",
+                    "w-full",
+                    "flex",
+                    "items-center",
+                    "justify-between",
+                    "px-6",
+                    "py-4",
+                    "text-left",
+                    "cursor-pointer",
                   )}
                 >
-                  <button
-                    onClick={() => setOpenIndex(isOpen ? null : index)}
-                    className={cn('w-full', 'flex', 'items-center', 'justify-between', 'p-6', 'md:p-8', 'text-left')}
+                  <span
+                    className={cn("text-sm", "font-black", "text-foreground")}
                   >
-                    <span
-                      className={cn(
-                        "text-lg font-black tracking-tight transition-colors",
-                        isOpen ? "text-primary" : "text-slate-900",
-                      )}
+                    {faq.q}
+                  </span>
+                  <motion.div
+                    animate={{ rotate: isOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <LuChevronDown
+                      className={cn("w-4", "h-4", "text-muted-foreground", "shrink-0")}
+                    />
+                  </motion.div>
+                </button>
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="overflow-hidden"
                     >
-                      {item.question}
-                    </span>
-                    <div
-                      className={cn(
-                        "flex-none ml-4 w-10 h-10 rounded-xl flex items-center justify-center transition-all",
-                        isOpen
-                          ? "bg-primary text-white"
-                          : "bg-slate-100 text-slate-400",
-                      )}
-                    >
-                      {isOpen ? (
-                        <LuMinus className={cn('w-5', 'h-5')} />
-                      ) : (
-                        <LuPlus className={cn('w-5', 'h-5')} />
-                      )}
-                    </div>
-                  </button>
-
-                  <AnimatePresence>
-                    {isOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="overflow-hidden"
+                      <p
+                        className={cn(
+                          "px-6",
+                          "pb-5",
+                          "text-sm",
+                          "text-muted-foreground",
+                          "leading-relaxed",
+                          "font-medium",
+                        )}
                       >
-                        <div className={cn('px-6', 'md:px-8', 'pb-8', 'text-slate-500', 'font-medium', 'leading-relaxed', 'border-t', 'border-slate-200/50', 'pt-6')}>
-                          {item.answer}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
-          </div>
+                        {faq.a}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </section>

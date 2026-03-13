@@ -69,9 +69,9 @@ export const PreferencesSection = () => {
       transition={{ duration: 0.5 }}
       whileHover={{ borderColor: "rgba(251, 146, 60, 0.2)" }}
       className={cn(
-        "bg-white",
+        "bg-background",
         "border-2",
-        "border-slate-100",
+        "border-border
         "rounded-[2.5rem]",
         "p-8",
         "md:p-10",
@@ -93,13 +93,13 @@ export const PreferencesSection = () => {
             "w-10",
             "h-10",
             "rounded-xl",
-            "bg-slate-50",
+            "bg-muted",
             "flex",
             "items-center",
             "justify-center",
             "text-primary",
             "border",
-            "border-slate-100",
+            "border-border",
           )}
         >
           <LuSettings className={cn("w-5", "h-5")} />
@@ -109,7 +109,7 @@ export const PreferencesSection = () => {
             className={cn(
               "text-xl",
               "font-black",
-              "text-slate-900",
+              "text-foreground",
               "tracking-tight",
             )}
           >
@@ -119,7 +119,7 @@ export const PreferencesSection = () => {
             className={cn(
               "text-[10px]",
               "font-bold",
-              "text-slate-400",
+              "text-muted-foreground",
               "uppercase",
               "tracking-widest",
               "mt-1",
@@ -168,12 +168,12 @@ const PreferenceItem = ({
       "items-center",
       "justify-between",
       "p-6",
-      "bg-slate-50/50",
+      "bg-muted/50",
       "rounded-3xl",
       "border",
       "border-transparent",
-      "hover:border-slate-100",
-      "hover:bg-white",
+      "hover:border-border",
+      "hover:bg-background",
       "transition-all",
     )}
   >
@@ -201,8 +201,8 @@ const PreferenceItem = ({
           "transition-all",
           "duration-300",
           isActive
-            ? "bg-primary text-white shadow-lg shadow-primary/20"
-            : "bg-white text-slate-400 border border-slate-100",
+            ? "bg-primary text-background shadow-lg shadow-primary/20"
+            : "bg-background text-muted-foreground border border-border",
         )}
       >
         <motion.div
@@ -226,7 +226,7 @@ const PreferenceItem = ({
           className={cn(
             "text-sm",
             "font-black",
-            "text-slate-900",
+            "text-foreground",
             "uppercase",
             "tracking-tight",
           )}
@@ -237,7 +237,7 @@ const PreferenceItem = ({
           className={cn(
             "text-xs",
             "font-medium",
-            "text-slate-500",
+            "text-muted-foreground",
             "leading-relaxed",
             "max-w-sm",
           )}
@@ -274,7 +274,7 @@ const PreferenceItem = ({
           "top-1",
           "w-6",
           "h-6",
-          "bg-white",
+          "bg-background",
           "rounded-full",
           "shadow-md",
         )}
@@ -287,9 +287,17 @@ const PreferenceItem = ({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className={cn('absolute', 'inset-0', 'flex', 'items-center', 'justify-center')}
+              className={cn(
+                "absolute",
+                "inset-0",
+                "flex",
+                "items-center",
+                "justify-center",
+              )}
             >
-              <div className={cn('w-2', 'h-2', 'bg-emerald-500', 'rounded-full')} />
+              <div
+                className={cn("w-2", "h-2", "bg-emerald-500", "rounded-full")}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -303,7 +311,12 @@ const PreferenceItem = ({
             animate={{ scale: 1.5, opacity: 0 }}
             exit={{ scale: 0.8, opacity: 0 }}
             transition={{ duration: 0.6 }}
-            className={cn('absolute', 'inset-0', 'bg-emerald-500', 'rounded-full')}
+            className={cn(
+              "absolute",
+              "inset-0",
+              "bg-emerald-500",
+              "rounded-full",
+            )}
           />
         )}
       </AnimatePresence>

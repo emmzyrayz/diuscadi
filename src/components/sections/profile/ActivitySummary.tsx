@@ -25,10 +25,10 @@ export const ActivitySummarySection = ({ stats }: ActivitySummaryProps) => {
     <section className="w-full">
       {/* Section Title */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500">
+        <div className="w-8 h-8 rounded-lg text-muted flex items-center justify-center text-muted-foreground">
           <LuActivity className="w-4 h-4" />
         </div>
-        <h3 className="text-xl font-black text-slate-900 tracking-tight">
+        <h3 className="text-xl font-black text-foreground tracking-tight">
           Activity Summary
         </h3>
       </div>
@@ -89,7 +89,7 @@ const StatCard = ({
     whileInView={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.4, delay }}
     viewport={{ once: true }}
-    className="bg-white border-2 border-slate-100 rounded-[2rem] p-6 flex flex-col items-center text-center group hover:border-primary/20 hover:shadow-xl hover:shadow-slate-200/50 transition-all"
+    className="bg-background border-2 border-border rounded-[2rem] p-6 flex flex-col items-center text-center group hover:border-primary/20 hover:shadow-xl hover:shadow-slate-200/50 transition-all"
   >
     <div
       className={cn(
@@ -101,16 +101,16 @@ const StatCard = ({
     </div>
 
     <div className="space-y-1">
-      <p className="text-[28px] font-black text-slate-900 leading-none">
+      <p className="text-[28px] font-black text-foreground leading-none">
         {value < 10 ? `0${value}` : value}
       </p>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
         {label}
       </p>
     </div>
 
     {/* Subtle Progress Indicator or Sparkle */}
-    <div className="mt-4 w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
+    <div className="mt-4 w-12 h-1 text-muted rounded-full overflow-hidden">
       <div
         className={cn("h-full w-2/3 rounded-full", color.replace("text", "bg"))}
       />

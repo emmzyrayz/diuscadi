@@ -69,8 +69,8 @@ export const AdminAnalyticsRecentActivitySection: React.FC = () => {
       detail: "Sarah Olanrewaju • School of Eng.",
       time: "28 mins ago",
       icon: LuUserCog,
-      color: "text-slate-500",
-      bg: "bg-slate-100",
+      color: "text-muted-foreground",
+      bg: "text-muted",
     },
     {
       id: 5,
@@ -120,7 +120,7 @@ export const AdminAnalyticsRecentActivitySection: React.FC = () => {
               className={cn(
                 "text-xl",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "uppercase",
                 "tracking-tighter",
               )}
@@ -131,7 +131,7 @@ export const AdminAnalyticsRecentActivitySection: React.FC = () => {
               className={cn(
                 "text-[10px]",
                 "font-bold",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
                 "tracking-widest",
               )}
@@ -149,16 +149,16 @@ export const AdminAnalyticsRecentActivitySection: React.FC = () => {
             "gap-2",
             "px-5",
             "py-2.5",
-            "bg-white",
+            "bg-background",
             "border",
-            "border-slate-200",
+            "border-border",
             "rounded-xl",
             "text-[10px]",
             "font-black",
             "uppercase",
             "tracking-widest",
-            "text-slate-500",
-            "hover:text-slate-900",
+            "text-muted-foreground",
+            "hover:text-foreground",
             "transition-all",
             "shadow-sm",
           )}
@@ -179,9 +179,9 @@ export const AdminAnalyticsRecentActivitySection: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
         className={cn(
-          "bg-white",
+          "bg-background",
           "border",
-          "border-slate-100",
+          "border-border",
           "rounded-[2.5rem]",
           "p-4",
           "shadow-sm",
@@ -291,7 +291,7 @@ const ActivityItem: React.FC<ActivityItemProps> = ({ activity, delay = 0 }) => {
             className={cn(
               "text-[11px]",
               "font-black",
-              "text-slate-900",
+              "text-foreground",
               "uppercase",
               "tracking-tight",
             )}
@@ -302,7 +302,7 @@ const ActivityItem: React.FC<ActivityItemProps> = ({ activity, delay = 0 }) => {
             className={cn(
               "text-[10px]",
               "font-bold",
-              "text-slate-400",
+              "text-muted-foreground",
               "uppercase",
               "tracking-widest",
             )}

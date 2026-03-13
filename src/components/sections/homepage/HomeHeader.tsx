@@ -90,9 +90,9 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
     <header
       className={cn(
         "w-full",
-        "bg-white",
+        "bg-background",
         "border-b",
-        "border-slate-100",
+        "border-border",
         "sticky",
         "top-0",
         "z-50",
@@ -130,8 +130,8 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                   "rounded-xl",
                   "overflow-hidden",
                   "border",
-                  "border-slate-200",
-                  "bg-slate-100",
+                  "border-border",
+                  "text-muted",
                   "flex",
                   "items-center",
                   "justify-center",
@@ -146,7 +146,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                     className={cn("object-cover", "w-full", "h-full")}
                   />
                 ) : (
-                  <span className={cn("text-slate-400", "font-bold")}>
+                  <span className={cn("text-muted-foreground", "font-bold")}>
                     {initials}
                   </span>
                 )}
@@ -160,7 +160,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                   "h-3",
                   "bg-green-500",
                   "border-2",
-                  "border-white",
+                  "border-background",
                   "rounded-full",
                 )}
               />
@@ -171,7 +171,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                   "text-base",
                   "md:text-lg",
                   "font-bold",
-                  "text-slate-900",
+                  "text-foreground",
                   "truncate",
                 )}
               >
@@ -180,7 +180,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
               <p
                 className={cn(
                   "text-xs",
-                  "text-slate-500",
+                  "text-muted-foreground",
                   "hidden",
                   "md:block",
                 )}
@@ -205,9 +205,9 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
               className={cn(
                 "flex",
                 "items-center",
-                "bg-slate-50",
+                "bg-muted",
                 "border",
-                "border-slate-200",
+                "border-border",
                 "rounded-lg",
                 "px-3",
                 "py-1.5",
@@ -217,7 +217,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                 "transition-all",
               )}
             >
-              <Search className={cn("w-4", "h-4", "text-slate-400")} />
+              <Search className={cn("w-4", "h-4", "text-muted-foreground")} />
               <input
                 type="text"
                 value={searchQuery}
@@ -247,9 +247,9 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                     "left-0",
                     "right-0",
                     "mt-2",
-                    "bg-white",
+                    "bg-background",
                     "border",
-                    "border-slate-100",
+                    "border-border",
                     "shadow-xl",
                     "rounded-xl",
                     "p-4",
@@ -262,7 +262,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                         className={cn(
                           "h-4",
                           "w-3/4",
-                          "bg-slate-100",
+                          "text-muted",
                           "rounded",
                           "animate-pulse",
                         )}
@@ -271,7 +271,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                         className={cn(
                           "h-4",
                           "w-1/2",
-                          "bg-slate-100",
+                          "text-muted",
                           "rounded",
                           "animate-pulse",
                         )}
@@ -281,7 +281,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                     <p
                       className={cn(
                         "text-sm",
-                        "text-slate-400",
+                        "text-muted-foreground",
                         "text-center",
                         "py-4",
                       )}
@@ -303,7 +303,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                 className={cn(
                   "relative",
                   "p-2",
-                  "hover:bg-slate-50",
+                  "hover:bg-muted",
                   "rounded-lg",
                   "transition-colors",
                   "group",
@@ -325,7 +325,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                     "bg-primary",
                     "rounded-full",
                     "border-2",
-                    "border-white",
+                    "border-background",
                   )}
                 />
               </button>
@@ -336,15 +336,49 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className={cn('absolute', 'right-0', 'mt-3', 'w-80', 'bg-white', 'border', 'border-slate-100', 'shadow-2xl', 'rounded-2xl', 'overflow-hidden', 'z-50')}
+                    className={cn(
+                      "absolute",
+                      "right-0",
+                      "mt-3",
+                      "w-80",
+                      "bg-background",
+                      "border",
+                      "border-border",
+                      "shadow-2xl",
+                      "rounded-2xl",
+                      "overflow-hidden",
+                      "z-50",
+                    )}
                   >
-                    <div className={cn('p-4', 'border-b', 'border-slate-50', 'flex', 'justify-between', 'items-center', 'bg-slate-50/50')}>
+                    <div
+                      className={cn(
+                        "p-4",
+                        "border-b",
+                        "border-slate-50",
+                        "flex",
+                        "justify-between",
+                        "items-center",
+                        "bg-muted/50",
+                      )}
+                    >
                       <div>
-                        <h3 className={cn('font-bold', 'text-slate-900', 'text-sm')}>
+                        <h3
+                          className={cn(
+                            "font-bold",
+                            "text-foreground",
+                            "text-sm",
+                          )}
+                        >
                           Notifications
                         </h3>
                         {hasUnread && (
-                          <p className={cn('text-[10px]', 'text-primary', 'font-medium')}>
+                          <p
+                            className={cn(
+                              "text-[10px]",
+                              "text-primary",
+                              "font-medium",
+                            )}
+                          >
                             You have unread messages
                           </p>
                         )}
@@ -352,14 +386,33 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                       {hasUnread && (
                         <button
                           onClick={markAllAsRead}
-                          className={cn('flex', 'items-center', 'gap-1', 'text-[10px]', 'font-bold', 'text-primary', 'hover:bg-primary/10', 'px-2', 'py-1', 'rounded-md', 'transition-colors')}
+                          className={cn(
+                            "flex",
+                            "items-center",
+                            "gap-1",
+                            "text-[10px]",
+                            "font-bold",
+                            "text-primary",
+                            "hover:bg-primary/10",
+                            "px-2",
+                            "py-1",
+                            "rounded-md",
+                            "transition-colors",
+                          )}
                         >
-                          <CheckCheck className={cn('w-3', 'h-3')} /> Mark all
+                          <CheckCheck className={cn("w-3", "h-3")} /> Mark all
                         </button>
                       )}
                     </div>
 
-                    <div className={cn('max-h-[300px]', 'overflow-y-auto', 'p-2', 'space-y-1')}>
+                    <div
+                      className={cn(
+                        "max-h-[300px]",
+                        "overflow-y-auto",
+                        "p-2",
+                        "space-y-1",
+                      )}
+                    >
                       {notifications.length > 0 ? (
                         notifications.map((n) => (
                           <NotificationItem
@@ -371,7 +424,14 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                           />
                         ))
                       ) : (
-                        <div className={cn('py-8', 'text-center', 'text-slate-400', 'text-xs')}>
+                        <div
+                          className={cn(
+                            "py-8",
+                            "text-center",
+                            "text-muted-foreground",
+                            "text-xs",
+                          )}
+                        >
                           No notifications yet
                         </div>
                       )}
@@ -386,8 +446,8 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
               <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                  "flex items-center gap-1 md:gap-2 pl-2 border-l border-slate-200 ml-1 transition-all",
-                  isOpen ? "text-primary" : "text-slate-400",
+                  "flex items-center gap-1 md:gap-2 pl-2 border-l border-border ml-1 transition-all",
+                  isOpen ? "text-primary" : "text-muted-foreground",
                 )}
               >
                 <Settings
@@ -415,9 +475,9 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                       "right-0",
                       "mt-3",
                       "w-72",
-                      "bg-white",
+                      "bg-background",
                       "border",
-                      "border-slate-100",
+                      "border-border",
                       "shadow-xl",
                       "rounded-2xl",
                       "overflow-hidden",
@@ -447,7 +507,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                             "flex",
                             "items-center",
                             "justify-center",
-                            "text-white",
+                            "text-background",
                             "text-xs",
                             "font-bold",
                             "shadow-lg",
@@ -502,7 +562,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                         "mt-2",
                         "pt-2",
                         "border-t",
-                        "border-slate-100",
+                        "border-border",
                       )}
                     >
                       <button
@@ -516,7 +576,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                           "py-2",
                           "text-sm",
                           "text-slate-600",
-                          "hover:bg-slate-50",
+                          "hover:bg-muted",
                           "rounded-lg",
                           "transition-colors",
                           "cursor-pointer",
@@ -552,17 +612,19 @@ const NotificationItem = ({
 }) => (
   <div
     className={cn(
-      "p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer mb-1",
+      "p-3 rounded-xl hover:bg-muted transition-colors cursor-pointer mb-1",
       isNew && "bg-blue-50/50",
     )}
   >
     <div className={cn("flex", "justify-between", "items-start", "mb-1")}>
-      <span className={cn("text-sm", "font-bold", "text-slate-900")}>
+      <span className={cn("text-sm", "font-bold", "text-foreground")}>
         {title}
       </span>
-      <span className={cn("text-[10px]", "text-slate-400")}>{time}</span>
+      <span className={cn("text-[10px]", "text-muted-foreground")}>{time}</span>
     </div>
-    <p className={cn("text-xs", "text-slate-500", "line-clamp-2")}>{desc}</p>
+    <p className={cn("text-xs", "text-muted-foreground", "line-clamp-2")}>
+      {desc}
+    </p>
   </div>
 );
 
@@ -575,13 +637,13 @@ const DropdownItem = ({ icon, label, value, color, bg }: DropdownItemProps) => (
       "px-3",
       "py-2",
       "rounded-lg",
-      "hover:bg-slate-50",
+      "hover:bg-muted",
       "transition-colors",
     )}
   >
     <div className={cn("flex", "items-center", "gap-3")}>
       <div className={cn("p-1.5 rounded-md", bg, color)}>{icon}</div>
-      <span className={cn("text-xs", "font-medium", "text-slate-500")}>
+      <span className={cn("text-xs", "font-medium", "text-muted-foreground")}>
         {label}
       </span>
     </div>

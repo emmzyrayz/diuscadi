@@ -94,7 +94,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
             className={cn(
               "absolute",
               "inset-0",
-              "bg-slate-900/60",
+              "bg-foreground/60",
               "backdrop-blur-sm",
             )}
           />
@@ -110,7 +110,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
               "relative",
               "w-full",
               "max-w-2xl",
-              "bg-white",
+              "bg-background",
               "rounded-[3rem]",
               "shadow-2xl",
               "overflow-hidden",
@@ -126,11 +126,11 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
               className={cn(
                 "p-8",
                 "border-b",
-                "border-slate-100",
+                "border-border",
                 "flex",
                 "items-center",
                 "justify-between",
-                "bg-slate-50/50",
+                "bg-muted/50",
               )}
             >
               <div className={cn("flex", "items-center", "gap-4")}>
@@ -140,7 +140,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                   className={cn(
                     "w-10",
                     "h-10",
-                    "bg-slate-900",
+                    "bg-foreground",
                     "rounded-xl",
                     "flex",
                     "items-center",
@@ -155,7 +155,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                     className={cn(
                       "text-xl",
                       "font-black",
-                      "text-slate-900",
+                      "text-foreground",
                       "uppercase",
                       "tracking-tighter",
                     )}
@@ -166,7 +166,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                     className={cn(
                       "text-[10px]",
                       "font-bold",
-                      "text-slate-400",
+                      "text-muted-foreground",
                       "uppercase",
                       "tracking-widest",
                     )}
@@ -186,7 +186,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                   "transition-colors",
                 )}
               >
-                <LuX className={cn("w-5", "h-5", "text-slate-400")} />
+                <LuX className={cn("w-5", "h-5", "text-muted-foreground")} />
               </motion.button>
             </motion.div>
 
@@ -212,9 +212,9 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                       "w-24",
                       "h-24",
                       "rounded-[2rem]",
-                      "bg-slate-100",
+                      "text-muted",
                       "border-2",
-                      "border-slate-200",
+                      "border-border",
                       "overflow-hidden",
                     )}
                   >
@@ -251,7 +251,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                       transition={{ type: "spring", stiffness: 400 }}
                     >
                       <LuCamera
-                        className={cn("w-6", "h-6", "text-slate-900")}
+                        className={cn("w-6", "h-6", "text-foreground")}
                       />
                     </motion.div>
                     <span
@@ -319,7 +319,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                       "font-black",
                       "uppercase",
                       "tracking-[0.2em]",
-                      "text-slate-400",
+                      "text-muted-foreground",
                     )}
                   >
                     Registration Type
@@ -335,9 +335,9 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                       }
                       className={cn(
                         "w-full",
-                        "bg-slate-50",
+                        "bg-muted",
                         "border",
-                        "border-slate-100",
+                        "border-border",
                         "p-4",
                         "rounded-2xl",
                         "text-[11px]",
@@ -364,7 +364,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                       )}
                     >
                       <LuUserCheck
-                        className={cn("w-4", "h-4", "text-slate-400")}
+                        className={cn("w-4", "h-4", "text-muted-foreground")}
                       />
                     </div>
                   </div>
@@ -379,9 +379,9 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                 whileHover={{ scale: 1.01 }}
                 className={cn(
                   "p-6",
-                  "bg-slate-50",
+                  "bg-muted",
                   "border",
-                  "border-slate-100",
+                  "border-border",
                   "rounded-3xl",
                   "flex",
                   "items-center",
@@ -413,7 +413,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                       "duration-300",
                       formData.isVerified
                         ? "bg-emerald-100 text-emerald-600"
-                        : "bg-slate-200 text-slate-400",
+                        : "bg-slate-200 text-muted-foreground",
                     )}
                   >
                     <LuShieldCheck className={cn("w-5", "h-5")} />
@@ -425,7 +425,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                         "font-black",
                         "uppercase",
                         "tracking-widest",
-                        "text-slate-900",
+                        "text-foreground",
                       )}
                     >
                       Manual Verification
@@ -434,7 +434,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                       className={cn(
                         "text-[9px]",
                         "font-bold",
-                        "text-slate-400",
+                        "text-muted-foreground",
                         "uppercase",
                         "tracking-tighter",
                       )}
@@ -475,7 +475,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                       "top-1",
                       "w-4",
                       "h-4",
-                      "bg-white",
+                      "bg-background",
                       "rounded-full",
                       "shadow-sm",
                     )}
@@ -519,9 +519,9 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
               transition={{ delay: 0.6 }}
               className={cn(
                 "p-8",
-                "bg-slate-50",
+                "bg-muted",
                 "border-t",
-                "border-slate-100",
+                "border-border",
                 "flex",
                 "items-center",
                 "gap-4",
@@ -540,8 +540,8 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                   "font-black",
                   "uppercase",
                   "tracking-widest",
-                  "text-slate-500",
-                  "hover:bg-slate-100",
+                  "text-muted-foreground",
+                  "hover:text-muted",
                   "transition-all",
                 )}
               >
@@ -555,18 +555,18 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                   "flex-3",
                   "px-10",
                   "py-4",
-                  "bg-slate-900",
-                  "text-white",
+                  "bg-foreground",
+                  "text-background",
                   "rounded-2xl",
                   "text-[10px]",
                   "font-black",
                   "uppercase",
                   "tracking-widest",
                   "hover:bg-primary",
-                  "hover:text-slate-900",
+                  "hover:text-foreground",
                   "transition-all",
                   "shadow-xl",
-                  "shadow-slate-900/10",
+                  "shadow-foreground/10",
                   "flex",
                   "items-center",
                   "justify-center",
@@ -605,7 +605,7 @@ const EditInput: React.FC<EditInputProps> = ({
         "font-black",
         "uppercase",
         "tracking-[0.2em]",
-        "text-slate-400",
+        "text-muted-foreground",
       )}
     >
       {label}
@@ -628,15 +628,15 @@ const EditInput: React.FC<EditInputProps> = ({
         onChange={onChange}
         className={cn(
           "w-full",
-          "bg-slate-50",
+          "bg-muted",
           "border",
-          "border-slate-100",
+          "border-border",
           "p-4",
           "pl-12",
           "rounded-2xl",
           "text-[11px]",
           "font-bold",
-          "text-slate-900",
+          "text-foreground",
           "outline-none",
           "focus:border-primary",
           "transition-all",

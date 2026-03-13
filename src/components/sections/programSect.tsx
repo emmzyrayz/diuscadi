@@ -1,4 +1,4 @@
-'use client'
+"use client";
 import React, { useState } from "react";
 import { cn } from "../../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -97,7 +97,7 @@ export const ProgramsSection = () => {
   const [activeTab, setActiveTab] = useState(0);
 
   return (
-    <section className="py-24 bg-slate-50">
+    <section className="py-24 bg-muted">
       <div className="container mx-auto px-6 space-y-24">
         {/* --- PART 1: FEATURES GRID --- */}
         <div className="space-y-12">
@@ -120,9 +120,9 @@ export const ProgramsSection = () => {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.1 }}
-                  className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-primary/20 transition-all group"
+                  className="bg-background p-6 rounded-2xl shadow-sm border border-border hover:shadow-md hover:border-primary/20 transition-all group"
                 >
-                  <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
+                  <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-background transition-colors">
                     <Icon className="w-6 h-6" />
                   </div>
                   <h3 className="font-bold text-lg text-foreground mb-2">
@@ -162,8 +162,8 @@ export const ProgramsSection = () => {
                   className={cn(
                     "text-left p-5 rounded-xl transition-all duration-300 flex items-center justify-between group border",
                     activeTab === idx
-                      ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
-                      : "bg-white text-foreground border-slate-200 hover:border-primary/50 hover:bg-slate-50",
+                      ? "bg-primary text-background border-primary shadow-lg shadow-primary/20"
+                      : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted",
                   )}
                 >
                   <div>
@@ -171,7 +171,7 @@ export const ProgramsSection = () => {
                       className={cn(
                         "text-xs font-semibold uppercase tracking-wider mb-1",
                         activeTab === idx
-                          ? "text-white/80"
+                          ? "text-background/80"
                           : "text-muted-foreground group-hover:text-primary",
                       )}
                     >
@@ -180,7 +180,9 @@ export const ProgramsSection = () => {
                     <h3
                       className={cn(
                         "font-bold text-lg leading-tight",
-                        activeTab === idx ? "text-white" : "text-foreground",
+                        activeTab === idx
+                          ? "text-background"
+                          : "text-foreground",
                       )}
                     >
                       {program.topic}
@@ -190,7 +192,7 @@ export const ProgramsSection = () => {
                     className={cn(
                       "w-5 h-5 transition-transform",
                       activeTab === idx
-                        ? "text-white translate-x-1"
+                        ? "text-background translate-x-1"
                         : "text-slate-300 group-hover:text-primary group-hover:translate-x-1",
                     )}
                   />
@@ -207,10 +209,10 @@ export const ProgramsSection = () => {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.4, ease: "easeOut" }}
-                  className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col md:flex-row h-full"
+                  className="bg-background rounded-3xl overflow-hidden shadow-2xl border border-border flex flex-col md:flex-row h-full"
                 >
                   {/* Speaker Image */}
-                  <div className="relative w-full md:w-2/5 h-64 md:h-auto bg-slate-100">
+                  <div className="relative w-full md:w-2/5 h-64 md:h-auto text-muted">
                     <Image
                       src={PROGRAMS[activeTab].image}
                       alt={PROGRAMS[activeTab].speaker}
@@ -222,7 +224,7 @@ export const ProgramsSection = () => {
                   </div>
 
                   {/* Speaker Details */}
-                  <div className="p-8 md:w-3/5 flex flex-col justify-center bg-white relative">
+                  <div className="p-8 md:w-3/5 flex flex-col justify-center bg-background relative">
                     {/* Decorative quotes background */}
                     <span className="absolute top-4 right-4 text-6xl text-slate-200 font-serif leading-none">
                       &quot;

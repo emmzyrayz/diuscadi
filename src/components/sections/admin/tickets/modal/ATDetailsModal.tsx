@@ -116,7 +116,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
               "relative",
               "w-full",
               "max-w-4xl",
-              "bg-white",
+              "bg-background",
               "rounded-[3.5rem]",
               "shadow-2xl",
               "overflow-hidden",
@@ -134,10 +134,10 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
               className={cn(
                 "w-full",
                 "md:w-[320px]",
-                "bg-slate-50",
+                "bg-muted",
                 "p-10",
                 "border-r",
-                "border-slate-100",
+                "border-border",
                 "flex",
                 "flex-col",
                 "items-center",
@@ -151,12 +151,12 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                 className={cn(
                   "w-full",
                   "aspect-square",
-                  "bg-white",
+                  "bg-background",
                   "rounded-3xl",
                   "p-6",
                   "shadow-sm",
                   "border",
-                  "border-slate-200",
+                  "border-border",
                   "mb-6",
                   "group",
                   "relative",
@@ -166,7 +166,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                   className={cn(
                     "w-full",
                     "h-full",
-                    "bg-slate-100",
+                    "text-muted",
                     "rounded-xl",
                     "flex",
                     "items-center",
@@ -183,7 +183,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                     }}
                   >
                     <LuQrCode
-                      className={cn("w-32", "h-32", "text-slate-900")}
+                      className={cn("w-32", "h-32", "text-foreground")}
                     />
                   </motion.div>
                 </div>
@@ -199,7 +199,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                     className={cn(
                       "text-[10px]",
                       "font-black",
-                      "text-slate-400",
+                      "text-muted-foreground",
                       "uppercase",
                       "tracking-widest",
                       "mb-1",
@@ -211,7 +211,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                     className={cn(
                       "text-lg",
                       "font-black",
-                      "text-slate-900",
+                      "text-foreground",
                       "font-mono",
                       "tracking-tighter",
                       "uppercase",
@@ -238,15 +238,15 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                       "justify-center",
                       "gap-2",
                       "py-3",
-                      "bg-white",
+                      "bg-background",
                       "border",
-                      "border-slate-200",
+                      "border-border",
                       "rounded-xl",
                       "text-[10px]",
                       "font-black",
                       "uppercase",
                       "tracking-tight",
-                      "hover:border-slate-900",
+                      "hover:border-foreground",
                       "transition-all",
                     )}
                   >
@@ -287,15 +287,15 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                       "justify-center",
                       "gap-2",
                       "py-3",
-                      "bg-slate-900",
-                      "text-white",
+                      "bg-foreground",
+                      "text-background",
                       "rounded-xl",
                       "text-[10px]",
                       "font-black",
                       "uppercase",
                       "tracking-tight",
                       "hover:bg-primary",
-                      "hover:text-slate-900",
+                      "hover:text-foreground",
                       "transition-all",
                     )}
                   >
@@ -320,7 +320,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                       className={cn(
                         "text-2xl",
                         "font-black",
-                        "text-slate-900",
+                        "text-foreground",
                         "uppercase",
                         "tracking-tighter",
                       )}
@@ -331,7 +331,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                       className={cn(
                         "text-xs",
                         "font-bold",
-                        "text-slate-400",
+                        "text-muted-foreground",
                         "uppercase",
                         "tracking-widest",
                       )}
@@ -345,7 +345,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                     whileTap={{ scale: 0.9 }}
                     className={cn(
                       "p-2",
-                      "hover:bg-slate-100",
+                      "hover:text-muted",
                       "rounded-full",
                       "transition-colors",
                     )}
@@ -408,7 +408,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                       className={cn(
                         "text-[10px]",
                         "font-black",
-                        "text-slate-400",
+                        "text-muted-foreground",
                         "uppercase",
                         "tracking-[0.2em]",
                         "flex",
@@ -422,10 +422,10 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                       whileHover={{ scale: 1.01 }}
                       className={cn(
                         "p-6",
-                        "bg-slate-50",
+                        "bg-muted",
                         "rounded-[2rem]",
                         "border",
-                        "border-slate-100",
+                        "border-border",
                         "flex",
                         "items-center",
                         "gap-4",
@@ -439,7 +439,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                           "rounded-full",
                           "bg-slate-200",
                           "border-2",
-                          "border-white",
+                          "border-background",
                           "shadow-sm",
                           "overflow-hidden",
                         )}
@@ -457,7 +457,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                           className={cn(
                             "text-sm",
                             "font-black",
-                            "text-slate-900",
+                            "text-foreground",
                           )}
                         >
                           {ticket.ownerName}
@@ -466,7 +466,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                           className={cn(
                             "text-[10px]",
                             "font-bold",
-                            "text-slate-400",
+                            "text-muted-foreground",
                             "lowercase",
                           )}
                         >
@@ -487,7 +487,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                       className={cn(
                         "text-[10px]",
                         "font-black",
-                        "text-slate-400",
+                        "text-muted-foreground",
                         "uppercase",
                         "tracking-[0.2em]",
                         "flex",
@@ -501,10 +501,10 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                       whileHover={{ scale: 1.01 }}
                       className={cn(
                         "p-6",
-                        "bg-slate-50",
+                        "bg-muted",
                         "rounded-[2rem]",
                         "border",
-                        "border-slate-100",
+                        "border-border",
                         "flex",
                         "items-center",
                         "gap-4",
@@ -516,7 +516,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                           "w-12",
                           "h-12",
                           "rounded-xl",
-                          "bg-slate-900",
+                          "bg-foreground",
                           "flex",
                           "items-center",
                           "justify-center",
@@ -530,7 +530,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                           className={cn(
                             "text-sm",
                             "font-black",
-                            "text-slate-900",
+                            "text-foreground",
                           )}
                         >
                           {ticket.eventName}
@@ -539,7 +539,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                           className={cn(
                             "text-[10px]",
                             "font-bold",
-                            "text-slate-400",
+                            "text-muted-foreground",
                             "uppercase",
                             "tracking-widest",
                             "flex",
@@ -566,7 +566,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                     className={cn(
                       "text-[10px]",
                       "font-black",
-                      "text-slate-400",
+                      "text-muted-foreground",
                       "uppercase",
                       "tracking-[0.2em]",
                       "flex",
@@ -580,7 +580,7 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
                   <div
                     className={cn(
                       "border",
-                      "border-slate-100",
+                      "border-border",
                       "rounded-3xl",
                       "overflow-hidden",
                       "text-[10px]",
@@ -627,7 +627,7 @@ const StatBlock: React.FC<StatBlockProps> = ({
       className={cn(
         "text-[8px]",
         "font-black",
-        "text-slate-400",
+        "text-muted-foreground",
         "uppercase",
         "tracking-widest",
       )}
@@ -640,7 +640,7 @@ const StatBlock: React.FC<StatBlockProps> = ({
         "font-black",
         "uppercase",
         "tracking-tight",
-        highlight ? "text-blue-600" : "text-slate-900",
+        highlight ? "text-blue-600" : "text-foreground",
       )}
     >
       {value}
@@ -665,7 +665,7 @@ const ActivityRow: React.FC<ActivityRowProps> = ({
       "items-center",
       "justify-between",
       "p-4",
-      "bg-white",
+      "bg-background",
       "border-b",
       "border-slate-50",
       "last:border-0",
@@ -679,8 +679,8 @@ const ActivityRow: React.FC<ActivityRowProps> = ({
     </div>
     <span
       className={cn(
-        "text-slate-400",
-        "bg-slate-50",
+        "text-muted-foreground",
+        "bg-muted",
         "px-2",
         "py-1",
         "rounded-md",

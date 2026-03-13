@@ -6,39 +6,90 @@ import {
   LuMapPin,
   LuTicket,
   LuFingerprint,
-  LuArmchair,
   LuCopy,
   LuCheck,
+  LuShieldCheck,
+  LuReceipt,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { IconType } from "react-icons";
 
 interface TicketMetaInfoProps {
   ticket: {
-    id: string;
+    inviteCode: string;
     eventName: string;
     eventDate: string;
     eventTime: string;
     location: string;
-    type: string;
+    ticketType: string;
     status: string;
-    seat?: string;
+    registeredAt: string;
+    price: string;
   };
 }
 
-interface InfoItemProps {
+const InfoItem = ({
+  icon: Icon,
+  label,
+  value,
+  valueClass,
+  className,
+}: {
   icon: IconType;
   label: string;
   value: string;
+  valueClass?: string;
   className?: string;
-  valueClassName?: string;
-}
+}) => (
+  <div className={cn("flex", "items-start", "gap-4", className)}>
+    <div
+      className={cn(
+        "w-10",
+        "h-10",
+        "rounded-xl",
+        "bg-muted",
+        "flex",
+        "items-center",
+        "justify-center",
+        "shrink-0",
+        "border",
+        "border-border",
+      )}
+    >
+      <Icon className={cn("w-5", "h-5", "text-muted-foreground")} />
+    </div>
+    <div className="space-y-0.5">
+      <p
+        className={cn(
+          "text-[9px]",
+          "font-black",
+          "text-muted-foreground",
+          "uppercase",
+          "tracking-widest",
+        )}
+      >
+        {label}
+      </p>
+      <p
+        className={cn(
+          "text-sm",
+          "font-bold",
+          "text-slate-700",
+          "leading-snug",
+          valueClass,
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  </div>
+);
 
 export const TicketMetaInfo = ({ ticket }: TicketMetaInfoProps) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(ticket.id);
+    navigator.clipboard.writeText(ticket.inviteCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -46,9 +97,9 @@ export const TicketMetaInfo = ({ ticket }: TicketMetaInfoProps) => {
   return (
     <div
       className={cn(
-        "bg-white",
+        "bg-background",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "rounded-[2.5rem]",
         "p-8",
         "md:p-10",
@@ -59,7 +110,7 @@ export const TicketMetaInfo = ({ ticket }: TicketMetaInfoProps) => {
         className={cn(
           "text-sm",
           "font-black",
-          "text-slate-900",
+          "text-foreground",
           "uppercase",
           "tracking-[0.2em]",
           "mb-8",
@@ -81,13 +132,13 @@ export const TicketMetaInfo = ({ ticket }: TicketMetaInfoProps) => {
       </h3>
 
       <div className="space-y-8">
-        {/* Event Main Info */}
+        {/* Event name */}
         <div className="space-y-1">
           <p
             className={cn(
               "text-[10px]",
               "font-black",
-              "text-slate-400",
+              "text-muted-foreground",
               "uppercase",
               "tracking-widest",
             )}
@@ -98,7 +149,7 @@ export const TicketMetaInfo = ({ ticket }: TicketMetaInfoProps) => {
             className={cn(
               "text-xl",
               "font-black",
-              "text-slate-900",
+              "text-foreground",
               "leading-tight",
             )}
           >
@@ -106,7 +157,7 @@ export const TicketMetaInfo = ({ ticket }: TicketMetaInfoProps) => {
           </h2>
         </div>
 
-        {/* Grid Stats */}
+        {/* Grid */}
         <div className={cn("grid", "grid-cols-1", "sm:grid-cols-2", "gap-8")}>
           <InfoItem
             icon={LuCalendar}
@@ -120,46 +171,42 @@ export const TicketMetaInfo = ({ ticket }: TicketMetaInfoProps) => {
           />
           <InfoItem
             icon={LuMapPin}
-            label="Venue Location"
+            label="Venue"
             value={ticket.location}
             className="sm:col-span-2"
           />
         </div>
 
-        {/* Divider */}
-        <div className={cn("h-px", "bg-slate-100", "w-full")} />
+        <div className={cn("h-px", "text-muted")} />
 
-        {/* Ticket Specifics */}
-        <div className={cn("grid", "grid-cols-2", "gap-8")}>
+        <div className={cn("grid", "grid-cols-1", "sm:grid-cols-3", "gap-8")}>
           <InfoItem
             icon={LuTicket}
             label="Pass Category"
-            value={ticket.type}
-            valueClassName="text-primary"
+            value={ticket.ticketType}
+            valueClass="text-primary"
           />
-          {ticket.seat && (
-            <InfoItem
-              icon={LuArmchair}
-              label="Assigned Seat"
-              value={ticket.seat}
-            />
-          )}
+          <InfoItem icon={LuReceipt} label="Amount Paid" value={ticket.price} />
+          <InfoItem
+            icon={LuShieldCheck}
+            label="Registered On"
+            value={ticket.registeredAt}
+          />
         </div>
 
-        {/* Ticket ID with Copy Action */}
+        {/* Invite code / copy */}
         <div
           className={cn(
-            "bg-slate-50",
+            "bg-muted",
             "rounded-2xl",
             "p-4",
             "flex",
             "items-center",
             "justify-between",
-            "group",
             "border",
-            "border-slate-100",
+            "border-border",
+            "hover:border-border",
             "transition-colors",
-            "hover:border-slate-200",
           )}
         >
           <div className={cn("flex", "items-center", "gap-3")}>
@@ -168,29 +215,31 @@ export const TicketMetaInfo = ({ ticket }: TicketMetaInfoProps) => {
                 "w-8",
                 "h-8",
                 "rounded-lg",
-                "bg-white",
+                "bg-background",
                 "flex",
                 "items-center",
                 "justify-center",
                 "border",
-                "border-slate-100",
+                "border-border",
               )}
             >
-              <LuFingerprint className={cn("w-4", "h-4", "text-slate-400")} />
+              <LuFingerprint
+                className={cn("w-4", "h-4", "text-muted-foreground")}
+              />
             </div>
             <div>
               <p
                 className={cn(
                   "text-[9px]",
                   "font-black",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-widest",
                   "leading-none",
                   "mb-1",
                 )}
               >
-                Unique Ticket ID
+                Invite / Scan Code
               </p>
               <p
                 className={cn(
@@ -202,7 +251,7 @@ export const TicketMetaInfo = ({ ticket }: TicketMetaInfoProps) => {
                   "uppercase",
                 )}
               >
-                {ticket.id}
+                {ticket.inviteCode}
               </p>
             </div>
           </div>
@@ -210,13 +259,13 @@ export const TicketMetaInfo = ({ ticket }: TicketMetaInfoProps) => {
             onClick={handleCopy}
             className={cn(
               "p-2",
-              "hover:bg-white",
+              "hover:bg-background",
               "rounded-lg",
               "transition-all",
-              "text-slate-400",
+              "text-muted-foreground",
               "hover:text-primary",
               "active:scale-90",
-              "shadow-xs",
+              "cursor-pointer",
             )}
           >
             {copied ? (
@@ -226,56 +275,30 @@ export const TicketMetaInfo = ({ ticket }: TicketMetaInfoProps) => {
             )}
           </button>
         </div>
+
+        {/* Reminder */}
+        <div
+          className={cn(
+            "p-4",
+            "bg-orange-50",
+            "rounded-2xl",
+            "border",
+            "border-orange-100",
+          )}
+        >
+          <p
+            className={cn(
+              "text-[11px]",
+              "font-bold",
+              "text-orange-700",
+              "leading-relaxed",
+            )}
+          >
+            Present a valid government-issued ID matching your registered name
+            at the gate.
+          </p>
+        </div>
       </div>
     </div>
   );
 };
-
-/* Internal Helper Component */
-const InfoItem = ({
-  icon: Icon,
-  label,
-  value,
-  className,
-  valueClassName,
-}: InfoItemProps) => (
-  <div className={cn("flex items-start gap-4", className)}>
-    <div
-      className={cn(
-        "w-10",
-        "h-10",
-        "rounded-xl",
-        "bg-slate-50",
-        "flex",
-        "items-center",
-        "justify-center",
-        "shrink-0",
-        "border",
-        "border-slate-100",
-      )}
-    >
-      <Icon className={cn("w-5", "h-5", "text-slate-400")} />
-    </div>
-    <div className="space-y-1">
-      <p
-        className={cn(
-          "text-[9px]",
-          "font-black",
-          "text-slate-400",
-          "uppercase",
-          "tracking-widest",
-        )}
-      >
-        {label}
-      </p>
-      <p
-        className={cn(
-          "text-sm font-bold text-slate-700 leading-snug",
-          valueClassName,
-        )}
-      >
-        {value}
-      </p>
-    </div>
-  </div>
-);

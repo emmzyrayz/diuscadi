@@ -55,9 +55,9 @@ export const AdminUpcomingEventsPreview: React.FC = () => {
   return (
     <section
       className={cn(
-        "bg-white",
+        "bg-background",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "rounded-[2.5rem]",
         "p-8",
         "shadow-sm",
@@ -71,13 +71,13 @@ export const AdminUpcomingEventsPreview: React.FC = () => {
               "w-10",
               "h-10",
               "rounded-xl",
-              "bg-slate-50",
+              "bg-muted",
               "flex",
               "items-center",
               "justify-center",
               "text-primary",
               "border",
-              "border-slate-100",
+              "border-border",
             )}
           >
             <LuCalendarDays className={cn("w-5", "h-5")} />
@@ -87,7 +87,7 @@ export const AdminUpcomingEventsPreview: React.FC = () => {
               className={cn(
                 "text-sm",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "uppercase",
                 "tracking-widest",
               )}
@@ -98,7 +98,7 @@ export const AdminUpcomingEventsPreview: React.FC = () => {
               className={cn(
                 "text-[9px]",
                 "font-black",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
                 "tracking-widest",
                 "mt-1",
@@ -111,12 +111,12 @@ export const AdminUpcomingEventsPreview: React.FC = () => {
         <button
           className={cn(
             "p-2",
-            "hover:bg-slate-50",
+            "hover:bg-muted",
             "rounded-lg",
             "transition-colors",
           )}
         >
-          <LuEllipsis className={cn("w-5", "h-5", "text-slate-400")} />
+          <LuEllipsis className={cn("w-5", "h-5", "text-muted-foreground")} />
         </button>
       </div>
 
@@ -133,18 +133,18 @@ export const AdminUpcomingEventsPreview: React.FC = () => {
           "w-full",
           "mt-8",
           "py-4",
-          "bg-slate-900",
-          "text-white",
+          "bg-foreground",
+          "text-background",
           "rounded-2xl",
           "font-black",
           "text-[10px]",
           "uppercase",
           "tracking-[0.2em]",
           "hover:bg-primary",
-          "hover:text-slate-900",
+          "hover:text-foreground",
           "transition-all",
           "shadow-xl",
-          "shadow-slate-900/10",
+          "shadow-foreground/10",
           "flex",
           "items-center",
           "justify-center",
@@ -171,29 +171,82 @@ const EventPreviewCard: React.FC<EventPreviewCardProps> = ({ event }) => {
   const fillPercentage = (event.registrations / event.capacity) * 100;
 
   return (
-    <div className={cn('group', 'p-5', 'bg-slate-50', 'rounded-3xl', 'border', 'border-transparent', 'hover:border-slate-200', 'hover:bg-white', 'transition-all')}>
-      <div className={cn('flex', 'flex-col', 'gap-4')}>
+    <div
+      className={cn(
+        "group",
+        "p-5",
+        "bg-muted",
+        "rounded-3xl",
+        "border",
+        "border-transparent",
+        "hover:border-border",
+        "hover:bg-background",
+        "transition-all",
+      )}
+    >
+      <div className={cn("flex", "flex-col", "gap-4")}>
         {/* Top Row: Title & Action */}
-        <div className={cn('flex', 'items-start', 'justify-between')}>
+        <div className={cn("flex", "items-start", "justify-between")}>
           <div className="space-y-1">
-            <p className={cn('text-[9px]', 'font-black', 'text-primary', 'uppercase', 'tracking-widest')}>
+            <p
+              className={cn(
+                "text-[9px]",
+                "font-black",
+                "text-primary",
+                "uppercase",
+                "tracking-widest",
+              )}
+            >
               {event.date}
             </p>
-            <h4 className={cn('text-sm', 'font-black', 'text-slate-900', 'uppercase', 'tracking-tight', 'group-hover:text-primary', 'transition-colors')}>
+            <h4
+              className={cn(
+                "text-sm",
+                "font-black",
+                "text-foreground",
+                "uppercase",
+                "tracking-tight",
+                "group-hover:text-primary",
+                "transition-colors",
+              )}
+            >
               {event.title}
             </h4>
           </div>
-          <button className={cn('w-8', 'h-8', 'rounded-lg', 'bg-white', 'border', 'border-slate-100', 'flex', 'items-center', 'justify-center', 'text-slate-400', 'hover:text-primary', 'hover:border-primary', 'transition-all')}>
-            <LuExternalLink className={cn('w-4', 'h-4')} />
+          <button
+            className={cn(
+              "w-8",
+              "h-8",
+              "rounded-lg",
+              "bg-background",
+              "border",
+              "border-border",
+              "flex",
+              "items-center",
+              "justify-center",
+              "text-muted-foreground",
+              "hover:text-primary",
+              "hover:border-primary",
+              "transition-all",
+            )}
+          >
+            <LuExternalLink className={cn("w-4", "h-4")} />
           </button>
         </div>
 
         {/* Middle Row: Capacity Gauge (Elite Detail) */}
         <div className="space-y-2">
-          <div className={cn('flex', 'justify-between', 'items-end')}>
-            <div className={cn('flex', 'items-center', 'gap-1.5', 'text-slate-500')}>
-              <LuUsers className={cn('w-3', 'h-3')} />
-              <span className={cn('text-[10px]', 'font-black', 'uppercase')}>
+          <div className={cn("flex", "justify-between", "items-end")}>
+            <div
+              className={cn(
+                "flex",
+                "items-center",
+                "gap-1.5",
+                "text-muted-foreground",
+              )}
+            >
+              <LuUsers className={cn("w-3", "h-3")} />
+              <span className={cn("text-[10px]", "font-black", "uppercase")}>
                 {event.registrations}{" "}
                 <span className="text-slate-300">/ {event.capacity}</span>
               </span>
@@ -210,7 +263,15 @@ const EventPreviewCard: React.FC<EventPreviewCardProps> = ({ event }) => {
           </div>
 
           {/* Progress Bar */}
-          <div className={cn('w-full', 'h-1.5', 'bg-slate-200', 'rounded-full', 'overflow-hidden')}>
+          <div
+            className={cn(
+              "w-full",
+              "h-1.5",
+              "bg-slate-200",
+              "rounded-full",
+              "overflow-hidden",
+            )}
+          >
             <div
               className={`h-full rounded-full transition-all duration-1000 ${
                 event.status === "sold-out" ? "bg-rose-500" : "bg-primary"

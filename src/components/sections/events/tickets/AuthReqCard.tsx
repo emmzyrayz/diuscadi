@@ -2,16 +2,20 @@
 import React from "react";
 import { LuShieldAlert, LuLock, LuArrowRight } from "react-icons/lu";
 import Link from "next/link";
-import { cn } from "../../../../lib/utils";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
-export const AuthRequiredCard = () => {
+export const AuthRequiredCard = ({ eventSlug }: { eventSlug?: string }) => {
+  const pathname = usePathname();
+  const returnTo = encodeURIComponent(pathname);
+
   return (
     <div className={cn("max-w-xl", "mx-auto", "py-20", "px-4", "text-center")}>
       <div
         className={cn(
-          "bg-slate-50",
+          "bg-muted",
           "border",
-          "border-slate-200",
+          "border-border",
           "rounded-[2.5rem]",
           "p-10",
           "md:p-16",
@@ -40,14 +44,14 @@ export const AuthRequiredCard = () => {
             "text-2xl",
             "md:text-3xl",
             "font-black",
-            "text-slate-900",
+            "text-foreground",
             "mb-4",
             "tracking-tight",
           )}
         >
           Authentication Required
         </h2>
-        <p className={cn("text-slate-500", "font-medium", "mb-8")}>
+        <p className={cn("text-muted-foreground", "font-medium", "mb-8")}>
           This event requires a verified DIUSCADI identity. Please sign in or
           create an official account to secure your access pass.
         </p>
@@ -61,31 +65,31 @@ export const AuthRequiredCard = () => {
           )}
         >
           <Link
-            href="/login"
+            href={`/auth?return=${returnTo}`}
             className={cn(
               "px-8",
               "py-4",
-              "bg-slate-900",
-              "text-white",
+              "bg-foreground",
+              "text-background",
               "font-black",
               "rounded-2xl",
               "hover:bg-slate-800",
               "transition-colors",
               "shadow-lg",
-              "shadow-slate-900/20",
+              "shadow-foreground/20",
             )}
           >
             Sign In Securely
           </Link>
           <Link
-            href="/register"
+            href={`/auth?mode=signup&return=${returnTo}`}
             className={cn(
               "px-8",
               "py-4",
-              "bg-white",
+              "bg-background",
               "text-primary",
               "border-2",
-              "border-slate-100",
+              "border-border",
               "hover:border-primary",
               "font-black",
               "rounded-2xl",
@@ -119,7 +123,7 @@ export const AuthRequiredCard = () => {
             "font-black",
             "uppercase",
             "tracking-[0.2em]",
-            "text-slate-400",
+            "text-muted-foreground",
           )}
         >
           <LuShieldAlert className={cn("w-4", "h-4")} /> End-to-End Encrypted

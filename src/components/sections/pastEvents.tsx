@@ -1,4 +1,4 @@
-'use client'
+"use client";
 import React from "react";
 // import { cn } from "../../lib/utils";
 import { motion } from "framer-motion";
@@ -61,8 +61,9 @@ export const PastEventsSection = () => {
               A Legacy of <span className="text-primary">Impact.</span>
             </h2>
             <p className="text-muted-foreground text-lg leading-relaxed">
-              Don&apos;t just take our word for it. Explore our previous seminars and
-              see how we&apos;ve been bridging the gap for graduates over the years.
+              Don&apos;t just take our word for it. Explore our previous
+              seminars and see how we&apos;ve been bridging the gap for
+              graduates over the years.
             </p>
           </div>
 
@@ -84,10 +85,10 @@ export const PastEventsSection = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: idx * 0.15, duration: 0.5 }}
-              className="group flex flex-col bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-300"
+              className="group flex flex-col bg-background rounded-3xl overflow-hidden border border-border shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-300"
             >
               {/* Image Container */}
-              <div className="relative w-full aspect-4/3 overflow-hidden bg-slate-100">
+              <div className="relative w-full aspect-4/3 overflow-hidden text-muted">
                 <Image
                   src={event.image}
                   alt={event.title}
@@ -96,13 +97,13 @@ export const PastEventsSection = () => {
                 />
 
                 {/* Floating Glass Date Badge */}
-                <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/30 backdrop-blur-md border border-white/20 text-white text-xs font-medium shadow-lg">
+                <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/30 backdrop-blur-md border border-background/20 text-background text-xs font-medium shadow-lg">
                   <CalendarDays className="w-3.5 h-3.5" />
                   {event.date}
                 </div>
 
                 {/* Gallery Indicator (Glass Pill) */}
-                <div className="absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
+                <div className="absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-1 rounded-full bg-background/10 backdrop-blur-md border border-background/20 text-background text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
                   <ImageIcon className="w-3.5 h-3.5" />
                   {event.galleryCount} Photos
                 </div>
@@ -127,7 +128,7 @@ export const PastEventsSection = () => {
                 </p>
 
                 {/* Action Link */}
-                <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+                <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
                   <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors flex items-center gap-2">
                     Event Log & Gallery
                     <ArrowRight className="w-4 h-4 text-primary opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />

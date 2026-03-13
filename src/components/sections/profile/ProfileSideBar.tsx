@@ -53,47 +53,86 @@ export const ProfileSidebar = ({ user }: ProfileSidebarProps) => {
   };
 
   return (
-    <aside className={cn('w-full', 'space-y-6')}>
+    <aside className={cn("w-full", "space-y-6")}>
       {/* 1. Identity Card Segment */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
-        className={cn('bg-white', 'border-2', 'border-slate-100', 'rounded-[2.5rem]', 'p-8', 'shadow-sm')}
+        className={cn(
+          "bg-background",
+          "border-2",
+          "border-border",
+          "rounded-[2.5rem]",
+          "p-8",
+          "shadow-sm",
+        )}
       >
-        <div className={cn('flex', 'flex-col', 'items-center', 'text-center')}>
+        <div className={cn("flex", "flex-col", "items-center", "text-center")}>
           {/* Profile Avatar with Upload Indicator */}
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className={cn('relative', 'group', 'mb-4')}
+            className={cn("relative", "group", "mb-4")}
           >
             <motion.div
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className={cn('w-32', 'h-32', 'rounded-[2.5rem]', 'bg-slate-50', 'border-4', 'border-white', 'shadow-xl', 'overflow-hidden', 'group-hover:border-primary/20', 'transition-all')}
+              className={cn(
+                "w-32",
+                "h-32",
+                "rounded-[2.5rem]",
+                "bg-muted",
+                "border-4",
+                "border-background",
+                "shadow-xl",
+                "overflow-hidden",
+                "group-hover:border-primary/20",
+                "transition-all",
+              )}
             >
               {user.avatar ? (
                 <Image
                   height={300}
                   width={500}
                   src={user.avatar}
-                  className={cn('w-full', 'h-full', 'object-cover')}
+                  className={cn("w-full", "h-full", "object-cover")}
                   alt="Avatar"
                 />
               ) : (
-                <div className={cn('w-full', 'h-full', 'flex', 'items-center', 'justify-center', 'bg-slate-100', 'text-slate-300')}>
-                  <LuUser className={cn('w-12', 'h-12')} />
+                <div
+                  className={cn(
+                    "w-full",
+                    "h-full",
+                    "flex",
+                    "items-center",
+                    "justify-center",
+                    "text-muted",
+                    "text-slate-300",
+                  )}
+                >
+                  <LuUser className={cn("w-12", "h-12")} />
                 </div>
               )}
             </motion.div>
             <motion.button
               whileHover={{ scale: 1.1, rotate: 5 }}
               whileTap={{ scale: 0.95 }}
-              className={cn('absolute', '-bottom-2', '-right-2', 'bg-slate-900', 'text-white', 'p-2.5', 'rounded-xl', 'shadow-lg', 'hover:bg-primary', 'transition-colors')}
+              className={cn(
+                "absolute",
+                "-bottom-2",
+                "-right-2",
+                "bg-foreground",
+                "text-background",
+                "p-2.5",
+                "rounded-xl",
+                "shadow-lg",
+                "hover:bg-primary",
+                "transition-colors",
+              )}
             >
-              <LuUserRoundCog className={cn('w-4', 'h-4')} />
+              <LuUserRoundCog className={cn("w-4", "h-4")} />
             </motion.button>
           </motion.div>
 
@@ -101,13 +140,30 @@ export const ProfileSidebar = ({ user }: ProfileSidebarProps) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className={cn('space-y-1', 'mb-6')}
+            className={cn("space-y-1", "mb-6")}
           >
-            <h2 className={cn('text-xl', 'font-black', 'text-slate-900', 'tracking-tight')}>
+            <h2
+              className={cn(
+                "text-xl",
+                "font-black",
+                "text-foreground",
+                "tracking-tight",
+              )}
+            >
               {user.name}
             </h2>
-            <p className={cn('text-xs', 'font-bold', 'text-slate-400', 'flex', 'items-center', 'justify-center', 'gap-1.5')}>
-              <LuMail className={cn('w-3.5', 'h-3.5')} /> {user.email}
+            <p
+              className={cn(
+                "text-xs",
+                "font-bold",
+                "text-muted-foreground",
+                "flex",
+                "items-center",
+                "justify-center",
+                "gap-1.5",
+              )}
+            >
+              <LuMail className={cn("w-3.5", "h-3.5")} /> {user.email}
             </p>
           </motion.div>
 
@@ -117,15 +173,36 @@ export const ProfileSidebar = ({ user }: ProfileSidebarProps) => {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.4 }}
             whileHover={{ scale: 1.02 }}
-            className={cn('w-full', 'py-3', 'bg-slate-50', 'rounded-2xl', 'border', 'border-slate-100', 'flex', 'items-center', 'justify-center', 'gap-2')}
+            className={cn(
+              "w-full",
+              "py-3",
+              "bg-muted",
+              "rounded-2xl",
+              "border",
+              "border-border",
+              "flex",
+              "items-center",
+              "justify-center",
+              "gap-2",
+            )}
           >
             <motion.div
               animate={{ rotate: [0, 10, -10, 0] }}
               transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
             >
-              <LuCrown className={cn('w-4', 'h-4', 'text-amber-500', 'fill-amber-500')} />
+              <LuCrown
+                className={cn("w-4", "h-4", "text-amber-500", "fill-amber-500")}
+              />
             </motion.div>
-            <span className={cn('text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'text-slate-700')}>
+            <span
+              className={cn(
+                "text-[10px]",
+                "font-black",
+                "uppercase",
+                "tracking-widest",
+                "text-slate-700",
+              )}
+            >
               {user.membershipStatus} Member
             </span>
           </motion.div>
@@ -137,27 +214,71 @@ export const ProfileSidebar = ({ user }: ProfileSidebarProps) => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.2 }}
-        className={cn('bg-slate-900', 'rounded-[2rem]', 'p-6', 'text-white', 'relative', 'overflow-hidden', 'group')}
+        className={cn(
+          "bg-foreground",
+          "rounded-[2rem]",
+          "p-6",
+          "text-background",
+          "relative",
+          "overflow-hidden",
+          "group",
+        )}
       >
-        <div className={cn('relative', 'z-10', 'space-y-4')}>
+        <div className={cn("relative", "z-10", "space-y-4")}>
           <div className="space-y-1">
-            <p className={cn('text-[9px]', 'font-black', 'text-primary', 'uppercase', 'tracking-[0.2em]')}>
+            <p
+              className={cn(
+                "text-[9px]",
+                "font-black",
+                "text-primary",
+                "uppercase",
+                "tracking-[0.2em]",
+              )}
+            >
               Referral Program
             </p>
-            <h4 className={cn('font-bold', 'text-sm')}>Invite your network</h4>
+            <h4 className={cn("font-bold", "text-sm")}>Invite your network</h4>
           </div>
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className={cn('bg-white/10', 'backdrop-blur-md', 'rounded-xl', 'p-3', 'flex', 'items-center', 'justify-between', 'border', 'border-white/10', 'group-hover:border-white/30', 'transition-all')}
+            className={cn(
+              "bg-background/10",
+              "backdrop-blur-md",
+              "rounded-xl",
+              "p-3",
+              "flex",
+              "items-center",
+              "justify-between",
+              "border",
+              "border-background/10",
+              "group-hover:border-background/30",
+              "transition-all",
+            )}
           >
-            <span className={cn('font-mono', 'text-xs', 'font-black', 'tracking-widest', 'text-primary', 'uppercase')}>
+            <span
+              className={cn(
+                "font-mono",
+                "text-xs",
+                "font-black",
+                "tracking-widest",
+                "text-primary",
+                "uppercase",
+              )}
+            >
               {user.inviteCode}
             </span>
             <motion.button
               onClick={handleCopyCode}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              className={cn('p-1.5', 'hover:bg-white/10', 'rounded-lg', 'text-white/50', 'hover:text-white', 'transition-all')}
+              className={cn(
+                "p-1.5",
+                "hover:bg-background/10",
+                "rounded-lg",
+                "text-background/50",
+                "hover:text-background",
+                "transition-all",
+              )}
             >
               <AnimatePresence mode="wait">
                 {copiedCode ? (
@@ -168,7 +289,7 @@ export const ProfileSidebar = ({ user }: ProfileSidebarProps) => {
                     exit={{ scale: 0, rotate: 180 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   >
-                    <LuCheck className={cn('w-4', 'h-4', 'text-emerald-400')} />
+                    <LuCheck className={cn("w-4", "h-4", "text-emerald-400")} />
                   </motion.div>
                 ) : (
                   <motion.div
@@ -177,13 +298,20 @@ export const ProfileSidebar = ({ user }: ProfileSidebarProps) => {
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
                   >
-                    <LuCopy className={cn('w-4', 'h-4')} />
+                    <LuCopy className={cn("w-4", "h-4")} />
                   </motion.div>
                 )}
               </AnimatePresence>
             </motion.button>
           </motion.div>
-          <p className={cn('text-[9px]', 'text-slate-400', 'font-medium', 'leading-relaxed')}>
+          <p
+            className={cn(
+              "text-[9px]",
+              "text-muted-foreground",
+              "font-medium",
+              "leading-relaxed",
+            )}
+          >
             Share this code to earn credits and exclusive event invites.
           </p>
         </div>
@@ -198,7 +326,16 @@ export const ProfileSidebar = ({ user }: ProfileSidebarProps) => {
             repeat: Infinity,
             ease: "easeInOut",
           }}
-          className={cn('absolute', '-top-10', '-right-10', 'w-24', 'h-24', 'bg-primary/20', 'rounded-full', 'blur-2xl')}
+          className={cn(
+            "absolute",
+            "-top-10",
+            "-right-10",
+            "w-24",
+            "h-24",
+            "bg-primary/20",
+            "rounded-full",
+            "blur-2xl",
+          )}
         />
       </motion.div>
 
@@ -207,7 +344,14 @@ export const ProfileSidebar = ({ user }: ProfileSidebarProps) => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.3 }}
-        className={cn('bg-white', 'border-2', 'border-slate-100', 'rounded-[2.5rem]', 'p-4', 'space-y-1')}
+        className={cn(
+          "bg-background",
+          "border-2",
+          "border-border",
+          "rounded-[2.5rem]",
+          "p-4",
+          "space-y-1",
+        )}
       >
         {menuItems.map((item, index) => (
           <motion.button
@@ -220,8 +364,8 @@ export const ProfileSidebar = ({ user }: ProfileSidebarProps) => {
             className={cn(
               "w-full flex items-center gap-3 px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all",
               item.active
-                ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10"
-                : "text-slate-500 hover:bg-slate-50 hover:text-primary",
+                ? "bg-foreground text-background shadow-lg shadow-foreground/10"
+                : "text-muted-foreground hover:bg-muted hover:text-primary",
             )}
           >
             <motion.div

@@ -1,103 +1,213 @@
 "use client";
-import React from "react";
+// app/home/tickets/[ticketId]/page.tsx
+import React, { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useTickets } from "@/context/TicketContext";
+import { cn } from "@/lib/utils";
+
 import { TicketViewHeader } from "@/components/sections/tickets/ticket/TicketHeader";
 import { TicketVisualCard } from "@/components/sections/tickets/ticket/TicketVisualCard";
 import { TicketMetaInfo } from "@/components/sections/tickets/ticket/TicketMetaInfo";
 import { TicketActions } from "@/components/sections/tickets/ticket/TicketActions";
 import { EventSummarySection } from "@/components/sections/tickets/ticket/EventSummary";
 import { AttendeeInfoSection } from "@/components/sections/tickets/ticket/AttendeeInfo";
-import { HelpSection } from "@/components/sections/tickets/ticket/TicketHelp";
-import { cn } from "@/lib/utils";
+import { TicketHelpSection } from "@/components/sections/tickets/ticket/TicketHelp";
+import { TicketDetailSkeleton } from "@/components/sections/tickets/ticket/TicketDetailSkeleton";
 
-// Define a proper type for ticket status
-type TicketStatus = "Upcoming" | "Used" | "Cancelled";
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-export default function TicketDetailPage({
-  params,
-}: {
-  params: { ticketId: string };
-}) {
-  // In a real app, fetch data here via a hook or Server Component
-  const ticketData = {
-    id: params.ticketId,
-    status: "Upcoming" as TicketStatus, // Properly typed
-    eventName: "Global Leadership Summit 2026",
-    eventDate: "March 12, 2026",
-    eventTime: "09:00 AM",
-    location: "Eko Convention Center, Lagos",
-    type: "VIP Access",
-    userName: "Alexander Chidubem",
-    userEmail: "a.chidubem@example.com",
-    userPhone: "+234 803 123 4567",
-    eventImage:
-      "https://images.unsplash.com/photo-1540575861501-7ce0e220475d?q=80&w=2070",
-    shortDescription:
-      "Join 5,000+ leaders for the most influential digital transformation summit in West Africa.",
-  };
+function getDisplayStatus(
+  status: string,
+  checkedInAt: string | null,
+): "Upcoming" | "Used" | "Cancelled" {
+  if (status === "cancelled") return "Cancelled";
+  if (checkedInAt) return "Used";
+  return "Upcoming";
+}
 
-  const isCancelled = ticketData.status === "Cancelled";
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getLocation(
+  ticket: import("@/context/TicketContext").TicketDetail,
+): string {
+  if (ticket.event.format === "virtual") return "Online / Zoom";
+  const loc = ticket.event.location;
+  if (!loc) return ticket.event.format;
+  return (
+    [loc.venue, loc.city, loc.state].filter(Boolean).join(", ") ||
+    ticket.event.format
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export default function TicketDetailPage() {
+  const params = useParams<{ ticketId: string }>();
+  const router = useRouter();
+  const {
+    currentTicket,
+    currentTicketLoading,
+    currentTicketError,
+    loadTicket,
+    clearCurrentTicket,
+  } = useTickets();
+
+  useEffect(() => {
+    if (params.ticketId) loadTicket(params.ticketId);
+    return () => {
+      clearCurrentTicket();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.ticketId]);
+
+  if (currentTicketLoading) return <TicketDetailSkeleton />;
+
+  if (currentTicketError || !currentTicket) {
+    return (
+      <main
+        className={cn(
+          "min-h-screen",
+          "bg-muted/50",
+          "pt-[72px]",
+          "flex",
+          "items-center",
+          "justify-center",
+        )}
+      >
+        <div className={cn("text-center", "space-y-4", "p-8")}>
+          <p className={cn("text-xl", "font-black", "text-foreground")}>
+            Ticket not found
+          </p>
+          <p className={cn("text-muted-foreground", "font-medium")}>
+            {currentTicketError ??
+              "This ticket doesn't exist or you don't have access."}
+          </p>
+          <button
+            onClick={() => router.push("/home/tickets")}
+            className={cn(
+              "mt-4",
+              "px-6",
+              "py-3",
+              "bg-foreground",
+              "text-background",
+              "rounded-2xl",
+              "font-black",
+              "text-sm",
+              "hover:bg-primary",
+              "transition-colors",
+              "cursor-pointer",
+            )}
+          >
+            Back to My Tickets
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  const t = currentTicket;
+  const displayStatus = getDisplayStatus(t.status, t.checkedInAt);
+  const isCancelled = displayStatus === "Cancelled";
+  const eventDate = fmtDate(t.event.eventDate);
+  const eventTime = fmtTime(t.event.eventDate);
+  const location = getLocation(t);
+  const registeredDate = fmtDate(t.registeredAt);
 
   return (
-    <main className={cn('min-h-screen', 'bg-slate-50/50')}>
-      {/* 1. Header (Navigation & Status) */}
-      <TicketViewHeader status={ticketData.status} />
+    <main className={cn("min-h-screen w-full", "bg-muted/50", "pt-[72px]")}>
+      {/* Header */}
+      <TicketViewHeader status={displayStatus} />
 
-      <div className={cn('max-w-4xl', 'mx-auto', 'px-4', 'sm:px-6', 'py-10', 'space-y-12')}>
-        {/* 2. Main Ticket Container (QR & Primary Info) */}
-        <section className={cn('flex', 'flex-col', 'gap-8')}>
-          {/* Most Important: The Scannable Card */}
+      <div
+        className={cn(
+          "max-w-4xl",
+          "mx-auto",
+          "px-4",
+          "sm:px-6",
+          "py-10",
+          "space-y-12",
+        )}
+      >
+        {/* Main ticket section */}
+        <section className={cn("flex", "flex-col", "gap-8")}>
           <TicketVisualCard
             ticket={{
-              id: ticketData.id,
-              eventName: ticketData.eventName,
-              eventImage: ticketData.eventImage,
-              userName: ticketData.userName,
-              type: ticketData.type,
-              status: ticketData.status,
+              inviteCode: t.inviteCode,
+              eventName: t.event.title,
+              eventImage: t.event.image,
+              ticketType: t.ticketType.name,
+              status: displayStatus,
             }}
           />
 
-          {/* Detailed Metadata Grid */}
           <TicketMetaInfo
             ticket={{
-              id: ticketData.id,
-              eventName: ticketData.eventName,
-              eventDate: ticketData.eventDate,
-              eventTime: ticketData.eventTime,
-              location: ticketData.location,
-              type: ticketData.type,
-              status: ticketData.status,
+              inviteCode: t.inviteCode,
+              eventName: t.event.title,
+              eventDate,
+              eventTime,
+              location,
+              ticketType: t.ticketType.name,
+              status: displayStatus,
+              registeredAt: registeredDate,
+              price:
+                t.ticketType.price === 0
+                  ? "Free"
+                  : new Intl.NumberFormat("en-NG", {
+                      style: "currency",
+                      currency: t.ticketType.currency,
+                      maximumFractionDigits: 0,
+                    }).format(t.ticketType.price),
             }}
           />
 
-          {/* Action Utilities (Hidden if Cancelled) */}
           {!isCancelled && (
-            <TicketActions ticketId={ticketData.id} eventId="event-123" />
+            <TicketActions
+              ticketId={t.id}
+              registrationId={t.id}
+              eventSlug={t.event.slug}
+              status={displayStatus}
+            />
           )}
         </section>
 
-        {/* 3. Contextual Sections */}
-        <div className="space-y-16">
+        {/* Contextual sections */}
+        <div className="space-y-0">
           <EventSummarySection
             event={{
-              id: "event-123",
-              title: ticketData.eventName,
-              date: ticketData.eventDate,
-              location: ticketData.location,
-              image: ticketData.eventImage,
-              shortDescription: ticketData.shortDescription,
+              slug: t.event.slug,
+              title: t.event.title,
+              date: eventDate,
+              location,
+              image: t.event.image,
+              overview: t.event.overview,
             }}
           />
 
           <AttendeeInfoSection
-            attendee={{
-              name: ticketData.userName,
-              email: ticketData.userEmail,
-              phone: ticketData.userPhone,
+            ticket={{
+              inviteCode: t.inviteCode,
+              registeredAt: registeredDate,
+              ticketType: t.ticketType.name,
+              checkedInAt: t.checkedInAt ? fmtDate(t.checkedInAt) : null,
             }}
           />
 
-          <HelpSection />
+          <TicketHelpSection />
         </div>
       </div>
     </main>

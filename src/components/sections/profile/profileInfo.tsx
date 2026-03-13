@@ -37,25 +37,73 @@ export const ProfileInfoSection = ({ user, onEdit }: ProfileInfoProps) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className={cn('bg-white', 'border-2', 'border-slate-100', 'rounded-[2.5rem]', 'p-8', 'md:p-10', 'shadow-sm', 'relative', 'overflow-hidden', 'group')}
+      className={cn(
+        "bg-background",
+        "border-2",
+        "border-border",
+        "rounded-[2.5rem]",
+        "p-8",
+        "md:p-10",
+        "shadow-sm",
+        "relative",
+        "overflow-hidden",
+        "group",
+      )}
     >
       {/* Background Decorative Element */}
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.2 }}
-        className={cn('absolute', 'top-0', 'right-0', 'w-32', 'h-32', 'bg-slate-50', 'rounded-bl-[5rem]', '-mr-10', '-mt-10', 'transition-transform', 'group-hover:-translate-x-2', 'group-hover:translate-y-2', 'duration-500')}
+        className={cn(
+          "absolute",
+          "top-0",
+          "right-0",
+          "w-32",
+          "h-32",
+          "bg-muted",
+          "rounded-bl-[5rem]",
+          "-mr-10",
+          "-mt-10",
+          "transition-transform",
+          "group-hover:-translate-x-2",
+          "group-hover:translate-y-2",
+          "duration-500",
+        )}
       />
 
       {/* 1. Section Header */}
-      <div className={cn('relative', 'z-10', 'flex', 'flex-col', 'sm:flex-row', 'sm:items-center', 'justify-between', 'gap-6', 'mb-10')}>
+      <div
+        className={cn(
+          "relative",
+          "z-10",
+          "flex",
+          "flex-col",
+          "sm:flex-row",
+          "sm:items-center",
+          "justify-between",
+          "gap-6",
+          "mb-10",
+        )}
+      >
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
           className="space-y-1"
         >
-          <div className={cn('flex', 'items-center', 'gap-2', 'text-primary', 'font-black', 'text-[10px]', 'uppercase', 'tracking-[0.2em]')}>
+          <div
+            className={cn(
+              "flex",
+              "items-center",
+              "gap-2",
+              "text-primary",
+              "font-black",
+              "text-[10px]",
+              "uppercase",
+              "tracking-[0.2em]",
+            )}
+          >
             <motion.div
               animate={{ scale: [1, 1.2, 1] }}
               transition={{
@@ -64,11 +112,18 @@ export const ProfileInfoSection = ({ user, onEdit }: ProfileInfoProps) => {
                 repeatDelay: 3,
               }}
             >
-              <LuUser className={cn('w-3.5', 'h-3.5')} />
+              <LuUser className={cn("w-3.5", "h-3.5")} />
             </motion.div>
             Identity
           </div>
-          <h3 className={cn('text-2xl', 'font-black', 'text-slate-900', 'tracking-tight')}>
+          <h3
+            className={cn(
+              "text-2xl",
+              "font-black",
+              "text-foreground",
+              "tracking-tight",
+            )}
+          >
             Personal Information
           </h3>
         </motion.div>
@@ -80,20 +135,48 @@ export const ProfileInfoSection = ({ user, onEdit }: ProfileInfoProps) => {
           whileHover={{ scale: 1.05, y: -2 }}
           whileTap={{ scale: 0.95 }}
           onClick={onEdit}
-          className={cn('flex', 'items-center', 'justify-center', 'gap-2', 'px-6', 'py-3', 'bg-slate-50', 'hover:bg-slate-900', 'hover:text-white', 'text-slate-600', 'rounded-xl', 'font-black', 'text-[10px]', 'uppercase', 'tracking-widest', 'transition-colors', 'group/btn')}
+          className={cn(
+            "flex",
+            "items-center",
+            "justify-center",
+            "gap-2",
+            "px-6",
+            "py-3",
+            "bg-muted",
+            "hover:bg-foreground",
+            "hover:text-background",
+            "text-slate-600",
+            "rounded-xl",
+            "font-black",
+            "text-[10px]",
+            "uppercase",
+            "tracking-widest",
+            "transition-colors",
+            "group/btn",
+          )}
         >
           <motion.div
             whileHover={{ rotate: 12 }}
             transition={{ type: "spring", stiffness: 300, damping: 10 }}
           >
-            <LuPencilLine className={cn('w-4', 'h-4')} />
+            <LuPencilLine className={cn("w-4", "h-4")} />
           </motion.div>
           Edit Details
         </motion.button>
       </div>
 
       {/* 2. Information Grid */}
-      <div className={cn('relative', 'z-10', 'grid', 'grid-cols-1', 'md:grid-cols-2', 'gap-y-10', 'gap-x-12')}>
+      <div
+        className={cn(
+          "relative",
+          "z-10",
+          "grid",
+          "grid-cols-1",
+          "md:grid-cols-2",
+          "gap-y-10",
+          "gap-x-12",
+        )}
+      >
         {/* Full Name */}
         <InfoField
           icon={LuUser}
@@ -154,9 +237,9 @@ const InfoField = ({
         "w-12",
         "h-12",
         "rounded-2xl",
-        "bg-slate-50",
+        "bg-muted",
         "border",
-        "border-slate-100",
+        "border-border",
         "flex",
         "items-center",
         "justify-center",
@@ -169,7 +252,7 @@ const InfoField = ({
         className={cn(
           "w-5",
           "h-5",
-          "text-slate-400",
+          "text-muted-foreground",
           "group-hover/field:text-primary",
           "transition-colors",
         )}
@@ -180,7 +263,7 @@ const InfoField = ({
         className={cn(
           "text-[9px]",
           "font-black",
-          "text-slate-400",
+          "text-muted-foreground",
           "uppercase",
           "tracking-widest",
           "leading-none",

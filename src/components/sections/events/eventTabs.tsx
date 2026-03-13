@@ -2,22 +2,55 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import type { TabCount } from "@/app/events/page";
 
-const tabs = [
-  { id: "all", label: "All Events", count: 24 },
-  { id: "upcoming", label: "Upcoming", count: 8 },
-  { id: "past", label: "Past Events", count: 12 },
-  { id: "my-events", label: "My Events", count: 3 },
-];
+interface EventsTabsProps {
+  counts: TabCount;
+}
 
-export const EventsTabs = () => {
+export const EventsTabs = ({ counts }: EventsTabsProps) => {
   const [activeTab, setActiveTab] = useState("all");
 
+  const tabs = [
+    { id: "all", label: "All Events", count: counts.all },
+    { id: "upcoming", label: "Upcoming", count: counts.upcoming },
+    { id: "past", label: "Past Events", count: counts.past },
+    { id: "my-events", label: "My Events", count: 0 }, // loaded client-side when connected to context
+  ];
+
   return (
-    <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-        {/* TAB CONTROLS */}
-        <div className="flex items-center gap-1 bg-slate-100/50 p-1.5 rounded-[1.25rem] relative">
+    <section
+      className={cn(
+        "w-full",
+        "max-w-7xl",
+        "mx-auto",
+        "px-4",
+        "sm:px-6",
+        "lg:px-8",
+        "mt-8",
+      )}
+    >
+      <div
+        className={cn(
+          "flex",
+          "items-center",
+          "justify-between",
+          "border-b",
+          "border-border",
+          "pb-4",
+        )}
+      >
+        <div
+          className={cn(
+            "flex",
+            "items-center",
+            "gap-1",
+            "text-muted/50",
+            "p-1.5",
+            "rounded-[1.25rem]",
+            "relative",
+          )}
+        >
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -27,28 +60,30 @@ export const EventsTabs = () => {
                 className={cn(
                   "relative px-4 py-2 text-sm font-bold transition-all duration-300 rounded-xl flex items-center gap-2 cursor-pointer",
                   isActive
-                    ? "text-slate-900"
-                    : "text-slate-500 hover:text-slate-700",
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-slate-700",
                 )}
               >
-                {/* Framer Motion Layout Animation for the 'active' slider */}
                 {isActive && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute inset-0 bg-white shadow-sm rounded-xl"
+                    className={cn(
+                      "absolute",
+                      "inset-0",
+                      "bg-background",
+                      "shadow-sm",
+                      "rounded-xl",
+                    )}
                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                   />
                 )}
-
-                <span className="relative z-10">{tab.label}</span>
-
-                {/* Counter Badge */}
+                <span className={cn("relative", "z-10")}>{tab.label}</span>
                 <span
                   className={cn(
                     "relative z-10 text-[10px] px-1.5 py-0.5 rounded-md font-black transition-colors",
                     isActive
                       ? "bg-primary/10 text-primary"
-                      : "bg-slate-200 text-slate-400",
+                      : "bg-slate-200 text-muted-foreground",
                   )}
                 >
                   {tab.count}
@@ -57,9 +92,19 @@ export const EventsTabs = () => {
             );
           })}
         </div>
-
-        {/* VIEW TOGGLE (Optional visual flair) */}
-        <div className="hidden md:flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+        <div
+          className={cn(
+            "hidden",
+            "md:flex",
+            "items-center",
+            "gap-4",
+            "text-[10px]",
+            "font-black",
+            "uppercase",
+            "tracking-widest",
+            "text-muted-foreground",
+          )}
+        >
           <span>Sorting by: Recently Added</span>
         </div>
       </div>

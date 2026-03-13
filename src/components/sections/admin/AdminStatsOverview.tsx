@@ -148,7 +148,7 @@ const StatCard = ({
       case "down":
         return "bg-rose-50 text-rose-600";
       case "neutral":
-        return "bg-slate-50 text-slate-400";
+        return "bg-muted text-muted-foreground";
     }
   };
 
@@ -159,9 +159,9 @@ const StatCard = ({
       transition={{ duration: 0.5, delay }}
       whileHover={{ y: -4, scale: 1.02 }}
       className={cn(
-        "bg-white",
+        "bg-background",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "rounded-[2.5rem]",
         "p-7",
         "shadow-sm",
@@ -246,7 +246,7 @@ const StatCard = ({
           className={cn(
             "text-[10px]",
             "font-black",
-            "text-slate-400",
+            "text-muted-foreground",
             "uppercase",
             "tracking-[0.2em]",
           )}
@@ -260,7 +260,7 @@ const StatCard = ({
           className={cn(
             "text-4xl",
             "font-black",
-            "text-slate-900",
+            "text-foreground",
             "tracking-tighter",
           )}
         >
@@ -274,7 +274,7 @@ const StatCard = ({
           "mt-6",
           "w-full",
           "h-1.5",
-          "bg-slate-50",
+          "bg-muted",
           "rounded-full",
           "overflow-hidden",
         )}
@@ -306,7 +306,14 @@ const StatCard = ({
               ease: "linear",
               repeatDelay: 1,
             }}
-            className={cn('absolute', 'inset-0', 'bg-linear-to-r', 'from-transparent', 'via-white/30', 'to-transparent')}
+            className={cn(
+              "absolute",
+              "inset-0",
+              "bg-linear-to-r",
+              "from-transparent",
+              "via-background/30",
+              "to-transparent",
+            )}
           />
         </motion.div>
       </div>

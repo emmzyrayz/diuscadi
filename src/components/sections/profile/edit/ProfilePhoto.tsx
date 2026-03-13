@@ -24,17 +24,17 @@ export const ProfilePhotoSection = () => {
   };
 
   return (
-    <section className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-8 md:p-10 shadow-sm transition-all hover:border-primary/20">
+    <section className="bg-background border-2 border-border rounded-[2.5rem] p-8 md:p-10 shadow-sm transition-all hover:border-primary/20">
       {/* 1. Section Header */}
       <div className="flex items-center gap-3 mb-8">
-        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-primary border border-slate-100">
+        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary border border-border">
           <LuCamera className="w-5 h-5" />
         </div>
         <div>
-          <h3 className="text-xl font-black text-slate-900 tracking-tight">
+          <h3 className="text-xl font-black text-foreground tracking-tight">
             Profile Identity
           </h3>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
             This photo will appear on your digital event passes
           </p>
         </div>
@@ -66,17 +66,17 @@ export const ProfilePhotoSection = () => {
                 alt="Profile"
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-sm">
+              <div className="absolute inset-0 bg-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-sm">
                 <button
                   onClick={() => setImage(null)}
-                  className="p-3 bg-white/20 hover:bg-rose-500 text-white rounded-2xl transition-all"
+                  className="p-3 bg-background/20 hover:bg-rose-500 text-background rounded-2xl transition-all"
                 >
                   <LuTrash2 className="w-5 h-5" />
                 </button>
               </div>
             </>
           ) : (
-            <div className="w-full h-full bg-slate-50 flex flex-col items-center justify-center text-slate-300 gap-2 border-2 border-dashed border-slate-200">
+            <div className="w-full h-full bg-muted flex flex-col items-center justify-center text-slate-300 gap-2 border-2 border-dashed border-border">
               <LuImage className="w-10 h-10" />
               <span className="text-[9px] font-black uppercase tracking-widest">
                 No Image
@@ -86,7 +86,7 @@ export const ProfilePhotoSection = () => {
 
           {/* Status Badge */}
           {image && (
-            <div className="absolute bottom-4 right-4 bg-emerald-500 text-white p-1.5 rounded-xl shadow-lg border-2 border-white">
+            <div className="absolute bottom-4 right-4 bg-emerald-500 text-background p-1.5 rounded-xl shadow-lg border-2 border-background">
               <LuCheck className="w-3 h-3" />
             </div>
           )}
@@ -95,10 +95,10 @@ export const ProfilePhotoSection = () => {
         {/* 3. Upload Controls */}
         <div className="flex-1 space-y-5">
           <div className="space-y-2 text-center md:text-left">
-            <h4 className="text-sm font-black text-slate-900 uppercase">
+            <h4 className="text-sm font-black text-foreground uppercase">
               Update Photo
             </h4>
-            <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-xs">
+            <p className="text-xs text-muted-foreground font-medium leading-relaxed max-w-xs">
               Drag and drop your image or use the button below. JPG, PNG or
               WEBP. Max 5MB.
             </p>
@@ -114,7 +114,7 @@ export const ProfilePhotoSection = () => {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary transition-all shadow-lg shadow-slate-900/10"
+              className="flex items-center gap-2 px-6 py-3 bg-foreground text-background rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary transition-all shadow-lg shadow-foreground/10"
             >
               <LuCloudUpload className="w-4 h-4" />
               Upload Image
@@ -123,7 +123,7 @@ export const ProfilePhotoSection = () => {
             {image && (
               <button
                 onClick={() => setImage(null)}
-                className="px-6 py-3 bg-white border border-slate-200 text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:text-rose-600 hover:border-rose-100 transition-all"
+                className="px-6 py-3 bg-background border border-border text-muted-foreground rounded-xl font-black text-[10px] uppercase tracking-widest hover:text-rose-600 hover:border-rose-100 transition-all"
               >
                 Remove
               </button>

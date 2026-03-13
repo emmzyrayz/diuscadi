@@ -98,7 +98,7 @@ export const SocialLinksSection = () => {
           className={cn(
             "text-[10px]",
             "font-black",
-            "text-slate-400",
+            "text-muted-foreground",
             "uppercase",
             "tracking-widest",
             "ml-1",
@@ -117,7 +117,7 @@ export const SocialLinksSection = () => {
               "left-6",
               "top-1/2",
               "-translate-y-1/2",
-              "text-slate-400",
+              "text-muted-foreground",
               "group-focus-within:text-primary",
               "transition-colors",
             )}
@@ -134,7 +134,7 @@ export const SocialLinksSection = () => {
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
             className={cn(
               "w-full",
-              "bg-slate-50",
+              "bg-muted",
               "border-2",
               "rounded-2xl",
               "pl-12",
@@ -149,7 +149,7 @@ export const SocialLinksSection = () => {
                 ? "border-emerald-100 bg-emerald-50/30 text-slate-700"
                 : isValid === false
                   ? "border-rose-100 bg-rose-50/30 text-slate-700"
-                  : "border-slate-50 text-slate-700 focus:bg-white focus:border-primary/20",
+                  : "border-slate-50 text-slate-700 focus:bg-background focus:border-primary/20",
             )}
           />
 
@@ -203,9 +203,9 @@ export const SocialLinksSection = () => {
       transition={{ duration: 0.5 }}
       whileHover={{ borderColor: "rgba(251, 146, 60, 0.2)" }}
       className={cn(
-        "bg-white",
+        "bg-backgroundround",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "rounded-[2.5rem]",
         "p-8",
         "md:p-10",
@@ -226,13 +226,13 @@ export const SocialLinksSection = () => {
             "w-10",
             "h-10",
             "rounded-xl",
-            "bg-slate-50",
+            "bg-muted",
             "flex",
             "items-center",
             "justify-center",
             "text-primary",
             "border",
-            "border-slate-100",
+            "border-border",
           )}
         >
           <motion.div
@@ -251,7 +251,7 @@ export const SocialLinksSection = () => {
             className={cn(
               "text-xl",
               "font-black",
-              "text-slate-900",
+              "text-foreground",
               "tracking-tight",
             )}
           >
@@ -261,7 +261,7 @@ export const SocialLinksSection = () => {
             className={cn(
               "text-[10px]",
               "font-bold",
-              "text-slate-400",
+              "text-muted-foreground",
               "uppercase",
               "tracking-widest",
               "mt-1",

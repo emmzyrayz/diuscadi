@@ -1,4 +1,4 @@
-'use client'
+"use client";
 import React from "react";
 // import { cn } from "../../lib/utils";
 import { motion } from "framer-motion";
@@ -47,7 +47,7 @@ const TESTIMONIALS = [
 
 export const Testimonials = () => {
   return (
-    <section className="py-24 bg-slate-900 text-white overflow-hidden rounded-2xl">
+    <section className="py-24 bg-foreground text-background overflow-hidden rounded-2xl">
       <div className="container mx-auto px-6">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
@@ -68,7 +68,7 @@ export const Testimonials = () => {
             viewport={{ once: true }}
             className="lg:col-span-5 space-y-6"
           >
-            <div className="group relative aspect-video rounded-[2rem] overflow-hidden border-4 border-white/10 shadow-2xl">
+            <div className="group relative aspect-video rounded-[2rem] overflow-hidden border-4 border-background/10 shadow-2xl">
               <Image
                 src={networking} // Replace with networking-diuscadi.webp
                 alt="Networking at DIUSCADI"
@@ -77,25 +77,25 @@ export const Testimonials = () => {
               />
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                 <button className="w-20 h-20 bg-primary rounded-full flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
-                  <Play className="w-8 h-8 text-white fill-white ml-1" />
+                  <Play className="w-8 h-8 text-background fill-background ml-1" />
                 </button>
               </div>
               {/* Glass Info Tag */}
-              <div className="absolute bottom-4 left-4 right-4 p-4 rounded-xl bg-white/10 backdrop-blur-md border border-white/20">
+              <div className="absolute bottom-4 left-4 right-4 p-4 rounded-xl bg-background/10 backdrop-blur-md border border-background/20">
                 <p className="text-sm font-medium">
                   Watch the #LASCDSSHighlights
                 </p>
               </div>
             </div>
-            <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
+            <div className="p-6 bg-background/5 rounded-2xl border border-background/10">
               <div className="flex gap-1 text-secondary mb-3">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} className="w-4 h-4 fill-secondary" />
                 ))}
               </div>
               <p className="text-lg italic text-slate-300">
-                &quot;Our mission is to ensure no student enters the labor market
-                feeling invisible or unprepared.&quot;
+                &quot;Our mission is to ensure no student enters the labor
+                market feeling invisible or unprepared.&quot;
               </p>
             </div>
           </motion.div>
@@ -109,7 +109,7 @@ export const Testimonials = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.1 }}
-                className="p-8 rounded-3xl bg-white/5 border border-white/10 flex flex-col justify-between hover:bg-white/10 transition-colors group"
+                className="p-8 rounded-3xl bg-background/5 border border-background/10 flex flex-col justify-between hover:bg-background/10 transition-colors group"
               >
                 <div>
                   <Quote className="w-8 h-8 text-primary/40 mb-4 group-hover:text-primary transition-colors" />
@@ -118,7 +118,7 @@ export const Testimonials = () => {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-4 pt-6 border-t border-white/10">
+                <div className="flex items-center gap-4 pt-6 border-t border-background/10">
                   <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20">
                     <Image
                       src={t.image}
@@ -128,7 +128,7 @@ export const Testimonials = () => {
                     />
                   </div>
                   <div>
-                    <h5 className="font-bold text-white text-sm">{t.name}</h5>
+                    <h5 className="font-bold text-background text-sm">{t.name}</h5>
                     <p className="text-xs text-primary font-medium">{t.role}</p>
                   </div>
                 </div>

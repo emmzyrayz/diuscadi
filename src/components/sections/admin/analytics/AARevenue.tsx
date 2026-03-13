@@ -62,7 +62,7 @@ export const AdminAnalyticsRevenueSection: React.FC = () => {
               className={cn(
                 "text-xl",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "uppercase",
                 "tracking-tighter",
               )}
@@ -73,7 +73,7 @@ export const AdminAnalyticsRevenueSection: React.FC = () => {
               className={cn(
                 "text-[10px]",
                 "font-bold",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
                 "tracking-widest",
               )}
@@ -90,7 +90,7 @@ export const AdminAnalyticsRevenueSection: React.FC = () => {
             className={cn(
               "p-2",
               "rounded-lg",
-              "text-slate-400",
+              "text-muted-foreground",
               "transition-colors",
             )}
           >
@@ -102,7 +102,7 @@ export const AdminAnalyticsRevenueSection: React.FC = () => {
             className={cn(
               "p-2",
               "rounded-lg",
-              "text-slate-400",
+              "text-muted-foreground",
               "transition-colors",
             )}
           >
@@ -185,7 +185,7 @@ export const AdminAnalyticsRevenueSection: React.FC = () => {
               label="Tech Summit 2026"
               value="$84,200"
               percentage={100}
-              color="bg-slate-900"
+              color="bg-foreground"
               delay={0.4}
             />
             <ProgressBar
@@ -260,9 +260,9 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
     transition={{ duration: 0.5, delay }}
     whileHover={{ scale: 1.01 }}
     className={cn(
-      "bg-white",
+      "bg-background",
       "border",
-      "border-slate-100",
+      "border-border",
       "rounded-[2.5rem]",
       "p-10",
       "shadow-sm",
@@ -273,7 +273,7 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
         className={cn(
           "text-sm",
           "font-black",
-          "text-slate-900",
+          "text-foreground",
           "uppercase",
           "tracking-tight",
         )}
@@ -284,7 +284,7 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
         className={cn(
           "text-[10px]",
           "font-bold",
-          "text-slate-400",
+          "text-muted-foreground",
           "uppercase",
           "tracking-widest",
         )}
@@ -314,21 +314,21 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
         className={cn(
           "text-[10px]",
           "font-black",
-          "text-slate-900",
+          "text-foreground",
           "uppercase",
           "tracking-tight",
         )}
       >
         {label}
       </span>
-      <span className={cn("text-[10px]", "font-black", "text-slate-400")}>
+      <span className={cn("text-[10px]", "font-black", "text-muted-foreground")}>
         {value}
       </span>
     </div>
     <div
       className={cn(
         "h-2",
-        "bg-slate-50",
+        "bg-muted",
         "rounded-full",
         "overflow-hidden",
         "relative",
@@ -356,7 +356,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
             "inset-0",
             "bg-linear-to-r",
             "from-transparent",
-            "via-white/20",
+            "via-background/20",
             "to-transparent",
           )}
         />
@@ -376,9 +376,9 @@ const BreakdownCard: React.FC<BreakdownCardProps> = ({
     transition={{ duration: 0.5, delay }}
     whileHover={{ scale: 1.02, boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}
     className={cn(
-      "bg-white",
+      "bg-background",
       "border",
-      "border-slate-100",
+      "border-border",
       "p-8",
       "rounded-[2.5rem]",
     )}
@@ -387,7 +387,7 @@ const BreakdownCard: React.FC<BreakdownCardProps> = ({
       className={cn(
         "text-[10px]",
         "font-black",
-        "text-slate-400",
+        "text-muted-foreground",
         "uppercase",
         "tracking-[0.2em]",
         "mb-6",
@@ -410,7 +410,7 @@ const BreakdownCard: React.FC<BreakdownCardProps> = ({
               className={cn(
                 "text-xs",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "uppercase",
                 "tracking-tight",
               )}
@@ -421,14 +421,14 @@ const BreakdownCard: React.FC<BreakdownCardProps> = ({
               className={cn(
                 "text-[9px]",
                 "font-bold",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
               )}
             >
               {item.sub}
             </span>
           </div>
-          <span className={cn("text-sm", "font-black", "text-slate-900")}>
+          <span className={cn("text-sm", "font-black", "text-foreground")}>
             {item.value}
           </span>
         </motion.div>

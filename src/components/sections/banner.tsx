@@ -40,7 +40,18 @@ export const Banner = () => {
   const activeBanner = BANNERS[index];
 
   return (
-    <div className={cn('relative', 'w-full', 'h-[40vh]', 'md:h-[50vh] lg:h-[70vh]', 'overflow-hidden', 'rounded-xl', 'shadow-xl', 'bg-muted')}>
+    <div
+      className={cn(
+        "relative",
+        "w-full",
+        "h-[40vh]",
+        "md:h-[50vh] lg:h-[70vh]",
+        "overflow-hidden",
+        "rounded-xl",
+        "shadow-xl",
+        "bg-muted",
+      )}
+    >
       <AnimatePresence mode="wait">
         <motion.div
           key={activeBanner.id}
@@ -48,7 +59,7 @@ export const Banner = () => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 1, ease: "easeInOut" }}
-          className={cn('absolute', 'inset-0', 'w-full', 'h-full')}
+          className={cn("absolute", "inset-0", "w-full", "h-full")}
         >
           {/* BACKGROUND: The Image */}
           <Image
@@ -60,30 +71,65 @@ export const Banner = () => {
           />
 
           {/* FOREGROUND: The Glass Info Card */}
-          <div className={cn('absolute', 'inset-0', 'flex', 'flex-col', 'justify-end', 'p-4', 'md:p-6')}>
+          <div
+            className={cn(
+              "absolute",
+              "inset-0",
+              "flex",
+              "flex-col",
+              "justify-end",
+              "p-4",
+              "md:p-6",
+            )}
+          >
             <div
               className={cn(
                 "group w-full max-w-4xl mx-auto",
                 "transition-all duration-500 ease-in-out",
                 // Glass Effect
-                "bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl rounded-2xl",
+                "bg-foreground/30 backdrop-blur-md border border-background/20 shadow-2xl rounded-2xl",
                 // Hover: Darken effect for readability
-                "hover:bg-black/40 hover:backdrop-blur-lg",
+                "hover:bg-background/40 hover:backdrop-blur-lg",
                 "p-5 md:p-8 flex flex-col md:flex-row items-center justify-between gap-4",
               )}
             >
-              <div className={cn('text-white', 'text-center', 'md:text-left')}>
-                <h2 className={cn('text-md', 'md:text-2xl', 'font-semibold md:font-bold', 'tracking-tight')}>
+              <div
+                className={cn(
+                  "text-background group-hover:text-foreground group",
+                  "text-center",
+                  "md:text-left",
+                )}
+              >
+                <h2
+                  className={cn(
+                    "text-md",
+                    "md:text-2xl",
+                    "font-semibold md:font-bold",
+                    "tracking-tight",
+                  )}
+                >
                   {activeBanner.title}
                 </h2>
-                <p className={cn('text-sm', 'md:text-base', 'text-white/80', 'mt-1')}>
+                <p
+                  className={cn(
+                    "text-sm",
+                    "md:text-base",
+                    "text-background/80 group-hover:text-foreground/60",
+                    "mt-1",
+                  )}
+                >
                   {activeBanner.subtitle}
                 </p>
               </div>
 
               <Button
                 variant="secondary"
-                className={cn('font-semibold', 'px-4 md:px-8', 'hover:scale-105', 'transition-transform')}
+                className={cn(
+                  "font-semibold bg-background hover:bg-foreground hover:text-background cursor-pointer",
+                  "px-4 md:px-8",
+                  "hover:scale-105",
+                  "transition-transform",
+                )}
               >
                 {activeBanner.buttonText}
               </Button>
@@ -93,13 +139,23 @@ export const Banner = () => {
       </AnimatePresence>
 
       {/* Optional: Slide Indicators */}
-      <div className={cn('absolute', 'bottom-2', 'left-1/2', '-translate-x-1/2', 'flex', 'gap-2', 'z-10')}>
+      <div
+        className={cn(
+          "absolute",
+          "bottom-2",
+          "left-1/2",
+          "-translate-x-1/2",
+          "flex",
+          "gap-2",
+          "z-10",
+        )}
+      >
         {BANNERS.map((_, i) => (
           <div
             key={i}
             className={cn(
               "h-1 w-8 rounded-full transition-all",
-              i === index ? "bg-white" : "bg-white/30",
+              i === index ? "bg-background" : "bg-background/30",
             )}
           />
         ))}

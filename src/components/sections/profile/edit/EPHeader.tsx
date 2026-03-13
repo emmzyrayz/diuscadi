@@ -18,13 +18,13 @@ export const EditProfileHeader = ({
   const router = useRouter();
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-slate-100">
+    <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         {/* 1. Navigation & Title */}
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.push("/profile")}
-            className="group flex items-center justify-center w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 hover:bg-slate-900 hover:text-white transition-all duration-300"
+            className="group flex items-center justify-center w-10 h-10 rounded-xl bg-muted border border-border hover:bg-foreground hover:text-background transition-all duration-300"
           >
             <LuChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
           </button>
@@ -32,10 +32,10 @@ export const EditProfileHeader = ({
           <div className="hidden sm:block w-px h-6 bg-slate-200 mx-2" />
 
           <div className="space-y-0.5">
-            <h1 className="text-lg font-black text-slate-900 tracking-tight">
+            <h1 className="text-lg font-black text-foreground tracking-tight">
               Edit Profile
             </h1>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
               Management Dashboard
             </p>
           </div>
@@ -60,8 +60,8 @@ export const EditProfileHeader = ({
               relative flex items-center gap-2 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all
               ${
                 isSaving
-                  ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                  : "bg-primary text-white shadow-lg shadow-primary/20 hover:scale-105 active:scale-95"
+                  ? "text-muted text-muted-foreground cursor-not-allowed"
+                  : "bg-primary text-background shadow-lg shadow-primary/20 hover:scale-105 active:scale-95"
               }
             `}
           >

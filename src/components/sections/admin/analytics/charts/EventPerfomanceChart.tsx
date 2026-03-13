@@ -30,10 +30,10 @@ export const EventPerformanceChart: React.FC<{ data: PerformanceMix[] }> = ({
         </PieChart>
       </ResponsiveContainer>
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-        <span className="text-2xl font-black text-slate-900 leading-none">
+        <span className="text-2xl font-black text-foreground leading-none">
           {data.reduce((acc, curr) => acc + curr.value, 0).toLocaleString()}
         </span>
-        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+        <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">
           Total Reach
         </span>
       </div>

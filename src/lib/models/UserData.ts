@@ -7,6 +7,8 @@ import {
   CommitteeMembership,
   Skill,
   PhoneNumber,
+  UserPreferences,
+  DEFAULT_PREFERENCES,
 } from "@/types/domain";
 
 export type {
@@ -16,6 +18,7 @@ export type {
   CommitteeMembership,
   Skill,
   PhoneNumber,
+  UserPreferences,
 };
 
 export interface UserDataDocument {
@@ -84,6 +87,11 @@ export interface UserDataDocument {
     eventsAttended: number;
     lastEventRegisteredAt?: Date;
   };
+
+  // ── Preferences (notifications, appearance, privacy) ──────────────────────
+  // Stored inline — no separate collection needed. Defaults applied on read
+  // via DEFAULT_PREFERENCES if the field is absent (legacy documents).
+  preferences: UserPreferences;
 
   createdAt: Date;
   updatedAt: Date;

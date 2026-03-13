@@ -34,7 +34,7 @@ export const ProfessionalInfoSection = ({ data }: ProfessionalInfoProps) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-8 md:p-10 shadow-sm relative overflow-hidden"
+      className="bg-background border-2 border-border rounded-[2.5rem] p-8 md:p-10 shadow-sm relative overflow-hidden"
     >
       {/* 1. Header with Ecosystem Badge */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
@@ -57,7 +57,7 @@ export const ProfessionalInfoSection = ({ data }: ProfessionalInfoProps) => {
             </motion.div>
             Career Profile
           </div>
-          <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+          <h3 className="text-2xl font-black text-foreground tracking-tight">
             Professional Context
           </h3>
         </motion.div>
@@ -109,7 +109,7 @@ export const ProfessionalInfoSection = ({ data }: ProfessionalInfoProps) => {
               initial={{ width: 0 }}
               animate={{ width: "2rem" }}
               transition={{ delay: 0.6, duration: 0.5 }}
-              className="h-px bg-slate-100"
+              className="h-px text-muted"
             />
             Academic Background
           </motion.h4>
@@ -147,7 +147,7 @@ export const ProfessionalInfoSection = ({ data }: ProfessionalInfoProps) => {
               initial={{ width: 0 }}
               animate={{ width: "2rem" }}
               transition={{ delay: 0.6, duration: 0.5 }}
-              className="h-px bg-slate-100"
+              className="h-px text-muted"
             />
             Current Occupation
           </motion.h4>
@@ -175,18 +175,18 @@ export const ProfessionalInfoSection = ({ data }: ProfessionalInfoProps) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.9 }}
         whileHover={{ scale: 1.01 }}
-        className="mt-10 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-start gap-3"
+        className="mt-10 p-4 bg-muted rounded-2xl border border-border flex items-start gap-3"
       >
         <motion.div
           whileHover={{ rotate: 360 }}
           transition={{ duration: 0.6 }}
-          className="p-2 bg-white rounded-lg shadow-xs"
+          className="p-2 bg-background rounded-lg shadow-xs"
         >
           <LuNetwork className="w-4 h-4 text-primary" />
         </motion.div>
-        <p className="text-[11px] font-bold text-slate-500 leading-relaxed">
+        <p className="text-[11px] font-bold text-muted-foreground leading-relaxed">
           This data is used to match you with industry mentors in the{" "}
-          <span className="text-slate-900 underline decoration-primary/30">
+          <span className="text-foreground underline decoration-primary/30">
             DIUSCADI Incubation Track.
           </span>{" "}
           Keep it updated for better opportunities.
@@ -213,12 +213,12 @@ const ProfessionalItem = ({
     <motion.div
       whileHover={{ scale: 1.1, rotate: 5 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100 group-hover:border-primary/20 transition-colors"
+      className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0 border border-border group-hover:border-primary/20 transition-colors"
     >
-      <Icon className="w-5 h-5 text-slate-400 group-hover:text-primary transition-colors" />
+      <Icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
     </motion.div>
     <div className="space-y-0.5 flex-1">
-      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
         {label}
       </p>
       <motion.p

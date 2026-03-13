@@ -1,9 +1,6 @@
 "use client";
 import React from "react";
-import {
-  LuTrophy,
-  LuChartBar
-} from "react-icons/lu";
+import { LuTrophy, LuChartBar } from "react-icons/lu";
 
 export const AdminAnalyticsEventPerformanceSection: React.FC = () => {
   const PERFORMANCE_DATA = [
@@ -50,10 +47,10 @@ export const AdminAnalyticsEventPerformanceSection: React.FC = () => {
             <LuTrophy className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">
+            <h2 className="text-xl font-black text-foreground uppercase tracking-tighter">
               Event Performance
             </h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               Benchmarking success across the portfolio
             </p>
           </div>
@@ -62,9 +59,9 @@ export const AdminAnalyticsEventPerformanceSection: React.FC = () => {
 
       <div className="grid grid-cols-1 2xl:grid-cols-3 gap-8">
         {/* 2. TopPerformingEventsTable */}
-        <div className="2xl:col-span-2 bg-white border border-slate-100 rounded-[2.5rem] overflow-hidden shadow-sm">
+        <div className="2xl:col-span-2 bg-background border border-border rounded-[2.5rem] overflow-hidden shadow-sm">
           <div className="p-8 border-b border-slate-50 flex justify-between items-center">
-            <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-widest">
+            <h3 className="text-[11px] font-black text-foreground uppercase tracking-widest">
               Performance Ledger
             </h3>
             <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">
@@ -74,23 +71,23 @@ export const AdminAnalyticsEventPerformanceSection: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-slate-50/50">
-                  <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                <tr className="bg-muted/50">
+                  <th className="px-8 py-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">
                     Event
                   </th>
-                  <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  <th className="px-6 py-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">
                     Issued
                   </th>
-                  <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  <th className="px-6 py-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">
                     Attendance
                   </th>
-                  <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  <th className="px-6 py-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">
                     Revenue
                   </th>
-                  <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  <th className="px-6 py-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">
                     Fill Rate
                   </th>
-                  <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">
+                  <th className="px-8 py-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right">
                     Status
                   </th>
                 </tr>
@@ -99,9 +96,9 @@ export const AdminAnalyticsEventPerformanceSection: React.FC = () => {
                 {PERFORMANCE_DATA.map((event, i) => (
                   <tr
                     key={i}
-                    className="hover:bg-slate-50/50 transition-colors group"
+                    className="hover:bg-muted/50 transition-colors group"
                   >
-                    <td className="px-8 py-5 text-[11px] font-black text-slate-900 uppercase tracking-tight">
+                    <td className="px-8 py-5 text-[11px] font-black text-foreground uppercase tracking-tight">
                       {event.name}
                     </td>
                     <td className="px-6 py-5 text-[11px] font-bold text-slate-600">
@@ -110,13 +107,13 @@ export const AdminAnalyticsEventPerformanceSection: React.FC = () => {
                     <td className="px-6 py-5 text-[11px] font-bold text-emerald-600">
                       {event.attendance}
                     </td>
-                    <td className="px-6 py-5 text-[11px] font-bold text-slate-900">
+                    <td className="px-6 py-5 text-[11px] font-bold text-foreground">
                       {event.revenue}
                     </td>
                     <td className="px-6 py-5">
-                      <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="w-24 h-1.5 text-muted rounded-full overflow-hidden">
                         <div
-                          className={`h-full bg-slate-900 rounded-full`}
+                          className={`h-full bg-foreground rounded-full`}
                           style={{ width: `${event.fill}%` }}
                         />
                       </div>
@@ -127,7 +124,7 @@ export const AdminAnalyticsEventPerformanceSection: React.FC = () => {
                           event.status === "Sold Out"
                             ? "bg-rose-50 text-rose-600"
                             : event.status === "Completed"
-                              ? "bg-slate-100 text-slate-400"
+                              ? "text-muted text-muted-foreground"
                               : "bg-emerald-50 text-emerald-600"
                         }`}
                       >
@@ -142,22 +139,22 @@ export const AdminAnalyticsEventPerformanceSection: React.FC = () => {
         </div>
 
         {/* 3. EventPerformanceChart (Popularity Comparison) */}
-        <div className="bg-white border border-slate-100 rounded-[2.5rem] p-10 shadow-sm flex flex-col">
+        <div className="bg-background border border-border rounded-[2.5rem] p-10 shadow-sm flex flex-col">
           <div className="space-y-1 mb-10">
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+            <h3 className="text-sm font-black text-foreground uppercase tracking-tight flex items-center gap-2">
               <LuChartBar className="w-4 h-4 text-primary" /> Popularity Mix
             </h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               Market share by ticket volume
             </p>
           </div>
 
           <div className="flex-1 flex items-center justify-center relative">
             {/*  */}
-            <div className="w-48 h-48 rounded-full border-16 border-slate-900 border-t-primary border-l-emerald-500 border-r-indigo-500 rotate-45" />
+            <div className="w-48 h-48 rounded-full border-16 border-foreground border-t-primary border-l-emerald-500 border-r-indigo-500 rotate-45" />
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-black text-slate-900">2.5k</span>
-              <span className="text-[8px] font-black text-slate-400 uppercase">
+              <span className="text-2xl font-black text-foreground">2.5k</span>
+              <span className="text-[8px] font-black text-muted-foreground uppercase">
                 Total Tickets
               </span>
             </div>

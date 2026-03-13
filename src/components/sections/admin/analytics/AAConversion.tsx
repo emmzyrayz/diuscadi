@@ -40,14 +40,14 @@ export const AdminAnalyticsConversionSection: React.FC = () => {
       {/* 1. Section Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-primary/10 text-slate-900 rounded-xl border border-primary/20">
+          <div className="p-2.5 bg-primary/10 text-foreground rounded-xl border border-primary/20">
             <LuTarget className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">
+            <h2 className="text-xl font-black text-foreground uppercase tracking-tighter">
               Growth Optimization
             </h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               Funnel performance & conversion bottlenecks
             </p>
           </div>
@@ -56,12 +56,12 @@ export const AdminAnalyticsConversionSection: React.FC = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* 2. RegistrationConversionChart (The Funnel) */}
-        <div className="xl:col-span-2 bg-white border border-slate-100 rounded-[2.5rem] p-10 shadow-sm relative overflow-hidden">
+        <div className="xl:col-span-2 bg-background border border-border rounded-[2.5rem] p-10 shadow-sm relative overflow-hidden">
           <div className="relative z-10 space-y-1 mb-10">
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">
+            <h3 className="text-sm font-black text-foreground uppercase tracking-tight">
               Acquisition Funnel
             </h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               Visitor to Registered User conversion
             </p>
           </div>
@@ -71,7 +71,7 @@ export const AdminAnalyticsConversionSection: React.FC = () => {
               label="Event Page Views"
               value="12,400"
               percent={100}
-              color="bg-slate-900"
+              color="bg-foreground"
             />
             <div className="flex justify-center my-1 text-slate-300">
               <LuArrowDownRight className="w-4 h-4" />{" "}
@@ -135,7 +135,7 @@ export const AdminAnalyticsConversionSection: React.FC = () => {
             />
           </div>
 
-          <button className="mt-8 w-full py-4 bg-white border border-rose-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-rose-600 hover:bg-rose-600 hover:text-white transition-all">
+          <button className="mt-8 w-full py-4 bg-background border border-rose-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-rose-600 hover:bg-rose-600 hover:text-background transition-all">
             Optimize Registration Flow
           </button>
         </div>
@@ -176,19 +176,19 @@ const FunnelStep: React.FC<FunnelStepProps> = ({
 }) => (
   <div className="group">
     <div className="flex justify-between items-end mb-2">
-      <span className="text-[11px] font-black text-slate-900 uppercase tracking-tight">
+      <span className="text-[11px] font-black text-foreground uppercase tracking-tight">
         {label}
       </span>
       <div className="text-right">
-        <p className="text-xs font-black text-slate-900 leading-none">
+        <p className="text-xs font-black text-foreground leading-none">
           {value}
         </p>
-        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
           {percent}% of Total
         </p>
       </div>
     </div>
-    <div className="h-10 w-full bg-slate-50 rounded-2xl overflow-hidden border border-slate-100">
+    <div className="h-10 w-full bg-muted rounded-2xl overflow-hidden border border-border">
       <div
         className={`h-full ${color} transition-all duration-1000 ease-out`}
         style={{ width: `${percent}%` }}
@@ -217,19 +217,19 @@ const ConversionStat: React.FC<ConversionStatProps> = ({
   value,
   status,
 }) => (
-  <div className="bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-sm flex items-center justify-between">
+  <div className="bg-background border border-border p-8 rounded-[2.5rem] shadow-sm flex items-center justify-between">
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Icon className="w-4 h-4 text-slate-400" />
-        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
+        <Icon className="w-4 h-4 text-muted-foreground" />
+        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">
           {label}
         </span>
       </div>
-      <h4 className="text-3xl font-black text-slate-900 tracking-tighter">
+      <h4 className="text-3xl font-black text-foreground tracking-tighter">
         {value}
       </h4>
     </div>
-    <span className="text-[8px] font-black uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 text-slate-500">
+    <span className="text-[8px] font-black uppercase tracking-widest bg-muted px-3 py-1.5 rounded-full border border-border text-muted-foreground">
       {status}
     </span>
   </div>

@@ -8,7 +8,7 @@ import Link from "next/link";
 export const EventsHeader = () => {
   return (
     <section
-      className={cn("w-full", "bg-white", "border-b", "border-slate-100")}
+      className={cn("w-full", "bg-background", "border-b", "border-border")}
     >
       <div
         className={cn(
@@ -40,7 +40,7 @@ export const EventsHeader = () => {
                 "gap-2",
                 "text-xs",
                 "font-bold",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
                 "tracking-widest",
               )}
@@ -58,7 +58,7 @@ export const EventsHeader = () => {
               </Link>
               <LuChevronRight className={cn("w-3", "h-3")} />
               <Link href="/events">
-                <span className="text-slate-900">Events</span>
+                <span className="text-foreground">Events</span>
               </Link>
             </nav>
 
@@ -72,7 +72,7 @@ export const EventsHeader = () => {
                   "text-4xl",
                   "md:text-6xl",
                   "font-black",
-                  "text-slate-900",
+                  "text-foreground",
                   "tracking-tighter",
                 )}
               >
@@ -82,7 +82,7 @@ export const EventsHeader = () => {
                 className={cn(
                   "text-lg",
                   "md:text-xl",
-                  "text-slate-500",
+                  "text-muted-foreground",
                   "mt-2",
                   "max-w-2xl",
                   "font-medium",
@@ -109,9 +109,9 @@ export const EventsHeader = () => {
                 "gap-3",
                 "px-6",
                 "py-3.5",
-                "bg-slate-900",
+                "bg-foreground",
                 "hover:bg-primary",
-                "text-white",
+                "text-background",
                 "font-bold",
                 "rounded-2xl",
                 "transition-all",

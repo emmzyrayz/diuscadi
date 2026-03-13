@@ -58,25 +58,25 @@ const MOCK_TICKETS: TicketRowData[] = [
 
 export const AdminTicketsTable: React.FC = () => {
   return (
-    <div className="w-full bg-white border-2 border-slate-100 rounded-[2.5rem] overflow-hidden shadow-sm">
+    <div className="w-full bg-background border-2 border-border rounded-[2.5rem] overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[1100px]">
           {/* Table Header */}
           <thead>
-            <tr className="bg-slate-50/50 border-b border-slate-100">
-              <th className="pl-10 pr-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+            <tr className="bg-muted/50 border-b border-border">
+              <th className="pl-10 pr-6 py-6 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">
                 Attendee
               </th>
-              <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+              <th className="px-6 py-6 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">
                 Ticket Identity
               </th>
-              <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+              <th className="px-6 py-6 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">
                 Event Context
               </th>
-              <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+              <th className="px-6 py-6 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">
                 Usage Status
               </th>
-              <th className="pr-10 pl-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">
+              <th className="pr-10 pl-6 py-6 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] text-right">
                 Verification
               </th>
             </tr>
@@ -101,25 +101,25 @@ const AdminTicketRow: React.FC<{ ticket: TicketRowData }> = ({ ticket }) => {
 
   return (
     <tr
-      className={`group transition-all hover:bg-slate-50/50 ${isInvalid ? "opacity-60 grayscale-[0.5]" : ""}`}
+      className={`group transition-all hover:bg-muted/50 ${isInvalid ? "opacity-60 grayscale-[0.5]" : ""}`}
     >
       {/* 1. Attendee Info */}
       <td className="pl-10 pr-6 py-6">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden border border-slate-200">
-                      <Image
-                          height={300}
-                          width={500}
+          <div className="w-10 h-10 rounded-xl text-muted overflow-hidden border border-border">
+            <Image
+              height={300}
+              width={500}
               src={ticket.ownerAvatar}
               alt=""
               className="w-full h-full object-cover"
             />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-black text-slate-900 group-hover:text-primary transition-colors">
+            <span className="text-sm font-black text-foreground group-hover:text-primary transition-colors">
               {ticket.ownerName}
             </span>
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
               Attendee Profile
             </span>
           </div>
@@ -130,8 +130,8 @@ const AdminTicketRow: React.FC<{ ticket: TicketRowData }> = ({ ticket }) => {
       <td className="px-6 py-6">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
-            <LuTicket className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-xs font-black text-slate-900 font-mono tracking-tighter">
+            <LuTicket className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-black text-foreground font-mono tracking-tighter">
               {ticket.ticketCode}
             </span>
           </div>
@@ -141,7 +141,7 @@ const AdminTicketRow: React.FC<{ ticket: TicketRowData }> = ({ ticket }) => {
                 ? "bg-amber-50 text-amber-600 border-amber-100"
                 : ticket.ticketType === "Student"
                   ? "bg-blue-50 text-blue-600 border-blue-100"
-                  : "bg-slate-100 text-slate-600 border-slate-200"
+                  : "text-muted text-slate-600 border-border"
             }`}
           >
             {ticket.ticketType} Pass
@@ -155,7 +155,7 @@ const AdminTicketRow: React.FC<{ ticket: TicketRowData }> = ({ ticket }) => {
           <span className="text-xs font-bold text-slate-700">
             {ticket.eventName}
           </span>
-          <div className="flex items-center gap-1.5 text-slate-400">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
             <LuCalendar className="w-3 h-3" />
             <span className="text-[9px] font-bold uppercase tracking-widest">
               {ticket.eventDate}
@@ -171,7 +171,7 @@ const AdminTicketRow: React.FC<{ ticket: TicketRowData }> = ({ ticket }) => {
             ticket.status === "Upcoming"
               ? "bg-emerald-50 text-emerald-600"
               : ticket.status === "Used"
-                ? "bg-slate-200 text-slate-500"
+                ? "bg-slate-200 text-muted-foreground"
                 : "bg-rose-50 text-rose-600"
           }`}
         >
@@ -193,17 +193,17 @@ const AdminTicketRow: React.FC<{ ticket: TicketRowData }> = ({ ticket }) => {
         <div className="flex items-center justify-end gap-2">
           {ticket.status === "Upcoming" ? (
             <button
-              className="p-2.5 bg-slate-900 text-white rounded-xl hover:bg-primary hover:text-slate-900 transition-all shadow-lg shadow-slate-900/10"
+              className="p-2.5 bg-foreground text-background rounded-xl hover:bg-primary hover:text-foreground transition-all shadow-lg shadow-foreground/10"
               title="Verify Entry"
             >
               <LuShieldCheck className="w-4 h-4" />
             </button>
           ) : (
-            <button className="p-2.5 bg-slate-50 text-slate-300 rounded-xl cursor-not-allowed">
+            <button className="p-2.5 bg-muted text-slate-300 rounded-xl cursor-not-allowed">
               <LuCircleX className="w-4 h-4" />
             </button>
           )}
-          <button className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-900 transition-colors">
+          <button className="p-2.5 hover:text-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors">
             <LuEllipsis className="w-5 h-5" />
           </button>
         </div>

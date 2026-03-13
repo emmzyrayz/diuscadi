@@ -18,7 +18,7 @@ import { Newsletter } from "@/components/sections/newsletter";
 
 export default function Home() {
   return (
-    <main className={cn('flex', 'flex-col', 'p-5', 'pt-[90px]', 'items-center', 'justify-center', 'w-full', 'h-full')}>
+    <main className={cn('flex', 'flex-col', 'p-5', 'pt-[90px]', 'items-center', 'justify-center', 'w-full', 'min-h-screen')}>
       <Banner />
       <Hero />
       <TrustBar />

@@ -8,34 +8,41 @@ import {
   LuCircleCheck,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
+
+// Covers both DB statuses (registered, checked-in, cancelled)
+// and display statuses (Confirmed, On Waitlist, Completed)
 export type EventStatus =
   | "registered"
   | "checked-in"
   | "cancelled"
   | "Confirmed"
   | "On Waitlist"
-  | "Completed";;
+  | "Completed";
 
 export interface ScheduledEvent {
   id: string | number;
-  /** e.g., "24" */
-  date: string;
-  /** e.g., "OCT" */
-  month: string;
-  /** e.g., "Workshop" or "Webinar" */
-  type: string;
+  date: string; // e.g. "24"
+  month: string; // e.g. "OCT"
+  type: string; // e.g. "Workshop"
   title: string;
-  /** e.g., "10:00 AM - 11:30 AM" */
   time: string;
-  /** e.g., "Main Hall" or "Zoom" */
   location: string;
   status: EventStatus;
-  /** URL for the "Join Info" button */
   link?: string;
 }
 
 interface UpcomingEventsProps {
   events: ScheduledEvent[];
+}
+
+function statusLabel(status: EventStatus): string {
+  if (status === "checked-in" || status === "registered") return "Confirmed";
+  if (status === "cancelled") return "Completed";
+  return status; // already a display label
+}
+
+function isWaitlist(status: EventStatus): boolean {
+  return status === "On Waitlist";
 }
 
 export const UpcomingEvents = ({ events }: UpcomingEventsProps) => {
@@ -57,13 +64,13 @@ export const UpcomingEvents = ({ events }: UpcomingEventsProps) => {
             className={cn(
               "text-xl",
               "font-black",
-              "text-slate-900",
+              "text-foreground",
               "leading-none",
             )}
           >
             Your Schedule
           </h3>
-          <p className={cn("text-sm", "text-slate-500", "mt-1")}>
+          <p className={cn("text-sm", "text-muted-foreground", "mt-1")}>
             Events you&apos;re participating in
           </p>
         </div>
@@ -77,7 +84,8 @@ export const UpcomingEvents = ({ events }: UpcomingEventsProps) => {
             "bg-primary/5",
             "rounded-xl",
             "hover:bg-primary/10",
-            "transition-colors cursor-pointer",
+            "transition-colors",
+            "cursor-pointer",
           )}
         >
           Sync to Calendar
@@ -87,7 +95,7 @@ export const UpcomingEvents = ({ events }: UpcomingEventsProps) => {
       <div className="space-y-4">
         {events.map((event, index) => (
           <motion.div
-            key={index}
+            key={event.id}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.1 }}
@@ -97,9 +105,9 @@ export const UpcomingEvents = ({ events }: UpcomingEventsProps) => {
               "flex-col",
               "md:flex-row",
               "items-center",
-              "bg-white",
+              "bg-background",
               "border",
-              "border-slate-100",
+              "border-border",
               "rounded-[1.5rem]",
               "p-4",
               "md:p-6",
@@ -118,7 +126,7 @@ export const UpcomingEvents = ({ events }: UpcomingEventsProps) => {
                 "justify-center",
                 "min-w-[80px]",
                 "md:border-r",
-                "border-slate-100",
+                "border-border",
                 "md:pr-8",
                 "mb-4",
                 "md:mb-0",
@@ -128,7 +136,7 @@ export const UpcomingEvents = ({ events }: UpcomingEventsProps) => {
                 className={cn(
                   "text-2xl",
                   "font-black",
-                  "text-slate-900",
+                  "text-foreground",
                   "leading-none",
                 )}
               >
@@ -162,7 +170,7 @@ export const UpcomingEvents = ({ events }: UpcomingEventsProps) => {
                     "font-black",
                     "uppercase",
                     "tracking-widest",
-                    "text-slate-400",
+                    "text-muted-foreground",
                   )}
                 >
                   {event.type}
@@ -170,20 +178,20 @@ export const UpcomingEvents = ({ events }: UpcomingEventsProps) => {
                 <span
                   className={cn(
                     "flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full",
-                    event.status === "On Waitlist"
+                    isWaitlist(event.status)
                       ? "bg-amber-50 text-amber-600"
                       : "bg-green-50 text-green-600",
                   )}
                 >
                   <LuCircleCheck className={cn("w-3", "h-3")} />
-                  {event.status}
+                  {statusLabel(event.status)}
                 </span>
               </div>
               <h4
                 className={cn(
                   "text-lg",
                   "font-bold",
-                  "text-slate-900",
+                  "text-foreground",
                   "group-hover:text-primary",
                   "transition-colors",
                 )}
@@ -200,7 +208,7 @@ export const UpcomingEvents = ({ events }: UpcomingEventsProps) => {
                   "gap-4",
                   "mt-3",
                   "text-sm",
-                  "text-slate-400",
+                  "text-muted-foreground",
                 )}
               >
                 <div className={cn("flex", "items-center", "gap-1.5")}>
@@ -215,20 +223,24 @@ export const UpcomingEvents = ({ events }: UpcomingEventsProps) => {
             {/* Action */}
             <div className={cn("mt-6", "md:mt-0")}>
               <button
+                onClick={() =>
+                  event.link && (window.location.href = event.link)
+                }
                 className={cn(
                   "flex",
                   "items-center",
                   "gap-2",
                   "px-6",
                   "py-3",
-                  "bg-slate-900",
-                  "text-white",
+                  "bg-foreground",
+                  "text-background",
                   "font-bold",
                   "rounded-xl",
                   "hover:bg-primary",
                   "transition-all",
                   "group-hover:shadow-lg",
-                  "group-hover:shadow-primary/20 cursor-pointer",
+                  "group-hover:shadow-primary/20",
+                  "cursor-pointer",
                 )}
               >
                 Join Info <LuExternalLink className={cn("w-4", "h-4")} />

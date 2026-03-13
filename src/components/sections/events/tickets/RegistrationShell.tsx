@@ -1,0 +1,186 @@
+"use client";
+// RegistrationShell — full client component that owns all interactive state
+// for the registration flow. The server page passes event + user as props.
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEvents } from "@/context/EventContext";
+import { cn } from "@/lib/utils";
+
+import { TicketEventSummary } from "./TicketSummary";
+import { TicketProgressIndicator } from "./TicketProgressIndicator";
+import { TicketUserVerificationCard } from "./TicketUserVerificationCard";
+import { TicketFormSection } from "./TicketForm";
+import { TicketPreviewCard } from "./TicketPreview";
+import { TicketTermsAndAgreement } from "./TicketTA";
+import { TicketSubmitSection } from "./TicketSubmit";
+import { TicketHelpSection } from "./TicketHelp";
+
+import type {
+  RegisterEventData,
+  RegisterUserData,
+} from "@/app/events/[eventId]/register/page";
+
+interface Props {
+  event: RegisterEventData;
+  user: RegisterUserData;
+}
+
+export const RegistrationShell = ({ event, user }: Props) => {
+  const router = useRouter();
+  const { registerForEvent } = useEvents();
+
+  const [agreed, setAgreed] = useState(false);
+  const [attendanceType, setAttendanceType] = useState<"physical" | "virtual">(
+    "physical",
+  );
+  const [selectedTicketId, setSelectedTicketId] = useState<string>(
+    event.ticketTypes[0]?.id ?? "",
+  );
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const selectedTicket =
+    event.ticketTypes.find((t) => t.id === selectedTicketId) ??
+    event.ticketTypes[0];
+
+  const handleSubmit = async () => {
+    if (!agreed) return;
+    setStatus("loading");
+    setErrorMsg("");
+
+    try {
+      await registerForEvent(event.id, selectedTicket?.id ?? "");
+      setStatus("success");
+      // Brief pause then redirect to tickets page
+      setTimeout(() => router.push("/home/tickets"), 2000);
+    } catch (err: unknown) {
+      setStatus("error");
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : "Registration failed. Please try again.",
+      );
+    }
+  };
+
+  return (
+    <>
+      {/* Top event summary banner */}
+      <TicketEventSummary event={event} />
+
+      <div
+        className={cn(
+          "max-w-7xl",
+          "mx-auto",
+          "px-4",
+          "sm:px-6",
+          "lg:px-8",
+          "py-10",
+        )}
+      >
+        <div
+          className={cn(
+            "grid",
+            "grid-cols-1",
+            "lg:grid-cols-12",
+            "gap-8",
+            "items-start",
+          )}
+        >
+          {/* ── LEFT: Form Column (65%) ──────────────────────────────────── */}
+          <div
+            className={cn(
+              "lg:col-span-7",
+              "xl:col-span-8",
+              "space-y-6",
+              "md:space-y-8",
+            )}
+          >
+            <TicketProgressIndicator currentStep={2} isSignedIn={true} />
+
+            {/* User verification — mobile only */}
+            <div className={cn("block", "lg:hidden")}>
+              <TicketUserVerificationCard user={user} />
+            </div>
+
+            <TicketFormSection
+              user={user}
+              ticketTypes={event.ticketTypes}
+              selectedTicketId={selectedTicketId}
+              onTicketSelect={setSelectedTicketId}
+              attendanceType={attendanceType}
+              onAttendanceChange={setAttendanceType}
+              format={event.format}
+            />
+
+            {/* Ticket preview — mobile only */}
+            <div className={cn("block", "lg:hidden")}>
+              <TicketPreviewCard
+                user={user}
+                event={event}
+                attendanceType={attendanceType}
+              />
+            </div>
+
+            <TicketTermsAndAgreement
+              agreed={agreed}
+              onAgreeChange={setAgreed}
+            />
+
+            {errorMsg && (
+              <p
+                className={cn(
+                  "px-4",
+                  "py-3",
+                  "bg-red-50",
+                  "text-red-600",
+                  "text-sm",
+                  "font-bold",
+                  "rounded-2xl",
+                  "border",
+                  "border-red-100",
+                )}
+              >
+                {errorMsg}
+              </p>
+            )}
+
+            <TicketSubmitSection
+              price={selectedTicket?.label ?? event.price}
+              agreed={agreed}
+              status={status}
+              onSubmit={handleSubmit}
+            />
+          </div>
+
+          {/* ── RIGHT: Sticky Sidebar (35%) ─────────────────────────────── */}
+          <div
+            className={cn(
+              "hidden",
+              "lg:block",
+              "lg:col-span-5",
+              "xl:col-span-4",
+              "sticky",
+              "top-24",
+              "space-y-8",
+            )}
+          >
+            <TicketUserVerificationCard user={user} />
+            <TicketPreviewCard
+              user={user}
+              event={event}
+              attendanceType={attendanceType}
+            />
+          </div>
+        </div>
+
+        {/* Help section */}
+        <div className={cn("mt-12", "border-t", "border-border", "pt-12")}>
+          <TicketHelpSection />
+        </div>
+      </div>
+    </>
+  );
+};

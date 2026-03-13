@@ -10,13 +10,12 @@ import {
 import { cn } from "@/lib/utils";
 
 export interface ContinueItem {
-  type: 'Learning' | 'Registration' | 'Application' | string;
+  type: "Learning" | "Registration" | "Application" | string;
   title: string;
   status: string;
   link: string;
   action: string;
 }
-
 
 // Visual config stays in the component — derived from item.type
 const TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string }> = {
@@ -56,7 +55,7 @@ export const ContinueSection = ({ items }: ContinueSectionProps) => {
           className={cn(
             "text-lg",
             "font-black",
-            "text-slate-900",
+            "text-foreground",
             "flex",
             "items-center",
             "gap-2",
@@ -103,7 +102,7 @@ export const ContinueSection = ({ items }: ContinueSectionProps) => {
         {items.map((item, index) => {
           const config = TYPE_CONFIG[item.type] ?? {
             icon: <LuPlay className={cn("w-5", "h-5")} />,
-            color: "bg-slate-500",
+            color: "bg-muted0",
           };
           return (
             <motion.div
@@ -112,7 +111,7 @@ export const ContinueSection = ({ items }: ContinueSectionProps) => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.1 }}
               className={cn(
-                "min-w-[300px] lg:min-w-0 bg-white border border-slate-100 rounded-3xl p-6",
+                "min-w-[300px] lg:min-w-0 bg-background border border-border rounded-3xl p-6",
                 "hover:shadow-lg hover:shadow-slate-200/50 transition-all duration-300 group",
               )}
             >
@@ -121,7 +120,7 @@ export const ContinueSection = ({ items }: ContinueSectionProps) => {
               >
                 <div
                   className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg",
+                    "w-10 h-10 rounded-xl flex items-center justify-center text-background shadow-lg",
                     config.color,
                   )}
                 >
@@ -133,8 +132,8 @@ export const ContinueSection = ({ items }: ContinueSectionProps) => {
                     "font-black",
                     "uppercase",
                     "tracking-widest",
-                    "text-slate-400",
-                    "bg-slate-50",
+                    "text-muted-foreground",
+                    "bg-muted",
                     "px-2",
                     "py-1",
                     "rounded-md",
@@ -149,7 +148,7 @@ export const ContinueSection = ({ items }: ContinueSectionProps) => {
                   className={cn(
                     "text-base",
                     "font-bold",
-                    "text-slate-900",
+                    "text-foreground",
                     "group-hover:text-primary",
                     "transition-colors",
                     "leading-tight",
@@ -158,7 +157,13 @@ export const ContinueSection = ({ items }: ContinueSectionProps) => {
                 >
                   {item.title}
                 </h4>
-                <p className={cn("text-xs", "font-semibold", "text-slate-500")}>
+                <p
+                  className={cn(
+                    "text-xs",
+                    "font-semibold",
+                    "text-muted-foreground",
+                  )}
+                >
                   {item.status}
                 </p>
               </div>
@@ -167,7 +172,7 @@ export const ContinueSection = ({ items }: ContinueSectionProps) => {
                 href={item.link}
                 className={cn(
                   "flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm",
-                  "bg-slate-900 text-white hover:bg-primary transition-all active:scale-95",
+                  "bg-foreground text-background hover:bg-primary transition-all active:scale-95",
                 )}
               >
                 {item.action}

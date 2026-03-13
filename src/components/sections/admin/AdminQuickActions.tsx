@@ -70,10 +70,10 @@ export const AdminQuickActions = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className={cn(
-        "bg-slate-900",
+        "bg-foreground",
         "rounded-[2.5rem]",
         "p-8",
-        "text-white",
+        "text-background",
         "shadow-2xl",
         "relative",
         "overflow-hidden",
@@ -123,7 +123,7 @@ export const AdminQuickActions = () => {
                 "w-8",
                 "h-8",
                 "rounded-lg",
-                "bg-white/10",
+                "bg-background/10",
                 "flex",
                 "items-center",
                 "justify-center",
@@ -138,7 +138,7 @@ export const AdminQuickActions = () => {
                 "font-black",
                 "uppercase",
                 "tracking-[0.3em]",
-                "text-slate-400",
+                "text-muted-foreground",
               )}
             >
               Command Center
@@ -155,10 +155,10 @@ export const AdminQuickActions = () => {
               "gap-2",
               "px-3",
               "py-1",
-              "bg-white/5",
+              "bg-background/5",
               "rounded-full",
               "border",
-              "border-white/5",
+              "border-background/5",
             )}
           >
             <motion.div
@@ -180,7 +180,7 @@ export const AdminQuickActions = () => {
                 "font-black",
                 "uppercase",
                 "tracking-widest",
-                "text-slate-500",
+                "text-muted-foreground",
               )}
             >
               Fast Actions Active
@@ -250,14 +250,14 @@ const ActionButton = ({
         "relative",
         "overflow-hidden",
         primary
-          ? "bg-secondary text-slate-900 shadow-xl shadow-primary/20"
-          : "bg-white/5 text-white border border-white/5 hover:bg-white/10 hover:border-white/10",
+          ? "bg-secondary text-foreground shadow-xl shadow-primary/20"
+          : "bg-background/5 text-background border border-background/5 hover:bg-background/10 hover:border-background/10",
       )}
     >
       {/* Shimmer effect on hover - Fixed gradient class */}
       {isHovered && (
         <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-background/10 to-transparent"
           initial={{ x: "-100%" }}
           animate={{ x: "100%" }}
           transition={{ duration: 0.6 }}
@@ -278,8 +278,8 @@ const ActionButton = ({
             "transition-colors",
             "duration-300",
             primary
-              ? "bg-slate-900/10"
-              : "bg-white/5 group-hover:bg-primary/20 group-hover:text-primary",
+              ? "bg-foreground/10"
+              : "bg-background/5 group-hover:bg-primary/20 group-hover:text-primary",
           )}
         >
           <Icon className={cn("w-5", "h-5")} />
@@ -316,8 +316,8 @@ const ActionButton = ({
           "relative",
           "z-10",
           primary
-            ? "border-slate-900/20 text-slate-900/40"
-            : "border-white/10 text-slate-600",
+            ? "border-foreground/20 text-foreground/40"
+            : "border-background/10 text-slate-600",
         )}
       >
         {shortcut}

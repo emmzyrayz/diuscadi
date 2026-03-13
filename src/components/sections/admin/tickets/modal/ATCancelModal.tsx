@@ -42,12 +42,12 @@ export const AdminTicketCancelModal: React.FC<CancelModalProps> = ({
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative w-full max-w-md bg-white rounded-[3rem] shadow-2xl overflow-hidden"
+        className="relative w-full max-w-md bg-background rounded-[3rem] shadow-2xl overflow-hidden"
       >
         {/* Warning Banner */}
-        <div className="bg-rose-600 p-8 text-white flex flex-col items-center text-center">
-          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-4">
-            <LuBan className="w-8 h-8 text-white" />
+        <div className="bg-rose-600 p-8 text-background flex flex-col items-center text-center">
+          <div className="w-16 h-16 bg-background/20 rounded-2xl flex items-center justify-center mb-4">
+            <LuBan className="w-8 h-8 text-background" />
           </div>
           <h3 className="text-2xl font-black uppercase tracking-tighter">
             Revoke Access?
@@ -79,7 +79,7 @@ export const AdminTicketCancelModal: React.FC<CancelModalProps> = ({
 
           {/* 2. ReasonInput */}
           <div className="space-y-3">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-2">
               <LuMessageSquare className="w-3.5 h-3.5" /> Internal Cancellation
               Reason
             </label>
@@ -87,7 +87,7 @@ export const AdminTicketCancelModal: React.FC<CancelModalProps> = ({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="E.g., Payment dispute, User requested refund, Fraudulent invite code..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-5 text-xs font-bold text-slate-900 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 transition-all min-h-[100px] resize-none"
+              className="w-full bg-muted border border-border rounded-2xl p-5 text-xs font-bold text-foreground outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 transition-all min-h-[100px] resize-none"
             />
           </div>
 
@@ -96,7 +96,7 @@ export const AdminTicketCancelModal: React.FC<CancelModalProps> = ({
             <button
               onClick={() => onConfirm(reason)}
               disabled={!reason.trim()}
-              className="w-full py-5 bg-rose-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-rose-600/20 flex items-center justify-center gap-2"
+              className="w-full py-5 bg-rose-600 text-background rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-rose-600/20 flex items-center justify-center gap-2"
             >
               <LuSlash className="w-4 h-4" />
               Confirm Cancellation
@@ -104,7 +104,7 @@ export const AdminTicketCancelModal: React.FC<CancelModalProps> = ({
 
             <button
               onClick={onClose}
-              className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors"
+              className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
             >
               Keep Ticket Active
             </button>

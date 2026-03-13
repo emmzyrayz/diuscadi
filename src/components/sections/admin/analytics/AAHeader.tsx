@@ -16,12 +16,12 @@ export const AdminAnalyticsHeader: React.FC = () => {
       {/* 1. Identity & Narrative */}
       <div className="space-y-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center text-secondary shadow-xl shadow-slate-900/20 border border-white/10">
+          <div className="w-14 h-14 rounded-2xl bg-foreground flex items-center justify-center text-secondary shadow-xl shadow-foreground/20 border border-background/10">
             <LuChartBar className="w-7 h-7" />
           </div>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">
+              <h1 className="text-4xl font-black text-foreground tracking-tighter uppercase">
                 Analytics Dashboard
               </h1>
               <div className="hidden sm:flex px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-full items-center gap-1.5">
@@ -31,7 +31,7 @@ export const AdminAnalyticsHeader: React.FC = () => {
                 </span>
               </div>
             </div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">
               Track platform growth, attendance, and revenue insights
             </p>
           </div>
@@ -42,20 +42,20 @@ export const AdminAnalyticsHeader: React.FC = () => {
       <div className="flex flex-wrap items-center gap-3">
         {/* DateRangePicker */}
         <div className="relative group">
-          <button className="flex items-center gap-3 px-5 py-4 bg-white border border-slate-200 rounded-2xl hover:border-slate-900 transition-all">
-            <LuCalendar className="w-4 h-4 text-slate-400" />
+          <button className="flex items-center gap-3 px-5 py-4 bg-background border border-border rounded-2xl hover:border-foreground transition-all">
+            <LuCalendar className="w-4 h-4 text-muted-foreground" />
             <div className="text-left">
-              <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1 tracking-widest">
+              <p className="text-[8px] font-black text-muted-foreground uppercase leading-none mb-1 tracking-widest">
                 Timeframe
               </p>
-              <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+              <p className="text-[11px] font-black text-foreground uppercase tracking-tight flex items-center gap-2">
                 {dateRange} <LuChevronDown className="w-3 h-3" />
               </p>
             </div>
           </button>
 
           {/* Dropdown Menu */}
-          <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-slate-100 rounded-2xl shadow-2xl p-2 hidden group-hover:block z-100 animate-in fade-in zoom-in-95 duration-200">
+          <div className="absolute top-full right-0 mt-2 w-56 bg-background border border-border rounded-2xl shadow-2xl p-2 hidden group-hover:block z-100 animate-in fade-in zoom-in-95 duration-200">
             {[
               "Today",
               "Last 7 days",
@@ -66,7 +66,7 @@ export const AdminAnalyticsHeader: React.FC = () => {
               <button
                 key={range}
                 onClick={() => setDateRange(range)}
-                className="w-full text-left px-4 py-3 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest hover:bg-slate-50 hover:text-primary transition-colors flex items-center justify-between"
+                className="w-full text-left px-4 py-3 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest hover:bg-muted hover:text-primary transition-colors flex items-center justify-between"
               >
                 {range}
                 {dateRange === range && (
@@ -78,7 +78,7 @@ export const AdminAnalyticsHeader: React.FC = () => {
         </div>
 
         {/* ExportAnalyticsButton */}
-        <button className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl hover:bg-primary hover:text-slate-500 transition-all shadow-2xl shadow-slate-900/10 group">
+        <button className="flex items-center gap-3 px-8 py-4 bg-foreground text-background rounded-2xl hover:bg-primary hover:text-muted-foreground transition-all shadow-2xl shadow-foreground/10 group">
           <LuDownload className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
           <span className="text-[11px] font-black uppercase tracking-[0.15em]">
             Generate Report

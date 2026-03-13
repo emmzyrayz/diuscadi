@@ -55,9 +55,9 @@ export function LoadingScreen({
       )}
     >
       {/* Subtle DIUSCADI Grid Background */}
-      <div className={clsx('absolute', 'inset-0', 'opacity-20')}>
+      <div className={clsx("absolute", "inset-0", "opacity-20")}>
         <div
-          className={clsx('absolute', 'inset-0')}
+          className={clsx("absolute", "inset-0")}
           style={{
             backgroundImage:
               "linear-gradient(#1e293b 1px, transparent 1px), linear-gradient(90deg, #1e293b 1px, transparent 1px)",
@@ -66,57 +66,164 @@ export function LoadingScreen({
         />
       </div>
 
-      <div className={clsx('relative', 'z-10', 'text-center', 'max-w-md', 'px-8', 'w-full')}>
+      <div
+        className={clsx(
+          "relative",
+          "z-10",
+          "text-center",
+          "max-w-md",
+          "px-8",
+          "w-full",
+        )}
+      >
         {/* Animated Icon Section */}
-        <div className={clsx('mb-8', 'flex', 'justify-center', 'relative')}>
-          <div className={clsx('absolute', 'inset-0', 'blur-3xl', 'opacity-20', 'bg-orange-500', 'rounded-full', 'animate-pulse')} />
+        <div className={clsx("mb-8", "flex", "justify-center", "relative")}>
+          <div
+            className={clsx(
+              "absolute",
+              "inset-0",
+              "blur-3xl",
+              "opacity-20",
+              "bg-orange-500",
+              "rounded-full",
+              "animate-pulse",
+            )}
+          />
           <div className="relative">
-            <LuGraduationCap className={clsx('w-20', 'h-20', 'text-white', 'animate-bounce')} />
-            <LuZap className={clsx('w-8', 'h-8', 'text-orange-500', 'absolute', '-top-2', '-right-2', 'animate-pulse')} />
+            <LuGraduationCap
+              className={clsx(
+                "w-20",
+                "h-20",
+                "text-background",
+                "animate-bounce",
+              )}
+            />
+            <LuZap
+              className={clsx(
+                "w-8",
+                "h-8",
+                "text-orange-500",
+                "absolute",
+                "-top-2",
+                "-right-2",
+                "animate-pulse",
+              )}
+            />
           </div>
         </div>
 
         {/* Branded Text */}
-        <h1 className={clsx('text-3xl', 'font-black', 'text-white', 'mb-2', 'tracking-[0.2em]', 'uppercase')}>
+        <h1
+          className={clsx(
+            "text-3xl",
+            "font-black",
+            "text-background",
+            "mb-2",
+            "tracking-[0.2em]",
+            "uppercase",
+          )}
+        >
           DIUSCADI
         </h1>
-        <p className={clsx('text-slate-400', 'text-xs', 'font-bold', 'tracking-widest', 'mb-10', 'uppercase')}>
+        <p
+          className={clsx(
+            "text-muted-foreground",
+            "text-xs",
+            "font-bold",
+            "tracking-widest",
+            "mb-10",
+            "uppercase",
+          )}
+        >
           Building the Future of Nigerian Youth
         </p>
 
         {/* Progress System */}
-        <div className={clsx('relative', 'w-full', 'h-1.5', 'bg-slate-800', 'rounded-full', 'overflow-hidden')}>
+        <div
+          className={clsx(
+            "relative",
+            "w-full",
+            "h-1.5",
+            "bg-slate-800",
+            "rounded-full",
+            "overflow-hidden",
+          )}
+        >
           <div
-            className={clsx('absolute', 'inset-y-0', 'left-0', 'bg-orange-500', 'transition-all', 'duration-300', 'ease-out', 'shadow-[0_0_15px_rgba(249,115,22,0.6)]')}
+            className={clsx(
+              "absolute",
+              "inset-y-0",
+              "left-0",
+              "bg-orange-500",
+              "transition-all",
+              "duration-300",
+              "ease-out",
+              "shadow-[0_0_15px_rgba(249,115,22,0.6)]",
+            )}
             style={{ width: `${progress}%` }}
           />
         </div>
 
-        <div className={clsx('mt-4', 'flex', 'justify-between', 'items-center', 'text-[10px]', 'font-mono', 'font-bold', 'tracking-tighter')}>
-          <span className={clsx('text-slate-500', 'uppercase')}>System Initializing</span>
+        <div
+          className={clsx(
+            "mt-4",
+            "flex",
+            "justify-between",
+            "items-center",
+            "text-[10px]",
+            "font-mono",
+            "font-bold",
+            "tracking-tighter",
+          )}
+        >
+          <span className={clsx("text-muted-foreground", "uppercase")}>
+            System Initializing
+          </span>
           <span className="text-orange-500">{Math.round(progress)}%</span>
         </div>
       </div>
 
       {/* Aesthetic Border Accents */}
-      <div className={clsx('absolute', 'top-10', 'left-10', 'w-12', 'h-12', 'border-t-2', 'border-l-2', 'border-slate-800')} />
-      <div className={clsx('absolute', 'bottom-10', 'right-10', 'w-12', 'h-12', 'border-b-2', 'border-r-2', 'border-slate-800')} />
+      <div
+        className={clsx(
+          "absolute",
+          "top-10",
+          "left-10",
+          "w-12",
+          "h-12",
+          "border-t-2",
+          "border-l-2",
+          "border-slate-800",
+        )}
+      />
+      <div
+        className={clsx(
+          "absolute",
+          "bottom-10",
+          "right-10",
+          "w-12",
+          "h-12",
+          "border-b-2",
+          "border-r-2",
+          "border-slate-800",
+        )}
+      />
     </div>
   );
 }
 
 export default function Loadingg() {
-    const [show, setShow] = useState(true);
+  const [show, setShow] = useState(true);
 
-    useEffect(() => {
-      const timer = setTimeout(() => {
-        setShow(false);
-      }, 5000); // 5 Seconds
-      return () => clearTimeout(timer);
-    }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShow(false);
+    }, 5000); // 5 Seconds
+    return () => clearTimeout(timer);
+  }, []);
 
-    if (!show) return null;
-    
+  if (!show) return null;
+
   return (
     <div
       className={clsx(
@@ -127,7 +234,7 @@ export default function Loadingg() {
         "flex-col",
         "items-center",
         "justify-center",
-        "bg-white",
+        "bg-background",
       )}
     >
       {/* Animated Logo Placeholder */}
@@ -166,7 +273,7 @@ export default function Loadingg() {
             "w-16",
             "h-16",
             "border-4",
-            "border-slate-100",
+            "border-border",
             "border-t-primary",
             "rounded-full",
           )}
@@ -183,7 +290,7 @@ export default function Loadingg() {
           className={clsx(
             "text-xl",
             "font-black",
-            "text-slate-900",
+            "text-foreground",
             "tracking-tighter",
             "uppercase",
           )}

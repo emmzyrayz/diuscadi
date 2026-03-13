@@ -61,9 +61,9 @@ export const AdminUsersToolbar: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className={cn(
-        "bg-white",
+        "bg-background",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "rounded-[2rem]",
         "p-5",
         "mb-8",
@@ -98,7 +98,7 @@ export const AdminUsersToolbar: React.FC = () => {
               "left-5",
               "top-1/2",
               "-translate-y-1/2",
-              "text-slate-400",
+              "text-muted-foreground",
             )}
           >
             <LuSearch className={cn("w-4", "h-4")} />
@@ -108,17 +108,17 @@ export const AdminUsersToolbar: React.FC = () => {
             placeholder="Search by Name, Email, or Invite Code..."
             className={cn(
               "w-full",
-              "bg-slate-50",
+              "bg-muted",
               "border",
-              "border-slate-100",
+              "border-border",
               "rounded-2xl",
               "pl-12",
               "pr-4",
               "py-4",
               "text-[11px]",
               "font-black",
-              "text-slate-900",
-              "placeholder:text-slate-400",
+              "text-foreground",
+              "placeholder:text-muted-foreground",
               "outline-none",
               "focus:ring-4",
               "focus:ring-primary/10",
@@ -195,7 +195,7 @@ export const AdminUsersToolbar: React.FC = () => {
             className={cn(
               "h-10",
               "w-px",
-              "bg-slate-100",
+              "text-muted",
               "mx-2",
               "hidden",
               "xl:block",
@@ -215,11 +215,11 @@ export const AdminUsersToolbar: React.FC = () => {
               "gap-2",
               "px-4",
               "py-3",
-              "bg-slate-50",
-              "text-slate-500",
+              "bg-muted",
+              "text-muted-foreground",
               "rounded-xl",
-              "hover:bg-slate-900",
-              "hover:text-white",
+              "hover:bg-foreground",
+              "hover:text-background",
               "transition-all",
               "group",
             )}
@@ -283,9 +283,9 @@ const UserFilterDropdown: React.FC<UserFilterDropdownProps> = ({
           "gap-3",
           "px-4",
           "py-3",
-          "bg-white",
+          "bg-background",
           "border",
-          "border-slate-200",
+          "border-border",
           "rounded-xl",
           "transition-all",
         )}
@@ -299,7 +299,7 @@ const UserFilterDropdown: React.FC<UserFilterDropdownProps> = ({
               className={cn(
                 "w-4",
                 "h-4",
-                "text-slate-400",
+                "text-muted-foreground",
                 "group-hover:text-primary",
                 "transition-colors",
               )}
@@ -310,7 +310,7 @@ const UserFilterDropdown: React.FC<UserFilterDropdownProps> = ({
               className={cn(
                 "text-[8px]",
                 "font-black",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
                 "leading-none",
                 "mb-0.5",
@@ -322,7 +322,7 @@ const UserFilterDropdown: React.FC<UserFilterDropdownProps> = ({
               className={cn(
                 "text-[10px]",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "uppercase",
                 "tracking-tight",
               )}
@@ -348,9 +348,9 @@ const UserFilterDropdown: React.FC<UserFilterDropdownProps> = ({
               "mt-2",
               "w-full",
               "min-w-[180px]",
-              "bg-white",
+              "bg-background",
               "border",
-              "border-slate-100",
+              "border-border",
               "rounded-2xl",
               "shadow-2xl",
               "p-2",
@@ -377,7 +377,7 @@ const UserFilterDropdown: React.FC<UserFilterDropdownProps> = ({
                   "text-slate-600",
                   "uppercase",
                   "tracking-widest",
-                  "hover:bg-slate-50",
+                  "hover:bg-muted",
                   "hover:text-primary",
                   "transition-colors",
                   "flex",

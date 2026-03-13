@@ -65,9 +65,9 @@ export const ProfileContentArea = ({ user }: ProfileContentAreaProps) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
         className={cn(
-          "bg-white",
+          "bg-background",
           "border-2",
-          "border-slate-100",
+          "border-border",
           "rounded-[2.5rem]",
           "p-8",
           "md:p-10",
@@ -86,13 +86,13 @@ export const ProfileContentArea = ({ user }: ProfileContentAreaProps) => {
               "w-10",
               "h-10",
               "rounded-xl",
-              "bg-slate-50",
+              "bg-muted",
               "flex",
               "items-center",
               "justify-center",
               "text-primary",
               "border",
-              "border-slate-100",
+              "border-border",
             )}
           >
             <LuUser className={cn("w-5", "h-5")} />
@@ -101,7 +101,7 @@ export const ProfileContentArea = ({ user }: ProfileContentAreaProps) => {
             className={cn(
               "text-xl",
               "font-black",
-              "text-slate-900",
+              "text-foreground",
               "tracking-tight",
             )}
           >
@@ -131,9 +131,9 @@ export const ProfileContentArea = ({ user }: ProfileContentAreaProps) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.2 }}
         className={cn(
-          "bg-white",
+          "bg-background",
           "border-2",
-          "border-slate-100",
+          "border-border",
           "rounded-[2.5rem]",
           "p-8",
           "md:p-10",
@@ -152,13 +152,13 @@ export const ProfileContentArea = ({ user }: ProfileContentAreaProps) => {
               "w-10",
               "h-10",
               "rounded-xl",
-              "bg-slate-50",
+              "bg-muted",
               "flex",
               "items-center",
               "justify-center",
               "text-primary",
               "border",
-              "border-slate-100",
+              "border-border",
             )}
           >
             <LuBriefcase className={cn("w-5", "h-5")} />
@@ -167,7 +167,7 @@ export const ProfileContentArea = ({ user }: ProfileContentAreaProps) => {
             className={cn(
               "text-xl",
               "font-black",
-              "text-slate-900",
+              "text-foreground",
               "tracking-tight",
             )}
           >
@@ -220,11 +220,11 @@ export const ProfileContentArea = ({ user }: ProfileContentAreaProps) => {
           transition={{ duration: 0.4, delay: 0.3 }}
           className={cn(
             "bg-linear-to-br",
-            "from-slate-900",
+            "from-foreground",
             "to-slate-800",
             "rounded-[2.5rem]",
             "p-8",
-            "text-white",
+            "text-background",
             "relative",
             "overflow-hidden",
           )}
@@ -272,14 +272,14 @@ export const ProfileContentArea = ({ user }: ProfileContentAreaProps) => {
                 className={cn(
                   "px-3",
                   "py-1",
-                  "bg-white/10",
+                  "bg-background/10",
                   "rounded-full",
                   "text-[9px]",
                   "font-black",
                   "uppercase",
                   "tracking-widest",
                   "border",
-                  "border-white/10",
+                  "border-background/10",
                 )}
               >
                 Active Status
@@ -290,7 +290,7 @@ export const ProfileContentArea = ({ user }: ProfileContentAreaProps) => {
               className={cn(
                 "text-[10px]",
                 "font-black",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
                 "tracking-widest",
                 "mb-1",
@@ -347,9 +347,9 @@ export const ProfileContentArea = ({ user }: ProfileContentAreaProps) => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4, delay: 0.4 }}
           className={cn(
-            "bg-white",
+            "bg-background",
             "border-2",
-            "border-slate-100",
+            "border-border",
             "rounded-[2.5rem]",
             "p-8",
           )}
@@ -366,7 +366,7 @@ export const ProfileContentArea = ({ user }: ProfileContentAreaProps) => {
                 "w-10",
                 "h-10",
                 "rounded-xl",
-                "bg-slate-50",
+                "bg-muted",
                 "flex",
                 "items-center",
                 "justify-center",
@@ -378,7 +378,7 @@ export const ProfileContentArea = ({ user }: ProfileContentAreaProps) => {
               className={cn(
                 "text-lg",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "tracking-tight",
               )}
             >
@@ -424,10 +424,27 @@ const DataPoint = ({ label, value, className }: DataPointProps) => (
     transition={{ duration: 0.3 }}
     className={cn("space-y-1", className)}
   >
-    <p className={cn('text-[9px]', 'font-black', 'text-slate-400', 'uppercase', 'tracking-widest')}>
+    <p
+      className={cn(
+        "text-[9px]",
+        "font-black",
+        "text-muted-foreground",
+        "uppercase",
+        "tracking-widest",
+      )}
+    >
       {label}
     </p>
-    <p className={cn('text-sm', 'font-bold', 'text-slate-700', 'leading-relaxed')}>{value}</p>
+    <p
+      className={cn(
+        "text-sm",
+        "font-bold",
+        "text-slate-700",
+        "leading-relaxed",
+      )}
+    >
+      {value}
+    </p>
   </motion.div>
 );
 
@@ -437,9 +454,25 @@ const SocialBadge = ({ icon: Icon, label, link }: SocialBadgeProps) => (
     whileHover={{ scale: 1.05, y: -2 }}
     whileTap={{ scale: 0.95 }}
     transition={{ type: "spring", stiffness: 400, damping: 17 }}
-    className={cn('flex', 'items-center', 'gap-2', 'px-4', 'py-2', 'bg-slate-50', 'border', 'border-slate-100', 'rounded-xl', 'text-xs', 'font-bold', 'text-slate-600', 'hover:text-primary', 'hover:border-primary/30', 'transition-colors')}
+    className={cn(
+      "flex",
+      "items-center",
+      "gap-2",
+      "px-4",
+      "py-2",
+      "bg-muted",
+      "border",
+      "border-border",
+      "rounded-xl",
+      "text-xs",
+      "font-bold",
+      "text-slate-600",
+      "hover:text-primary",
+      "hover:border-primary/30",
+      "transition-colors",
+    )}
   >
-    <Icon className={cn('w-4', 'h-4')} />
+    <Icon className={cn("w-4", "h-4")} />
     {label}
   </motion.a>
 );
@@ -454,14 +487,24 @@ const ActivityRow = ({
     animate={{ opacity: 1, x: 0 }}
     transition={{ delay }}
     whileHover={{ x: 4 }}
-    className={cn('flex', 'items-center', 'justify-between', 'p-3', 'rounded-xl', 'hover:bg-slate-50', 'transition-colors')}
+    className={cn(
+      "flex",
+      "items-center",
+      "justify-between",
+      "p-3",
+      "rounded-xl",
+      "hover:bg-muted",
+      "transition-colors",
+    )}
   >
-    <span className={cn('text-xs', 'font-bold', 'text-slate-500')}>{label}</span>
+    <span className={cn("text-xs", "font-bold", "text-muted-foreground")}>
+      {label}
+    </span>
     <motion.span
       initial={{ scale: 0 }}
       animate={{ scale: 1 }}
       transition={{ delay: delay + 0.1, type: "spring", stiffness: 300 }}
-      className={cn('text-sm', 'font-black', 'text-slate-900')}
+      className={cn("text-sm", "font-black", "text-foreground")}
     >
       {count}
     </motion.span>

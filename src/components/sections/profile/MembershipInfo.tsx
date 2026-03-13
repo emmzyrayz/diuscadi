@@ -26,13 +26,13 @@ interface MembershipInfoProps {
 
 export const MembershipInfoSection = ({ data }: MembershipInfoProps) => {
   return (
-    <section className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-8 md:p-10 shadow-sm relative overflow-hidden">
+    <section className="bg-background border-2 border-border rounded-[2.5rem] p-8 md:p-10 shadow-sm relative overflow-hidden">
       {/* Section Header */}
       <div className="flex items-center gap-3 mb-10">
-        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-primary border border-slate-100">
+        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary border border-border">
           <LuBadgeCheck className="w-5 h-5" />
         </div>
-        <h3 className="text-xl font-black text-slate-900 tracking-tight">
+        <h3 className="text-xl font-black text-foreground tracking-tight">
           System Membership
         </h3>
       </div>
@@ -56,7 +56,7 @@ export const MembershipInfoSection = ({ data }: MembershipInfoProps) => {
 
         {/* Verification Status */}
         <div className="space-y-3">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none">
             Trust Status
           </p>
           <div
@@ -110,17 +110,19 @@ const MemberStat = ({
   highlight,
 }: MemberStatProps) => (
   <div className="space-y-3 group">
-    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none">
       {label}
     </p>
     <div className="flex items-center gap-3">
-      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100 group-hover:border-primary/20 transition-colors">
-        <Icon className="w-4 h-4 text-slate-400 group-hover:text-primary transition-colors" />
+      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center border border-border group-hover:border-primary/20 transition-colors">
+        <Icon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
       </div>
       <p
         className={cn(
           "text-sm font-bold leading-none",
-          isMono ? "font-mono tracking-wider text-slate-500" : "text-slate-700",
+          isMono
+            ? "font-mono tracking-wider text-muted-foreground"
+            : "text-slate-700",
           highlight && "text-primary",
         )}
       >

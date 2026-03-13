@@ -90,7 +90,6 @@ function validateStep(step: number, form: FormState): string | null {
   return null;
 }
 
-
 // ─── Slide animation variants ─────────────────────────────────────────────────
 // ease must be typed as a const tuple — Framer Motion's Easing type does not
 // accept a plain number[], it requires [number, number, number, number].
@@ -99,9 +98,12 @@ const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const slideVariants = {
   enter: (dir: number) => ({ x: dir > 0 ? 40 : -40, opacity: 0 }),
   center: { x: 0, opacity: 1, transition: { duration: 0.28, ease: EASE } },
-  exit:  (dir: number) => ({ x: dir > 0 ? -40 : 40, opacity: 0, transition: { duration: 0.2, ease: EASE } }),
+  exit: (dir: number) => ({
+    x: dir > 0 ? -40 : 40,
+    opacity: 0,
+    transition: { duration: 0.2, ease: EASE },
+  }),
 };
-
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export const SignupForm: React.FC = () => {
@@ -180,22 +182,22 @@ export const SignupForm: React.FC = () => {
       {/* ── Progress bar ──────────────────────────────────────────────────── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+          <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">
             {STEPS[step - 1].label}
           </span>
-          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+          <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">
             {step} / {TOTAL_STEPS}
           </span>
         </div>
-        <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+        <div className="h-1 w-full text-muted rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-slate-900 rounded-full"
+            className="h-full bg-foreground rounded-full"
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           />
         </div>
-        <p className="text-[9px] text-slate-400 tracking-wide">
+        <p className="text-[9px] text-muted-foreground tracking-wide">
           {STEPS[step - 1].hint}
         </p>
       </div>
@@ -248,8 +250,8 @@ export const SignupForm: React.FC = () => {
                 />
 
                 {/* EduStatus toggle */}
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-3 text-center">
+                <div className="p-4 bg-muted rounded-2xl border border-border">
+                  <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-3 text-center">
                     I am a
                   </p>
                   <div className="grid grid-cols-2 gap-2 relative">
@@ -263,7 +265,7 @@ export const SignupForm: React.FC = () => {
                         {form.eduStatus === type && (
                           <motion.span
                             layoutId="edu-pill"
-                            className="absolute inset-0 bg-white border border-slate-900 rounded-xl shadow-sm"
+                            className="absolute inset-0 bg-background border border-foreground rounded-xl shadow-sm"
                             transition={{
                               type: "spring",
                               stiffness: 300,
@@ -272,7 +274,7 @@ export const SignupForm: React.FC = () => {
                           />
                         )}
                         <span
-                          className={`relative z-10 ${form.eduStatus === type ? "text-slate-900" : "text-slate-400"}`}
+                          className={`relative z-10 ${form.eduStatus === type ? "text-foreground" : "text-muted-foreground"}`}
                         >
                           {type.charAt(0) + type.slice(1).toLowerCase()}
                         </span>
@@ -305,16 +307,16 @@ export const SignupForm: React.FC = () => {
 
                 {/* Phone with country code */}
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">
+                  <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest px-1">
                     Phone Number
                   </label>
                   <div className="flex gap-2">
                     <div className="relative">
-                      <LuPhone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                      <LuPhone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                       <select
                         value={form.countryCode}
                         onChange={set("countryCode")}
-                        className="h-full pl-8 pr-2 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 appearance-none focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-colors"
+                        className="h-full pl-8 pr-2 py-3.5 bg-muted border border-border rounded-xl text-[10px] font-bold text-slate-700 appearance-none focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground transition-colors"
                       >
                         {COUNTRY_CODES.map(({ code, label }) => (
                           <option key={code} value={code}>
@@ -330,7 +332,7 @@ export const SignupForm: React.FC = () => {
                       value={form.phoneNumber}
                       onChange={set("phoneNumber")}
                       autoComplete="tel-national"
-                      className="flex-1 px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium text-slate-800 placeholder:text-slate-300 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-colors"
+                      className="flex-1 px-4 py-3.5 bg-muted border border-border rounded-xl text-[11px] font-medium text-slate-800 placeholder:text-slate-300 focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground transition-colors"
                     />
                   </div>
                 </div>
@@ -345,7 +347,7 @@ export const SignupForm: React.FC = () => {
                     onChange={set("schoolEmail")}
                     autoComplete="off"
                   />
-                  <p className="text-[8px] text-slate-400 px-1 tracking-wide">
+                  <p className="text-[8px] text-muted-foreground px-1 tracking-wide">
                     Only for students with an active institutional email
                     address.
                   </p>
@@ -380,9 +382,9 @@ export const SignupForm: React.FC = () => {
                   onChange={set("confirmPassword")}
                   autoComplete="new-password"
                 />
-                <p className="text-[8px] text-slate-400 px-1 tracking-wide">
-                  Minimum 8 characters. You&apos;ll receive a verification code on
-                  your email and phone.
+                <p className="text-[8px] text-muted-foreground px-1 tracking-wide">
+                  Minimum 8 characters. You&apos;ll receive a verification code
+                  on your email and phone.
                 </p>
               </motion.div>
             )}
@@ -398,7 +400,7 @@ export const SignupForm: React.FC = () => {
               type="button"
               onClick={back}
               disabled={isLoading}
-              className="flex items-center justify-center gap-2 py-3.5 border border-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-slate-900 hover:text-slate-900 transition-all duration-300 disabled:opacity-40"
+              className="flex items-center justify-center gap-2 py-3.5 border border-border text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-foreground hover:text-foreground transition-all duration-300 disabled:opacity-40"
             >
               <LuArrowLeft className="w-3.5 h-3.5" />
               Back
@@ -409,7 +411,7 @@ export const SignupForm: React.FC = () => {
             <button
               type="button"
               onClick={next}
-              className={`flex items-center justify-center gap-2 py-3.5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all duration-300 shadow-xl shadow-slate-900/10 ${step === 1 ? "w-full" : ""}`}
+              className={`flex items-center justify-center gap-2 py-3.5 bg-foreground text-background rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all duration-300 shadow-xl shadow-foreground/10 ${step === 1 ? "w-full" : ""}`}
             >
               Continue
               <LuArrowRight className="w-3.5 h-3.5" />
@@ -418,7 +420,7 @@ export const SignupForm: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="flex items-center justify-center gap-2 py-3.5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-secondary hover:text-slate-900 border border-transparent hover:border-primary transition-all duration-700 shadow-xl shadow-slate-900/10 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 py-3.5 bg-foreground text-background rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-secondary hover:text-foreground border border-transparent hover:border-primary transition-all duration-700 shadow-xl shadow-foreground/10 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>
@@ -429,7 +431,7 @@ export const SignupForm: React.FC = () => {
                       repeat: Infinity,
                       ease: "linear",
                     }}
-                    className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full inline-block"
+                    className="w-3.5 h-3.5 border-2 border-background/30 border-t-background rounded-full inline-block"
                   />
                   Creating Account...
                 </>

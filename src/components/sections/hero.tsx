@@ -1,11 +1,11 @@
-'use client'
+"use client";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { GraduationCap, CalendarCheck } from "lucide-react";
 // import mentor from "@/assets/img/downloads/Dr-Ikechukwu-Umeh-1440x1920.webp"
-import student from "@/assets/img/downloads/Esther-Chiamaka.webp"
+import student from "@/assets/img/downloads/Esther-Chiamaka.webp";
 
 export const Hero = () => {
   return (
@@ -90,7 +90,8 @@ export const Hero = () => {
             )}
           >
             Equipping Students for <br />
-            <span className="text-slate-400">Life Beyond</span> the Classroom
+            <span className="text-muted-foreground">Life Beyond</span> the
+            Classroom
           </h1>
 
           <p
@@ -166,7 +167,10 @@ export const Hero = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className={cn("relative", "group hover:scale-105 duration-700 ease-in-out transition-all")}
+          className={cn(
+            "relative",
+            "group hover:scale-105 duration-700 ease-in-out transition-all",
+          )}
         >
           {/* The Main Hero Image */}
           <div
@@ -178,7 +182,7 @@ export const Hero = () => {
               "rounded-[2rem]",
               "overflow-hidden",
               "border-8",
-              "border-white",
+              "border-background",
               "shadow-2xl",
             )}
           >
@@ -195,7 +199,7 @@ export const Hero = () => {
           <div
             className={cn(
               "absolute -bottom-6 -left-5 lg:-left-12 p-5 rounded-2xl transition-all duration-300",
-              "bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl",
+              "bg-background/10 backdrop-blur-xl border border-background/20 shadow-2xl",
               "hover:bg-black/40 group-hover:scale-105", // Darkens on hover to boost readability
             )}
           >
@@ -215,14 +219,14 @@ export const Hero = () => {
                   className={cn(
                     "text-xs",
                     "font-semibold",
-                    "text-white/70",
+                    "text-background/70",
                     "uppercase",
                     "tracking-wider",
                   )}
                 >
                   Next Seminar
                 </p>
-                <p className={cn("text-white", "font-bold")}>
+                <p className={cn("text-background", "font-bold")}>
                   Interview Mastery 2026
                 </p>
               </div>

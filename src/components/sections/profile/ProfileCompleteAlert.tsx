@@ -32,7 +32,7 @@ export const ProfileCompletionAlert = ({
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
             {/* Left: Warning Message */}
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shrink-0 shadow-sm border border-amber-200">
+              <div className="w-12 h-12 rounded-2xl bg-background flex items-center justify-center shrink-0 shadow-sm border border-amber-200">
                 <LuTriangleAlert className="w-6 h-6 text-amber-600 animate-pulse" />
               </div>
               <div className="space-y-1">
@@ -53,7 +53,7 @@ export const ProfileCompletionAlert = ({
             {/* Right: CTA Button */}
             <button
               onClick={onAction}
-              className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-amber-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-amber-700 hover:shadow-lg hover:shadow-amber-600/20 transition-all group/btn"
+              className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-amber-600 text-background rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-amber-700 hover:shadow-lg hover:shadow-amber-600/20 transition-all group/btn"
             >
               Finish Profile Setup
               <LuArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />

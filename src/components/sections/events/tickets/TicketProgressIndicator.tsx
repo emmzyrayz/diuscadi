@@ -16,95 +16,133 @@ export const TicketProgressIndicator = ({
     {
       id: 1,
       label: "Sign In",
-      icon: <LuUser className={cn('w-5', 'h-5')} />,
+      icon: <LuUser className={cn("w-5", "h-5")} />,
       isCompleted: isSignedIn || currentStep > 1,
     },
     {
       id: 2,
       label: "Ticket Info",
-      icon: <LuTicket className={cn('w-5', 'h-5')} />,
+      icon: <LuTicket className={cn("w-5", "h-5")} />,
       isCompleted: currentStep > 2,
     },
     {
       id: 3,
       label: "Confirm",
-      icon: <LuShieldCheck className={cn('w-5', 'h-5')} />,
+      icon: <LuShieldCheck className={cn("w-5", "h-5")} />,
       isCompleted: currentStep > 3,
     },
   ];
 
   return (
-    <section className={cn('w-full', 'py-12', 'bg-white')}>
-      <div className={cn('max-w-4xl', 'mx-auto', 'px-4')}>
-        <div className={cn('relative', 'flex', 'items-center', 'justify-between')}>
-          {/* Background Connector Line */}
-          <div className={cn('absolute', 'left-0', 'top-1/2', '-translate-y-1/2', 'w-full', 'h-1', 'bg-slate-100', 'z-0', 'rounded-full')} />
-
-          {/* Active Progress Line */}
-          <div
-            className={cn('absolute', 'left-0', 'top-1/2', '-translate-y-1/2', 'h-1', 'bg-primary', 'z-0', 'transition-all', 'duration-700', 'ease-in-out', 'rounded-full')}
-            style={{
-              width:
-                currentStep === 1 ? "0%" : currentStep === 2 ? "50%" : "100%",
-            }}
-          />
-
-          {steps.map((step, index) => {
-            const isActive = currentStep === step.id;
-            const isDone = step.isCompleted;
-
-            return (
+    <div
+      className={cn(
+        "w-full",
+        "py-10",
+        "bg-background",
+        "rounded-[2.5rem]",
+        "border",
+        "border-border",
+        "px-8",
+      )}
+    >
+      <div
+        className={cn("relative", "flex", "items-center", "justify-between")}
+      >
+        <div
+          className={cn(
+            "absolute",
+            "left-0",
+            "top-1/2",
+            "-translate-y-1/2",
+            "w-full",
+            "h-1",
+            "text-muted",
+            "z-0",
+            "rounded-full",
+          )}
+        />
+        <div
+          className={cn(
+            "absolute",
+            "left-0",
+            "top-1/2",
+            "-translate-y-1/2",
+            "h-1",
+            "bg-primary",
+            "z-0",
+            "transition-all",
+            "duration-700",
+            "ease-in-out",
+            "rounded-full",
+          )}
+          style={{
+            width:
+              currentStep === 1 ? "0%" : currentStep === 2 ? "50%" : "100%",
+          }}
+        />
+        {steps.map((step) => {
+          const isActive = currentStep === step.id;
+          const isDone = step.isCompleted;
+          return (
+            <div
+              key={step.id}
+              className={cn(
+                "relative",
+                "z-10",
+                "flex",
+                "flex-col",
+                "items-center",
+              )}
+            >
               <div
-                key={step.id}
-                className={cn('relative', 'z-10', 'flex', 'flex-col', 'items-center')}
+                className={cn(
+                  "w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border-4",
+                  isDone
+                    ? "bg-primary border-primary text-background"
+                    : isActive
+                      ? "bg-background border-primary text-primary shadow-lg shadow-primary/20 scale-110"
+                      : "bg-background border-border text-slate-300",
+                )}
               >
-                {/* Step Circle */}
-                <div
+                {isDone ? <LuCheck className={cn("w-6", "h-6")} /> : step.icon}
+              </div>
+              <div className={cn("absolute", "-bottom-8", "whitespace-nowrap")}>
+                <span
                   className={cn(
-                    "w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border-4",
-                    isDone
-                      ? "bg-primary border-primary text-white"
-                      : isActive
-                        ? "bg-white border-primary text-primary shadow-lg shadow-primary/20 scale-110"
-                        : "bg-white border-slate-100 text-slate-300",
+                    "text-[10px] md:text-xs font-black uppercase tracking-widest transition-colors duration-300",
+                    isActive
+                      ? "text-primary"
+                      : isDone
+                        ? "text-foreground"
+                        : "text-muted-foreground",
                   )}
                 >
-                  {isDone ? (
-                    <LuCheck className={cn('w-6', 'h-6', 'stroke-3')} />
-                  ) : (
-                    step.icon
-                  )}
-                </div>
-
-                {/* Step Label */}
-                <div className={cn('absolute', '-bottom-8', 'whitespace-nowrap')}>
+                  {step.label}
+                </span>
+              </div>
+              {isActive && (
+                <div className={cn("absolute", "-top-6")}>
                   <span
                     className={cn(
-                      "text-[10px] md:text-xs font-black uppercase tracking-widest transition-colors duration-300",
-                      isActive
-                        ? "text-primary"
-                        : isDone
-                          ? "text-slate-900"
-                          : "text-slate-400",
+                      "bg-primary/10",
+                      "text-primary",
+                      "text-[8px]",
+                      "font-black",
+                      "px-2",
+                      "py-0.5",
+                      "rounded-md",
+                      "uppercase",
+                      "animate-pulse",
                     )}
                   >
-                    {step.label}
+                    Current
                   </span>
                 </div>
-
-                {/* Status indicator for mobile */}
-                {isActive && (
-                  <div className={cn('absolute', '-top-6')}>
-                    <span className={cn('bg-primary/10', 'text-primary', 'text-[8px]', 'font-black', 'px-2', 'py-0.5', 'rounded-md', 'uppercase', 'animate-pulse')}>
-                      Current
-                    </span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              )}
+            </div>
+          );
+        })}
       </div>
-    </section>
+    </div>
   );
 };

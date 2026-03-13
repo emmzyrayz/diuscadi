@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "../../../lib/utils";
+import { cn } from "@/lib/utils";
 import {
   LuLock,
   LuEye,
@@ -9,124 +9,116 @@ import {
   LuMail,
   LuPhone,
   LuDownload,
-  LuShieldAlert,
   LuInfo,
+  LuLoader,
 } from "react-icons/lu";
 import { IconType } from "react-icons";
+import { useUser } from "@/context/UserContext";
+import type { PrivacyPreferences } from "@/types/domain";
+import { toast } from "react-hot-toast";
 
-// Define proper TypeScript types
 interface PrivacyToggleProps {
   icon: IconType;
   label: string;
   desc: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
   delay?: number;
 }
 
-interface PrivacyOption {
-  id: string;
-  icon: IconType;
-  label: string;
-  desc: string;
-}
-
 export const PrivacySettingsSection = () => {
-  const [profilePrivate, setProfilePrivate] = useState(false);
+  const { profile, updatePreferences } = useUser();
+  const prefs = profile?.preferences.privacy;
 
-  const privacyOptions: PrivacyOption[] = [
-    {
-      id: "email",
-      icon: LuMail,
-      label: "Display Email on Digital ID",
-      desc: "Allow verified event attendees to see your primary email.",
-    },
-    {
-      id: "phone",
-      icon: LuPhone,
-      label: "Display Phone Number",
-      desc: "Show your contact number for direct networking during sessions.",
-    },
-  ];
+  // Initialise from prefs at mount — component is keyed in page.tsx so it
+  // remounts once profile loads, no useEffect sync needed.
+  const [values, setValues] = useState<PrivacyPreferences>({
+    profilePrivate: prefs?.profilePrivate ?? false,
+    showEmail: prefs?.showEmail ?? false,
+    showPhone: prefs?.showPhone ?? false,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const save = async (patch: Partial<PrivacyPreferences>) => {
+    const next = { ...values, ...patch };
+    const prev = { ...values };
+    setValues(next);
+    setSaving(true);
+    const result = await updatePreferences({ privacy: next });
+    setSaving(false);
+    if (!result.success) {
+      setValues(prev); // roll back
+      toast.error(result.error ?? "Failed to save");
+    }
+  };
 
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
       className={cn(
-        "bg-white",
+        "bg-background",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "rounded-[2.5rem]",
         "p-8",
         "md:p-10",
         "shadow-sm",
       )}
     >
-      {/* 1. Section Header */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.2 }}
-        className={cn("flex", "items-center", "gap-3", "mb-10")}
-      >
-        <motion.div
-          whileHover={{ scale: 1.1, rotate: -10 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          className={cn(
-            "w-10",
-            "h-10",
-            "rounded-xl",
-            "bg-slate-50",
-            "flex",
-            "items-center",
-            "justify-center",
-            "text-primary",
-            "border",
-            "border-slate-100",
-          )}
-        >
-          <motion.div
-            animate={{ rotate: [0, -5, 5, 0] }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              repeatDelay: 3,
-            }}
+      {/* Header */}
+      <div className={cn("flex", "items-center", "justify-between", "mb-10")}>
+        <div className={cn("flex", "items-center", "gap-3")}>
+          <div
+            className={cn(
+              "w-10",
+              "h-10",
+              "rounded-xl",
+              "bg-muted",
+              "flex",
+              "items-center",
+              "justify-center",
+              "text-primary",
+              "border",
+              "border-border",
+            )}
           >
             <LuLock className={cn("w-5", "h-5")} />
-          </motion.div>
-        </motion.div>
-        <div>
-          <h3
-            className={cn(
-              "text-xl",
-              "font-black",
-              "text-slate-900",
-              "tracking-tight",
-            )}
-          >
-            Privacy & Visibility
-          </h3>
-          <p
-            className={cn(
-              "text-[10px]",
-              "font-bold",
-              "text-slate-400",
-              "uppercase",
-              "tracking-widest",
-              "mt-1",
-            )}
-          >
-            Manage your digital footprint and data access
-          </p>
+          </div>
+          <div>
+            <h3
+              className={cn(
+                "text-xl",
+                "font-black",
+                "text-foreground",
+                "tracking-tight",
+              )}
+            >
+              Privacy & Visibility
+            </h3>
+            <p
+              className={cn(
+                "text-[10px]",
+                "font-bold",
+                "text-muted-foreground",
+                "uppercase",
+                "tracking-widest",
+                "mt-1",
+              )}
+            >
+              Manage your digital footprint and data access
+            </p>
+          </div>
         </div>
-      </motion.div>
+        {saving && (
+          <LuLoader
+            className={cn("w-4", "h-4", "text-primary", "animate-spin")}
+          />
+        )}
+      </div>
 
-      {/* 2. Global Visibility Toggle */}
+      {/* Global visibility toggle */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
         whileHover={{ scale: 1.01 }}
         className={cn(
           "mb-10",
@@ -135,9 +127,9 @@ export const PrivacySettingsSection = () => {
           "border-2",
           "transition-all",
           "duration-300",
-          profilePrivate
-            ? "bg-slate-900 border-slate-800 text-white"
-            : "bg-blue-50/30 border-blue-100 text-slate-900",
+          values.profilePrivate
+            ? "bg-foreground border-slate-800"
+            : "bg-blue-50/30 border-blue-100",
         )}
       >
         <div
@@ -152,18 +144,7 @@ export const PrivacySettingsSection = () => {
           )}
         >
           <div className={cn("flex", "items-start", "gap-4")}>
-            <motion.div
-              animate={
-                profilePrivate
-                  ? {
-                      scale: [1, 1.1, 1],
-                      rotate: [0, 5, -5, 0],
-                    }
-                  : {}
-              }
-              transition={{
-                duration: 0.5,
-              }}
+            <div
               className={cn(
                 "w-12",
                 "h-12",
@@ -174,19 +155,18 @@ export const PrivacySettingsSection = () => {
                 "shrink-0",
                 "transition-all",
                 "duration-300",
-                profilePrivate
-                  ? "bg-white/10 text-primary"
-                  : "bg-white text-primary shadow-sm",
+                values.profilePrivate
+                  ? "bg-background/10 text-primary"
+                  : "bg-background text-primary shadow-sm",
               )}
             >
               <AnimatePresence mode="wait">
-                {profilePrivate ? (
+                {values.profilePrivate ? (
                   <motion.div
                     key="private"
                     initial={{ scale: 0, rotate: -180 }}
                     animate={{ scale: 1, rotate: 0 }}
-                    exit={{ scale: 0, rotate: 180 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                    exit={{ scale: 0 }}
                   >
                     <LuEyeOff className={cn("w-6", "h-6")} />
                   </motion.div>
@@ -195,14 +175,13 @@ export const PrivacySettingsSection = () => {
                     key="public"
                     initial={{ scale: 0, rotate: 180 }}
                     animate={{ scale: 1, rotate: 0 }}
-                    exit={{ scale: 0, rotate: -180 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                    exit={{ scale: 0 }}
                   >
                     <LuEye className={cn("w-6", "h-6")} />
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
+            </div>
             <div>
               <h4
                 className={cn(
@@ -210,6 +189,7 @@ export const PrivacySettingsSection = () => {
                   "font-black",
                   "uppercase",
                   "tracking-tight",
+                  values.profilePrivate ? "text-background" : "text-foreground",
                 )}
               >
                 Private Profile Mode
@@ -221,7 +201,9 @@ export const PrivacySettingsSection = () => {
                   "mt-1",
                   "leading-relaxed",
                   "max-w-sm",
-                  profilePrivate ? "text-slate-400" : "text-slate-500",
+                  values.profilePrivate
+                    ? "text-muted-foreground"
+                    : "text-muted-foreground",
                 )}
               >
                 When enabled, your profile is hidden from the DIUSCADI directory
@@ -229,10 +211,9 @@ export const PrivacySettingsSection = () => {
               </p>
             </div>
           </div>
-          <motion.button
-            onClick={() => setProfilePrivate(!profilePrivate)}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
+            disabled={saving}
+            onClick={() => save({ profilePrivate: !values.profilePrivate })}
             className={cn(
               "px-8",
               "py-3",
@@ -243,49 +224,52 @@ export const PrivacySettingsSection = () => {
               "tracking-widest",
               "transition-all",
               "duration-300",
-              profilePrivate
-                ? "bg-primary text-white shadow-lg shadow-primary/20"
-                : "bg-white border border-blue-200 text-blue-600",
+              "cursor-pointer",
+              "disabled:opacity-50",
+              values.profilePrivate
+                ? "bg-primary text-background shadow-lg shadow-primary/20"
+                : "bg-background border border-blue-200 text-blue-600",
             )}
           >
-            {profilePrivate ? "Go Public" : "Make Private"}
-          </motion.button>
+            {values.profilePrivate ? "Go Public" : "Make Private"}
+          </button>
         </div>
       </motion.div>
 
-      {/* 3. Granular Privacy List */}
+      {/* Granular toggles */}
       <div className="space-y-4">
-        <motion.label
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
+        <label
           className={cn(
             "text-[10px]",
             "font-black",
-            "text-slate-400",
+            "text-muted-foreground",
             "uppercase",
             "tracking-[0.2em]",
             "ml-1",
           )}
         >
           Data Display Preferences
-        </motion.label>
+        </label>
 
-        {privacyOptions.map((option, index) => (
-          <PrivacyToggle
-            key={option.id}
-            icon={option.icon}
-            label={option.label}
-            desc={option.desc}
-            delay={0.6 + index * 0.1}
-          />
-        ))}
+        <PrivacyToggle
+          icon={LuMail}
+          label="Display Email on Digital ID"
+          desc="Allow verified event attendees to see your primary email."
+          checked={values.showEmail}
+          onChange={(v) => save({ showEmail: v })}
+          delay={0.05}
+        />
+        <PrivacyToggle
+          icon={LuPhone}
+          label="Display Phone Number"
+          desc="Show your contact number for direct networking during sessions."
+          checked={values.showPhone}
+          onChange={(v) => save({ showPhone: v })}
+          delay={0.1}
+        />
 
-        {/* 4. Data Portability (Advanced UX) */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
+        {/* Data export */}
+        <div
           className={cn(
             "mt-10",
             "pt-8",
@@ -301,174 +285,146 @@ export const PrivacySettingsSection = () => {
         >
           <div className={cn("flex", "items-center", "gap-3")}>
             <LuInfo className={cn("w-5", "h-5", "text-slate-300")} />
-            <p className={cn("text-[11px]", "font-medium", "text-slate-500")}>
+            <p
+              className={cn(
+                "text-[11px]",
+                "font-medium",
+                "text-muted-foreground",
+              )}
+            >
               You can request a full archive of your DIUSCADI data at any time.
             </p>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
+            onClick={() =>
+              toast("Data export will be emailed to you within 24 hours.", {
+                icon: "📦",
+              })
+            }
             className={cn(
               "flex",
               "items-center",
               "gap-2",
               "px-6",
               "py-3",
-              "bg-slate-50",
+              "bg-muted",
               "border",
-              "border-slate-100",
+              "border-border",
               "text-slate-600",
               "rounded-xl",
               "font-black",
               "text-[10px]",
               "uppercase",
               "tracking-widest",
-              "hover:bg-slate-900",
-              "hover:text-white",
+              "hover:bg-foreground",
+              "hover:text-background",
               "transition-colors",
+              "cursor-pointer",
             )}
           >
-            <motion.div
-              whileHover={{ y: [0, -2, 0] }}
-              transition={{ duration: 0.5, repeat: Infinity }}
-            >
-              <LuDownload className={cn("w-4", "h-4")} />
-            </motion.div>
-            Export Data (.JSON)
-          </motion.button>
-        </motion.div>
+            <LuDownload className={cn("w-4", "h-4")} /> Export Data (.JSON)
+          </button>
+        </div>
       </div>
     </motion.section>
   );
 };
 
-/* --- Internal Helper --- */
 const PrivacyToggle = ({
   icon: Icon,
   label,
   desc,
+  checked,
+  onChange,
   delay = 0,
-}: PrivacyToggleProps) => {
-  const [active, setActive] = useState(false);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, delay }}
-      whileHover={{ scale: 1.01, x: 4 }}
-      className={cn(
-        "flex",
-        "items-center",
-        "justify-between",
-        "p-6",
-        "bg-slate-50/50",
-        "rounded-3xl",
-        "border",
-        "border-transparent",
-        "hover:border-slate-100",
-        "transition-all",
-      )}
-    >
-      <div className={cn("flex", "items-start", "gap-4")}>
-        <motion.div
-          whileHover={{ scale: 1.1, rotate: 5 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          className={cn(
-            "w-10",
-            "h-10",
-            "bg-white",
-            "rounded-xl",
-            "flex",
-            "items-center",
-            "justify-center",
-            "text-slate-400",
-            "border",
-            "border-slate-100",
-          )}
-        >
-          <Icon className={cn("w-5", "h-5")} />
-        </motion.div>
-        <div>
-          <h4
-            className={cn(
-              "text-[11px]",
-              "font-black",
-              "text-slate-900",
-              "uppercase",
-              "tracking-tight",
-            )}
-          >
-            {label}
-          </h4>
-          <p className={cn("text-[10px]", "font-medium", "text-slate-500")}>
-            {desc}
-          </p>
-        </div>
-      </div>
-      <motion.button
-        onClick={() => setActive(!active)}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+}: PrivacyToggleProps) => (
+  <motion.div
+    initial={{ opacity: 0, x: -20 }}
+    animate={{ opacity: 1, x: 0 }}
+    transition={{ delay }}
+    whileHover={{ scale: 1.01, x: 4 }}
+    className={cn(
+      "flex",
+      "items-center",
+      "justify-between",
+      "p-6",
+      "bg-muted/50",
+      "rounded-3xl",
+      "border",
+      "border-transparent",
+      "hover:border-border",
+      "transition-all",
+    )}
+  >
+    <div className={cn("flex", "items-start", "gap-4")}>
+      <div
         className={cn(
           "w-10",
-          "h-5",
-          "rounded-full",
-          "relative",
-          "transition-colors",
-          "duration-300",
-          "focus:ring-2",
-          "focus:ring-primary/20",
-          "focus:ring-offset-2",
-          "outline-none",
-          active ? "bg-emerald-500" : "bg-slate-200",
+          "h-10",
+          "bg-background",
+          "rounded-xl",
+          "flex",
+          "items-center",
+          "justify-center",
+          "text-muted-foreground",
+          "border",
+          "border-border",
         )}
       >
-        <motion.div
-          animate={{ x: active ? 24 : 4 }}
-          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        <Icon className={cn("w-5", "h-5")} />
+      </div>
+      <div>
+        <h4
           className={cn(
-            "absolute",
-            "top-1",
-            "w-3",
-            "h-3",
-            "bg-white",
-            "rounded-full",
-            "shadow-sm",
+            "text-[11px]",
+            "font-black",
+            "text-foreground",
+            "uppercase",
+            "tracking-tight",
           )}
         >
-          {/* Indicator dot when enabled */}
-          <AnimatePresence>
-            {active && (
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className={cn('absolute', 'inset-0', 'flex', 'items-center', 'justify-center')}
-              >
-                <div className={cn('w-1', 'h-1', 'bg-emerald-500', 'rounded-full')} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        {/* Ripple effect on toggle */}
-        <AnimatePresence>
-          {active && (
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0.5 }}
-              animate={{ scale: 1.5, opacity: 0 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ duration: 0.6 }}
-              className={cn('absolute', 'inset-0', 'bg-emerald-500', 'rounded-full')}
-            />
+          {label}
+        </h4>
+        <p
+          className={cn(
+            "text-[10px]",
+            "font-medium",
+            "text-muted-foreground",
+            "mt-0.5",
           )}
-        </AnimatePresence>
-      </motion.button>
-    </motion.div>
-  );
-};
-
-// Export types for reuse
-export type { PrivacyToggleProps, PrivacyOption };
+        >
+          {desc}
+        </p>
+      </div>
+    </div>
+    <button
+      onClick={() => onChange(!checked)}
+      className={cn(
+        "w-10",
+        "h-5",
+        "rounded-full",
+        "relative",
+        "transition-colors",
+        "duration-300",
+        "outline-none",
+        "cursor-pointer",
+        "shrink-0",
+        checked ? "bg-emerald-500" : "bg-slate-200",
+      )}
+    >
+      <motion.div
+        animate={{ x: checked ? 24 : 4 }}
+        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        className={cn(
+          "absolute",
+          "top-1",
+          "w-3",
+          "h-3",
+          "bg-background",
+          "rounded-full",
+          "shadow-sm",
+        )}
+      />
+    </button>
+  </motion.div>
+);

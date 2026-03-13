@@ -61,9 +61,9 @@ export const AdminTicketsToolbar: React.FC<AdminTicketsToolbarProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className={cn(
-        "bg-white",
+        "bg-background",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "rounded-[2.5rem]",
         "p-6",
         "mb-8",
@@ -98,7 +98,7 @@ export const AdminTicketsToolbar: React.FC<AdminTicketsToolbarProps> = ({
               "left-6",
               "top-1/2",
               "-translate-y-1/2",
-              "text-slate-400",
+              "text-muted-foreground",
             )}
           >
             <LuSearch className={cn("w-5", "h-5")} />
@@ -108,17 +108,17 @@ export const AdminTicketsToolbar: React.FC<AdminTicketsToolbarProps> = ({
             placeholder="Search Name, Email, or Ticket Code..."
             className={cn(
               "w-full",
-              "bg-slate-50",
+              "bg-muted",
               "border",
-              "border-slate-100",
+              "border-border",
               "rounded-2xl",
               "pl-14",
               "pr-6",
               "py-5",
               "text-[11px]",
               "font-black",
-              "text-slate-900",
-              "placeholder:text-slate-400",
+              "text-foreground",
+              "placeholder:text-muted-foreground",
               "outline-none",
               "focus:ring-4",
               "focus:ring-primary/10",
@@ -228,9 +228,9 @@ const TicketDropdown: React.FC<TicketDropdownProps> = ({
           "gap-4",
           "px-5",
           "py-4",
-          "bg-white",
+          "bg-background",
           "border",
-          "border-slate-200",
+          "border-border",
           "rounded-2xl",
           "transition-all",
           "group",
@@ -245,7 +245,7 @@ const TicketDropdown: React.FC<TicketDropdownProps> = ({
               className={cn(
                 "w-4",
                 "h-4",
-                "text-slate-400",
+                "text-muted-foreground",
                 "group-hover:text-primary",
                 "transition-colors",
               )}
@@ -256,7 +256,7 @@ const TicketDropdown: React.FC<TicketDropdownProps> = ({
               className={cn(
                 "text-[8px]",
                 "font-black",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
                 "leading-none",
                 "mb-1",
@@ -269,7 +269,7 @@ const TicketDropdown: React.FC<TicketDropdownProps> = ({
               className={cn(
                 "text-[10px]",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "uppercase",
                 "tracking-tight",
                 "truncate",
@@ -297,9 +297,9 @@ const TicketDropdown: React.FC<TicketDropdownProps> = ({
               "mt-2",
               "w-full",
               "min-w-[200px]",
-              "bg-white",
+              "bg-background",
               "border",
-              "border-slate-100",
+              "border-border",
               "rounded-2xl",
               "shadow-2xl",
               "p-2",
@@ -326,7 +326,7 @@ const TicketDropdown: React.FC<TicketDropdownProps> = ({
                   "text-slate-600",
                   "uppercase",
                   "tracking-widest",
-                  "hover:bg-slate-50",
+                  "hover:bg-muted",
                   "hover:text-primary",
                   "transition-colors",
                   "flex",

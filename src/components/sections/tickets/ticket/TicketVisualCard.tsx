@@ -1,25 +1,45 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
-import { LuQrCode, LuMaximize, LuShieldCheck, LuInfo } from "react-icons/lu";
+import {
+  LuQrCode,
+  LuMaximize,
+  LuShieldCheck,
+  LuInfo,
+  LuCircleCheck,
+  LuClock,
+  LuBan,
+} from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 
 interface TicketVisualCardProps {
   ticket: {
-    id: string;
+    inviteCode: string;
     eventName: string;
     eventImage: string;
-    userName: string;
-    type: string;
-    status: string; // Added status property
+    ticketType: string;
+    status: "Upcoming" | "Used" | "Cancelled";
   };
 }
 
+const STATUS_CONFIG = {
+  Upcoming: { label: "Upcoming", icon: LuClock, color: "text-emerald-500" },
+  Used: {
+    label: "Checked In",
+    icon: LuCircleCheck,
+    color: "text-muted-foreground",
+  },
+  Cancelled: { label: "Cancelled", icon: LuBan, color: "text-rose-500" },
+};
+
 export const TicketVisualCard = ({ ticket }: TicketVisualCardProps) => {
+  const statusCfg = STATUS_CONFIG[ticket.status];
+  const StatusIcon = statusCfg.icon;
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       className={cn(
         "relative",
@@ -30,70 +50,75 @@ export const TicketVisualCard = ({ ticket }: TicketVisualCardProps) => {
         "drop-shadow-2xl",
       )}
     >
-      {/* 1. Main Ticket Body */}
       <div
         className={cn(
-          "bg-white",
+          "bg-background",
           "rounded-[2.5rem]",
           "overflow-hidden",
           "flex",
           "flex-col",
+          ticket.status === "Cancelled" ? "opacity-60 grayscale" : "",
         )}
       >
-        {/* --- TOP SECTION: Brand & Image --- */}
-        <div className={cn("relative", "h-48", "w-full", "overflow-hidden")}>
+        {/* Image */}
+        <div
+          className={cn(
+            "relative",
+            "h-48",
+            "w-full",
+            "overflow-hidden",
+            "text-muted",
+          )}
+        >
           <Image
-            height={300}
-            width={500}
-            src={ticket.eventImage}
+            src={ticket.eventImage || "/images/events/default.jpg"}
             alt={ticket.eventName}
-            className={cn("w-full", "h-full", "object-cover")}
+            fill
+            className={cn("object-cover")}
           />
-          {/* Dark Overlay for Text Legibility */}
           <div
             className={cn(
               "absolute",
               "inset-0",
-              "bg-linear-to-t",
-              "from-slate-900",
-              "via-slate-900/40",
+              "bg-gradient-to-t",
+              "from-foreground",
+              "via-foreground/40",
               "to-transparent",
             )}
           />
-
           <div className={cn("absolute", "bottom-6", "left-6", "right-6")}>
-            <div className={cn("flex", "items-center", "gap-2", "mb-2")}>
-              <span
-                className={cn(
-                  "px-2",
-                  "py-0.5",
-                  "bg-primary",
-                  "text-white",
-                  "text-[9px]",
-                  "font-black",
-                  "uppercase",
-                  "tracking-widest",
-                  "rounded-sm",
-                )}
-              >
-                Official Pass
-              </span>
-            </div>
+            <span
+              className={cn(
+                "px-2",
+                "py-0.5",
+                "bg-primary",
+                "text-background",
+                "text-[9px]",
+                "font-black",
+                "uppercase",
+                "tracking-widest",
+                "rounded-sm",
+                "inline-block",
+                "mb-2",
+              )}
+            >
+              Official Pass
+            </span>
             <h3
               className={cn(
-                "text-xl",
+                "text-lg",
                 "font-black",
-                "text-white",
+                "text-background",
                 "tracking-tight",
                 "uppercase",
                 "leading-tight",
+                "line-clamp-2",
               )}
             >
               {ticket.eventName}
             </h3>
           </div>
-
-          {/* Hologram Effect (Top Right) */}
+          {/* Hologram */}
           <div
             className={cn(
               "absolute",
@@ -101,13 +126,11 @@ export const TicketVisualCard = ({ ticket }: TicketVisualCardProps) => {
               "right-4",
               "w-10",
               "h-10",
-              "bg-linear-to-br",
-              "from-white/20",
-              "to-white/5",
+              "bg-background/10",
               "backdrop-blur-md",
               "rounded-full",
               "border",
-              "border-white/20",
+              "border-background/20",
               "flex",
               "items-center",
               "justify-center",
@@ -117,31 +140,15 @@ export const TicketVisualCard = ({ ticket }: TicketVisualCardProps) => {
           </div>
         </div>
 
-        {/* --- MIDDLE SECTION: User Details --- */}
-        <div className={cn("p-6", "bg-white", "space-y-4")}>
+        {/* User details */}
+        <div className={cn("p-6", "bg-background", "space-y-4")}>
           <div className={cn("flex", "justify-between", "items-center")}>
             <div>
               <p
                 className={cn(
                   "text-[9px]",
                   "font-black",
-                  "text-slate-400",
-                  "uppercase",
-                  "tracking-widest",
-                )}
-              >
-                Attendee
-              </p>
-              <p className={cn("text-sm", "font-bold", "text-slate-900")}>
-                {ticket.userName}
-              </p>
-            </div>
-            <div className="text-right">
-              <p
-                className={cn(
-                  "text-[9px]",
-                  "font-black",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-widest",
                 )}
@@ -149,68 +156,78 @@ export const TicketVisualCard = ({ ticket }: TicketVisualCardProps) => {
                 Tier
               </p>
               <p className={cn("text-sm", "font-bold", "text-primary")}>
-                {ticket.type}
+                {ticket.ticketType}
               </p>
+            </div>
+            <div
+              className={cn("flex", "items-center", "gap-1.5", statusCfg.color)}
+            >
+              <StatusIcon className={cn("w-4", "h-4")} />
+              <span
+                className={cn(
+                  "text-xs",
+                  "font-black",
+                  "uppercase",
+                  "tracking-widest",
+                )}
+              >
+                {statusCfg.label}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* --- THE PERFORATION (The "Ticket Stub" Break) --- */}
+        {/* Perforation */}
         <div
           className={cn(
             "relative",
             "flex",
             "items-center",
             "justify-between",
-            "h-8",
-            "bg-white",
+            "h-6",
+            "bg-background",
           )}
         >
-          {/* Left Bite */}
           <div
             className={cn(
               "absolute",
-              "-left-4",
-              "w-8",
-              "h-8",
-              "bg-slate-50",
+              "-left-3",
+              "w-6",
+              "h-6",
+              "bg-muted",
               "rounded-full",
               "border",
-              "border-slate-100",
+              "border-border",
             )}
           />
-
-          {/* The Dashed Line */}
           <div
             className={cn(
               "flex-1",
               "border-t-2",
               "border-dashed",
-              "border-slate-100",
-              "mx-6",
+              "border-border",
+              "mx-4",
             )}
           />
-
-          {/* Right Bite */}
           <div
             className={cn(
               "absolute",
-              "-right-4",
-              "w-8",
-              "h-8",
-              "bg-slate-50",
+              "-right-3",
+              "w-6",
+              "h-6",
+              "bg-muted",
               "rounded-full",
               "border",
-              "border-slate-100",
+              "border-border",
             )}
           />
         </div>
 
-        {/* --- BOTTOM SECTION: The QR Scanning Zone --- */}
+        {/* QR zone */}
         <div
           className={cn(
             "p-8",
-            "bg-white",
+            "bg-background",
             "flex",
             "flex-col",
             "items-center",
@@ -222,10 +239,10 @@ export const TicketVisualCard = ({ ticket }: TicketVisualCardProps) => {
               "relative",
               "group",
               "p-4",
-              "bg-slate-50",
+              "bg-muted",
               "rounded-3xl",
               "border",
-              "border-slate-100",
+              "border-border",
               "mb-4",
             )}
           >
@@ -233,19 +250,16 @@ export const TicketVisualCard = ({ ticket }: TicketVisualCardProps) => {
               className={cn(
                 "w-32",
                 "h-32",
-                "bg-white",
+                "bg-background",
                 "flex",
                 "items-center",
                 "justify-center",
                 "rounded-xl",
-                "overflow-hidden",
               )}
             >
-              {/* QR Component would go here */}
-              <LuQrCode className={cn("w-24", "h-24", "text-slate-900")} />
+              <LuQrCode className={cn("w-24", "h-24", "text-foreground")} />
             </div>
-
-            {/* Corner Brackets for "Scanner View" feel */}
+            {/* Corner brackets */}
             <div
               className={cn(
                 "absolute",
@@ -271,13 +285,12 @@ export const TicketVisualCard = ({ ticket }: TicketVisualCardProps) => {
               )}
             />
           </div>
-
           <div className="space-y-1">
             <p
               className={cn(
                 "text-[10px]",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "uppercase",
                 "tracking-widest",
                 "flex",
@@ -287,26 +300,28 @@ export const TicketVisualCard = ({ ticket }: TicketVisualCardProps) => {
               )}
             >
               <LuMaximize className={cn("w-3", "h-3", "text-primary")} />
-              Scan at Entrance
+              {ticket.status === "Used"
+                ? "Already Scanned"
+                : "Scan at Entrance"}
             </p>
             <p
               className={cn(
                 "font-mono",
                 "text-[10px]",
-                "text-slate-400",
+                "text-muted-foreground",
                 "tracking-[0.2em]",
                 "font-bold",
               )}
             >
-              ID: {ticket.id}
+              {ticket.inviteCode}
             </p>
           </div>
         </div>
 
-        {/* Security Footer */}
+        {/* Security footer */}
         <div
           className={cn(
-            "bg-slate-900",
+            "bg-foreground",
             "py-3",
             "px-6",
             "flex",
@@ -315,17 +330,17 @@ export const TicketVisualCard = ({ ticket }: TicketVisualCardProps) => {
             "gap-2",
           )}
         >
-          <LuInfo className={cn("w-3", "h-3", "text-slate-500")} />
+          <LuInfo className={cn("w-3", "h-3", "text-muted-foreground")} />
           <p
             className={cn(
               "text-[8px]",
               "font-black",
-              "text-slate-500",
+              "text-muted-foreground",
               "uppercase",
               "tracking-[0.3em]",
             )}
           >
-            Valid for single entry only
+            Non-Transferable · Identity Linked
           </p>
         </div>
       </div>

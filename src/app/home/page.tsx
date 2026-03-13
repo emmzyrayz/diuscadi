@@ -76,16 +76,18 @@ export default async function HomePage() {
   const activities = getStaticActivities();
   const continueItems = getStaticContinueItems();
 
-  // Build user prop for HomeHeader (falls back gracefully if profile missing)
-  const user = homeUser
+  // ── HomeHeader props ────────────────────────────────────────────────────────
+  const headerUser = homeUser
     ? {
         name: homeUser.name,
         avatar: homeUser.avatar,
-        status: `${homeUser.eduStatus.charAt(0).toUpperCase()}${homeUser.eduStatus.slice(1)}`,
+        status:
+          homeUser.eduStatus.charAt(0).toUpperCase() +
+          homeUser.eduStatus.slice(1).toLowerCase(),
         skill: homeUser.skills[0] ?? "",
         interest: homeUser.committeeMembership?.committee ?? "General",
         projectsParticipated: String(homeUser.eventsAttended),
-        points: homeUser.eventsRegistered * 50, // placeholder formula
+        points: homeUser.eventsRegistered * 50,
       }
     : {
         name: "Member",
@@ -97,12 +99,77 @@ export default async function HomePage() {
         points: 0,
       };
 
-  // Build hero props
+  // ── HomeHero props ──────────────────────────────────────────────────────────
+  const heroEvent = featuredEvent
+    ? {
+        image: featuredEvent.image,
+        title: featuredEvent.title,
+        daysLeft: featuredEvent.daysLeft,
+        date: featuredEvent.date,
+        category: "Upcoming Event", // static label — not stored on event doc
+        slug: featuredEvent.slug,
+      }
+    : {
+        image: "/default-hero.jpg",
+        title: "No Upcoming Featured Events",
+        category: "Announcement",
+        date: "TBD",
+      };
+
   const currentTask = {
     title: "Complete Your Profile",
     category: "Getting Started",
     progress: homeUser?.profileCompleted ? 100 : 40,
   };
+
+  // ── RecommendedSection props ────────────────────────────────────────────────
+  // homeData returns { type, title, meta, tag, slug, image }
+  // RecommendedSection expects  { id?, title, type, meta, tag, href? }
+  const mappedRecommendations = recommendations.map((r, i) => ({
+    id: i,
+    type: r.type,
+    title: r.title,
+    meta: r.meta,
+    tag: r.tag,
+    href: `/events/${r.slug}`,
+  }));
+
+  // ── UpcomingEvents props ────────────────────────────────────────────────────
+  // homeData returns HomeScheduledEvent with status "registered"|"cancelled"|"checked-in"
+  // UpcomingEvents EventStatus also includes "Confirmed"|"On Waitlist"|"Completed"
+  // Map DB statuses → display statuses
+  const mappedEvents = upcomingEvents.map((e) => ({
+    id: e.id,
+    date: e.date,
+    month: e.month,
+    type: e.type,
+    title: e.title,
+    time: e.time,
+    location: e.location,
+    status: (e.status === "checked-in"
+      ? "Confirmed"
+      : e.status === "cancelled"
+        ? "Completed"
+        : "Confirmed") as "Confirmed" | "On Waitlist" | "Completed",
+    link: `/events/${e.slug}`,
+  }));
+
+  // ── Announcements props ─────────────────────────────────────────────────────
+  // StaticAnnouncement id is number — Announcements expects string | number — fine as-is
+  const mappedAnnouncements = announcements.map((a) => ({
+    id: a.id,
+    type: a.type,
+    title: a.title,
+    desc: a.desc,
+  }));
+
+  // ── RecentActivity props ────────────────────────────────────────────────────
+  const mappedActivities = activities.map((a) => ({
+    id: a.id,
+    content: a.content,
+    target: a.target,
+    time: a.time,
+  }));
 
   return (
     <main
@@ -117,35 +184,24 @@ export default async function HomePage() {
         "h-full",
       )}
     >
-      <HomeHeader user={user} />
+      <HomeHeader user={headerUser} />
 
-      <HomeHero
-        // Use a fallback object if featuredEvent is null/undefined
-        featuredEvent={
-          featuredEvent ?? {
-            title: "No Upcoming Featured Events",
-            category: "Announcement",
-            date: "TBD",
-            image: "/default-hero.jpg",
-          }
-        }
-        currentTask={currentTask}
-      />
+      <HomeHero featuredEvent={heroEvent} currentTask={currentTask} />
 
       <QuickActions actions={quickActions} />
 
       <ContinueSection items={continueItems} />
 
       <RecommendedSection
-        recommendations={recommendations}
+        recommendations={mappedRecommendations}
         userInterests={homeUser?.skills.join(" & ") ?? "General"}
       />
 
-      <UpcomingEvents events={upcomingEvents} />
+      <UpcomingEvents events={mappedEvents} />
 
-      <RecentActivity activities={activities} />
+      <RecentActivity activities={mappedActivities} />
 
-      <Announcements announcements={announcements} />
+      <Announcements announcements={mappedAnnouncements} />
 
       <HomeCTAOptional />
     </main>

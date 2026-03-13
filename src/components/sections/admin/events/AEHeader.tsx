@@ -9,20 +9,66 @@ export const AdminEventsHeader: React.FC = () => {
 
   return (
     <>
-      <div className={cn('flex', 'flex-col', 'md:flex-row', 'md:items-center', 'justify-between', 'gap-6', 'mb-10')}>
+      <div
+        className={cn(
+          "flex",
+          "flex-col",
+          "md:flex-row",
+          "md:items-center",
+          "justify-between",
+          "gap-6",
+          "mb-10",
+        )}
+      >
         {/* 1. Context & Identity */}
         <div className="space-y-2">
-          <div className={cn('flex', 'items-center', 'gap-3')}>
-            <div className={cn('w-10', 'h-10', 'rounded-xl', 'bg-primary/10', 'flex', 'items-center', 'justify-center', 'text-primary', 'border', 'border-primary/20', 'shadow-sm')}>
-              <LuCalendarPlus className={cn('w-5', 'h-5')} />
+          <div className={cn("flex", "items-center", "gap-3")}>
+            <div
+              className={cn(
+                "w-10",
+                "h-10",
+                "rounded-xl",
+                "bg-primary/10",
+                "flex",
+                "items-center",
+                "justify-center",
+                "text-primary",
+                "border",
+                "border-primary/20",
+                "shadow-sm",
+              )}
+            >
+              <LuCalendarPlus className={cn("w-5", "h-5")} />
             </div>
-            <h1 className={cn('text-3xl', 'font-black', 'text-slate-900', 'tracking-tighter', 'uppercase')}>
+            <h1
+              className={cn(
+                "text-3xl",
+                "font-black",
+                "text-foreground",
+                "tracking-tighter",
+                "uppercase",
+              )}
+            >
               Manage Events
             </h1>
           </div>
-          <div className={cn('flex', 'items-center', 'gap-2', 'text-slate-500')}>
-            <LuInfo className={cn('w-3.5', 'h-3.5')} />
-            <p className={cn('text-[10px]', 'font-bold', 'uppercase', 'tracking-widest')}>
+          <div
+            className={cn(
+              "flex",
+              "items-center",
+              "gap-2",
+              "text-muted-foreground",
+            )}
+          >
+            <LuInfo className={cn("w-3.5", "h-3.5")} />
+            <p
+              className={cn(
+                "text-[10px]",
+                "font-bold",
+                "uppercase",
+                "tracking-widest",
+              )}
+            >
               Create, edit, and oversee all platform sessions and summits
             </p>
           </div>
@@ -31,12 +77,59 @@ export const AdminEventsHeader: React.FC = () => {
         {/* 2. Primary CTA */}
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className={cn('group', 'relative', 'flex', 'items-center', 'gap-3', 'px-8', 'py-4', 'bg-slate-900', 'text-white', 'rounded-[1.5rem]', 'overflow-hidden', 'transition-all', 'hover:scale-[1.02]', 'active:scale-95', 'shadow-xl', 'shadow-slate-900/20')}
+          className={cn(
+            "group",
+            "relative",
+            "flex",
+            "items-center",
+            "gap-3",
+            "px-8",
+            "py-4",
+            "bg-foreground",
+            "text-background",
+            "rounded-[1.5rem]",
+            "overflow-hidden",
+            "transition-all",
+            "hover:scale-[1.02]",
+            "active:scale-95",
+            "shadow-xl",
+            "shadow-foreground/20",
+          )}
         >
-          <div className={cn('absolute', 'inset-0', 'bg-primary', 'translate-y-full', 'group-hover:translate-y-0', 'transition-transform', 'duration-300')} />
+          <div
+            className={cn(
+              "absolute",
+              "inset-0",
+              "bg-primary",
+              "translate-y-full",
+              "group-hover:translate-y-0",
+              "transition-transform",
+              "duration-300",
+            )}
+          />
 
-          <LuPlus className={cn('relative', 'z-10', 'w-5', 'h-5', 'group-hover:text-slate-900', 'transition-colors')} />
-          <span className={cn('relative', 'z-10', 'text-[11px]', 'font-black', 'uppercase', 'tracking-[0.2em]', 'group-hover:text-slate-900', 'transition-colors')}>
+          <LuPlus
+            className={cn(
+              "relative",
+              "z-10",
+              "w-5",
+              "h-5",
+              "group-hover:text-foreground",
+              "transition-colors",
+            )}
+          />
+          <span
+            className={cn(
+              "relative",
+              "z-10",
+              "text-[11px]",
+              "font-black",
+              "uppercase",
+              "tracking-[0.2em]",
+              "group-hover:text-foreground",
+              "transition-colors",
+            )}
+          >
             Create New Event
           </span>
         </button>

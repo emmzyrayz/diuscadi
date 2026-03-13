@@ -16,7 +16,7 @@ export default function AdminDashboard() {
     <div
       className={cn(
         "min-h-screen w-full mt-20",
-        "bg-[#F8FAFC]",
+        "bg-background",
         "flex",
         "overflow-hidden",
       )}
@@ -38,7 +38,7 @@ export default function AdminDashboard() {
           className={cn(
             "fixed",
             "inset-0",
-            "bg-slate-900/50",
+            "bg-foreground/50",
             "backdrop-blur-sm",
             "z-40",
             "lg:hidden",
@@ -65,8 +65,8 @@ export default function AdminDashboard() {
             "items-center",
             "justify-between",
             "p-4",
-            "bg-slate-900",
-            "text-white",
+            "bg-foreground",
+            "text-background",
           )}
         >
           <span
@@ -81,7 +81,7 @@ export default function AdminDashboard() {
           </span>
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={cn("p-2", "bg-white/10", "rounded-lg")}
+            className={cn("p-2", "bg-background/10", "rounded-lg")}
           >
             {isSidebarOpen ? (
               <LuX className={cn("w-5", "h-5")} />

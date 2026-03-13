@@ -62,7 +62,7 @@ export const SigninForm: React.FC = () => {
   const displayError = localErr ?? error?.message ?? null;
 
   return (
-    <form className={cn('space-y-6', 'w-full')} onSubmit={handleSubmit}>
+    <form className={cn("space-y-6", "w-full")} onSubmit={handleSubmit}>
       {/* ── Error banner ────────────────────────────────────────────────── */}
       <AnimatePresence>
         {displayError && (
@@ -71,9 +71,18 @@ export const SigninForm: React.FC = () => {
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className={cn('px-4', 'py-3', 'bg-red-50', 'border', 'border-red-100', 'rounded-xl')}
+            className={cn(
+              "px-4",
+              "py-3",
+              "bg-red-50",
+              "border",
+              "border-red-100",
+              "rounded-xl",
+            )}
           >
-            <p className={cn('text-[10px]', 'font-bold', 'text-red-500')}>{displayError}</p>
+            <p className={cn("text-[10px]", "font-bold", "text-red-500")}>
+              {displayError}
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -100,7 +109,14 @@ export const SigninForm: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
-                className={cn('text-[8px]', 'font-bold', 'text-slate-400', 'uppercase', 'tracking-widest', 'px-1')}
+                className={cn(
+                  "text-[8px]",
+                  "font-bold",
+                  "text-muted-foreground",
+                  "uppercase",
+                  "tracking-widest",
+                  "px-1",
+                )}
               >
                 {idType === "phone"
                   ? "📱 Signing in with phone number"
@@ -125,19 +141,52 @@ export const SigninForm: React.FC = () => {
       </div>
 
       {/* ── Remember me + Forgot password ───────────────────────────────── */}
-      <div className={cn('flex', 'items-center', 'justify-between', 'px-2')}>
-        <label className={cn('flex', 'items-center', 'gap-2', 'cursor-pointer', 'group')}>
+      <div className={cn("flex", "items-center", "justify-between", "px-2")}>
+        <label
+          className={cn(
+            "flex",
+            "items-center",
+            "gap-2",
+            "cursor-pointer",
+            "group",
+          )}
+        >
           <input
             type="checkbox"
-            className={cn('w-4', 'h-4', 'rounded', 'border-slate-200', 'text-slate-900', 'focus:ring-0')}
+            className={cn(
+              "w-4",
+              "h-4",
+              "rounded",
+              "border-border",
+              "text-foreground",
+              "focus:ring-0",
+            )}
           />
-          <span className={cn('text-[10px]', 'font-black', 'text-slate-400', 'uppercase', 'tracking-widest', 'group-hover:text-slate-900', 'transition-colors')}>
+          <span
+            className={cn(
+              "text-[10px]",
+              "font-black",
+              "text-muted-foreground",
+              "uppercase",
+              "tracking-widest",
+              "group-hover:text-foreground",
+              "transition-colors",
+            )}
+          >
             Remember Me
           </span>
         </label>
         <Link
           href="/auth/forgot-password"
-          className={cn('text-[10px]', 'font-black', 'text-slate-400', 'uppercase', 'tracking-widest', 'hover:text-primary', 'transition-colors')}
+          className={cn(
+            "text-[10px]",
+            "font-black",
+            "text-muted-foreground",
+            "uppercase",
+            "tracking-widest",
+            "hover:text-primary",
+            "transition-colors",
+          )}
         >
           Forgot Password?
         </Link>
@@ -147,14 +196,48 @@ export const SigninForm: React.FC = () => {
       <button
         type="submit"
         disabled={isLoading}
-        className={cn('w-full', 'py-4', 'bg-slate-900', 'text-white', 'rounded-2xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-[0.2em]', 'hover:bg-secondary', 'hover:border-primary', 'border', 'border-transparent', 'hover:text-slate-900', 'duration-700', 'ease-in-out', 'transition-all', 'shadow-xl', 'shadow-slate-900/10', 'disabled:opacity-60', 'disabled:cursor-not-allowed', 'flex', 'items-center', 'justify-center', 'gap-2')}
+        className={cn(
+          "w-full",
+          "py-4",
+          "bg-foreground",
+          "text-background",
+          "rounded-2xl",
+          "text-[10px]",
+          "font-black",
+          "uppercase",
+          "tracking-[0.2em]",
+          "hover:bg-secondary",
+          "hover:border-primary",
+          "border",
+          "border-transparent",
+          "hover:text-foreground",
+          "duration-700",
+          "ease-in-out",
+          "transition-all",
+          "shadow-xl",
+          "shadow-foreground/10",
+          "disabled:opacity-60",
+          "disabled:cursor-not-allowed",
+          "flex",
+          "items-center",
+          "justify-center",
+          "gap-2",
+        )}
       >
         {isLoading ? (
           <>
             <motion.span
               animate={{ rotate: 360 }}
               transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-              className={cn('w-3.5', 'h-3.5', 'border-2', 'border-white/30', 'border-t-white', 'rounded-full', 'inline-block')}
+              className={cn(
+                "w-3.5",
+                "h-3.5",
+                "border-2",
+                "border-background/30",
+                "border-t-background",
+                "rounded-full",
+                "inline-block",
+              )}
             />
             Signing In...
           </>
@@ -164,19 +247,29 @@ export const SigninForm: React.FC = () => {
       </button>
 
       {/* ── Divider ─────────────────────────────────────────────────────── */}
-      <div className={cn('relative', 'py-2')}>
-        <div className={cn('absolute', 'inset-0', 'flex', 'items-center')}>
-          <span className={cn('w-full', 'border-t', 'border-slate-100')} />
+      <div className={cn("relative", "py-2")}>
+        <div className={cn("absolute", "inset-0", "flex", "items-center")}>
+          <span className={cn("w-full", "border-t", "border-border")} />
         </div>
-        <div className={cn('relative', 'flex', 'justify-center')}>
-          <span className={cn('text-[8px]', 'font-black', 'uppercase', 'tracking-[0.3em]', 'text-slate-300', 'bg-white', 'px-4')}>
+        <div className={cn("relative", "flex", "justify-center")}>
+          <span
+            className={cn(
+              "text-[8px]",
+              "font-black",
+              "uppercase",
+              "tracking-[0.3em]",
+              "text-slate-300",
+              "bg-background",
+              "px-4",
+            )}
+          >
             Or Continue With
           </span>
         </div>
       </div>
 
       {/* ── Social buttons (Coming Soon) ─────────────────────────────────── */}
-      <div className={cn('grid', 'grid-cols-2', 'gap-4')}>
+      <div className={cn("grid", "grid-cols-2", "gap-4")}>
         <SocialButton icon={FcGoogle} label="Google" />
         <SocialButton icon={LuGithub} label="Github" />
       </div>
@@ -192,22 +285,78 @@ const SocialButton = ({
   icon: IconType;
   label: string;
 }) => (
-  <div className={cn('relative', 'group')}>
+  <div className={cn("relative", "group")}>
     <button
       type="button"
       disabled
-      className={cn('w-full', 'flex', 'items-center', 'justify-center', 'gap-3', 'py-3', 'border', 'border-slate-100', 'rounded-xl', 'bg-slate-50/50', 'opacity-50', 'cursor-not-allowed', 'transition-opacity')}
+      className={cn(
+        "w-full",
+        "flex",
+        "items-center",
+        "justify-center",
+        "gap-3",
+        "py-3",
+        "border",
+        "border-border",
+        "rounded-xl",
+        "bg-muted/50",
+        "opacity-50",
+        "cursor-not-allowed",
+        "transition-opacity",
+      )}
     >
-      <Icon className={cn('w-4', 'h-4')} />
-      <span className={cn('text-[9px]', 'font-black', 'text-slate-600', 'uppercase', 'tracking-widest')}>
+      <Icon className={cn("w-4", "h-4")} />
+      <span
+        className={cn(
+          "text-[9px]",
+          "font-black",
+          "text-slate-600",
+          "uppercase",
+          "tracking-widest",
+        )}
+      >
         {label}
       </span>
     </button>
     {/* Coming soon tooltip */}
-    <div className={cn('absolute', '-top-8', 'left-1/2', '-translate-x-1/2', 'opacity-0', 'group-hover:opacity-100', 'transition-opacity', 'pointer-events-none')}>
-      <div className={cn('bg-slate-900', 'text-white', 'text-[8px]', 'font-black', 'uppercase', 'tracking-widest', 'px-2.5', 'py-1.5', 'rounded-lg', 'whitespace-nowrap')}>
+    <div
+      className={cn(
+        "absolute",
+        "-top-8",
+        "left-1/2",
+        "-translate-x-1/2",
+        "opacity-0",
+        "group-hover:opacity-100",
+        "transition-opacity",
+        "pointer-events-none",
+      )}
+    >
+      <div
+        className={cn(
+          "bg-foreground",
+          "text-background",
+          "text-[8px]",
+          "font-black",
+          "uppercase",
+          "tracking-widest",
+          "px-2.5",
+          "py-1.5",
+          "rounded-lg",
+          "whitespace-nowrap",
+        )}
+      >
         Coming Soon
-        <div className={cn('absolute', 'top-full', 'left-1/2', '-translate-x-1/2', 'border-4', 'border-transparent', 'border-t-slate-900')} />
+        <div
+          className={cn(
+            "absolute",
+            "top-full",
+            "left-1/2",
+            "-translate-x-1/2",
+            "border-4",
+            "border-transparent",
+            "border-t-foreground",
+          )}
+        />
       </div>
     </div>
   </div>

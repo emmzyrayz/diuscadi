@@ -140,16 +140,16 @@ export const ForgotPasswordForm: React.FC = () => {
       {/* ── Progress bar ──────────────────────────────────────────────────── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+          <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">
             {step === "request" ? "Request Reset" : "Verify Code"}
           </span>
-          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+          <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">
             {step === "request" ? "1" : "2"} / 2
           </span>
         </div>
-        <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+        <div className="h-1 w-full text-muted rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-slate-900 rounded-full"
+            className="h-full bg-foreground rounded-full"
             animate={{ width: step === "request" ? "50%" : "100%" }}
             transition={{ duration: 0.4, ease: EASE }}
           />
@@ -199,7 +199,7 @@ export const ForgotPasswordForm: React.FC = () => {
                 autoComplete="email"
               />
 
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center leading-relaxed px-2">
+              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center leading-relaxed px-2">
                 Enter the email address linked to your DIUSCADI account.
                 We&apos;ll send a 6-digit reset code.
               </p>
@@ -207,7 +207,7 @@ export const ForgotPasswordForm: React.FC = () => {
               <button
                 type="submit"
                 disabled={requesting}
-                className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-secondary hover:text-slate-900 hover:border-primary border border-transparent transition-all duration-700 shadow-xl shadow-slate-900/10 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full py-4 bg-foreground text-background rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-secondary hover:text-foreground hover:border-primary border border-transparent transition-all duration-700 shadow-xl shadow-foreground/10 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {requesting ? (
                   <>
@@ -244,14 +244,14 @@ export const ForgotPasswordForm: React.FC = () => {
               className="space-y-5"
             >
               {/* Sent-to badge */}
-              <div className="flex items-center gap-2.5 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl">
+              <div className="flex items-center gap-2.5 px-4 py-3 bg-muted border border-border rounded-xl">
                 <LuCircleCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <p className="text-[9px] font-bold text-slate-500 tracking-wide truncate">
-                  Code sent to <span className="text-slate-900">{email}</span>
+                <p className="text-[9px] font-bold text-muted-foreground tracking-wide truncate">
+                  Code sent to <span className="text-foreground">{email}</span>
                 </p>
               </div>
 
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center leading-relaxed">
+              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center leading-relaxed">
                 Enter the 6-digit code from your email to continue.
               </p>
 
@@ -280,7 +280,7 @@ export const ForgotPasswordForm: React.FC = () => {
                 type="button"
                 onClick={handleVerify}
                 disabled={verifying || digits.some((d) => !d)}
-                className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-secondary hover:text-slate-900 hover:border-primary border border-transparent transition-all duration-700 shadow-xl shadow-slate-900/10 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full py-4 bg-foreground text-background rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-secondary hover:text-foreground hover:border-primary border border-transparent transition-all duration-700 shadow-xl shadow-foreground/10 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {verifying ? (
                   <>
@@ -311,7 +311,7 @@ export const ForgotPasswordForm: React.FC = () => {
                     setOtpError("");
                     clearError();
                   }}
-                  className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors"
+                  className="flex items-center gap-1.5 text-[9px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors"
                 >
                   <LuArrowLeft className="w-3 h-3" />
                   Change Email
@@ -321,7 +321,7 @@ export const ForgotPasswordForm: React.FC = () => {
                   type="button"
                   onClick={handleResend}
                   disabled={resending || cooldown > 0}
-                  className="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="text-[9px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {resent
                     ? "Code Resent!"

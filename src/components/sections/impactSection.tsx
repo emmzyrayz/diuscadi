@@ -1,4 +1,4 @@
-'use client'
+"use client";
 import React from "react";
 import { motion } from "framer-motion";
 import { Mic2, Hammer, Briefcase, GraduationCap } from "lucide-react";
@@ -61,16 +61,16 @@ export const ImpactSection = () => {
               transition={{ delay: idx * 0.1, duration: 0.5 }}
               className={cn(
                 "relative group p-8 rounded-[2rem] cursor-pointer",
-                "bg-white/5 backdrop-blur-sm border",
+                "bg-background/5 backdrop-blur-sm border",
                 stat.border,
-                "hover:bg-white/10 transition-all duration-500",
+                "hover:bg-background/10 transition-all duration-500",
               )}
             >
               {/* Icon Circle */}
               <div
                 className={cn(
                   "w-14 h-14 rounded-2xl flex items-center justify-center mb-6",
-                  "bg-white/5 border border-white/10 group-hover:scale-110 transition-transform duration-500",
+                  "bg-background/5 border border-background/10 group-hover:scale-110 transition-transform duration-500",
                 )}
               >
                 <stat.icon className={cn("w-7 h-7", stat.color)} />
@@ -78,14 +78,14 @@ export const ImpactSection = () => {
 
               {/* Number and Label */}
               <div className="space-y-2">
-                <h3 className="text-4xl md:text-5xl font-black text-white tracking-tight">
+                <h3 className="text-4xl md:text-5xl font-black text-background tracking-tight">
                   {stat.value}
                 </h3>
                 <div>
                   <p className="text-lg font-bold text-slate-200">
                     {stat.label}
                   </p>
-                  <p className="text-sm text-slate-400 mt-1">{stat.subtext}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{stat.subtext}</p>
                 </div>
               </div>
 
@@ -110,7 +110,7 @@ export const ImpactSection = () => {
         <motion.p
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
-          className="text-center mt-16 text-slate-500 text-sm font-medium tracking-widest uppercase"
+          className="text-center mt-16 text-muted-foreground text-sm font-medium tracking-widest uppercase"
         >
           Data verified by the DIUSCADI Academic Committee
         </motion.p>

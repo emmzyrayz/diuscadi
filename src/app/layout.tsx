@@ -6,7 +6,6 @@ import LayoutWrapper from "@/components/layoutWrapper";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
 import { ProvidersWrapper } from "./providers";
-import { AuthProvider } from "@/context/AuthContext";
 import { RouteGuard } from "@/components/RouteGaurd";
 
 const geistSans = Geist({
@@ -34,17 +33,24 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${inter.className} ${geistMono.variable} min-h-screen antialiased`}
+        className={`${geistSans.variable} ${inter.className} ${geistMono.variable} min-h-screen w-full antialiased`}
       >
-        <AuthProvider>
+        {/*
+          ProvidersWrapper composes all providers via the registry:
+          AuthProvider → PlatformProvider → UserProvider → EventProvider →
+          TicketProvider → AuthenticatedProviders (Application + Admin) →
+          HealthProvider → NotFoundProvider
+
+          RouteGuard sits inside all providers so it can read useAuth()
+          and useHealthReporter() without prop drilling.
+        */}
+        <ProvidersWrapper>
           <RouteGuard>
-            <ProvidersWrapper>
-              <LayoutWrapper navbar={<Navbar />} footer={<Footer />}>
-                {children}
-              </LayoutWrapper>
-            </ProvidersWrapper>
+            <LayoutWrapper navbar={<Navbar />} footer={<Footer />}>
+              {children}
+            </LayoutWrapper>
           </RouteGuard>
-        </AuthProvider>
+        </ProvidersWrapper>
       </body>
     </html>
   );

@@ -38,10 +38,10 @@ const TYPE_CONFIG: Record<
   },
   Alert: {
     icon: <LuInfo className={cn("w-5", "h-5")} />,
-    color: "bg-slate-900",
-    lightColor: "bg-slate-50",
-    borderColor: "border-slate-200",
-    textColor: "text-slate-900",
+    color: "bg-foreground",
+    lightColor: "bg-muted",
+    borderColor: "border-border",
+    textColor: "text-foreground",
   },
 };
 
@@ -69,7 +69,7 @@ export const Announcements = ({ announcements }: AnnouncementsProps) => {
           className={cn(
             "text-xl",
             "font-black",
-            "text-slate-900",
+            "text-foreground",
             "uppercase",
             "tracking-tighter",
           )}
@@ -110,7 +110,7 @@ export const Announcements = ({ announcements }: AnnouncementsProps) => {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.1 }}
               className={cn(
-                "group p-6 rounded-[2rem] border bg-white flex flex-col h-full transition-all duration-300",
+                "group p-6 rounded-[2rem] border bg-background flex flex-col h-full transition-all duration-300",
                 "hover:shadow-xl hover:shadow-slate-200/40",
                 config.borderColor,
               )}
@@ -120,7 +120,7 @@ export const Announcements = ({ announcements }: AnnouncementsProps) => {
               >
                 <div
                   className={cn(
-                    "w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-current/20",
+                    "w-12 h-12 rounded-2xl flex items-center justify-center text-background shadow-lg shadow-current/20",
                     config.color,
                   )}
                 >
@@ -142,7 +142,7 @@ export const Announcements = ({ announcements }: AnnouncementsProps) => {
                   className={cn(
                     "text-lg",
                     "font-bold",
-                    "text-slate-900",
+                    "text-foreground",
                     "mb-2",
                     "leading-tight",
                     "group-hover:text-primary",
@@ -152,7 +152,11 @@ export const Announcements = ({ announcements }: AnnouncementsProps) => {
                   {item.title}
                 </h4>
                 <p
-                  className={cn("text-sm", "text-slate-500", "leading-relaxed")}
+                  className={cn(
+                    "text-sm",
+                    "text-muted-foreground",
+                    "leading-relaxed",
+                  )}
                 >
                   {item.desc}
                 </p>
@@ -166,7 +170,7 @@ export const Announcements = ({ announcements }: AnnouncementsProps) => {
                   "gap-2",
                   "text-sm",
                   "font-bold",
-                  "text-slate-900",
+                  "text-foreground",
                   "group-hover:text-primary",
                   "transition-all",
                 )}

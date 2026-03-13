@@ -13,7 +13,7 @@ export const Newsletter = () => {
   };
 
   return (
-    <section className="py-24 border-t border-slate-100">
+    <section className="py-24 border-t border-border">
       <div className="container mx-auto px-6">
         <div className="flex flex-col lg:flex-row items-center gap-12 max-w-6xl mx-auto">
           <div className="lg:w-1/2">
@@ -25,7 +25,7 @@ export const Newsletter = () => {
                 Stay Updated
               </span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-black text-foreground mb-4">
               Never miss a career <br /> opportunity.
             </h2>
             <p className="text-lg text-slate-600">
@@ -36,24 +36,24 @@ export const Newsletter = () => {
 
           <div className="lg:w-1/2 w-full">
             <form onSubmit={handleSubmit} className="relative">
-              <div className="flex flex-col sm:flex-row gap-3 p-2 bg-slate-100 rounded-[2.5rem] border border-slate-200">
+              <div className="flex flex-col sm:flex-row gap-3 p-2 text-muted rounded-[2.5rem] border border-border">
                 <input
                   type="email"
                   placeholder="Enter your email address"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="flex-1 bg-transparent px-6 py-4 outline-none text-slate-900 placeholder:text-slate-400 font-medium"
+                  className="flex-1 bg-transparent px-6 py-4 outline-none text-foreground placeholder:text-muted-foreground font-medium"
                 />
                 <button
                   type="submit"
-                  className="bg-slate-900 text-white px-8 py-4 rounded-full font-bold flex items-center justify-center gap-2 hover:bg-primary transition-all group"
+                  className="bg-foreground text-background px-8 py-4 rounded-full font-bold flex items-center justify-center gap-2 hover:bg-primary transition-all group"
                 >
                   Join the Community
                   <Send className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 </button>
               </div>
-              <p className="mt-4 text-sm text-slate-400 text-center sm:text-left ml-6">
+              <p className="mt-4 text-sm text-muted-foreground text-center sm:text-left ml-6">
                 Join 2,000+ Nigerian youths already on the list.
               </p>
             </form>

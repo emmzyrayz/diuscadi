@@ -13,13 +13,13 @@ import {
 } from "react-icons/lu";
 
 interface KPICardProps {
-    title: string;
-    value: string;
-    trend: string;
-    isPositive: boolean;
-    icon: IconType;
-    color: string;
-    bg: string;
+  title: string;
+  value: string;
+  trend: string;
+  isPositive: boolean;
+  icon: IconType;
+  color: string;
+  bg: string;
 }
 
 export const AdminAnalyticsOverviewStats: React.FC = () => {
@@ -54,8 +54,8 @@ export const AdminAnalyticsOverviewStats: React.FC = () => {
         trend="+12.4%"
         isPositive={true}
         icon={LuUsers}
-        color="text-slate-900"
-        bg="bg-slate-50"
+        color="text-foreground"
+        bg="bg-muted"
       />
 
       {/* 4. AttendanceRateCard */}
@@ -104,7 +104,7 @@ const KPICard = ({
   color,
   bg,
 }: KPICardProps) => (
-  <div className="bg-white border border-slate-100 p-6 rounded-[2rem] shadow-sm hover:shadow-md transition-all group">
+  <div className="bg-background border border-border p-6 rounded-[2rem] shadow-sm hover:shadow-md transition-all group">
     <div className="flex items-center justify-between mb-4">
       <div
         className={`w-10 h-10 ${bg} ${color} rounded-xl flex items-center justify-center transition-transform group-hover:scale-110`}
@@ -130,10 +130,10 @@ const KPICard = ({
     </div>
 
     <div>
-      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
+      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">
         {title}
       </p>
-      <h3 className="text-2xl font-black text-slate-900 tracking-tighter">
+      <h3 className="text-2xl font-black text-foreground tracking-tighter">
         {value}
       </h3>
     </div>

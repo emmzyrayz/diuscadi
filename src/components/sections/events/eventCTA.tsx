@@ -71,7 +71,7 @@ export const NewsletterOrCTA = () => {
             className={cn(
               "inline-flex",
               "p-3",
-              "bg-white/10",
+              "bg-background/10",
               "backdrop-blur-md",
               "rounded-2xl",
               "mb-6",
@@ -86,7 +86,7 @@ export const NewsletterOrCTA = () => {
               "text-3xl",
               "md:text-5xl",
               "font-black",
-              "text-white",
+              "text-background",
               "mb-4",
               "tracking-tighter",
             )}
@@ -97,7 +97,7 @@ export const NewsletterOrCTA = () => {
 
           <p
             className={cn(
-              "text-slate-400",
+              "text-muted-foreground",
               "text-base",
               "md:text-lg",
               "mb-10",
@@ -117,9 +117,9 @@ export const NewsletterOrCTA = () => {
                 "md:flex-row",
                 "gap-3",
                 "p-2",
-                "bg-white/5",
+                "bg-background/5",
                 "border",
-                "border-white/10",
+                "border-background/10",
                 "rounded-[2rem]",
                 "backdrop-blur-sm",
               )}
@@ -131,7 +131,7 @@ export const NewsletterOrCTA = () => {
                     "left-5",
                     "top-1/2",
                     "-translate-y-1/2",
-                    "text-slate-500",
+                    "text-muted-foreground",
                     "w-5",
                     "h-5",
                   )}
@@ -146,8 +146,8 @@ export const NewsletterOrCTA = () => {
                     "pr-4",
                     "py-4",
                     "bg-transparent",
-                    "text-white",
-                    "placeholder:text-slate-500",
+                    "text-background",
+                    "placeholder:text-muted-foreground",
                     "focus:outline-none",
                     "text-sm",
                     "font-bold",
@@ -161,7 +161,7 @@ export const NewsletterOrCTA = () => {
                   "py-4",
                   "bg-primary",
                   "hover:bg-orange-600",
-                  "text-white",
+                  "text-background",
                   "font-black",
                   "rounded-[1.5rem]",
                   "transition-all",
@@ -210,7 +210,7 @@ export const NewsletterOrCTA = () => {
             className={cn(
               "mt-6",
               "text-[10px]",
-              "text-slate-500",
+              "text-muted-foreground",
               "font-bold",
               "uppercase",
               "tracking-widest",

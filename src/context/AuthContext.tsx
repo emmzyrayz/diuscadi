@@ -15,7 +15,9 @@ import type {
   CommitteeMembership,
   Skill,
   PhoneNumber,
+  UserPreferences,
 } from "@/types/domain";
+import { DEFAULT_PREFERENCES } from "@/types/domain";
 
 // Re-export for consumers (RouteGuard, forms, etc.)
 export type { EduStatus, AccountRole, Committee, CommitteeMembership, Skill };
@@ -42,6 +44,7 @@ export interface User {
   skills: Skill[];
   membershipStatus: "pending" | "approved" | "suspended";
   profileCompleted: boolean;
+  preferences: UserPreferences; // ← loaded from /api/auth/me so ThemeProvider gets it immediately
 }
 
 export interface SigninCredentials {
@@ -167,6 +170,9 @@ function parseUserFromMe(
     membershipStatus: (userData.membershipStatus ??
       "pending") as User["membershipStatus"],
     profileCompleted: userData.profileCompleted as boolean,
+    preferences:
+      (userData.preferences as UserPreferences | undefined) ??
+      DEFAULT_PREFERENCES,
   };
 }
 

@@ -22,7 +22,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({ children }) => {
       className="w-full max-w-md"
     >
       <div
-        className="bg-white/80 backdrop-blur-xl border border-slate-100 rounded-[2.5rem] p-10 shadow-2xl shadow-slate-200/50 relative overflow-hidden"
+        className="bg-background/80 backdrop-blur-xl border border-border rounded-[2.5rem] p-10 shadow-2xl shadow-slate-200/50 relative overflow-hidden"
         // Isolate stacking context so backdrop-filter renders correctly on mobile Safari
         style={{ isolation: "isolate" }}
       >
@@ -67,14 +67,14 @@ export const AuthCard: React.FC<AuthCardProps> = ({ children }) => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5, duration: 0.4 }}
-        className="mt-8 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed px-10"
+        className="mt-8 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed px-10"
       >
         By continuing, you agree to the{" "}
-        <span className="text-slate-900 cursor-pointer hover:underline">
+        <span className="text-foreground cursor-pointer hover:underline">
           Terms of Service
         </span>{" "}
         and{" "}
-        <span className="text-slate-900 cursor-pointer hover:underline">
+        <span className="text-foreground cursor-pointer hover:underline">
           Privacy Policy
         </span>
         .

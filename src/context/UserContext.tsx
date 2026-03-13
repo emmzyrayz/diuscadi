@@ -32,7 +32,9 @@ import type {
   CommitteeMembership,
   Skill,
   PhoneNumber,
+  UserPreferences,
 } from "@/types/domain";
+import { DEFAULT_PREFERENCES } from "@/types/domain";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,6 +80,7 @@ export interface UserProfile {
     lastEventRegisteredAt?: string;
   };
   signupInviteCode: string;
+  preferences: UserPreferences;
   createdAt: string;
   updatedAt: string;
 }
@@ -105,6 +108,7 @@ interface UserContextType {
   updateSkills: (skills: Skill[]) => Promise<UpdateResult>;
   // Only supports leaving (null) — joining requires POST /api/applications
   updateCommittee: (committee: Committee | null) => Promise<UpdateResult>;
+  updatePreferences: (prefs: Partial<UserPreferences>) => Promise<UpdateResult>;
   clearError: () => void;
 }
 
@@ -151,6 +155,8 @@ function parseProfile(raw: Record<string, unknown>): UserProfile {
       eventsAttended: 0,
     }) as UserProfile["analytics"],
     signupInviteCode: String(raw.signupInviteCode ?? ""),
+    preferences:
+      (raw.preferences as UserPreferences | undefined) ?? DEFAULT_PREFERENCES,
     createdAt: String(raw.createdAt ?? ""),
     updatedAt: String(raw.updatedAt ?? ""),
   };
@@ -224,6 +230,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       profile: undefined,
       analytics: { eventsRegistered: 0, eventsAttended: 0 },
       signupInviteCode: "",
+      preferences: user.preferences, // ← from AuthContext.user, populated by /api/auth/me
       createdAt: "",
       updatedAt: "",
     });
@@ -246,6 +253,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     }
   }, [isAuthenticated]);
+
+  // ── Step 2b: auto-fetch full profile on mount ────────────────────────────
+  // Runs once when sessionStatus becomes "restored" (i.e. auth check done).
+  // Populates preferences, Institution, analytics etc. across ALL pages so
+  // ThemeProvider always has the real theme — no page needs to call
+  // refreshProfile() manually just to get the correct accent/mode.
+  useEffect(() => {
+    if (sessionStatus !== "restored" || !isAuthenticated) return;
+    refreshProfile();
+  }, [sessionStatus, isAuthenticated, refreshProfile]);
 
   const updateProfile = useCallback(
     (data: {
@@ -301,6 +318,45 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
+  const updatePreferences = useCallback(
+    async (prefs: Partial<UserPreferences>): Promise<UpdateResult> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const token =
+          typeof window !== "undefined"
+            ? localStorage.getItem("diuscadi_token")
+            : null;
+        const res = await fetch("/api/users/preferences", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(prefs),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? "Failed to update preferences");
+          return { success: false, error: data.error };
+        }
+        // Merge the returned preferences back into profile
+        setProfile((prev) =>
+          prev ? { ...prev, preferences: data.preferences } : prev,
+        );
+        return { success: true };
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : "Failed to update preferences";
+        setError(msg);
+        return { success: false, error: msg };
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
+
   const clearError = useCallback(() => setError(null), []);
 
   return (
@@ -314,6 +370,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         updateInstitution,
         updateSkills,
         updateCommittee,
+        updatePreferences,
         clearError,
       }}
     >

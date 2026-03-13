@@ -98,7 +98,7 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
             className={cn(
               "absolute",
               "inset-0",
-              "bg-slate-900/80",
+              "bg-foreground/80",
               "backdrop-blur-sm",
             )}
           />
@@ -114,7 +114,7 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
               "relative",
               "w-full",
               "max-w-5xl",
-              "bg-white",
+              "bg-background",
               "rounded-[3rem]",
               "shadow-2xl",
               "overflow-hidden",
@@ -136,11 +136,11 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
                 "top-6",
                 "right-6",
                 "p-3",
-                "bg-slate-50",
-                "hover:bg-slate-100",
+                "bg-muted",
+                "hover:text-muted",
                 "rounded-full",
-                "text-slate-400",
-                "hover:text-slate-900",
+                "text-muted-foreground",
+                "hover:text-foreground",
                 "transition-colors",
                 "z-10",
               )}
@@ -165,22 +165,17 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
                 className={cn(
                   "w-full",
                   "lg:w-1/3",
-                  "bg-slate-50",
+                  "bg-muted",
                   "p-10",
                   "border-r",
-                  "border-slate-100",
+                  "border-border",
                   "overflow-y-auto",
                 )}
               >
                 <UserProfileHeader user={user} />
 
                 <div
-                  className={cn(
-                    "mt-8",
-                    "pt-8",
-                    "border-t",
-                    "border-slate-200/60",
-                  )}
+                  className={cn("mt-8", "pt-8", "border-t", "border-border/60")}
                 >
                   <UserInfoSection user={user} />
                 </div>
@@ -193,7 +188,7 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
                   "lg:w-2/3",
                   "flex",
                   "flex-col",
-                  "bg-white",
+                  "bg-background",
                 )}
               >
                 {/* Tab Navigation */}
@@ -208,7 +203,7 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
                     "px-10",
                     "pt-10",
                     "border-b",
-                    "border-slate-100",
+                    "border-border",
                   )}
                 >
                   <TabButton
@@ -288,7 +283,7 @@ const UserProfileHeader: React.FC<WithUser> = ({ user }) => (
           "bg-slate-200",
           "overflow-hidden",
           "border-4",
-          "border-white",
+          "border-background",
           "shadow-lg",
         )}
       >
@@ -312,7 +307,7 @@ const UserProfileHeader: React.FC<WithUser> = ({ user }) => (
               "-bottom-2",
               "-right-2",
               "bg-emerald-500",
-              "text-white",
+              "text-background",
               "p-1.5",
               "rounded-xl",
               "border-4",
@@ -331,7 +326,7 @@ const UserProfileHeader: React.FC<WithUser> = ({ user }) => (
         className={cn(
           "text-2xl",
           "font-black",
-          "text-slate-900",
+          "text-foreground",
           "tracking-tight",
         )}
       >
@@ -431,9 +426,9 @@ const ExtendedUserInfo: React.FC<WithUser> = ({ user }) => (
         "font-black",
         "uppercase",
         "tracking-[0.2em]",
-        "text-slate-400",
+        "text-muted-foreground",
         "border-b",
-        "border-slate-100",
+        "border-border",
         "pb-4",
       )}
     >
@@ -506,9 +501,9 @@ const TicketCard: React.FC<TicketCardProps> = ({
       "items-center",
       "justify-between",
       "p-6",
-      "bg-slate-50",
+      "bg-muted",
       "border",
-      "border-slate-200",
+      "border-border",
       "rounded-3xl",
       "relative",
       "overflow-hidden",
@@ -525,9 +520,9 @@ const TicketCard: React.FC<TicketCardProps> = ({
         "-translate-y-1/2",
         "w-3",
         "h-6",
-        "bg-white",
+        "bg-background",
         "border-r",
-        "border-slate-200",
+        "border-border",
         "rounded-r-full",
       )}
     />
@@ -539,15 +534,15 @@ const TicketCard: React.FC<TicketCardProps> = ({
         "-translate-y-1/2",
         "w-3",
         "h-6",
-        "bg-white",
+        "bg-background",
         "border-l",
-        "border-slate-200",
+        "border-border",
         "rounded-l-full",
       )}
     />
 
     <div className={cn("pl-4", "space-y-1")}>
-      <h4 className={cn("text-sm", "font-black", "text-slate-900")}>
+      <h4 className={cn("text-sm", "font-black", "text-foreground")}>
         {eventName}
       </h4>
       <div
@@ -557,7 +552,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
           "gap-3",
           "text-[10px]",
           "font-bold",
-          "text-slate-400",
+          "text-muted-foreground",
           "uppercase",
           "tracking-widest",
         )}
@@ -579,7 +574,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
           "tracking-widest",
           status === "Valid"
             ? "bg-emerald-100 text-emerald-700"
-            : "bg-slate-200 text-slate-500",
+            : "bg-slate-200 text-muted-foreground",
         )}
       >
         {status}
@@ -626,7 +621,7 @@ const EventCard: React.FC<EventCardProps> = ({
     className={cn(
       "p-5",
       "border",
-      "border-slate-100",
+      "border-border",
       "rounded-2xl",
       "transition-all",
       "space-y-3",
@@ -637,21 +632,21 @@ const EventCard: React.FC<EventCardProps> = ({
       className={cn(
         "w-10",
         "h-10",
-        "bg-slate-100",
+        "text-muted",
         "rounded-xl",
         "flex",
         "items-center",
         "justify-center",
       )}
     >
-      <LuCalendar className={cn("w-5", "h-5", "text-slate-400")} />
+      <LuCalendar className={cn("w-5", "h-5", "text-muted-foreground")} />
     </motion.div>
     <div>
       <h4
         className={cn(
           "text-xs",
           "font-black",
-          "text-slate-900",
+          "text-foreground",
           "leading-tight",
         )}
       >
@@ -661,7 +656,7 @@ const EventCard: React.FC<EventCardProps> = ({
         className={cn(
           "text-[10px]",
           "font-bold",
-          "text-slate-400",
+          "text-muted-foreground",
           "uppercase",
           "tracking-widest",
           "mt-1",
@@ -675,7 +670,7 @@ const EventCard: React.FC<EventCardProps> = ({
         className={cn(
           "text-[9px]",
           "font-black",
-          "bg-slate-50",
+          "bg-muted",
           "text-slate-600",
           "px-2",
           "py-1",
@@ -716,7 +711,7 @@ const UserActivitySection: React.FC = () => (
       className={cn(
         "text-[11px]",
         "font-black",
-        "text-slate-400",
+        "text-muted-foreground",
         "uppercase",
         "tracking-widest",
       )}
@@ -745,23 +740,23 @@ const InfoRow: React.FC<InfoRowProps> = ({
         "w-10",
         "h-10",
         "rounded-xl",
-        "bg-white",
+        "bg-background",
         "border",
-        "border-slate-100",
+        "border-border",
         "flex",
         "items-center",
         "justify-center",
         "shrink-0",
       )}
     >
-      <Icon className={cn("w-4", "h-4", "text-slate-400")} />
+      <Icon className={cn("w-4", "h-4", "text-muted-foreground")} />
     </motion.div>
     <div className={cn("flex", "flex-col")}>
       <span
         className={cn(
           "text-[9px]",
           "font-black",
-          "text-slate-400",
+          "text-muted-foreground",
           "uppercase",
           "tracking-widest",
         )}
@@ -772,7 +767,7 @@ const InfoRow: React.FC<InfoRowProps> = ({
         className={cn(
           "text-xs",
           "font-bold",
-          "text-slate-900",
+          "text-foreground",
           "truncate",
           "max-w-[200px]",
         )}
@@ -795,7 +790,9 @@ const InfoBlock: React.FC<InfoBlockProps> = ({
     transition={{ delay }}
     className={cn("space-y-2")}
   >
-    <div className={cn("flex", "items-center", "gap-2", "text-slate-400")}>
+    <div
+      className={cn("flex", "items-center", "gap-2", "text-muted-foreground")}
+    >
       <Icon className={cn("w-4", "h-4")} />
       <span
         className={cn(
@@ -808,7 +805,7 @@ const InfoBlock: React.FC<InfoBlockProps> = ({
         {label}
       </span>
     </div>
-    <p className={cn("text-sm", "font-bold", "text-slate-900")}>
+    <p className={cn("text-sm", "font-bold", "text-foreground")}>
       {value || "N/A"}
     </p>
   </motion.div>
@@ -832,8 +829,8 @@ const TabButton: React.FC<TabButtonProps> = ({
       "border-b-2",
       "transition-colors",
       active
-        ? "border-primary text-slate-900"
-        : "border-transparent text-slate-400 hover:text-slate-600",
+        ? "border-primary text-foreground"
+        : "border-transparent text-muted-foreground hover:text-slate-600",
     )}
   >
     <Icon className={cn("w-4", "h-4")} />

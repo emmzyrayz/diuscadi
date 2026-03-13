@@ -1,171 +1,375 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { LuCalendar, LuMapPin,  LuClock, LuTag } from "react-icons/lu";
-import { Event } from "@/types/event";
+import { LuCalendar, LuMapPin, LuClock, LuTag } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import type { RegisterEventData } from "@/app/events/[eventId]/register/page";
 
-interface TicketEventSummaryProps {
-  event: Event;
+const FORMAT_LABEL: Record<string, string> = {
+  physical: "In-Person",
+  virtual: "Virtual",
+  hybrid: "Hybrid",
+};
+const FORMAT_COLOR: Record<string, string> = {
+  physical: "bg-emerald-100 text-emerald-700",
+  virtual: "bg-blue-100 text-blue-700",
+  hybrid: "bg-purple-100 text-purple-700",
+};
+
+function useCountdown(deadline: string) {
+  const getRemaining = () => {
+    const diff = new Date(deadline).getTime() - Date.now();
+    if (diff <= 0) return { days: 0, hours: 0, mins: 0, secs: 0 };
+    return {
+      days: Math.floor(diff / 86_400_000),
+      hours: Math.floor((diff % 86_400_000) / 3_600_000),
+      mins: Math.floor((diff % 3_600_000) / 60_000),
+      secs: Math.floor((diff % 60_000) / 1_000),
+    };
+  };
+  const [time, setTime] = useState(() => getRemaining());
+  useEffect(() => {
+    const id = setInterval(() => setTime(getRemaining()), 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deadline]);
+  return time;
 }
 
-export const TicketEventSummary = ({ event }: TicketEventSummaryProps) => {
-
-    const eventImage = event.image || "/images/default-event-bg.jpg";
-
-  // Mock Countdown Logic
-  const [timeLeft, setTimeLeft] = useState({
-    days: 12,
-    hours: 5,
-    mins: 42,
-    secs: 10,
-  });
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => ({
-        ...prev,
-        secs: prev.secs > 0 ? prev.secs - 1 : 59,
-      }));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+export const TicketEventSummary = ({ event }: { event: RegisterEventData }) => {
+  const router = useRouter();
+  const time = useCountdown(event.registrationDeadline);
+  const fillPct = Math.min(
+    100,
+    Math.round((event.registered / event.capacity) * 100),
+  );
 
   return (
-    <section className={cn('w-full', 'bg-slate-50', 'py-10', 'md:py-16', 'border-b', 'border-slate-200')}>
-      <div className={cn('max-w-7xl', 'mx-auto', 'px-4', 'sm:px-6', 'lg:px-8')}>
-        {/* Header Breadcrumb/Back */}
-        <div className={cn('mb-8', 'flex', 'items-center', 'gap-2', 'text-xs', 'font-bold', 'text-slate-400', 'uppercase', 'tracking-widest')}>
-          <span>Events</span>
+    <section
+      className={cn(
+        "w-full",
+        "bg-background",
+        "py-10",
+        "md:py-14",
+        "border-b",
+        "border-border",
+      )}
+    >
+      <div className={cn("max-w-7xl", "mx-auto", "px-4", "sm:px-6", "lg:px-8")}>
+        {/* Breadcrumb */}
+        <div
+          className={cn(
+            "mb-8",
+            "flex",
+            "items-center",
+            "gap-2",
+            "text-xs",
+            "font-bold",
+            "text-muted-foreground",
+            "uppercase",
+            "tracking-widest",
+          )}
+        >
+          <button
+            onClick={() => router.push("/events")}
+            className={cn(
+              "hover:text-primary",
+              "transition-colors",
+              "cursor-pointer",
+            )}
+          >
+            Events
+          </button>
           <span className="text-slate-200">/</span>
-          <span className="text-slate-900">{event.title}</span>
+          <button
+            onClick={() => router.push(`/events/${event.slug}`)}
+            className={cn(
+              "hover:text-primary",
+              "transition-colors",
+              "truncate",
+              "max-w-[200px]",
+              "cursor-pointer",
+            )}
+          >
+            {event.title}
+          </button>
           <span className="text-slate-200">/</span>
           <span className="text-primary">Registration</span>
         </div>
 
-        <div className={cn('grid', 'grid-cols-1', 'lg:grid-cols-12', 'gap-8', 'items-start')}>
-          {/* Main Summary Card (8 cols) */}
+        <div
+          className={cn(
+            "grid",
+            "grid-cols-1",
+            "lg:grid-cols-12",
+            "gap-6",
+            "items-stretch",
+          )}
+        >
+          {/* Event card */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className={cn('lg:col-span-8', 'bg-white', 'rounded-[2.5rem]', 'p-6', 'md:p-10', 'shadow-xl', 'shadow-slate-200/50', 'border', 'border-white', 'flex', 'flex-col', 'md:flex-row', 'gap-8')}
+            className={cn(
+              "lg:col-span-8",
+              "bg-muted",
+              "border",
+              "border-border",
+              "rounded-[2.5rem]",
+              "p-6",
+              "md:p-8",
+              "flex",
+              "flex-col",
+              "md:flex-row",
+              "gap-6",
+            )}
           >
-            {/* Event Banner Image */}
-            <div className={cn('w-full', 'md:w-48', 'h-48', 'md:h-48', 'shrink-0', 'rounded-[1.5rem]', 'overflow-hidden', 'shadow-inner')}>
-                          <Image
-                              height={300}
-                              width={500}
-                src={eventImage}
+            <div
+              className={cn(
+                "w-full",
+                "md:w-44",
+                "h-40",
+                "md:h-44",
+                "shrink-0",
+                "rounded-[1.5rem]",
+                "overflow-hidden",
+              )}
+            >
+              <Image
+                src={event.image}
                 alt={event.title}
-                className={cn('w-full', 'h-full', 'object-cover')}
+                width={176}
+                height={176}
+                className={cn("w-full", "h-full", "object-cover")}
               />
             </div>
-
-            {/* Content Details */}
-            <div className={cn('flex-1', 'space-y-4')}>
-              <div className={cn('flex', 'flex-wrap', 'items-center', 'gap-3')}>
+            <div className={cn("flex-1", "space-y-4")}>
+              <div className={cn("flex", "flex-wrap", "gap-2")}>
                 <span
                   className={cn(
-                    "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm",
-                    event.type === "Virtual"
-                      ? "bg-blue-100 text-blue-600"
-                      : event.type === "Hybrid"
-                        ? "bg-purple-100 text-purple-600"
-                        : "bg-emerald-100 text-emerald-600",
+                    "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                    FORMAT_COLOR[event.format] ?? "text-muted text-slate-600",
                   )}
                 >
-                  {event.type} Session
+                  {FORMAT_LABEL[event.format] ?? event.format}
                 </span>
-                <span className={cn('px-4', 'py-1.5', 'bg-slate-900', 'text-white', 'rounded-full', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest')}>
+                <span
+                  className={cn(
+                    "px-3",
+                    "py-1",
+                    "bg-foreground",
+                    "text-background",
+                    "rounded-full",
+                    "text-[10px]",
+                    "font-black",
+                    "uppercase",
+                    "tracking-widest",
+                  )}
+                >
                   {event.category}
                 </span>
               </div>
-
-              <h1 className={cn('text-2xl', 'md:text-4xl', 'font-black', 'text-slate-900', 'leading-tight')}>
+              <h1
+                className={cn(
+                  "text-xl",
+                  "md:text-3xl",
+                  "font-black",
+                  "text-foreground",
+                  "leading-tight",
+                )}
+              >
                 {event.title}
               </h1>
-
-              <div className={cn('grid', 'grid-cols-1', 'sm:grid-cols-2', 'gap-4', 'pt-2')}>
-                <div className={cn('flex', 'items-center', 'gap-3', 'text-slate-500', 'font-bold', 'text-sm')}>
-                  <div className={cn('w-8', 'h-8', 'rounded-lg', 'bg-slate-50', 'flex', 'items-center', 'justify-center', 'text-primary')}>
-                    <LuCalendar className={cn('w-4', 'h-4')} />
-                  </div>
-                  {event.date}
+              <div
+                className={cn("grid", "grid-cols-1", "sm:grid-cols-2", "gap-3")}
+              >
+                <div
+                  className={cn(
+                    "flex",
+                    "items-center",
+                    "gap-2",
+                    "text-muted-foreground",
+                    "font-bold",
+                    "text-sm",
+                  )}
+                >
+                  <LuCalendar className={cn("w-4", "h-4", "text-primary")} />{" "}
+                  {event.eventDate}
                 </div>
-                <div className={cn('flex', 'items-center', 'gap-3', 'text-slate-500', 'font-bold', 'text-sm')}>
-                  <div className={cn('w-8', 'h-8', 'rounded-lg', 'bg-slate-50', 'flex', 'items-center', 'justify-center', 'text-primary')}>
-                    <LuMapPin className={cn('w-4', 'h-4')} />
-                  </div>
+                <div
+                  className={cn(
+                    "flex",
+                    "items-center",
+                    "gap-2",
+                    "text-muted-foreground",
+                    "font-bold",
+                    "text-sm",
+                  )}
+                >
+                  <LuMapPin className={cn("w-4", "h-4", "text-primary")} />
                   <span className="line-clamp-1">{event.location}</span>
                 </div>
               </div>
-
-              {/* Slots Remaining Indicator */}
-              <div className="pt-4">
-                <div className={cn('flex', 'items-center', 'justify-between', 'text-[10px]', 'font-black', 'uppercase', 'tracking-[0.2em]', 'mb-2', 'text-slate-400')}>
+              {/* Capacity bar */}
+              <div>
+                <div
+                  className={cn(
+                    "flex",
+                    "justify-between",
+                    "text-[10px]",
+                    "font-black",
+                    "uppercase",
+                    "tracking-widest",
+                    "text-muted-foreground",
+                    "mb-1",
+                  )}
+                >
                   <span>Registration Capacity</span>
                   <span className="text-orange-600">
                     {event.slotsRemaining} Slots Left
                   </span>
                 </div>
-                <div className={cn('w-full', 'h-2', 'bg-slate-100', 'rounded-full', 'overflow-hidden')}>
+                <div
+                  className={cn(
+                    "w-full",
+                    "h-1.5",
+                    "bg-slate-200",
+                    "rounded-full",
+                    "overflow-hidden",
+                  )}
+                >
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{
-                      width: `${(event.slotsRemaining / event.totalCapacity) * 100}%`,
-                    }}
-                    className={cn('h-full', 'bg-orange-500')}
+                    animate={{ width: `${fillPct}%` }}
+                    transition={{ duration: 0.8, delay: 0.3 }}
+                    className={cn("h-full", "bg-orange-500", "rounded-full")}
                   />
                 </div>
               </div>
             </div>
           </motion.div>
 
-          {/* Mini Countdown Timer (4 cols) */}
+          {/* Countdown + price */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={cn('lg:col-span-4', 'bg-primary', 'text-white', 'rounded-[2.5rem]', 'p-8', 'relative', 'overflow-hidden', 'h-full', 'flex', 'flex-col', 'justify-center')}
+            className={cn(
+              "lg:col-span-4",
+              "bg-primary",
+              "text-background",
+              "rounded-[2.5rem]",
+              "p-8",
+              "relative",
+              "overflow-hidden",
+              "flex",
+              "flex-col",
+              "justify-center",
+            )}
           >
-            {/* Background Glow */}
-            <div className={cn('absolute', 'top-0', 'right-0', 'w-32', 'h-32', 'bg-white/20', 'rounded-full', 'blur-3xl', '-mr-16', '-mt-16')} />
-
-            <div className={cn('relative', 'z-10')}>
-              <div className={cn('flex', 'items-center', 'gap-2', 'mb-6', 'opacity-80')}>
-                <LuClock className={cn('w-5', 'h-5')} />
-                <span className={cn('text-xs', 'font-black', 'uppercase', 'tracking-widest')}>
+            <div
+              className={cn(
+                "absolute",
+                "top-0",
+                "right-0",
+                "w-32",
+                "h-32",
+                "bg-background/20",
+                "rounded-full",
+                "blur-3xl",
+                "-mr-16",
+                "-mt-16",
+              )}
+            />
+            <div className={cn("relative", "z-10")}>
+              <div
+                className={cn(
+                  "flex",
+                  "items-center",
+                  "gap-2",
+                  "mb-6",
+                  "opacity-80",
+                )}
+              >
+                <LuClock className={cn("w-4", "h-4")} />
+                <span
+                  className={cn(
+                    "text-xs",
+                    "font-black",
+                    "uppercase",
+                    "tracking-widest",
+                  )}
+                >
                   Registration Closes In
                 </span>
               </div>
-
-              <div className={cn('grid', 'grid-cols-4', 'gap-4', 'text-center')}>
-                {[
-                  { label: "Days", value: timeLeft.days },
-                  { label: "Hrs", value: timeLeft.hours },
-                  { label: "Mins", value: timeLeft.mins },
-                  { label: "Secs", value: timeLeft.secs },
-                ].map((unit, i) => (
-                  <div key={i} className={cn('flex', 'flex-col')}>
-                    <span className={cn('text-3xl', 'md:text-4xl', 'font-black', 'mb-1')}>
-                      {unit.value.toString().padStart(2, "0")}
+              <div
+                className={cn(
+                  "grid",
+                  "grid-cols-4",
+                  "gap-2",
+                  "text-center",
+                  "mb-8",
+                )}
+              >
+                {(
+                  [
+                    ["Days", time.days],
+                    ["Hrs", time.hours],
+                    ["Mins", time.mins],
+                    ["Secs", time.secs],
+                  ] as [string, number][]
+                ).map(([label, val]) => (
+                  <div key={label} className={cn("flex", "flex-col")}>
+                    <span
+                      className={cn(
+                        "text-2xl",
+                        "md:text-3xl",
+                        "font-black",
+                        "mb-0.5",
+                      )}
+                    >
+                      {String(val).padStart(2, "0")}
                     </span>
-                    <span className={cn('text-[10px]', 'font-bold', 'uppercase', 'opacity-60', 'tracking-widest')}>
-                      {unit.label}
+                    <span
+                      className={cn(
+                        "text-[9px]",
+                        "font-bold",
+                        "uppercase",
+                        "opacity-60",
+                        "tracking-widest",
+                      )}
+                    >
+                      {label}
                     </span>
                   </div>
                 ))}
               </div>
-
-              <div className={cn('mt-8', 'pt-6', 'border-t', 'border-white/20')}>
-                <div className={cn('flex', 'items-center', 'gap-3')}>
-                  <LuTag className={cn('w-5', 'h-5', 'rotate-90')} />
-                  <div>
-                    <p className={cn('text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'opacity-60')}>
-                      Ticket Price
-                    </p>
-                    <p className={cn('text-xl', 'font-black')}>{event.price}</p>
-                  </div>
+              <div
+                className={cn(
+                  "pt-5",
+                  "border-t",
+                  "border-background/20",
+                  "flex",
+                  "items-center",
+                  "gap-3",
+                )}
+              >
+                <LuTag className={cn("w-4", "h-4", "rotate-90")} />
+                <div>
+                  <p
+                    className={cn(
+                      "text-[10px]",
+                      "font-black",
+                      "uppercase",
+                      "tracking-widest",
+                      "opacity-60",
+                    )}
+                  >
+                    Ticket Price
+                  </p>
+                  <p className={cn("text-xl", "font-black")}>{event.price}</p>
                 </div>
               </div>
             </div>

@@ -70,6 +70,9 @@ export async function createIndexes() {
       partialFilterExpression: { status: "pending" },
       name: "applications_no_duplicate_pending",
     },
+    { key: { userId: 1, type: 1, status: 1 } },
+    { key: { status: 1, createdAt: 1 } },
+    { key: { vaultId: 1 } },
   ]);
   console.log("✓ applications");
 
@@ -110,6 +113,42 @@ export async function createIndexes() {
   ]);
   console.log("✓ eventRegistrations");
 
+  // ── invites ────────────────────────────────────────────────────────────────
+  await db.collection("invites").createIndexes([
+    { key: { code: 1 }, unique: true },
+    { key: { status: 1 } },
+    { key: { createdBy: 1 } },
+    { key: { expiresAt: 1 }, expireAfterSeconds: 0 }, // TTL on null-safe expiry
+  ]);
+  console.log("✓ invites");
+
+  // ── healthReports ──────────────────────────────────────────────────────────
+  await db.collection("healthReports").createIndexes([
+    { key: { reportedAt: -1 } },
+    { key: { userId: 1, reportedAt: -1 } },
+    { key: { "browser.name": 1, reportedAt: -1 } },
+    { key: { page: 1, reportedAt: -1 } },
+    { key: { "jsErrors.0": 1 } },
+    // Auto-delete reports older than 90 days
+    { key: { reportedAt: 1 }, expireAfterSeconds: 90 * 24 * 60 * 60 },
+  ]);
+  console.log("✓ healthReports");
+
+  // ── files ──────────────────────────────────────────────────────────────────
+  await db.collection("files").createIndexes([
+    // Ownership lookups — list files for a user, event, application, etc.
+    { key: { ownerType: 1, ownerId: 1, createdAt: -1 }, name: "files_owner" },
+    // Uploader — find all files a user has ever uploaded
+    { key: { uploadedBy: 1, createdAt: -1 }, name: "files_uploader" },
+    // Processing queue — find files still awaiting processing
+    { key: { processingStatus: 1, createdAt: 1 }, name: "files_processing" },
+    // Category filter
+    { key: { category: 1, ownerType: 1 }, name: "files_category" },
+    // Public files lookup
+    { key: { isPublic: 1, createdAt: -1 }, sparse: true, name: "files_public" },
+  ]);
+  console.log("✓ files");
+
   console.log("\n✅ All indexes created.");
 }
 
@@ -121,3 +160,31 @@ if (require.main === module) {
       process.exit(1);
     });
 }
+
+// ── Institution / Faculty / Department indexes ────────────────────────────────
+// Run: pnpm dotenv -e .env.local -- tsx src/lib/db/indexes.ts
+
+async function createPlatformIndexes() {
+  const db = await getDb();
+
+  await db.collection("institutions").createIndexes([
+    { key: { name: 1 }, name: "institutions_name" },
+    { key: { type: 1 }, name: "institutions_type" },
+    { key: { state: 1 }, name: "institutions_state" },
+    { key: { isActive: 1 }, name: "institutions_active" },
+  ]);
+
+  await db.collection("faculties").createIndexes([
+    { key: { name: 1 }, name: "faculties_name" },
+    { key: { isActive: 1 }, name: "faculties_active" },
+  ]);
+
+  await db.collection("departments").createIndexes([
+    { key: { name: 1 }, name: "departments_name" },
+    { key: { isActive: 1 }, name: "departments_active" },
+  ]);
+
+  console.log("Platform indexes created");
+}
+
+createPlatformIndexes().catch(console.error);

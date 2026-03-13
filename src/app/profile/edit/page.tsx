@@ -53,7 +53,7 @@ export default function EditProfilePage() {
   };
 
   return (
-    <main className={cn('min-h-screen w-full', 'bg-[#F8FAFC]')}>
+    <main className={cn("min-h-screen w-full", "bg-background")}>
       <Toaster position="bottom-right" />
 
       {/* Premium Sticky Header */}
@@ -63,10 +63,19 @@ export default function EditProfilePage() {
         onSave={handleSave}
       />
 
-      <div className={cn('max-w-[1600px]', 'mx-auto', 'px-4', 'sm:px-6', 'lg:px-8', 'py-10')}>
-        <div className={cn('grid', 'grid-cols-1', 'lg:grid-cols-12', 'gap-8')}>
+      <div
+        className={cn(
+          "max-w-[1600px]",
+          "mx-auto",
+          "px-4",
+          "sm:px-6",
+          "lg:px-8",
+          "py-10",
+        )}
+      >
+        <div className={cn("grid", "grid-cols-1", "lg:grid-cols-12", "gap-8")}>
           {/* LEFT: Sidebar Nav (Col 2) */}
-          <aside className={cn('hidden', 'lg:block', 'lg:col-span-2')}>
+          <aside className={cn("hidden", "lg:block", "lg:col-span-2")}>
             <EditProfileSidebar
               activeSection={activeSection}
               completedSections={["photo", "basic", "pro"]}
@@ -80,7 +89,7 @@ export default function EditProfilePage() {
           </aside>
 
           {/* CENTER: Main Form (Col 7) */}
-          <div className={cn('lg:col-span-7', 'space-y-8')}>
+          <div className={cn("lg:col-span-7", "space-y-8")}>
             <div id="photo">
               <ProfilePhotoSection />
             </div>
@@ -110,17 +119,40 @@ export default function EditProfilePage() {
           </div>
 
           {/* RIGHT: Live Preview (Col 3) */}
-          <aside className={cn('hidden', 'xl:block', 'lg:col-span-3')}>
+          <aside className={cn("hidden", "xl:block", "lg:col-span-3")}>
             <ProfilePreviewCard data={formData} />
           </aside>
         </div>
       </div>
 
       {/* MOBILE: Sticky Save Action */}
-      <div className={cn('lg:hidden', 'fixed', 'bottom-6', 'left-4', 'right-4', 'z-50')}>
+      <div
+        className={cn(
+          "lg:hidden",
+          "fixed",
+          "bottom-6",
+          "left-4",
+          "right-4",
+          "z-50",
+        )}
+      >
         <button
           onClick={handleSave}
-          className={cn('w-full', 'bg-slate-900', 'text-white', 'py-5', 'rounded-[2rem]', 'font-black', 'uppercase', 'tracking-widest', 'shadow-2xl', 'flex', 'items-center', 'justify-center', 'gap-3')}
+          className={cn(
+            "w-full",
+            "bg-foreground",
+            "text-background",
+            "py-5",
+            "rounded-[2rem]",
+            "font-black",
+            "uppercase",
+            "tracking-widest",
+            "shadow-2xl",
+            "flex",
+            "items-center",
+            "justify-center",
+            "gap-3",
+          )}
         >
           {isSaving ? "Syncing..." : "Save Profile"}
         </button>

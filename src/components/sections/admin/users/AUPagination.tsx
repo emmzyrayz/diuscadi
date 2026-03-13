@@ -23,19 +23,19 @@ export const AdminUsersPagination: React.FC<UsersPaginationProps> = ({
   const endUser = Math.min(currentPage * pageSize, totalUsers);
 
   return (
-    <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-8 px-10 bg-white border-t-2 border-slate-50 rounded-b-[2.5rem] shadow-sm">
+    <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-8 px-10 bg-background border-t-2 border-slate-50 rounded-b-[2.5rem] shadow-sm">
       {/* 2. Global Count & Context */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
-          <LuUsers className="w-4 h-4 text-slate-400" />
-          <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">
+        <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-xl border border-border">
+          <LuUsers className="w-4 h-4 text-muted-foreground" />
+          <span className="text-[10px] font-black text-foreground uppercase tracking-widest">
             {totalUsers.toLocaleString()} Total Users
           </span>
         </div>
         <div className="hidden sm:block h-4 w-px bg-slate-200" />
-        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
           Displaying{" "}
-          <span className="text-slate-900">
+          <span className="text-foreground">
             {startUser} — {endUser}
           </span>
         </p>
@@ -47,7 +47,7 @@ export const AdminUsersPagination: React.FC<UsersPaginationProps> = ({
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="group flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-100 text-slate-400 hover:text-slate-900 hover:border-slate-900 disabled:opacity-20 disabled:hover:border-slate-100 transition-all"
+          className="group flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:border-foreground disabled:opacity-20 disabled:hover:border-border transition-all"
         >
           <LuChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">
@@ -71,8 +71,8 @@ export const AdminUsersPagination: React.FC<UsersPaginationProps> = ({
                   onClick={() => onPageChange(page)}
                   className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${
                     currentPage === page
-                      ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20 scale-110"
-                      : "bg-white text-slate-400 border border-slate-100 hover:border-slate-900 hover:text-slate-900"
+                      ? "bg-foreground text-background shadow-lg shadow-foreground/20 scale-110"
+                      : "bg-background text-muted-foreground border border-border hover:border-foreground hover:text-foreground"
                   }`}
                 >
                   {page}
@@ -85,7 +85,7 @@ export const AdminUsersPagination: React.FC<UsersPaginationProps> = ({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="group flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-100 text-slate-400 hover:text-slate-900 hover:border-slate-900 disabled:opacity-20 disabled:hover:border-slate-100 transition-all"
+          className="group flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:border-foreground disabled:opacity-20 disabled:hover:border-border transition-all"
         >
           <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">
             Next
@@ -104,7 +104,7 @@ export const AdminUsersPagination: React.FC<UsersPaginationProps> = ({
           <input
             type="number"
             placeholder="Pg"
-            className="w-14 bg-slate-50 border border-slate-100 rounded-lg pl-6 pr-2 py-1.5 text-[10px] font-black outline-none focus:border-primary transition-all"
+            className="w-14 bg-muted border border-border rounded-lg pl-6 pr-2 py-1.5 text-[10px] font-black outline-none focus:border-primary transition-all"
             onKeyDown={(e) => {
               if (e.key === "Enter")
                 onPageChange(Number((e.target as HTMLInputElement).value));

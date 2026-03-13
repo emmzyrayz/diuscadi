@@ -8,15 +8,16 @@ import Image from "next/image";
 export interface FeaturedEvent {
   image: string;
   title: string;
+  category?: string;
   daysLeft?: number;
   date?: string;
-  category?: string;
+  slug?: string;
 }
 
 export interface CurrentTask {
   category: string;
   title: string;
-  progress: number; // 0 to 100
+  progress: number;
 }
 
 interface HomeHeroProps {
@@ -48,7 +49,7 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
             "group",
             "overflow-hidden",
             "rounded-[2.5rem]",
-            "bg-slate-900",
+            "bg-foreground",
             "min-h-[320px]",
             "flex",
             "flex-col",
@@ -68,14 +69,15 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
               "opacity-40",
               "group-hover:scale-105",
               "transition-transform",
-              "duration-700 ease-in-out",
+              "duration-700",
+              "ease-in-out",
             )}
           />
           <div
             className={cn(
               "absolute",
               "inset-0",
-              "bg-linear-to-t",
+              "bg-gradient-to-t",
               "from-slate-950",
               "via-slate-950/60",
               "to-transparent",
@@ -89,7 +91,7 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
                   "px-3",
                   "py-1",
                   "bg-primary",
-                  "text-white",
+                  "text-background",
                   "text-[10px]",
                   "font-black",
                   "uppercase",
@@ -97,21 +99,23 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
                   "rounded-full",
                 )}
               >
-                Upcoming Event
+                {featuredEvent.category ?? "Upcoming Event"}
               </span>
-              <span
-                className={cn(
-                  "flex",
-                  "items-center",
-                  "gap-1.5",
-                  "text-orange-200",
-                  "text-sm",
-                  "font-bold",
-                )}
-              >
-                <LuCalendar className={cn("w-4", "h-4")} />
-                Starts in {featuredEvent.daysLeft} days
-              </span>
+              {featuredEvent.daysLeft != null && (
+                <span
+                  className={cn(
+                    "flex",
+                    "items-center",
+                    "gap-1.5",
+                    "text-orange-200",
+                    "text-sm",
+                    "font-bold",
+                  )}
+                >
+                  <LuCalendar className={cn("w-4", "h-4")} />
+                  Starts in {featuredEvent.daysLeft} days
+                </span>
+              )}
             </div>
 
             <h2
@@ -119,7 +123,7 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
                 "text-3xl",
                 "md:text-4xl",
                 "font-black",
-                "text-white",
+                "text-background",
                 "mb-6",
                 "leading-tight",
               )}
@@ -132,13 +136,16 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
                 className={cn(
                   "px-8",
                   "py-3.5",
-                  "bg-white",
+                  "bg-background",
                   "text-slate-950",
                   "font-black",
                   "rounded-2xl",
                   "hover:bg-primary",
-                  "hover:text-white hover:border",
-                  "transition-all duration-700 ease-in-out cursor-pointer",
+                  "hover:text-background",
+                  "transition-all",
+                  "duration-700",
+                  "ease-in-out",
+                  "cursor-pointer",
                   "flex",
                   "items-center",
                   "gap-2",
@@ -159,14 +166,15 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
                 className={cn(
                   "px-6",
                   "py-3.5",
-                  "bg-white/10",
+                  "bg-background/10",
                   "backdrop-blur-md",
-                  "text-white",
+                  "text-background",
                   "font-bold",
-                  "rounded-2xl cursor-pointer",
+                  "rounded-2xl",
+                  "cursor-pointer",
                   "border",
-                  "border-white/20",
-                  "hover:bg-white/20",
+                  "border-background/20",
+                  "hover:bg-background/20",
                   "transition-all",
                 )}
               >
@@ -182,9 +190,9 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className={cn(
-            "bg-white",
+            "bg-background",
             "border",
-            "border-slate-100",
+            "border-border",
             "rounded-[2.5rem]",
             "p-8",
             "flex",
@@ -198,7 +206,7 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
             <h3
               className={cn(
                 "font-bold",
-                "text-slate-900",
+                "text-foreground",
                 "uppercase",
                 "tracking-tighter",
                 "text-sm",
@@ -214,7 +222,7 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
               className={cn(
                 "text-[10px]",
                 "font-bold",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
               )}
             >
@@ -224,14 +232,13 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
               className={cn(
                 "text-xl",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "mt-1",
                 "mb-6",
               )}
             >
               {currentTask.title}
             </h4>
-
             <div className="space-y-3">
               <div
                 className={cn(
@@ -241,14 +248,14 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
                   "font-bold",
                 )}
               >
-                <span className="text-slate-500">Progress</span>
+                <span className="text-muted-foreground">Progress</span>
                 <span className="text-primary">{currentTask.progress}%</span>
               </div>
               <div
                 className={cn(
                   "h-3",
                   "w-full",
-                  "bg-slate-100",
+                  "text-muted",
                   "rounded-full",
                   "overflow-hidden",
                 )}
@@ -259,7 +266,7 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
                   transition={{ duration: 1, ease: "easeOut" }}
                   className={cn(
                     "h-full",
-                    "bg-linear-to-r",
+                    "bg-gradient-to-r",
                     "from-orange-400",
                     "to-primary",
                     "rounded-full",
@@ -275,13 +282,16 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
               "mt-8",
               "w-full",
               "py-4",
-              "bg-slate-50",
+              "bg-muted",
               "hover:bg-primary",
-              "hover:text-white",
-              "text-slate-900",
+              "hover:text-background",
+              "text-foreground",
               "font-bold",
               "rounded-2xl",
-              "transition-all duration-700 ease-in-out cursor-pointer",
+              "transition-all",
+              "duration-700",
+              "ease-in-out",
+              "cursor-pointer",
               "flex",
               "items-center",
               "justify-center",

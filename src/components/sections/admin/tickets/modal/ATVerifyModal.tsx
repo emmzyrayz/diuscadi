@@ -107,7 +107,7 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
               "relative",
               "w-full",
               "max-w-md",
-              "bg-white",
+              "bg-background",
               "rounded-[3rem]",
               "shadow-2xl",
               "overflow-hidden",
@@ -131,7 +131,7 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                   "flex",
                   "items-center",
                   "gap-2",
-                  "text-slate-400",
+                  "text-muted-foreground",
                 )}
               >
                 <motion.div
@@ -159,7 +159,7 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                 onClick={handleClose}
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
-                className={cn("p-2", "hover:bg-slate-100", "rounded-full")}
+                className={cn("p-2", "hover:text-muted", "rounded-full")}
               >
                 <LuX className={cn("w-5", "h-5")} />
               </motion.button>
@@ -187,7 +187,7 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                         className={cn(
                           "text-3xl",
                           "font-black",
-                          "text-slate-900",
+                          "text-foreground",
                           "tracking-tighter",
                           "uppercase",
                         )}
@@ -198,7 +198,7 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                         className={cn(
                           "text-[11px]",
                           "font-bold",
-                          "text-slate-400",
+                          "text-muted-foreground",
                           "uppercase",
                           "mt-2",
                         )}
@@ -252,9 +252,9 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                         placeholder="E.G. DIU-882-XY"
                         className={cn(
                           "w-full",
-                          "bg-slate-50",
+                          "bg-muted",
                           "border-2",
-                          "border-slate-100",
+                          "border-border",
                           "p-6",
                           "pl-14",
                           "rounded-3xl",
@@ -263,7 +263,7 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                           "tracking-widest",
                           "placeholder:text-slate-200",
                           "outline-none",
-                          "focus:border-slate-900",
+                          "focus:border-foreground",
                           "transition-all",
                         )}
                       />
@@ -284,18 +284,18 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                       className={cn(
                         "w-full",
                         "py-6",
-                        "bg-slate-900",
-                        "text-white",
+                        "bg-foreground",
+                        "text-background",
                         "rounded-3xl",
                         "text-xs",
                         "font-black",
                         "uppercase",
                         "tracking-[0.2em]",
                         "hover:bg-primary",
-                        "hover:text-slate-900",
+                        "hover:text-foreground",
                         "transition-all",
                         "shadow-xl",
-                        "shadow-slate-900/20",
+                        "shadow-foreground/20",
                         "flex",
                         "items-center",
                         "justify-center",
@@ -376,7 +376,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ type, onReset }) => {
       btn: "Deny Entry",
     },
     Invalid: {
-      bg: "bg-slate-900",
+      bg: "bg-foreground",
       icon: LuTicket,
       title: "Invalid Ticket",
       desc: "Code not found in manifest.",
@@ -397,7 +397,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ type, onReset }) => {
           "p-10",
           "rounded-[2.5rem]",
           config.bg,
-          "text-white",
+          "text-background",
           "text-center",
           "shadow-2xl",
         )}
@@ -414,7 +414,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ type, onReset }) => {
           className={cn(
             "w-20",
             "h-20",
-            "bg-white/20",
+            "bg-background/20",
             "rounded-[2rem]",
             "flex",
             "items-center",
@@ -438,7 +438,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ type, onReset }) => {
               repeatDelay: 1,
             }}
           >
-            <Icon className={cn("w-10", "h-10", "text-white")} />
+            <Icon className={cn("w-10", "h-10", "text-background")} />
           </motion.div>
         </motion.div>
         <motion.h3
@@ -481,8 +481,8 @@ const ResultCard: React.FC<ResultCardProps> = ({ type, onReset }) => {
         className={cn(
           "w-full",
           "py-5",
-          "bg-slate-100",
-          "text-slate-900",
+          "text-muted",
+          "text-foreground",
           "rounded-2xl",
           "text-[10px]",
           "font-black",

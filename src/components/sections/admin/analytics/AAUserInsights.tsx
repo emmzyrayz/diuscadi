@@ -73,7 +73,7 @@ export const AdminAnalyticsUserInsightsSection: React.FC = () => {
               className={cn(
                 "text-xl",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "uppercase",
                 "tracking-tighter",
               )}
@@ -84,7 +84,7 @@ export const AdminAnalyticsUserInsightsSection: React.FC = () => {
               className={cn(
                 "text-[10px]",
                 "font-bold",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
                 "tracking-widest",
               )}
@@ -133,7 +133,7 @@ export const AdminAnalyticsUserInsightsSection: React.FC = () => {
                   whileHover={{ scale: 1.05 }}
                   className={cn(
                     "w-full",
-                    "bg-slate-900",
+                    "bg-foreground",
                     "rounded-sm",
                     "origin-bottom",
                   )}
@@ -166,14 +166,14 @@ export const AdminAnalyticsUserInsightsSection: React.FC = () => {
               "mt-4",
               "text-[8px]",
               "font-black",
-              "text-slate-400",
+              "text-muted-foreground",
               "uppercase",
               "tracking-widest",
             )}
           >
             <div className={cn("flex", "items-center", "gap-2")}>
               <div
-                className={cn("w-2", "h-2", "bg-slate-900", "rounded-full")}
+                className={cn("w-2", "h-2", "bg-foreground", "rounded-full")}
               />{" "}
               Returning
             </div>
@@ -190,7 +190,7 @@ export const AdminAnalyticsUserInsightsSection: React.FC = () => {
             title="User Roles"
             icon={LuBriefcase}
             data={[
-              { label: "Students", val: 65, color: "bg-slate-900" },
+              { label: "Students", val: 65, color: "bg-foreground" },
               { label: "Alumni", val: 20, color: "bg-primary" },
               { label: "Faculty", val: 15, color: "bg-slate-200" },
             ]}
@@ -200,7 +200,7 @@ export const AdminAnalyticsUserInsightsSection: React.FC = () => {
             title="Top Locations"
             icon={LuMapPin}
             data={[
-              { label: "Main Campus", val: 55, color: "bg-slate-900" },
+              { label: "Main Campus", val: 55, color: "bg-foreground" },
               { label: "Remote", val: 30, color: "bg-primary" },
               { label: "International", val: 15, color: "bg-slate-200" },
             ]}
@@ -249,9 +249,9 @@ const InsightChartContainer: React.FC<InsightChartContainerProps> = ({
     transition={{ duration: 0.5, delay }}
     whileHover={{ scale: 1.01 }}
     className={cn(
-      "bg-white",
+      "bg-background",
       "border",
-      "border-slate-100",
+      "border-border",
       "rounded-[2.5rem]",
       "p-10",
       "shadow-sm",
@@ -262,7 +262,7 @@ const InsightChartContainer: React.FC<InsightChartContainerProps> = ({
         className={cn(
           "text-sm",
           "font-black",
-          "text-slate-900",
+          "text-foreground",
           "uppercase",
           "tracking-tight",
         )}
@@ -273,7 +273,7 @@ const InsightChartContainer: React.FC<InsightChartContainerProps> = ({
         className={cn(
           "text-[10px]",
           "font-bold",
-          "text-slate-400",
+          "text-muted-foreground",
           "uppercase",
           "tracking-widest",
         )}
@@ -297,9 +297,9 @@ const DonutBreakdown: React.FC<DonutBreakdownProps> = ({
     transition={{ duration: 0.5, delay }}
     whileHover={{ scale: 1.02, boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}
     className={cn(
-      "bg-white",
+      "bg-background",
       "border",
-      "border-slate-100",
+      "border-border",
       "rounded-[2.5rem]",
       "p-8",
       "shadow-sm",
@@ -310,13 +310,13 @@ const DonutBreakdown: React.FC<DonutBreakdownProps> = ({
         whileHover={{ scale: 1.1, rotate: 5 }}
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
       >
-        <Icon className={cn("w-4", "h-4", "text-slate-400")} />
+        <Icon className={cn("w-4", "h-4", "text-muted-foreground")} />
       </motion.div>
       <h4
         className={cn(
           "text-[10px]",
           "font-black",
-          "text-slate-900",
+          "text-foreground",
           "uppercase",
           "tracking-widest",
         )}
@@ -342,14 +342,14 @@ const DonutBreakdown: React.FC<DonutBreakdownProps> = ({
               "mb-1.5",
             )}
           >
-            <span className={cn("text-slate-500")}>{item.label}</span>
-            <span className={cn("text-slate-900")}>{item.val}%</span>
+            <span className={cn("text-muted-foreground")}>{item.label}</span>
+            <span className={cn("text-foreground")}>{item.val}%</span>
           </div>
           <div
             className={cn(
               "h-1.5",
               "w-full",
-              "bg-slate-50",
+              "bg-muted",
               "rounded-full",
               "overflow-hidden",
             )}
@@ -382,9 +382,9 @@ const AcademicRankingCard: React.FC<AcademicRankingCardProps> = ({
     transition={{ duration: 0.5, delay }}
     whileHover={{ scale: 1.01 }}
     className={cn(
-      "bg-slate-50",
+      "bg-muted",
       "border",
-      "border-slate-100",
+      "border-border",
       "rounded-[2.5rem]",
       "p-10",
     )}
@@ -393,7 +393,7 @@ const AcademicRankingCard: React.FC<AcademicRankingCardProps> = ({
       className={cn(
         "text-xs",
         "font-black",
-        "text-slate-900",
+        "text-foreground",
         "uppercase",
         "tracking-[0.2em]",
         "mb-8",
@@ -425,7 +425,11 @@ const AcademicRankingCard: React.FC<AcademicRankingCardProps> = ({
                 {item.name}
               </span>
               <span
-                className={cn("text-[10px]", "font-bold", "text-slate-400")}
+                className={cn(
+                  "text-[10px]",
+                  "font-bold",
+                  "text-muted-foreground",
+                )}
               >
                 {item.count} Users
               </span>
@@ -434,7 +438,7 @@ const AcademicRankingCard: React.FC<AcademicRankingCardProps> = ({
               className={cn(
                 "h-1",
                 "w-full",
-                "bg-white",
+                "bg-background",
                 "rounded-full",
                 "overflow-hidden",
               )}
@@ -447,7 +451,7 @@ const AcademicRankingCard: React.FC<AcademicRankingCardProps> = ({
                   delay: delay + 0.2 + index * 0.05,
                   ease: "easeOut",
                 }}
-                className={cn("h-full", "bg-slate-900", "rounded-full")}
+                className={cn("h-full", "bg-foreground", "rounded-full")}
               />
             </div>
           </div>

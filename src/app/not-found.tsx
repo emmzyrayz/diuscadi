@@ -91,7 +91,7 @@ export default function NotFound() {
         >
           <div className="relative">
             <div className="absolute inset-0 bg-orange-500/20 blur-3xl opacity-50 animate-pulse" />
-            <LuBookOpen className="w-20 h-20 text-slate-500 relative animate-bounce" />
+            <LuBookOpen className="w-20 h-20 text-muted-foreground relative animate-bounce" />
             <LuZap className="w-8 h-8 text-orange-500 absolute -top-2 -right-2 animate-ping" />
           </div>
         </div>
@@ -100,7 +100,7 @@ export default function NotFound() {
         <div className="relative mb-6">
           <h1
             className={clsx(
-              "text-9xl font-black text-white select-none",
+              "text-9xl font-black text-background select-none",
               glitchActive && "animate-pulse",
             )}
             style={{
@@ -115,12 +115,12 @@ export default function NotFound() {
 
         {/* Description */}
         <div className="space-y-4 mb-10">
-          <h2 className="text-3xl md:text-4xl font-bold text-white">
+          <h2 className="text-3xl md:text-4xl font-bold text-background">
             Path Not Found
           </h2>
-          <p className="text-lg text-slate-400 max-w-md mx-auto">
-            It seems you&apos;ve wandered off the career track. Let&apos;s get you back to
-            the main seminar hall.
+          <p className="text-lg text-muted-foreground max-w-md mx-auto">
+            It seems you&apos;ve wandered off the career track. Let&apos;s get
+            you back to the main seminar hall.
           </p>
         </div>
 
@@ -128,7 +128,7 @@ export default function NotFound() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <button
             onClick={() => (window.location.href = "/")}
-            className="group relative px-8 py-4 bg-orange-600 text-white font-bold rounded-2xl overflow-hidden transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(249,115,22,0.4)] w-full sm:w-auto"
+            className="group relative px-8 py-4 bg-orange-600 text-background font-bold rounded-2xl overflow-hidden transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(249,115,22,0.4)] w-full sm:w-auto"
           >
             <span className="relative flex items-center justify-center gap-2">
               <LuHouse className="w-5 h-5" /> Back to Home
@@ -149,13 +149,13 @@ export default function NotFound() {
         <div className="mt-12 flex justify-center gap-8 text-sm">
           <a
             href="/register"
-            className="text-slate-500 hover:text-orange-500 transition-colors flex items-center gap-2 group"
+            className="text-muted-foreground hover:text-orange-500 transition-colors flex items-center gap-2 group"
           >
             Register for 2026
           </a>
           <a
             href="/contact"
-            className="text-slate-500 hover:text-orange-500 transition-colors flex items-center gap-2 group"
+            className="text-muted-foreground hover:text-orange-500 transition-colors flex items-center gap-2 group"
           >
             <LuSearch className="w-4 h-4" /> Support
           </a>

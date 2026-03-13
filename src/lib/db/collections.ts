@@ -11,6 +11,7 @@ import { FacultyDocument } from "@/lib/models/Faculty";
 import { DepartmentDocument } from "@/lib/models/Department";
 import { InviteDocument } from "@/lib/models/invite";
 import { HealthReportDocument } from "@/lib/models/healthReport";
+import { FileDocument } from "@/lib/models/FileDocument";
 
 export const Collections = {
   vault: (db: Db) => db.collection<VaultDocument>("vault"),
@@ -27,4 +28,5 @@ export const Collections = {
   invites: (db: Db) => db.collection<InviteDocument>("invites"),
   healthReports: (db: Db) =>
     db.collection<HealthReportDocument>("healthReports"),
+  files: (db: Db) => db.collection<FileDocument>("files"),
 };

@@ -11,97 +11,290 @@ import {
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import type { Ticket } from "@/context/TicketContext";
+import { EmptyState } from "@/components/sections/tickets/EmptyState";
 
-interface Ticket {
-  id: string;
-  eventName: string;
-  eventDate: string;
-  location: string;
-  type: "Physical" | "Virtual";
-  status: "Upcoming" | "Used" | "Cancelled";
-  image: string;
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getDisplayStatus(ticket: Ticket): "Upcoming" | "Used" | "Cancelled" {
+  if (ticket.status === "cancelled") return "Cancelled";
+  if (ticket.checkedInAt) return "Used";
+  return "Upcoming";
 }
 
-const TicketCard = ({ ticket }: { ticket: Ticket }) => {
-  const statusStyles = {
-    Upcoming: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    Used: "bg-slate-100 text-slate-500 border-slate-200",
-    Cancelled: "bg-rose-100 text-rose-700 border-rose-200",
-  };
+function getLocationString(ticket: Ticket): string {
+  if (ticket.event.format === "virtual") return "Online / Zoom";
+  const loc = ticket.event.location;
+  if (!loc) return ticket.event.format;
+  return (
+    [loc.venue, loc.city].filter(Boolean).join(", ") || ticket.event.format
+  );
+}
 
-  // Fallback image if undefined
-  const ticketImage = ticket.image || "/images/default-event-bg.jpg";
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+const FORMAT_LABEL: Record<string, string> = {
+  physical: "Physical",
+  virtual: "Virtual",
+  hybrid: "Hybrid",
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  Upcoming: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  Used: "text-muted text-muted-foreground border-border",
+  Cancelled: "bg-rose-100 text-rose-700 border-rose-200",
+};
+
+// ── Ticket Card ───────────────────────────────────────────────────────────────
+
+const TicketCard = ({ ticket }: { ticket: Ticket }) => {
+  const router = useRouter();
+  const displayStatus = getDisplayStatus(ticket);
+  const location = getLocationString(ticket);
+  const eventDate = fmtDate(ticket.event.eventDate);
+  const ticketImage = ticket.event.image || "/images/events/default.jpg";
+  const formatLabel = FORMAT_LABEL[ticket.event.format] ?? ticket.event.format;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      whileHover={{ y: -5, scale: 1.01 }}
-      className={cn('group', 'bg-white', 'border-2', 'border-slate-100', 'hover:border-primary/30', 'rounded-[2.5rem]', 'overflow-hidden', 'transition-all', 'hover:shadow-xl', 'hover:shadow-slate-200/50', 'flex', 'flex-col', 'md:flex-row cursor-pointer')}
+      whileHover={{ y: -4, scale: 1.005 }}
+      className={cn(
+        "group",
+        "bg-background",
+        "border-2",
+        "border-border",
+        "hover:border-primary/30",
+        "rounded-[2.5rem]",
+        "overflow-hidden",
+        "transition-all",
+        "hover:shadow-xl",
+        "hover:shadow-slate-200/50",
+        "flex",
+        "flex-col",
+        "md:flex-row",
+      )}
     >
-      {/* 1. Left Section: Image (Visual Anchor) */}
-      <div className={cn('relative', 'w-full', 'md:w-52', 'h-40', 'md:h-48', 'overflow-hidden', 'rounded-t-[2.5rem]', 'md:rounded-l-[2.5rem]', 'md:rounded-tr-none')}>
+      {/* Image */}
+      <div
+        className={cn(
+          "relative",
+          "w-full",
+          "md:w-52",
+          "h-40",
+          "md:h-auto",
+          "overflow-hidden",
+          "rounded-t-[2.5rem]",
+          "md:rounded-l-[2.5rem]",
+          "md:rounded-tr-none",
+          "shrink-0",
+        )}
+      >
         <Image
-          width={500}
-          height={300}
           src={ticketImage}
-          alt={ticket.eventName}
-          className={cn('w-full', 'h-full', 'object-cover', 'group-hover:scale-110', 'transition-transform', 'duration-500')}
+          alt={ticket.event.title}
+          width={208}
+          height={192}
+          className={cn(
+            "w-full",
+            "h-full",
+            "object-cover",
+            "group-hover:scale-110",
+            "transition-transform",
+            "duration-500",
+          )}
         />
-        <div className={cn('absolute', 'top-4', 'left-4')}>
+        <div className={cn("absolute", "top-4", "left-4")}>
           <span
             className={cn(
-              "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border backdrop-blur-md bg-white/90 shadow-sm",
-              statusStyles[ticket.status],
+              "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border backdrop-blur-md bg-background/90 shadow-sm",
+              STATUS_STYLES[displayStatus],
             )}
           >
-            {ticket.status}
+            {displayStatus}
           </span>
         </div>
       </div>
 
-      {/* 2. Middle Section: Information */}
-      <div className={cn('flex-1', 'p-6', 'md:p-8', 'space-y-4')}>
+      {/* Info */}
+      <div className={cn("flex-1", "p-6", "md:p-8", "space-y-4")}>
         <div className="space-y-1">
-          <div className={cn('flex', 'items-center', 'gap-2', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'text-primary')}>
-            <LuTicket className={cn('w-3', 'h-3')} /> {ticket.type} Access
+          <div
+            className={cn(
+              "flex",
+              "items-center",
+              "gap-2",
+              "text-[10px]",
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              "text-primary",
+            )}
+          >
+            <LuTicket className={cn("w-3", "h-3")} /> {formatLabel} Access ·{" "}
+            {ticket.ticketType.name}
           </div>
-          <h3 className={cn('text-xl', 'font-black', 'text-slate-900', 'leading-tight', 'group-hover:text-primary', 'transition-colors')}>
-            {ticket.eventName}
+          <h3
+            className={cn(
+              "text-xl",
+              "font-black",
+              "text-foreground",
+              "leading-tight",
+              "group-hover:text-primary",
+              "transition-colors",
+            )}
+          >
+            {ticket.event.title}
           </h3>
         </div>
-
-        <div className={cn('grid', 'grid-cols-1', 'sm:grid-cols-2', 'gap-y-2', 'gap-x-6')}>
-          <div className={cn('flex', 'items-center', 'gap-2', 'text-slate-500', 'text-xs', 'font-bold')}>
-            <LuCalendar className={cn('w-4', 'h-4', 'text-slate-300')} />
-            {ticket.eventDate}
+        <div
+          className={cn(
+            "grid",
+            "grid-cols-1",
+            "sm:grid-cols-2",
+            "gap-y-2",
+            "gap-x-6",
+          )}
+        >
+          <div
+            className={cn(
+              "flex",
+              "items-center",
+              "gap-2",
+              "text-muted-foreground",
+              "text-xs",
+              "font-bold",
+            )}
+          >
+            <LuCalendar className={cn("w-4", "h-4", "text-slate-300")} />{" "}
+            {eventDate}
           </div>
-          <div className={cn('flex', 'items-center', 'gap-2', 'text-slate-500', 'text-xs', 'font-bold')}>
-            <LuMapPin className={cn('w-4', 'h-4', 'text-slate-300')} />
-            <span className="truncate">{ticket.location}</span>
+          <div
+            className={cn(
+              "flex",
+              "items-center",
+              "gap-2",
+              "text-muted-foreground",
+              "text-xs",
+              "font-bold",
+            )}
+          >
+            <LuMapPin className={cn("w-4", "h-4", "text-slate-300")} />
+            <span className="truncate">{location}</span>
           </div>
         </div>
-
-        <div className="pt-2">
-          <span className={cn('text-[10px]', 'font-mono', 'text-slate-300', 'uppercase', 'tracking-widest')}>
-            Ticket ID: {ticket.id}
+        <div className="pt-1">
+          <span
+            className={cn(
+              "text-[10px]",
+              "font-mono",
+              "text-slate-300",
+              "uppercase",
+              "tracking-widest",
+            )}
+          >
+            {ticket.inviteCode}
           </span>
         </div>
       </div>
 
-      {/* 3. Right Section: Actions */}
-      <div className={cn('w-full', 'md:w-64', 'bg-slate-50/50', 'p-6', 'md:p-8', 'border-t', 'md:border-t-0', 'md:border-l', 'border-slate-100', 'flex', 'flex-col', 'justify-center', 'gap-3')}>
-        <button className={cn('w-full', 'py-3', 'bg-slate-900', 'text-white', 'rounded-xl', 'text-xs', 'font-black', 'uppercase', 'tracking-widest', 'hover:bg-primary', 'transition-all', 'flex', 'items-center', 'justify-center', 'gap-2')}>
-          View Ticket <LuExternalLink className={cn('w-4', 'h-4')} />
+      {/* Actions */}
+      <div
+        className={cn(
+          "w-full",
+          "md:w-60",
+          "bg-muted/50",
+          "p-6",
+          "md:p-8",
+          "border-t",
+          "md:border-t-0",
+          "md:border-l",
+          "border-border",
+          "flex",
+          "flex-col",
+          "justify-center",
+          "gap-3",
+        )}
+      >
+        <button
+          onClick={() => router.push(`/home/tickets/${ticket.id}`)}
+          className={cn(
+            "w-full",
+            "py-3",
+            "bg-foreground",
+            "text-background",
+            "rounded-xl",
+            "text-xs",
+            "font-black",
+            "uppercase",
+            "tracking-widest",
+            "hover:bg-primary",
+            "transition-all",
+            "flex",
+            "items-center",
+            "justify-center",
+            "gap-2",
+            "cursor-pointer",
+          )}
+        >
+          View Ticket <LuExternalLink className={cn("w-4", "h-4")} />
         </button>
-
-        <div className={cn('grid', 'grid-cols-2', 'gap-2')}>
-          <button className={cn('py-3', 'bg-white', 'border', 'border-slate-200', 'text-slate-600', 'rounded-xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'hover:border-slate-400', 'transition-all', 'flex', 'items-center', 'justify-center', 'gap-2')}>
-            <LuDownload className={cn('w-3.5', 'h-3.5')} /> PDF
+        <div className={cn("grid", "grid-cols-2", "gap-2")}>
+          <button
+            className={cn(
+              "py-3",
+              "bg-background",
+              "border",
+              "border-border",
+              "text-slate-600",
+              "rounded-xl",
+              "text-[10px]",
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              "hover:border-slate-400",
+              "transition-all",
+              "flex",
+              "items-center",
+              "justify-center",
+              "gap-1.5",
+              "cursor-pointer",
+            )}
+          >
+            <LuDownload className={cn("w-3.5", "h-3.5")} /> PDF
           </button>
-          <button className={cn('py-3', 'bg-white', 'border', 'border-slate-200', 'text-slate-600', 'rounded-xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'hover:border-slate-400', 'transition-all', 'flex', 'items-center', 'justify-center', 'gap-2')}>
-            <LuCalendarPlus className={cn('w-3.5', 'h-3.5')} /> Sync
+          <button
+            className={cn(
+              "py-3",
+              "bg-background",
+              "border",
+              "border-border",
+              "text-slate-600",
+              "rounded-xl",
+              "text-[10px]",
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              "hover:border-slate-400",
+              "transition-all",
+              "flex",
+              "items-center",
+              "justify-center",
+              "gap-1.5",
+              "cursor-pointer",
+            )}
+          >
+            <LuCalendarPlus className={cn("w-3.5", "h-3.5")} /> Sync
           </button>
         </div>
       </div>
@@ -109,19 +302,32 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
   );
 };
 
-export const TicketListSection = ({ tickets }: { tickets: Ticket[] }) => {
-  return (
-    <section className={cn('w-full', 'max-w-7xl', 'mx-auto', 'px-4', 'sm:px-6', 'lg:px-8', 'pb-20', 'space-y-6')}>
-      {tickets.length === 0 ? (
-        <div className={cn('text-center', 'py-20')}>
-          <p className={cn('text-slate-400', 'font-bold')}>No tickets found</p>
-        </div>
-      ) : (
-        tickets.map((ticket) => <TicketCard key={ticket.id} ticket={ticket} />)
-      )}
-    </section>
-  );
-};
+// ── List Section ──────────────────────────────────────────────────────────────
 
-// Export the Ticket type for reuse
-export type { Ticket };
+export const TicketListSection = ({
+  tickets,
+  onClearFilters,
+}: {
+  tickets: Ticket[];
+  onClearFilters: () => void;
+}) => (
+  <section
+    className={cn(
+      "w-full",
+      "max-w-7xl",
+      "mx-auto",
+      "px-4",
+      "sm:px-6",
+      "lg:px-8",
+      "pb-20",
+      "py-8",
+      "space-y-6",
+    )}
+  >
+    {tickets.length === 0 ? (
+      <EmptyState onClearFilters={onClearFilters} />
+    ) : (
+      tickets.map((t) => <TicketCard key={t.id} ticket={t} />)
+    )}
+  </section>
+);

@@ -27,7 +27,7 @@ export default function AnalyticsDashboardPage() {
         <AdminAnalyticsOverviewStats />
       </section>
 
-      <hr className="border-slate-100" />
+      <hr className="border-border" />
 
       {/* LAYER 3: Financial & Operational Velocity (Grid-Cols-2) */}
       <div className="grid grid-cols-1 2xl:grid-cols-2 gap-12">
@@ -36,7 +36,7 @@ export default function AnalyticsDashboardPage() {
       </div>
 
       {/* LAYER 4: Growth Engineering (Elite Level) */}
-      <section className="bg-slate-50/50 p-8 rounded-[3rem] border border-slate-100">
+      <section className="bg-muted/50 p-8 rounded-[3rem] border border-border">
         <AdminAnalyticsConversionSection />
       </section>
 

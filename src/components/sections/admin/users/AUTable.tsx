@@ -111,9 +111,9 @@ export const AdminUsersTable: React.FC<AdminUsersTableProps> = ({
       transition={{ duration: 0.5 }}
       className={cn(
         "w-full p-2",
-        "bg-white",
+        "bg-background",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "rounded-[2.5rem]",
         "overflow-hidden",
         "shadow-sm",
@@ -134,7 +134,7 @@ export const AdminUsersTable: React.FC<AdminUsersTableProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className={cn("bg-slate-50/50", "border-b", "border-slate-100")}
+              className={cn("bg-muted/50", "border-b", "border-border")}
             >
               <th className={cn("pl-8", "pr-4", "py-5", "w-10")}>
                 <motion.div
@@ -163,7 +163,7 @@ export const AdminUsersTable: React.FC<AdminUsersTableProps> = ({
                   "py-5",
                   "text-[10px]",
                   "font-black",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-[0.2em]",
                 )}
@@ -176,7 +176,7 @@ export const AdminUsersTable: React.FC<AdminUsersTableProps> = ({
                   "py-5",
                   "text-[10px]",
                   "font-black",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-[0.2em]",
                 )}
@@ -189,7 +189,7 @@ export const AdminUsersTable: React.FC<AdminUsersTableProps> = ({
                   "py-5",
                   "text-[10px]",
                   "font-black",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-[0.2em]",
                 )}
@@ -202,7 +202,7 @@ export const AdminUsersTable: React.FC<AdminUsersTableProps> = ({
                   "py-5",
                   "text-[10px]",
                   "font-black",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-[0.2em]",
                 )}
@@ -215,7 +215,7 @@ export const AdminUsersTable: React.FC<AdminUsersTableProps> = ({
                   "py-5",
                   "text-[10px]",
                   "font-black",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-[0.2em]",
                   "text-right",
@@ -280,7 +280,7 @@ const AdminUserRow: React.FC<UserRowProps> = ({
       className={cn(
         "group",
         "transition-all",
-        isSelected ? "bg-primary/5" : "hover:bg-slate-50/50",
+        isSelected ? "bg-primary/5" : "hover:bg-muted/50",
         isBanned && "opacity-75 grayscale",
       )}
     >
@@ -332,7 +332,7 @@ const AdminUserRow: React.FC<UserRowProps> = ({
                 "bg-slate-200",
                 "overflow-hidden",
                 "border",
-                "border-slate-200",
+                "border-border",
                 "shrink-0",
               )}
             >
@@ -355,7 +355,7 @@ const AdminUserRow: React.FC<UserRowProps> = ({
                     "absolute",
                     "-bottom-1",
                     "-right-1",
-                    "bg-white",
+                    "bg-background",
                     "rounded-full",
                     "p-0.5",
                     "shadow-sm",
@@ -376,8 +376,8 @@ const AdminUserRow: React.FC<UserRowProps> = ({
                 "tracking-tight",
                 "transition-colors",
                 isBanned
-                  ? "text-slate-500 line-through"
-                  : "text-slate-900 group-hover:text-primary",
+                  ? "text-muted-foreground line-through"
+                  : "text-foreground group-hover:text-primary",
               )}
             >
               {user.name}
@@ -386,7 +386,7 @@ const AdminUserRow: React.FC<UserRowProps> = ({
               className={cn(
                 "text-[9px]",
                 "font-bold",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
                 "tracking-widest",
                 "mt-0.5",
@@ -401,7 +401,7 @@ const AdminUserRow: React.FC<UserRowProps> = ({
       {/* Contact */}
       <td className={cn("px-6", "py-5")}>
         <div className={cn("flex", "items-center", "gap-2", "text-slate-600")}>
-          <LuMail className={cn("w-3.5", "h-3.5", "text-slate-400")} />
+          <LuMail className={cn("w-3.5", "h-3.5", "text-muted-foreground")} />
           <span className={cn("text-[11px]", "font-bold")}>{user.email}</span>
           <motion.button
             onClick={copyEmail}
@@ -411,8 +411,8 @@ const AdminUserRow: React.FC<UserRowProps> = ({
               "p-1.5",
               "hover:bg-slate-200",
               "rounded-md",
-              "text-slate-400",
-              "hover:text-slate-900",
+              "text-muted-foreground",
+              "hover:text-foreground",
               "transition-colors",
             )}
             title="Copy Email"
@@ -473,7 +473,7 @@ const AdminUserRow: React.FC<UserRowProps> = ({
             className={cn(
               "text-[9px]",
               "font-black",
-              "text-slate-500",
+              "text-muted-foreground",
               "uppercase",
               "tracking-[0.15em]",
             )}
@@ -497,8 +497,8 @@ const AdminUserRow: React.FC<UserRowProps> = ({
                 "h-5",
                 "rounded-md",
                 user.ticketsCount > 0
-                  ? "bg-primary/20 text-slate-900"
-                  : "bg-slate-100 text-slate-400",
+                  ? "bg-primary/20 text-foreground"
+                  : "text-muted text-muted-foreground",
               )}
             >
               <LuTicket className={cn("w-3", "h-3")} />
@@ -509,14 +509,18 @@ const AdminUserRow: React.FC<UserRowProps> = ({
                 "font-black",
                 "uppercase",
                 "tracking-widest",
-                "text-slate-900",
+                "text-foreground",
               )}
             >
               {user.ticketsCount}{" "}
-              <span className={cn("text-slate-400", "font-bold")}>Tickets</span>
+              <span className={cn("text-muted-foreground", "font-bold")}>
+                Tickets
+              </span>
             </span>
           </div>
-          <span className={cn("text-[9px]", "font-medium", "text-slate-400")}>
+          <span
+            className={cn("text-[9px]", "font-medium", "text-muted-foreground")}
+          >
             Last active: {user.lastActive}
           </span>
         </div>
@@ -530,13 +534,13 @@ const AdminUserRow: React.FC<UserRowProps> = ({
           whileTap={{ scale: 0.9 }}
           className={cn(
             "p-2",
-            "hover:bg-white",
+            "hover:bg-background",
             "border",
             "border-transparent",
-            "hover:border-slate-200",
+            "hover:border-border",
             "rounded-lg",
-            "text-slate-400",
-            "hover:text-slate-900",
+            "text-muted-foreground",
+            "hover:text-foreground",
             "transition-all",
           )}
         >
@@ -569,9 +573,9 @@ const AdminUserRow: React.FC<UserRowProps> = ({
                   "right-8",
                   "top-12",
                   "w-48",
-                  "bg-white",
+                  "bg-background",
                   "border",
-                  "border-slate-100",
+                  "border-border",
                   "rounded-2xl",
                   "shadow-2xl",
                   "z-20",
@@ -588,7 +592,7 @@ const AdminUserRow: React.FC<UserRowProps> = ({
                   label="Edit Details"
                   onClick={() => handleAction("edit")}
                 />
-                <div className={cn("h-px", "bg-slate-50", "my-1")} />
+                <div className={cn("h-px", "bg-muted", "my-1")} />
                 {!isBanned ? (
                   <>
                     <DropdownItem
@@ -640,7 +644,7 @@ const DropdownItem: React.FC<DropdownItemProps> = ({
       "px-3",
       "py-2.5",
       "rounded-xl",
-      "hover:bg-slate-50",
+      "hover:bg-muted",
       "transition-colors",
       color,
     )}

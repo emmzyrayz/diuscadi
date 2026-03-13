@@ -52,7 +52,7 @@ export const TrustBar = () => {
               </div>
 
               {/* THE FOREGROUND SPAN */}
-              <span className={cn('relative', 'z-10', 'text-sm', 'font-bold', 'text-foreground', 'group-hover:text-white', 'transition-colors', 'duration-300', 'text-center', 'leading-tight')}>
+              <span className={cn('relative', 'z-10', 'text-sm', 'font-bold', 'text-foreground', 'group-hover:text-background', 'transition-colors', 'duration-300', 'text-center', 'leading-tight')}>
                 {partner.name}
               </span>
             </motion.div>

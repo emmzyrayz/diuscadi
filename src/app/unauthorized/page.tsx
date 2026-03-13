@@ -6,11 +6,11 @@ import { motion } from "framer-motion";
 
 export default function UnauthorizedPage() {
   return (
-    <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-6 text-center">
+    <div className="min-h-screen w-full bg-muted flex items-center justify-center p-6 text-center">
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="max-w-md w-full bg-white border border-slate-100 rounded-[3rem] p-12 shadow-2xl shadow-slate-200/50"
+        className="max-w-md w-full bg-background border border-border rounded-[3rem] p-12 shadow-2xl shadow-slate-200/50"
       >
         {/* 1. Icon & Status */}
         <div className="flex justify-center mb-8">
@@ -22,10 +22,10 @@ export default function UnauthorizedPage() {
 
         {/* 2. Error Messaging */}
         <div className="space-y-3 mb-10">
-          <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">
+          <h1 className="text-3xl font-black text-foreground uppercase tracking-tighter">
             Access Denied
           </h1>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-relaxed">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-relaxed">
             Your current account level does not have permission to view this
             sector.
           </p>
@@ -35,12 +35,12 @@ export default function UnauthorizedPage() {
         <div className="space-y-4">
           <Link
             href="/admin/analytics"
-            className="flex items-center justify-center gap-3 w-full py-5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-primary hover:text-slate-900 transition-all shadow-xl shadow-slate-900/10"
+            className="flex items-center justify-center gap-3 w-full py-5 bg-foreground text-background rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-primary hover:text-foreground transition-all shadow-xl shadow-foreground/10"
           >
             <LuArrowLeft className="w-4 h-4" /> Return to Safe Zone
           </Link>
 
-          <button className="flex items-center justify-center gap-2 w-full py-4 text-[9px] font-black text-slate-300 uppercase tracking-widest hover:text-slate-900 transition-colors">
+          <button className="flex items-center justify-center gap-2 w-full py-4 text-[9px] font-black text-slate-300 uppercase tracking-widest hover:text-foreground transition-colors">
             <LuLifeBuoy className="w-4 h-4" /> Request Elevated Access
           </button>
         </div>

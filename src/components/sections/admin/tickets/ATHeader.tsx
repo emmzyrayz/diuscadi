@@ -24,12 +24,12 @@ export const AdminTicketsHeader: React.FC<AdminTicketsHeaderProps> = ({
       {/* 1. Identity & Context */}
       <div className="space-y-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center text-secondary shadow-xl shadow-slate-900/20 border border-white/10">
+          <div className="w-14 h-14 rounded-2xl bg-foreground flex items-center justify-center text-secondary shadow-xl shadow-foreground/20 border border-background/10">
             <LuTicket className="w-7 h-7" />
           </div>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">
+              <h1 className="text-4xl font-black text-foreground tracking-tighter uppercase">
                 Manage Tickets
               </h1>
               <div className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full flex items-center gap-1.5">
@@ -39,7 +39,7 @@ export const AdminTicketsHeader: React.FC<AdminTicketsHeaderProps> = ({
                 </span>
               </div>
             </div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">
               Real-time ticket validation and entry governance terminal
             </p>
           </div>
@@ -51,7 +51,7 @@ export const AdminTicketsHeader: React.FC<AdminTicketsHeaderProps> = ({
         {/* Export Utility */}
         <button
           onClick={onExportClick}
-          className="flex items-center gap-2 px-5 py-4 bg-white border border-slate-200 rounded-2xl text-slate-600 hover:border-slate-900 hover:text-slate-900 transition-all group"
+          className="flex items-center gap-2 px-5 py-4 bg-background border border-border rounded-2xl text-slate-600 hover:border-foreground hover:text-foreground transition-all group"
         >
           <LuDownload className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
           <span className="text-[10px] font-black uppercase tracking-widest">
@@ -62,10 +62,10 @@ export const AdminTicketsHeader: React.FC<AdminTicketsHeaderProps> = ({
         {/* PRIMARY CTA: Scan Ticket */}
         <button
           onClick={onScanClick}
-          className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl hover:bg-primary hover:text-slate-900 transition-all shadow-2xl shadow-slate-900/20 group relative overflow-hidden"
+          className="flex items-center gap-3 px-8 py-4 bg-foreground text-background rounded-2xl hover:bg-primary hover:text-foreground transition-all shadow-2xl shadow-foreground/20 group relative overflow-hidden"
         >
           {/* Subtle pulse effect for the scan button */}
-          <div className="absolute inset-0 bg-white/5 animate-pulse" />
+          <div className="absolute inset-0 bg-background/5 animate-pulse" />
 
           <LuQrCode className="w-5 h-5 relative z-10 group-hover:scale-110 transition-transform" />
           <span className="text-[11px] font-black uppercase tracking-[0.15em] relative z-10">

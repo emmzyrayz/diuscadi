@@ -51,9 +51,9 @@ export const AdminEventsTable: React.FC = () => {
       transition={{ duration: 0.5 }}
       className={cn(
         "w-full",
-        "bg-white",
+        "bg-background",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "rounded-[2.5rem]",
         "overflow-hidden",
         "shadow-sm",
@@ -67,7 +67,7 @@ export const AdminEventsTable: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className={cn("bg-slate-50/50", "border-b", "border-slate-100")}
+              className={cn("bg-muted/50", "border-b", "border-border")}
             >
               <th
                 className={cn(
@@ -75,7 +75,7 @@ export const AdminEventsTable: React.FC = () => {
                   "py-5",
                   "text-[10px]",
                   "font-black",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-[0.2em]",
                 )}
@@ -88,7 +88,7 @@ export const AdminEventsTable: React.FC = () => {
                   "py-5",
                   "text-[10px]",
                   "font-black",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-[0.2em]",
                 )}
@@ -101,7 +101,7 @@ export const AdminEventsTable: React.FC = () => {
                   "py-5",
                   "text-[10px]",
                   "font-black",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-[0.2em]",
                 )}
@@ -114,7 +114,7 @@ export const AdminEventsTable: React.FC = () => {
                   "py-5",
                   "text-[10px]",
                   "font-black",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-[0.2em]",
                 )}
@@ -127,7 +127,7 @@ export const AdminEventsTable: React.FC = () => {
                   "py-5",
                   "text-[10px]",
                   "font-black",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-[0.2em]",
                   "text-right",
@@ -166,7 +166,7 @@ const AdminEventRow: React.FC<{ event: EventRowData; delay?: number }> = ({
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4, delay }}
-      className={cn("group", "hover:bg-slate-50/50", "transition-colors")}
+      className={cn("group", "hover:bg-muted/50", "transition-colors")}
     >
       {/* 1. Identity */}
       <td className={cn("px-8", "py-6")}>
@@ -175,7 +175,7 @@ const AdminEventRow: React.FC<{ event: EventRowData; delay?: number }> = ({
             className={cn(
               "text-sm",
               "font-black",
-              "text-slate-900",
+              "text-foreground",
               "tracking-tight",
               "group-hover:text-primary",
               "transition-colors",
@@ -187,7 +187,7 @@ const AdminEventRow: React.FC<{ event: EventRowData; delay?: number }> = ({
             className={cn(
               "text-[10px]",
               "font-bold",
-              "text-slate-400",
+              "text-muted-foreground",
               "uppercase",
               "mt-1",
             )}
@@ -203,11 +203,18 @@ const AdminEventRow: React.FC<{ event: EventRowData; delay?: number }> = ({
           <div
             className={cn("flex", "items-center", "gap-2", "text-slate-600")}
           >
-            <LuCalendar className={cn("w-3.5", "h-3.5", "text-slate-400")} />
+            <LuCalendar
+              className={cn("w-3.5", "h-3.5", "text-muted-foreground")}
+            />
             <span className={cn("text-[11px]", "font-bold")}>{event.date}</span>
           </div>
           <div
-            className={cn("flex", "items-center", "gap-2", "text-slate-500")}
+            className={cn(
+              "flex",
+              "items-center",
+              "gap-2",
+              "text-muted-foreground",
+            )}
           >
             <LuMapPin className={cn("w-3.5", "h-3.5", "text-slate-300")} />
             <span className={cn("text-[10px]", "font-medium")}>
@@ -221,9 +228,11 @@ const AdminEventRow: React.FC<{ event: EventRowData; delay?: number }> = ({
       <td className={cn("px-6", "py-6")}>
         <div className={cn("flex", "flex-col", "gap-2", "w-32")}>
           <div className={cn("flex", "justify-between", "items-end")}>
-            <span className={cn("text-[10px]", "font-black", "text-slate-900")}>
+            <span
+              className={cn("text-[10px]", "font-black", "text-foreground")}
+            >
               {event.enrolled}{" "}
-              <span className="text-slate-400">/ {event.capacity}</span>
+              <span className="text-muted-foreground">/ {event.capacity}</span>
             </span>
             <span
               className={cn(
@@ -242,7 +251,7 @@ const AdminEventRow: React.FC<{ event: EventRowData; delay?: number }> = ({
             className={cn(
               "w-full",
               "h-1.5",
-              "bg-slate-100",
+              "text-muted",
               "rounded-full",
               "overflow-hidden",
             )}
@@ -278,10 +287,10 @@ const AdminEventRow: React.FC<{ event: EventRowData; delay?: number }> = ({
             whileTap={{ scale: 0.9 }}
             className={cn(
               "p-2",
-              "hover:bg-white",
+              "hover:bg-background",
               "hover:shadow-md",
               "rounded-lg",
-              "text-slate-400",
+              "text-muted-foreground",
               "hover:text-primary",
               "transition-all",
             )}
@@ -293,26 +302,26 @@ const AdminEventRow: React.FC<{ event: EventRowData; delay?: number }> = ({
             whileTap={{ scale: 0.9 }}
             className={cn(
               "p-2",
-              "hover:bg-white",
+              "hover:bg-background",
               "hover:shadow-md",
               "rounded-lg",
-              "text-slate-400",
+              "text-muted-foreground",
               "hover:text-rose-500",
               "transition-all",
             )}
           >
             <LuTrash2 className={cn("w-4", "h-4")} />
           </motion.button>
-          <div className={cn("w-px", "h-4", "bg-slate-100", "mx-1")} />
+          <div className={cn("w-px", "h-4", "text-muted", "mx-1")} />
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             className={cn(
               "p-2",
-              "hover:bg-white",
+              "hover:bg-background",
               "hover:shadow-md",
               "rounded-lg",
-              "text-slate-400",
+              "text-muted-foreground",
             )}
           >
             <LuEllipsisVertical className={cn("w-4", "h-4")} />
@@ -332,7 +341,7 @@ const StatusBadge: React.FC<{
     Upcoming: "bg-blue-50 text-blue-600 border-blue-100",
     Completed: "bg-emerald-50 text-emerald-600 border-emerald-100",
     Cancelled: "bg-rose-50 text-rose-600 border-rose-100",
-    Draft: "bg-slate-50 text-slate-500 border-slate-200",
+    Draft: "bg-muted text-muted-foreground border-border",
   };
 
   return (

@@ -32,9 +32,9 @@ interface TicketRowProps {
 }
 
 interface ActionItemProps {
-    icon: IconType;
-    label: string;
-    color?: string;
+  icon: IconType;
+  label: string;
+  color?: string;
 }
 
 export const AdminTicketRow: React.FC<TicketRowProps> = ({
@@ -46,7 +46,7 @@ export const AdminTicketRow: React.FC<TicketRowProps> = ({
 
   return (
     <tr
-      className={`group border-b border-slate-50 last:border-0 transition-all ${isSelected ? "bg-primary/5" : "hover:bg-slate-50/80"}`}
+      className={`group border-b border-slate-50 last:border-0 transition-all ${isSelected ? "bg-primary/5" : "hover:bg-muted/80"}`}
     >
       {/* 1. Checkbox */}
       <td className="pl-8 pr-4 py-5">
@@ -61,10 +61,10 @@ export const AdminTicketRow: React.FC<TicketRowProps> = ({
       {/* 2. TicketCode */}
       <td className="px-4 py-5">
         <div className="flex items-center gap-2">
-          <div className="p-2 bg-slate-100 rounded-lg">
-            <LuHash className="w-3.5 h-3.5 text-slate-500" />
+          <div className="p-2 text-muted rounded-lg">
+            <LuHash className="w-3.5 h-3.5 text-muted-foreground" />
           </div>
-          <span className="text-xs font-black text-slate-900 font-mono tracking-tighter uppercase">
+          <span className="text-xs font-black text-foreground font-mono tracking-tighter uppercase">
             {ticket.ticketCode}
           </span>
         </div>
@@ -73,7 +73,7 @@ export const AdminTicketRow: React.FC<TicketRowProps> = ({
       {/* 3 & 4. UserAvatar + UserName */}
       <td className="px-4 py-5">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden border border-white shadow-sm shrink-0">
+          <div className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden border border-background shadow-sm shrink-0">
             <Image
               height={300}
               width={500}
@@ -82,7 +82,7 @@ export const AdminTicketRow: React.FC<TicketRowProps> = ({
               className="w-full h-full object-cover"
             />
           </div>
-          <span className="text-sm font-black text-slate-900 truncate max-w-[140px]">
+          <span className="text-sm font-black text-foreground truncate max-w-[140px]">
             {ticket.userName}
           </span>
         </div>
@@ -94,7 +94,7 @@ export const AdminTicketRow: React.FC<TicketRowProps> = ({
           <span className="text-[11px] font-black text-slate-800 uppercase leading-tight">
             {ticket.eventName}
           </span>
-          <div className="flex items-center gap-1 mt-1 text-slate-400">
+          <div className="flex items-center gap-1 mt-1 text-muted-foreground">
             <LuCalendar className="w-3 h-3" />
             <span className="text-[9px] font-bold uppercase tracking-widest">
               {ticket.eventDate}
@@ -111,7 +111,7 @@ export const AdminTicketRow: React.FC<TicketRowProps> = ({
               ? "bg-amber-50 text-amber-600 border-amber-100"
               : ticket.ticketType === "Student"
                 ? "bg-blue-50 text-blue-600 border-blue-100"
-                : "bg-slate-100 text-slate-500 border-slate-200"
+                : "text-muted text-muted-foreground border-border"
           }`}
         >
           {ticket.ticketType}
@@ -125,7 +125,7 @@ export const AdminTicketRow: React.FC<TicketRowProps> = ({
 
       {/* 9. CreatedDate */}
       <td className="px-4 py-5">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">
           {ticket.createdDate}
         </span>
       </td>
@@ -134,7 +134,7 @@ export const AdminTicketRow: React.FC<TicketRowProps> = ({
       <td className="pr-8 pl-4 py-5 text-right relative">
         <button
           onClick={() => setShowActions(!showActions)}
-          className="p-2 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg text-slate-400 hover:text-slate-900 transition-all"
+          className="p-2 hover:bg-background border border-transparent hover:border-border rounded-lg text-muted-foreground hover:text-foreground transition-all"
         >
           <LuEllipsis className="w-5 h-5" />
         </button>
@@ -145,7 +145,7 @@ export const AdminTicketRow: React.FC<TicketRowProps> = ({
               className="fixed inset-0 z-10"
               onClick={() => setShowActions(false)}
             />
-            <div className="absolute right-8 top-12 w-48 bg-white border border-slate-100 rounded-2xl shadow-2xl z-20 p-2 animate-in fade-in zoom-in-95 duration-200">
+            <div className="absolute right-8 top-12 w-48 bg-background border border-border rounded-2xl shadow-2xl z-20 p-2 animate-in fade-in zoom-in-95 duration-200">
               <ActionItem icon={LuEye} label="View Details" />
               <ActionItem
                 icon={LuCircleCheck}
@@ -157,7 +157,7 @@ export const AdminTicketRow: React.FC<TicketRowProps> = ({
                 label="Cancel Ticket"
                 color="text-rose-600"
               />
-              <div className="h-px bg-slate-50 my-1" />
+              <div className="h-px bg-muted my-1" />
               <ActionItem icon={LuUser} label="View User" />
               <ActionItem icon={LuExternalLink} label="View Event" />
             </div>
@@ -174,7 +174,7 @@ const StatusBadge = ({ status }: { status: TicketData["status"] }) => {
     Upcoming: "bg-blue-50 text-blue-600 border-blue-100",
     Used: "bg-emerald-50 text-emerald-600 border-emerald-100",
     Cancelled: "bg-rose-50 text-rose-600 border-rose-100",
-    Expired: "bg-slate-50 text-slate-400 border-slate-200",
+    Expired: "bg-muted text-muted-foreground border-border",
   };
 
   return (
@@ -186,9 +186,13 @@ const StatusBadge = ({ status }: { status: TicketData["status"] }) => {
   );
 };
 
-const ActionItem = ({ icon: Icon, label, color = "text-slate-600" }: ActionItemProps) => (
+const ActionItem = ({
+  icon: Icon,
+  label,
+  color = "text-slate-600",
+}: ActionItemProps) => (
   <button
-    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors ${color}`}
+    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors ${color}`}
   >
     <Icon className="w-4 h-4" />
     <span className="text-[10px] font-black uppercase tracking-tight">

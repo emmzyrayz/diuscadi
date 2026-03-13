@@ -20,7 +20,7 @@ import {
   LuTimer,
   LuCalendar,
 } from "react-icons/lu";
-import { cn } from "../../../../../lib/utils";
+import { cn } from "@/lib/utils";
 import { IconType } from "react-icons";
 
 // 1. Types & Interfaces
@@ -149,7 +149,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
             className={cn(
               "absolute",
               "inset-0",
-              "bg-slate-900/80",
+              "bg-foreground/80",
               "backdrop-blur-md",
             )}
           />
@@ -164,7 +164,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
               "relative",
               "w-full",
               "max-w-4xl",
-              "bg-white",
+              "bg-background",
               "rounded-[3rem]",
               "shadow-2xl",
               "overflow-hidden",
@@ -183,11 +183,11 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                 "px-10",
                 "py-8",
                 "border-b",
-                "border-slate-100",
+                "border-border",
                 "flex",
                 "items-center",
                 "justify-between",
-                "bg-white",
+                "bg-background",
                 "sticky",
                 "top-0",
                 "z-10",
@@ -198,7 +198,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                   className={cn(
                     "text-2xl",
                     "font-black",
-                    "text-slate-900",
+                    "text-foreground",
                     "tracking-tighter",
                     "uppercase",
                   )}
@@ -209,7 +209,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                   className={cn(
                     "text-[10px]",
                     "font-bold",
-                    "text-slate-400",
+                    "text-muted-foreground",
                     "uppercase",
                     "tracking-widest",
                     "mt-1",
@@ -224,9 +224,9 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                 onClick={onClose}
                 className={cn(
                   "p-3",
-                  "hover:bg-slate-50",
+                  "hover:bg-muted",
                   "rounded-2xl",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "transition-colors",
                 )}
               >
@@ -239,12 +239,12 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
               className={cn(
                 "px-10",
                 "py-6",
-                "bg-slate-50/50",
+                "bg-muted/50",
                 "flex",
                 "items-center",
                 "justify-between",
                 "border-b",
-                "border-slate-100",
+                "border-border",
               )}
             >
               {STEPS.map((step, index) => (
@@ -278,8 +278,8 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                         "transition-all",
                         "duration-300",
                         currentStep >= step.id
-                          ? "bg-primary text-slate-900 shadow-lg shadow-primary/20"
-                          : "bg-slate-200 text-slate-400",
+                          ? "bg-primary text-foreground shadow-lg shadow-primary/20"
+                          : "bg-slate-200 text-muted-foreground",
                       )}
                     >
                       <AnimatePresence mode="wait">
@@ -318,7 +318,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                         "md:block",
                         "transition-colors",
                         currentStep >= step.id
-                          ? "text-slate-900"
+                          ? "text-foreground"
                           : "text-slate-300",
                       )}
                     >
@@ -339,7 +339,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                         "hidden",
                         "lg:block",
                         "origin-left",
-                        currentStep > step.id ? "bg-primary" : "bg-slate-100",
+                        currentStep > step.id ? "bg-primary" : "text-muted",
                       )}
                     />
                   )}
@@ -400,11 +400,11 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                 "px-10",
                 "py-8",
                 "border-t",
-                "border-slate-100",
+                "border-border",
                 "flex",
                 "items-center",
                 "justify-between",
-                "bg-white",
+                "bg-background",
                 "sticky",
                 "bottom-0",
                 "z-10",
@@ -429,7 +429,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                   "transition-all",
                   currentStep === 1
                     ? "opacity-0 pointer-events-none"
-                    : "text-slate-400 hover:text-slate-900",
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 <LuChevronLeft className={cn("w-4", "h-4")} /> Previous
@@ -462,18 +462,18 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                       "gap-2",
                       "px-8",
                       "py-4",
-                      "bg-slate-900",
-                      "text-white",
+                      "bg-foreground",
+                      "text-background",
                       "rounded-2xl",
                       "text-[11px]",
                       "font-black",
                       "uppercase",
                       "tracking-widest",
                       "hover:bg-primary",
-                      "hover:text-slate-900",
+                      "hover:text-foreground",
                       "transition-colors",
                       "shadow-xl",
-                      "shadow-slate-900/10",
+                      "shadow-foreground/10",
                     )}
                   >
                     Continue <LuChevronRight className={cn("w-4", "h-4")} />
@@ -490,7 +490,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                       "px-8",
                       "py-4",
                       "bg-primary",
-                      "text-slate-900",
+                      "text-foreground",
                       "rounded-2xl",
                       "text-[11px]",
                       "font-black",
@@ -541,7 +541,7 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
             "font-black",
             "uppercase",
             "tracking-widest",
-            "text-slate-400",
+            "text-muted-foreground",
             "flex",
             "items-center",
             "gap-2",
@@ -556,9 +556,9 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
           }
           className={cn(
             "w-full",
-            "bg-slate-50",
+            "bg-muted",
             "border",
-            "border-slate-100",
+            "border-border",
             "p-4",
             "rounded-2xl",
             "text-xs",
@@ -588,7 +588,7 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
           "font-black",
           "uppercase",
           "tracking-widest",
-          "text-slate-400",
+          "text-muted-foreground",
         )}
       >
         Description
@@ -601,9 +601,9 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
         placeholder="What is this event about?"
         className={cn(
           "w-full",
-          "bg-slate-50",
+          "bg-muted",
           "border",
-          "border-slate-100",
+          "border-border",
           "p-4",
           "rounded-2xl",
           "text-xs",
@@ -626,9 +626,9 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
         "p-10",
         "border-2",
         "border-dashed",
-        "border-slate-200",
+        "border-border",
         "rounded-[2.5rem]",
-        "bg-slate-50/50",
+        "bg-muted/50",
         "flex",
         "flex-col",
         "items-center",
@@ -645,7 +645,7 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
         className={cn(
           "w-12",
           "h-12",
-          "bg-white",
+          "bg-background",
           "rounded-xl",
           "flex",
           "items-center",
@@ -659,7 +659,7 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
           className={cn(
             "w-6",
             "h-6",
-            "text-slate-400",
+            "text-muted-foreground",
             "group-hover:text-primary",
           )}
         />
@@ -670,7 +670,7 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
           "font-black",
           "uppercase",
           "tracking-[0.2em]",
-          "text-slate-900",
+          "text-foreground",
         )}
       >
         Upload Event Banner
@@ -679,7 +679,7 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
         className={cn(
           "text-[9px]",
           "font-bold",
-          "text-slate-400",
+          "text-muted-foreground",
           "uppercase",
           "mt-1",
         )}
@@ -736,7 +736,7 @@ const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
           "items-center",
           "gap-4",
           "p-2",
-          "bg-slate-100",
+          "text-muted",
           "rounded-2xl",
           "w-fit",
         )}
@@ -757,8 +757,8 @@ const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
               "tracking-widest",
               "transition-all",
               formData.type === type
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-400",
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground",
             )}
           >
             {type}
@@ -776,9 +776,9 @@ const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
           "md:grid-cols-2",
           "gap-6",
           "p-8",
-          "bg-slate-900",
+          "bg-foreground",
           "rounded-[2.5rem]",
-          "text-white",
+          "text-background",
           "overflow-hidden",
           "relative",
         )}
@@ -805,9 +805,9 @@ const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
                 })
               }
               className={cn(
-                "bg-white/5",
+                "bg-background/5",
                 "border",
-                "border-white/10",
+                "border-background/10",
                 "p-4",
                 "rounded-xl",
                 "text-xs",
@@ -826,9 +826,9 @@ const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
                 })
               }
               className={cn(
-                "bg-white/5",
+                "bg-background/5",
                 "border",
-                "border-white/10",
+                "border-background/10",
                 "p-4",
                 "rounded-xl",
                 "text-xs",
@@ -849,7 +849,7 @@ const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
             "items-center",
             "justify-center",
             "border",
-            "border-white/5",
+            "border-background/5",
           )}
         >
           <p
@@ -858,7 +858,7 @@ const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
               "font-black",
               "uppercase",
               "tracking-[0.3em]",
-              "text-slate-500",
+              "text-muted-foreground",
               "text-center",
               "px-6",
             )}
@@ -909,7 +909,7 @@ const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
       className={cn(
         "p-8",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "rounded-[2.5rem]",
         "flex",
         "items-center",
@@ -924,7 +924,7 @@ const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
             "font-black",
             "uppercase",
             "tracking-widest",
-            "text-slate-900",
+            "text-foreground",
           )}
         >
           Enable Waitlist
@@ -933,7 +933,7 @@ const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
           className={cn(
             "text-[9px]",
             "font-bold",
-            "text-slate-400",
+            "text-muted-foreground",
             "uppercase",
           )}
         >
@@ -955,7 +955,7 @@ const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
           "p-1",
           "cursor-pointer",
           "transition-colors",
-          formData.enableWaitlist ? "bg-primary" : "bg-slate-100",
+          formData.enableWaitlist ? "bg-primary" : "text-muted",
         )}
       >
         <motion.div
@@ -963,7 +963,13 @@ const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
             x: formData.enableWaitlist ? 24 : 0,
           }}
           transition={{ type: "spring", stiffness: 500, damping: 30 }}
-          className={cn("w-6", "h-6", "bg-white", "rounded-full", "shadow-md")}
+          className={cn(
+            "w-6",
+            "h-6",
+            "bg-background",
+            "rounded-full",
+            "shadow-md",
+          )}
         />
       </motion.button>
     </motion.div>
@@ -997,7 +1003,7 @@ const PartnersStep: React.FC<StepProps> = ({ formData, setFormData }) => (
       transition={{ delay: 0.1 }}
       className="space-y-4"
     >
-      <div className={cn("flex", "items-center", "justify-between")}>
+      <div className={cn("flex", "items-center", "justify-between", "text-muted-foreground")}>
         <h4
           className={cn(
             "text-[10px]",
@@ -1033,9 +1039,9 @@ const PartnersStep: React.FC<StepProps> = ({ formData, setFormData }) => (
           whileHover={{ scale: 1.02 }}
           className={cn(
             "p-4",
-            "bg-slate-50",
+            "bg-muted",
             "border",
-            "border-slate-100",
+            "border-border",
             "rounded-2xl",
             "flex",
             "items-center",
@@ -1056,7 +1062,7 @@ const PartnersStep: React.FC<StepProps> = ({ formData, setFormData }) => (
       transition={{ delay: 0.2 }}
       className={cn("space-y-4", "pt-4", "border-t", "border-slate-50")}
     >
-      <div className={cn("flex", "items-center", "justify-between")}>
+      <div className={cn("flex", "items-center", "justify-between", "text-muted-foreground")}>
         <h4
           className={cn(
             "text-[10px]",
@@ -1091,10 +1097,10 @@ const PartnersStep: React.FC<StepProps> = ({ formData, setFormData }) => (
           className={cn(
             "w-16",
             "h-16",
-            "bg-slate-50",
+            "bg-muted",
             "border-2",
             "border-dashed",
-            "border-slate-200",
+            "border-border",
             "rounded-2xl",
             "flex",
             "items-center",
@@ -1148,13 +1154,13 @@ const PublishStep: React.FC<StepProps> = ({ formData, setFormData }) => (
           "shadow-primary/20",
         )}
       >
-        <LuCircleCheck className={cn("w-8", "h-8", "text-slate-900")} />
+        <LuCircleCheck className={cn("w-8", "h-8", "text-foreground")} />
       </motion.div>
       <h3
         className={cn(
           "text-xl",
           "font-black",
-          "text-slate-900",
+          "text-foreground",
           "uppercase",
           "tracking-tighter",
         )}
@@ -1165,7 +1171,7 @@ const PublishStep: React.FC<StepProps> = ({ formData, setFormData }) => (
         className={cn(
           "text-[10px]",
           "font-bold",
-          "text-slate-500",
+          "text-muted-foreground",
           "uppercase",
           "mt-2",
           "tracking-widest",
@@ -1198,18 +1204,18 @@ const PublishStep: React.FC<StepProps> = ({ formData, setFormData }) => (
             "justify-between",
             "transition-all",
             formData.visibility === visibility
-              ? "bg-slate-50 border-slate-900"
-              : "bg-white border-slate-100 opacity-50",
+              ? "bg-muted border-foreground"
+              : "bg-background border-border opacity-50",
           )}
         >
           <span
             className={cn(
-              "text-[10px]",
+              "texttext-muted-foreground",
               "font-black",
               "uppercase",
               "tracking-widest",
               formData.visibility === visibility
-                ? "text-slate-900"
+                ? "text-foreground"
                 : "text-slate-400",
             )}
           >
@@ -1220,8 +1226,9 @@ const PublishStep: React.FC<StepProps> = ({ formData, setFormData }) => (
               className={cn(
                 "w-4",
                 "h-4",
+                "text-muted-foreground",
                 formData.visibility === visibility
-                  ? "text-slate-900"
+                  ? "text-foreground"
                   : "text-slate-400",
               )}
             />
@@ -1230,8 +1237,9 @@ const PublishStep: React.FC<StepProps> = ({ formData, setFormData }) => (
               className={cn(
                 "w-4",
                 "h-4",
+                "text-muted-foreground",
                 formData.visibility === visibility
-                  ? "text-slate-900"
+                  ? "text-foreground"
                   : "text-slate-400",
               )}
             />
@@ -1257,6 +1265,7 @@ const InputGroup: React.FC<InputGroupProps> = ({
         "text-[10px]",
         "font-black",
         "uppercase",
+        "text-muted-foreground",
         "tracking-widest",
         dark ? "text-slate-400" : "text-slate-400",
       )}
@@ -1266,13 +1275,13 @@ const InputGroup: React.FC<InputGroupProps> = ({
     <div className="relative">
       <Icon
         className={cn(
-          "absolute",
+          "absolute", "text-muted-foreground",
           "left-4",
           "top-1/2",
           "-translate-y-1/2",
           "w-4",
           "h-4",
-          dark ? "text-slate-500" : "text-slate-400",
+          dark ? "text-muted-foreground" : "text-slate-400",
         )}
       />
       <input
@@ -1291,8 +1300,8 @@ const InputGroup: React.FC<InputGroupProps> = ({
           "border",
           "transition-all",
           dark
-            ? "bg-white/5 border-white/10 text-white focus:border-primary/50"
-            : "bg-slate-50 border-slate-100 text-slate-900 focus:border-primary",
+            ? "bg-background/5 border-background/10 text-background focus:border-primary/50"
+            : "bg-muted border-border text-foreground focus:border-primary",
         )}
       />
     </div>

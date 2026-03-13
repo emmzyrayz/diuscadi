@@ -10,13 +10,13 @@ import {
 } from "react-icons/lu";
 
 interface StatCardProps {
-    label: string;
-    value: string;
-    icon: IconType;
-    color: string;
-    bg: string;
-    description: string;
-    showProgress?: number;
+  label: string;
+  value: string;
+  icon: IconType;
+  color: string;
+  bg: string;
+  description: string;
+  showProgress?: number;
 }
 
 export const AdminTicketsStats: React.FC = () => {
@@ -27,8 +27,8 @@ export const AdminTicketsStats: React.FC = () => {
         label="Total Issued"
         value="2,500"
         icon={LuTicket}
-        color="text-slate-900"
-        bg="bg-slate-50"
+        color="text-foreground"
+        bg="bg-muted"
         description="Total tickets generated across all events"
       />
 
@@ -77,7 +77,7 @@ const StatCard = ({
   showProgress,
 }: StatCardProps) => (
   <div
-    className={`p-8 rounded-[2.5rem] border border-slate-100 bg-white shadow-sm hover:shadow-md transition-all group`}
+    className={`p-8 rounded-[2.5rem] border border-border bg-background shadow-sm hover:shadow-md transition-all group`}
   >
     <div className="flex justify-between items-start mb-6">
       <div
@@ -90,7 +90,7 @@ const StatCard = ({
           <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
             {showProgress}%
           </span>
-          <div className="w-16 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
+          <div className="w-16 h-1 text-muted rounded-full mt-1 overflow-hidden">
             <div
               className="h-full bg-emerald-500"
               style={{ width: `${showProgress}%` }}
@@ -101,13 +101,13 @@ const StatCard = ({
     </div>
 
     <div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
+      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">
         {label}
       </p>
       <h3 className={`text-3xl font-black ${color} tracking-tighter`}>
         {value}
       </h3>
-      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-3 leading-relaxed">
+      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-3 leading-relaxed">
         {description}
       </p>
     </div>

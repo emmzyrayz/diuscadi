@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   LuTriangleAlert,
   LuLogOut,
@@ -8,66 +9,59 @@ import {
   LuShieldAlert,
   LuX,
   LuLock,
+  LuLoader,
 } from "react-icons/lu";
-import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "../../../lib/utils";
+import { cn } from "@/lib/utils";
 import { IconType } from "react-icons";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "react-hot-toast";
 
-// Define proper TypeScript types
-interface DangerActionRowProps {
+interface DangerRowProps {
   icon: IconType;
   title: string;
   desc: string;
   buttonText: string;
   onAction: () => void;
+  loading?: boolean;
   delay?: number;
 }
 
-interface DangerAction {
-  id: string;
-  icon: IconType;
-  title: string;
-  desc: string;
-  buttonText: string;
-  action: () => void;
-}
-
 export const DangerZoneSection = () => {
+  const { logout } = useAuth();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
 
-  const dangerActions: DangerAction[] = [
-    {
-      id: "logout",
-      icon: LuLogOut,
-      title: "Sign Out of Session",
-      desc: "Safely end your current session on this device.",
-      buttonText: "Logout",
-      action: () => console.log("Logging out..."),
-    },
-    {
-      id: "deactivate",
-      icon: LuUserMinus,
-      title: "Deactivate Account",
-      desc: "Temporarily disable your profile. You can reactivate anytime.",
-      buttonText: "Deactivate",
-      action: () => console.log("Deactivating..."),
-    },
-  ];
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      toast.error("Logout failed.");
+      setLoggingOut(false);
+    }
+  };
+
+  const handleDeactivate = async () => {
+    setDeactivating(true);
+    toast("Account deactivation is coming soon.", { icon: "ℹ️" });
+    setDeactivating(false);
+  };
 
   const handleDelete = () => {
-    if (confirmText === "DELETE") {
-      console.log("Deleting account...");
-      setShowDeleteModal(false);
-      setConfirmText("");
-    }
+    if (confirmText !== "DELETE") return;
+    toast.error(
+      "Account deletion initiated — you will receive a confirmation email.",
+    );
+    setShowDeleteModal(false);
+    setConfirmText("");
   };
 
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
       className={cn(
         "bg-rose-50/30",
         "border-2",
@@ -80,17 +74,8 @@ export const DangerZoneSection = () => {
         "relative",
       )}
     >
-      {/* Decorative Warning Background */}
-      <motion.div
-        animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.05, 0.08, 0.05],
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
+      {/* Decorative blur */}
+      <div
         className={cn(
           "absolute",
           "-top-12",
@@ -104,11 +89,8 @@ export const DangerZoneSection = () => {
         )}
       />
 
-      {/* 1. Section Header */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.2 }}
+      {/* Header */}
+      <div
         className={cn(
           "flex",
           "items-center",
@@ -118,14 +100,12 @@ export const DangerZoneSection = () => {
           "z-10",
         )}
       >
-        <motion.div
-          whileHover={{ scale: 1.1, rotate: 10 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        <div
           className={cn(
             "w-10",
             "h-10",
             "rounded-xl",
-            "bg-white",
+            "bg-background",
             "flex",
             "items-center",
             "justify-center",
@@ -135,20 +115,8 @@ export const DangerZoneSection = () => {
             "shadow-sm",
           )}
         >
-          <motion.div
-            animate={{
-              rotate: [0, -10, 10, -10, 0],
-              scale: [1, 1.1, 1],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              repeatDelay: 3,
-            }}
-          >
-            <LuTriangleAlert className={cn("w-5", "h-5")} />
-          </motion.div>
-        </motion.div>
+          <LuTriangleAlert className={cn("w-5", "h-5")} />
+        </div>
         <div>
           <h3
             className={cn(
@@ -173,28 +141,30 @@ export const DangerZoneSection = () => {
             Irreversible account actions and access control
           </p>
         </div>
-      </motion.div>
+      </div>
 
-      {/* 2. Danger Actions List */}
       <div className="space-y-4">
-        {/* Sign Out & Deactivate */}
-        {dangerActions.map((action, index) => (
-          <DangerActionRow
-            key={action.id}
-            icon={action.icon}
-            title={action.title}
-            desc={action.desc}
-            buttonText={action.buttonText}
-            onAction={action.action}
-            delay={0.3 + index * 0.1}
-          />
-        ))}
+        <DangerRow
+          icon={LuLogOut}
+          title="Sign Out of Session"
+          desc="Safely end your current session on this device."
+          buttonText="Logout"
+          onAction={handleLogout}
+          loading={loggingOut}
+          delay={0.1}
+        />
+        <DangerRow
+          icon={LuUserMinus}
+          title="Deactivate Account"
+          desc="Temporarily disable your profile. You can reactivate anytime."
+          buttonText="Deactivate"
+          onAction={handleDeactivate}
+          loading={deactivating}
+          delay={0.2}
+        />
 
-        {/* Permanent Delete */}
+        {/* Permanent delete */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
           whileHover={{ scale: 1.01, x: 4 }}
           className={cn(
             "flex",
@@ -204,7 +174,7 @@ export const DangerZoneSection = () => {
             "md:items-center",
             "justify-between",
             "p-6",
-            "bg-white",
+            "bg-background",
             "border",
             "border-rose-100",
             "rounded-3xl",
@@ -212,9 +182,7 @@ export const DangerZoneSection = () => {
           )}
         >
           <div className={cn("flex", "items-start", "gap-4")}>
-            <motion.div
-              whileHover={{ scale: 1.1, rotate: -5 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            <div
               className={cn(
                 "w-10",
                 "h-10",
@@ -228,13 +196,13 @@ export const DangerZoneSection = () => {
               )}
             >
               <LuTrash2 className={cn("w-5", "h-5")} />
-            </motion.div>
+            </div>
             <div>
               <h4
                 className={cn(
                   "text-sm",
                   "font-black",
-                  "text-slate-900",
+                  "text-foreground",
                   "uppercase",
                 )}
               >
@@ -244,27 +212,25 @@ export const DangerZoneSection = () => {
                 className={cn(
                   "text-xs",
                   "font-medium",
-                  "text-slate-500",
+                  "text-muted-foreground",
                   "mt-1",
                   "max-w-sm",
                 )}
               >
-                Permanently remove all your data, tickets, and professional
-                history. This cannot be undone.
+                Permanently remove all your data, tickets, and history. This
+                cannot be undone.
               </p>
             </div>
           </div>
-          <motion.button
+          <button
             onClick={() => setShowDeleteModal(true)}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
             className={cn(
               "w-full",
               "md:w-auto",
               "px-8",
               "py-4",
               "bg-rose-600",
-              "text-white",
+              "text-background",
               "rounded-2xl",
               "font-black",
               "text-[10px]",
@@ -274,14 +240,15 @@ export const DangerZoneSection = () => {
               "transition-colors",
               "shadow-lg",
               "shadow-rose-200",
+              "cursor-pointer",
             )}
           >
             Delete Permanently
-          </motion.button>
+          </button>
         </motion.div>
       </div>
 
-      {/* 3. Confirmation Modal (Portal) */}
+      {/* Confirm modal */}
       <AnimatePresence>
         {showDeleteModal && (
           <div
@@ -303,7 +270,7 @@ export const DangerZoneSection = () => {
               className={cn(
                 "absolute",
                 "inset-0",
-                "bg-slate-900/60",
+                "bg-foreground/60",
                 "backdrop-blur-sm",
               )}
             />
@@ -312,22 +279,18 @@ export const DangerZoneSection = () => {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              onClick={(e) => e.stopPropagation()}
               className={cn(
                 "relative",
                 "w-full",
                 "max-w-md",
-                "bg-white",
+                "bg-background",
                 "rounded-[2.5rem]",
                 "p-8",
                 "shadow-2xl",
-                "overflow-hidden",
               )}
-              onClick={(e) => e.stopPropagation()}
             >
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
+              <div
                 className={cn(
                   "flex",
                   "justify-between",
@@ -335,15 +298,7 @@ export const DangerZoneSection = () => {
                   "mb-6",
                 )}
               >
-                <motion.div
-                  animate={{
-                    rotate: [0, -5, 5, 0],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    repeatDelay: 2,
-                  }}
+                <div
                   className={cn(
                     "w-12",
                     "h-12",
@@ -356,47 +311,43 @@ export const DangerZoneSection = () => {
                   )}
                 >
                   <LuShieldAlert className={cn("w-6", "h-6")} />
-                </motion.div>
-                <motion.button
+                </div>
+                <button
                   onClick={() => setShowDeleteModal(false)}
-                  whileHover={{ scale: 1.1, rotate: 90 }}
-                  whileTap={{ scale: 0.9 }}
-                  className={cn("text-slate-400", "hover:text-slate-900")}
+                  className={cn(
+                    "text-muted-foreground",
+                    "hover:text-foreground",
+                    "cursor-pointer",
+                  )}
                 >
                   <LuX className={cn("w-6", "h-6")} />
-                </motion.button>
-              </motion.div>
+                </button>
+              </div>
 
-              <motion.h3
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+              <h3
                 className={cn(
                   "text-2xl",
                   "font-black",
-                  "text-slate-900",
+                  "text-foreground",
                   "tracking-tight",
                   "mb-2",
                 )}
               >
                 Are you absolutely sure?
-              </motion.h3>
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
+              </h3>
+              <p
                 className={cn(
                   "text-sm",
-                  "text-slate-500",
+                  "text-muted-foreground",
                   "mb-8",
                   "leading-relaxed",
                 )}
               >
-                This action will delete the{" "}
-                <span className={cn("font-bold", "text-slate-900")}>
+                This deletes your{" "}
+                <span className={cn("font-bold", "text-foreground")}>
                   DIUSCADI
                 </span>{" "}
-                account and all associated data. To confirm, please type{" "}
+                account and all associated data. Type{" "}
                 <span
                   className={cn(
                     "font-mono",
@@ -408,15 +359,10 @@ export const DangerZoneSection = () => {
                 >
                   DELETE
                 </span>{" "}
-                below.
-              </motion.p>
+                to confirm.
+              </p>
 
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="space-y-4"
-              >
+              <div className="space-y-4">
                 <div className="relative">
                   <LuLock
                     className={cn(
@@ -424,49 +370,45 @@ export const DangerZoneSection = () => {
                       "left-4",
                       "top-1/2",
                       "-translate-y-1/2",
-                      "text-slate-400",
+                      "text-muted-foreground",
                       "w-4",
                       "h-4",
                     )}
                   />
-                  <motion.input
+                  <input
                     type="text"
                     placeholder="Type DELETE to confirm"
                     value={confirmText}
                     onChange={(e) => setConfirmText(e.target.value)}
-                    whileFocus={{ scale: 1.01 }}
                     className={cn(
                       "w-full",
-                      "bg-slate-50",
+                      "bg-muted",
                       "border",
-                      "border-slate-100",
+                      "border-border",
                       "rounded-xl",
                       "pl-12",
                       "pr-4",
                       "py-4",
                       "text-sm",
                       "font-bold",
-                      "text-slate-900",
+                      "text-foreground",
                       "outline-none",
                       "focus:border-rose-300",
                       "transition-all",
                     )}
                   />
                 </div>
-
                 <div className={cn("flex", "gap-3")}>
-                  <motion.button
+                  <button
                     onClick={() => {
                       setShowDeleteModal(false);
                       setConfirmText("");
                     }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
                     className={cn(
                       "flex-1",
                       "px-6",
                       "py-4",
-                      "bg-slate-100",
+                      "text-muted",
                       "text-slate-600",
                       "rounded-2xl",
                       "font-black",
@@ -475,15 +417,14 @@ export const DangerZoneSection = () => {
                       "tracking-widest",
                       "hover:bg-slate-200",
                       "transition-colors",
+                      "cursor-pointer",
                     )}
                   >
                     Cancel
-                  </motion.button>
-                  <motion.button
+                  </button>
+                  <button
                     onClick={handleDelete}
                     disabled={confirmText !== "DELETE"}
-                    whileHover={confirmText === "DELETE" ? { scale: 1.05 } : {}}
-                    whileTap={confirmText === "DELETE" ? { scale: 0.95 } : {}}
                     className={cn(
                       "flex-1",
                       "px-6",
@@ -495,14 +436,14 @@ export const DangerZoneSection = () => {
                       "tracking-widest",
                       "transition-all",
                       confirmText === "DELETE"
-                        ? "bg-rose-600 text-white shadow-xl shadow-rose-200 cursor-pointer"
-                        : "bg-slate-100 text-slate-300 cursor-not-allowed",
+                        ? "bg-rose-600 text-background shadow-xl shadow-rose-200 cursor-pointer"
+                        : "text-muted text-slate-300 cursor-not-allowed",
                     )}
                   >
                     Confirm
-                  </motion.button>
+                  </button>
                 </div>
-              </motion.div>
+              </div>
             </motion.div>
           </div>
         )}
@@ -511,19 +452,19 @@ export const DangerZoneSection = () => {
   );
 };
 
-/* --- Internal Row Helper --- */
-const DangerActionRow = ({
+const DangerRow = ({
   icon: Icon,
   title,
   desc,
   buttonText,
   onAction,
+  loading = false,
   delay = 0,
-}: DangerActionRowProps) => (
+}: DangerRowProps) => (
   <motion.div
     initial={{ opacity: 0, x: -20 }}
     animate={{ opacity: 1, x: 0 }}
-    transition={{ duration: 0.4, delay }}
+    transition={{ delay }}
     whileHover={{ scale: 1.01, x: 4 }}
     className={cn(
       "flex",
@@ -533,7 +474,7 @@ const DangerActionRow = ({
       "md:items-center",
       "justify-between",
       "p-6",
-      "hover:bg-white",
+      "hover:bg-background",
       "rounded-3xl",
       "transition-all",
       "gap-6",
@@ -543,46 +484,55 @@ const DangerActionRow = ({
     )}
   >
     <div className={cn("flex", "items-start", "gap-4")}>
-      <motion.div
-        whileHover={{ scale: 1.1, rotate: 5 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      <div
         className={cn(
           "w-10",
           "h-10",
-          "bg-white",
+          "bg-background",
           "rounded-xl",
           "flex",
           "items-center",
           "justify-center",
-          "text-slate-400",
+          "text-muted-foreground",
           "shadow-sm",
           "shrink-0",
         )}
       >
         <Icon className={cn("w-5", "h-5")} />
-      </motion.div>
+      </div>
       <div>
         <h4
-          className={cn("text-sm", "font-black", "text-slate-900", "uppercase")}
+          className={cn(
+            "text-sm",
+            "font-black",
+            "text-foreground",
+            "uppercase",
+          )}
         >
           {title}
         </h4>
-        <p className={cn("text-xs", "font-medium", "text-slate-500", "mt-1")}>
+        <p
+          className={cn(
+            "text-xs",
+            "font-medium",
+            "text-muted-foreground",
+            "mt-1",
+          )}
+        >
           {desc}
         </p>
       </div>
     </div>
-    <motion.button
+    <button
       onClick={onAction}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      disabled={loading}
       className={cn(
         "w-full",
         "md:w-auto",
         "px-6",
         "py-3",
         "border-2",
-        "border-slate-200",
+        "border-border",
         "text-slate-600",
         "rounded-xl",
         "font-black",
@@ -592,12 +542,16 @@ const DangerActionRow = ({
         "hover:border-rose-200",
         "hover:text-rose-600",
         "transition-colors",
+        "flex",
+        "items-center",
+        "justify-center",
+        "gap-2",
+        "cursor-pointer",
+        "disabled:opacity-50",
       )}
     >
+      {loading && <LuLoader className={cn("w-3", "h-3", "animate-spin")} />}
       {buttonText}
-    </motion.button>
+    </button>
   </motion.div>
 );
-
-// Export types for reuse
-export type { DangerActionRowProps, DangerAction };

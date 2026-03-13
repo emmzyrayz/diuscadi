@@ -37,10 +37,10 @@ export const EditProfileSidebar = ({
     <div className="flex flex-col gap-8">
       {/* 1. Sidebar Title */}
       <div className="px-4">
-        <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em]">
+        <h2 className="text-sm font-black text-foreground uppercase tracking-[0.2em]">
           Profile Settings
         </h2>
-        <p className="text-[10px] font-bold text-slate-400 mt-1">
+        <p className="text-[10px] font-bold text-muted-foreground mt-1">
           Manage your digital footprint
         </p>
       </div>
@@ -58,8 +58,8 @@ export const EditProfileSidebar = ({
               className={cn(
                 "group flex items-center justify-between w-full p-4 rounded-2xl transition-all duration-300",
                 isActive
-                  ? "bg-white shadow-xl shadow-slate-200/60 border border-slate-100 ring-1 ring-slate-100/50"
-                  : "hover:bg-slate-50 text-slate-400 hover:text-slate-900",
+                  ? "bg-background shadow-xl shadow-slate-200/60 border border-border ring-1 ring-slate-100/50"
+                  : "hover:bg-muted text-muted-foreground hover:text-foreground",
               )}
             >
               <div className="flex items-center gap-4">
@@ -68,8 +68,8 @@ export const EditProfileSidebar = ({
                   className={cn(
                     "w-9 h-9 rounded-xl flex items-center justify-center transition-all",
                     isActive
-                      ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20"
-                      : "bg-slate-100 text-slate-400 group-hover:bg-slate-200",
+                      ? "bg-foreground text-background shadow-lg shadow-foreground/20"
+                      : "text-muted text-muted-foreground group-hover:bg-slate-200",
                   )}
                 >
                   <item.icon className="w-4.5 h-4.5" />
@@ -79,7 +79,7 @@ export const EditProfileSidebar = ({
                 <span
                   className={cn(
                     "text-[11px] font-black uppercase tracking-widest",
-                    isActive ? "text-slate-900" : "text-inherit",
+                    isActive ? "text-foreground" : "text-inherit",
                   )}
                 >
                   {item.label}
@@ -100,14 +100,14 @@ export const EditProfileSidebar = ({
       </nav>
 
       {/* 3. Help Card (Optional Sidebar Footer) */}
-      <div className="mt-4 p-5 bg-linear-to-br from-slate-900 to-slate-800 rounded-[2rem] text-white">
+      <div className="mt-4 p-5 bg-linear-to-br from-foreground to-slate-800 rounded-[2rem] text-background">
         <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2">
           Need Help?
         </p>
         <p className="text-[11px] font-medium text-slate-300 leading-relaxed mb-4">
           Changes take effect across the entire DIUSCADI network.
         </p>
-        <button className="text-[10px] font-black uppercase tracking-widest text-white underline decoration-blue-500/50 underline-offset-4">
+        <button className="text-[10px] font-black uppercase tracking-widest text-background underline decoration-blue-500/50 underline-offset-4">
           Contact Support
         </button>
       </div>

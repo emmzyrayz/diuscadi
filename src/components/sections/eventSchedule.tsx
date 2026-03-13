@@ -1,4 +1,4 @@
-'use client'
+"use client";
 import React from "react";
 import { motion } from "framer-motion";
 import {
@@ -75,7 +75,7 @@ const SCHEDULE_DATA = [
 
 export const EventSchedule = () => {
   return (
-    <section id="schedule" className="py-24 bg-white">
+    <section id="schedule" className="py-24 bg-background">
       <div className="container mx-auto px-6">
         <div className="flex flex-col lg:flex-row gap-16">
           {/* LEFT COLUMN: Sticky Info */}
@@ -85,17 +85,18 @@ export const EventSchedule = () => {
                 <h4 className="text-primary font-bold tracking-widest uppercase text-sm">
                   The Agenda
                 </h4>
-                <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">
+                <h2 className="text-4xl md:text-5xl font-extrabold text-foreground tracking-tight">
                   Event Schedule
                 </h2>
               </div>
 
-              <div className="p-8 rounded-[2rem] bg-slate-900 text-white shadow-xl relative overflow-hidden">
+              <div className="p-8 rounded-[2rem] bg-foreground text-background shadow-xl relative overflow-hidden">
                 {/* Decorative Pattern */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
                 <p className="relative z-10 text-xl leading-relaxed">
-                  We strive for a very impactful event. We&apos;re focused on just
+                  We strive for a very impactful event. We&apos;re focused on
+                  just
                   <span className="text-primary font-black">
                     {" "}
                     10% ACTIONABLE TALKS
@@ -107,7 +108,7 @@ export const EventSchedule = () => {
                   </span>
                 </p>
 
-                <div className="mt-8 flex items-center gap-3 text-slate-400 text-sm">
+                <div className="mt-8 flex items-center gap-3 text-muted-foreground text-sm">
                   <Clock className="w-5 h-5 text-primary" />
                   <span>Starts at 10:00 am prompt</span>
                 </div>
@@ -117,7 +118,7 @@ export const EventSchedule = () => {
 
           {/* RIGHT COLUMN: Timeline */}
           <div className="lg:w-2/3">
-            <div className="relative border-l-2 border-slate-100 ml-4 md:ml-6 pl-8 md:pl-12 space-y-12">
+            <div className="relative border-l-2 border-border ml-4 md:ml-6 pl-8 md:pl-12 space-y-12">
               {SCHEDULE_DATA.map((item, idx) => (
                 <motion.div
                   key={idx}
@@ -128,12 +129,12 @@ export const EventSchedule = () => {
                   className="relative group"
                 >
                   {/* Timeline Dot & Icon */}
-                  <div className="absolute -left-[calc(2rem+1px)] md:-left-[calc(3rem+1px)] top-0 w-12 h-12 md:w-14 md:h-14 bg-white border-2 border-slate-100 rounded-2xl flex items-center justify-center shadow-sm group-hover:border-primary group-hover:text-primary transition-all duration-300">
+                  <div className="absolute -left-[calc(2rem+1px)] md:-left-[calc(3rem+1px)] top-0 w-12 h-12 md:w-14 md:h-14 bg-background border-2 border-border rounded-2xl flex items-center justify-center shadow-sm group-hover:border-primary group-hover:text-primary transition-all duration-300">
                     <item.icon className="w-6 h-6" />
                   </div>
 
                   {/* Content Card */}
-                  <div className="bg-slate-50 group-hover:bg-white group-hover:shadow-md border border-transparent group-hover:border-slate-100 p-6 md:p-8 rounded-[2rem] transition-all duration-300">
+                  <div className="bg-muted group-hover:bg-background group-hover:shadow-md border border-transparent group-hover:border-border p-6 md:p-8 rounded-[2rem] transition-all duration-300">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4">
                       <span className="text-primary font-bold tracking-tighter text-lg">
                         {item.time}
@@ -141,7 +142,7 @@ export const EventSchedule = () => {
                       <div className="h-px grow bg-slate-200 mx-4 hidden md:block" />
                     </div>
 
-                    <h3 className="text-xl md:text-2xl font-bold text-slate-900 mb-3">
+                    <h3 className="text-xl md:text-2xl font-bold text-foreground mb-3">
                       {item.title}
                     </h3>
                     <p className="text-slate-600 leading-relaxed max-w-2xl">

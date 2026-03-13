@@ -1,7 +1,7 @@
 "use client";
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "../../../lib/utils";
+import React, { useState, useCallback } from "react";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 import {
   LuBellRing,
   LuMail,
@@ -9,150 +9,166 @@ import {
   LuCalendarCheck,
   LuMegaphone,
   LuClock,
-  LuCircleCheck,
+  LuLoader,
 } from "react-icons/lu";
 import { IconType } from "react-icons";
+import { useUser } from "@/context/UserContext";
+import type {
+  NotificationPreferences,
+  NotificationFrequency,
+} from "@/types/domain";
+import { toast } from "react-hot-toast";
 
-// Define proper TypeScript types
-type NotificationFrequency = "instant" | "daily" | "weekly";
-
-interface NotificationToggleProps {
+interface ToggleProps {
   icon: IconType;
   title: string;
   desc: string;
-  defaultChecked: boolean;
+  checked: boolean;
+  onChange: (v: boolean) => void;
   delay?: number;
 }
 
-interface NotificationConfig {
-  id: string;
+const TOGGLE_CONFIG: {
+  key: keyof Omit<NotificationPreferences, "frequency">;
   icon: IconType;
   title: string;
   desc: string;
-  defaultChecked: boolean;
-}
+}[] = [
+  {
+    key: "tickets",
+    icon: LuTicket,
+    title: "Ticket & Booking Updates",
+    desc: "Get notified about purchase confirmations and QR codes.",
+  },
+  {
+    key: "reminders",
+    icon: LuCalendarCheck,
+    title: "Event Reminders",
+    desc: "Receive alerts 24h and 1h before your registered events.",
+  },
+  {
+    key: "messages",
+    icon: LuMail,
+    title: "Direct Messages",
+    desc: "Notifications when other DIUSCADI members message you.",
+  },
+  {
+    key: "marketing",
+    icon: LuMegaphone,
+    title: "Marketing & News",
+    desc: "Stay updated on new tracks, sessions, and platform features.",
+  },
+];
 
 export const NotificationSettingsSection = () => {
-  const [frequency, setFrequency] = useState<NotificationFrequency>("instant");
+  const { profile, updatePreferences } = useUser();
+  const prefs = profile?.preferences.notifications;
 
-  const notificationConfigs: NotificationConfig[] = [
-    {
-      id: "tickets",
-      icon: LuTicket,
-      title: "Ticket & Booking Updates",
-      desc: "Get notified about purchase confirmations and QR codes.",
-      defaultChecked: true,
+  // Initialise from prefs at mount — component is keyed in page.tsx so it
+  // remounts once profile loads, no useEffect sync needed.
+  const [frequency, setFrequency] = useState<NotificationFrequency>(
+    prefs?.frequency ?? "instant",
+  );
+  const [toggles, setToggles] = useState({
+    tickets: prefs?.tickets ?? true,
+    reminders: prefs?.reminders ?? true,
+    messages: prefs?.messages ?? false,
+    marketing: prefs?.marketing ?? false,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const save = useCallback(
+    async (patch: Partial<NotificationPreferences>) => {
+      setSaving(true);
+      const result = await updatePreferences({
+        notifications: { ...toggles, frequency, ...patch },
+      });
+      setSaving(false);
+      if (!result.success) toast.error(result.error ?? "Failed to save");
     },
-    {
-      id: "reminders",
-      icon: LuCalendarCheck,
-      title: "Event Reminders",
-      desc: "Receive alerts 24h and 1h before your registered events.",
-      defaultChecked: true,
-    },
-    {
-      id: "messages",
-      icon: LuMail,
-      title: "Direct Messages",
-      desc: "Notifications when other DIUSCADI members message you.",
-      defaultChecked: false,
-    },
-    {
-      id: "marketing",
-      icon: LuMegaphone,
-      title: "Marketing & News",
-      desc: "Stay updated on new tracks, sessions, and platform features.",
-      defaultChecked: false,
-    },
-  ];
+    [updatePreferences, toggles, frequency],
+  );
+
+  const handleFrequency = async (v: NotificationFrequency) => {
+    setFrequency(v);
+    await save({ frequency: v });
+  };
+
+  const handleToggle = async (key: keyof typeof toggles, value: boolean) => {
+    setToggles((p) => ({ ...p, [key]: value }));
+    await save({ [key]: value });
+  };
 
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
       className={cn(
-        "bg-white",
+        "bg-background",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "rounded-[2.5rem]",
         "p-8",
         "md:p-10",
         "shadow-sm",
       )}
     >
-      {/* 1. Section Header */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.2 }}
-        className={cn("flex", "items-center", "gap-3", "mb-10")}
-      >
-        <motion.div
-          whileHover={{ scale: 1.1, rotate: 15 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          className={cn(
-            "w-10",
-            "h-10",
-            "rounded-xl",
-            "bg-slate-50",
-            "flex",
-            "items-center",
-            "justify-center",
-            "text-primary",
-            "border",
-            "border-slate-100",
-          )}
-        >
-          <motion.div
-            animate={{
-              rotate: [0, -15, 15, -15, 0],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              repeatDelay: 3,
-            }}
+      <div className={cn("flex", "items-center", "justify-between", "mb-10")}>
+        <div className={cn("flex", "items-center", "gap-3")}>
+          <div
+            className={cn(
+              "w-10",
+              "h-10",
+              "rounded-xl",
+              "bg-muted",
+              "flex",
+              "items-center",
+              "justify-center",
+              "text-primary",
+              "border",
+              "border-border",
+            )}
           >
             <LuBellRing className={cn("w-5", "h-5")} />
-          </motion.div>
-        </motion.div>
-        <div>
-          <h3
-            className={cn(
-              "text-xl",
-              "font-black",
-              "text-slate-900",
-              "tracking-tight",
-            )}
-          >
-            Notification Channels
-          </h3>
-          <p
-            className={cn(
-              "text-[10px]",
-              "font-bold",
-              "text-slate-400",
-              "uppercase",
-              "tracking-widest",
-              "mt-1",
-            )}
-          >
-            Choose how and when we reach you
-          </p>
+          </div>
+          <div>
+            <h3
+              className={cn(
+                "text-xl",
+                "font-black",
+                "text-foreground",
+                "tracking-tight",
+              )}
+            >
+              Notification Channels
+            </h3>
+            <p
+              className={cn(
+                "text-[10px]",
+                "font-bold",
+                "text-muted-foreground",
+                "uppercase",
+                "tracking-widest",
+                "mt-1",
+              )}
+            >
+              Choose how and when we reach you
+            </p>
+          </div>
         </div>
-      </motion.div>
+        {saving && (
+          <LuLoader
+            className={cn("w-4", "h-4", "text-primary", "animate-spin")}
+          />
+        )}
+      </div>
 
-      {/* 2. Frequency Control (Advanced UX) */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        whileHover={{ scale: 1.01 }}
+      {/* Frequency control */}
+      <div
         className={cn(
           "mb-10",
           "p-6",
-          "bg-slate-900",
+          "bg-foreground",
           "rounded-3xl",
           "flex",
           "flex-col",
@@ -164,16 +180,7 @@ export const NotificationSettingsSection = () => {
           "relative",
         )}
       >
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.2, 0.3, 0.2],
-          }}
-          transition={{
-            duration: 4,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
+        <div
           className={cn(
             "absolute",
             "top-0",
@@ -190,13 +197,11 @@ export const NotificationSettingsSection = () => {
         <div
           className={cn("flex", "items-center", "gap-4", "relative", "z-10")}
         >
-          <motion.div
-            whileHover={{ rotate: 360 }}
-            transition={{ duration: 0.6 }}
+          <div
             className={cn(
               "w-10",
               "h-10",
-              "bg-white/10",
+              "bg-background/10",
               "rounded-xl",
               "flex",
               "items-center",
@@ -205,75 +210,80 @@ export const NotificationSettingsSection = () => {
             )}
           >
             <LuClock className={cn("w-5", "h-5")} />
-          </motion.div>
+          </div>
           <div>
             <h4
               className={cn(
                 "text-sm",
                 "font-black",
-                "text-white",
+                "text-background",
                 "uppercase",
                 "tracking-tight",
               )}
             >
               Delivery Frequency
             </h4>
-            <p className={cn("text-[10px]", "font-bold", "text-slate-400")}>
+            <p
+              className={cn(
+                "text-[10px]",
+                "font-bold",
+                "text-muted-foreground",
+              )}
+            >
               Control the volume of emails
             </p>
           </div>
         </div>
-
-        <motion.select
+        <select
           value={frequency}
+          disabled={saving}
           onChange={(e) =>
-            setFrequency(e.target.value as NotificationFrequency)
+            handleFrequency(e.target.value as NotificationFrequency)
           }
-          whileFocus={{ scale: 1.02 }}
           className={cn(
             "relative",
             "z-10",
             "w-full",
             "md:w-48",
-            "bg-white/10",
+            "bg-background/10",
             "border",
-            "border-white/10",
+            "border-background/10",
             "rounded-xl",
             "px-4",
             "py-3",
             "text-xs",
             "font-black",
-            "text-white",
+            "text-background",
             "uppercase",
             "tracking-widest",
             "outline-none",
-            "focus:bg-white/20",
-            "transition-all",
             "cursor-pointer",
+            "disabled:opacity-50",
           )}
         >
-          <option value="instant" className="text-slate-900">
+          <option value="instant" className="text-foreground">
             Instant
           </option>
-          <option value="daily" className="text-slate-900">
+          <option value="daily" className="text-foreground">
             Daily Digest
           </option>
-          <option value="weekly" className="text-slate-900">
+          <option value="weekly" className="text-foreground">
             Weekly Wrap
           </option>
-        </motion.select>
-      </motion.div>
+        </select>
+      </div>
 
-      {/* 3. Toggle List */}
+      {/* Toggles */}
       <div className="space-y-3">
-        {notificationConfigs.map((config, index) => (
-          <NotificationToggle
-            key={config.id}
-            icon={config.icon}
-            title={config.title}
-            desc={config.desc}
-            defaultChecked={config.defaultChecked}
-            delay={0.4 + index * 0.1}
+        {TOGGLE_CONFIG.map((c, i) => (
+          <Toggle
+            key={c.key}
+            icon={c.icon}
+            title={c.title}
+            desc={c.desc}
+            checked={toggles[c.key]}
+            onChange={(v) => handleToggle(c.key, v)}
+            delay={0.05 * i}
           />
         ))}
       </div>
@@ -281,174 +291,104 @@ export const NotificationSettingsSection = () => {
   );
 };
 
-/* --- Internal Toggle Component --- */
-const NotificationToggle = ({
+const Toggle = ({
   icon: Icon,
   title,
   desc,
-  defaultChecked,
+  checked,
+  onChange,
   delay = 0,
-}: NotificationToggleProps) => {
-  const [enabled, setEnabled] = useState(defaultChecked);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, delay }}
-      whileHover={{ scale: 1.01, x: 4 }}
-      className={cn(
-        "group",
-        "flex",
-        "items-center",
-        "justify-between",
-        "p-6",
-        "rounded-[2rem]",
-        "border",
-        "transition-all",
-        enabled
-          ? "bg-white border-slate-100 shadow-sm"
-          : "bg-slate-50 border-transparent opacity-70",
-      )}
-    >
-      <div className={cn("flex", "items-start", "gap-4")}>
-        <motion.div
-          animate={
-            enabled
-              ? {
-                  scale: [1, 1.1, 1],
-                  rotate: [0, 5, -5, 0],
-                }
-              : {}
-          }
-          transition={{
-            duration: 0.5,
-          }}
-          className={cn(
-            "w-10",
-            "h-10",
-            "rounded-xl",
-            "flex",
-            "items-center",
-            "justify-center",
-            "shrink-0",
-            "transition-all",
-            "duration-300",
-            enabled
-              ? "bg-primary text-white shadow-lg shadow-primary/20"
-              : "bg-white text-slate-300 border border-slate-100",
-          )}
-        >
-          <motion.div
-            animate={
-              enabled
-                ? {
-                    scale: [1, 1.2, 1],
-                  }
-                : {}
-            }
-            transition={{
-              duration: 0.3,
-              delay: 0.1,
-            }}
-          >
-            <Icon className={cn("w-5", "h-5")} />
-          </motion.div>
-        </motion.div>
-        <div className="space-y-0.5">
-          <h4
-            className={cn(
-              "text-sm",
-              "font-black",
-              "uppercase",
-              "tracking-tight",
-              "transition-colors",
-              enabled ? "text-slate-900" : "text-slate-400",
-            )}
-          >
-            {title}
-          </h4>
-          <p
-            className={cn(
-              "text-xs",
-              "font-medium",
-              "text-slate-500",
-              "max-w-sm",
-              "leading-snug",
-            )}
-          >
-            {desc}
-          </p>
-        </div>
-      </div>
-
-      <motion.button
-        onClick={() => setEnabled(!enabled)}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+}: ToggleProps) => (
+  <motion.div
+    initial={{ opacity: 0, x: -20 }}
+    animate={{ opacity: 1, x: 0 }}
+    transition={{ delay }}
+    whileHover={{ scale: 1.01, x: 4 }}
+    className={cn(
+      "group",
+      "flex",
+      "items-center",
+      "justify-between",
+      "p-6",
+      "rounded-[2rem]",
+      "border",
+      "transition-all",
+      checked
+        ? "bg-background border-border shadow-sm"
+        : "bg-muted border-transparent opacity-70",
+    )}
+  >
+    <div className={cn("flex", "items-start", "gap-4")}>
+      <div
         className={cn(
-          "relative",
-          "w-12",
-          "h-6",
-          "rounded-full",
-          "transition-colors",
-          "duration-300",
-          "focus:ring-2",
-          "focus:ring-primary/20",
-          "focus:ring-offset-2",
-          "outline-none",
-          enabled ? "bg-emerald-500" : "bg-slate-200",
+          "w-10",
+          "h-10",
+          "rounded-xl",
+          "flex",
+          "items-center",
+          "justify-center",
+          "shrink-0",
+          "transition-all",
+          checked
+            ? "bg-primary text-background shadow-lg shadow-primary/20"
+            : "bg-background text-slate-300 border border-border",
         )}
       >
-        <motion.div
-          animate={{ x: enabled ? 28 : 4 }}
-          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        <Icon className={cn("w-5", "h-5")} />
+      </div>
+      <div className="space-y-0.5">
+        <h4
           className={cn(
-            "absolute",
-            "top-1",
-            "w-4",
-            "h-4",
-            "bg-white",
-            "rounded-full",
-            "shadow-sm",
+            "text-sm",
+            "font-black",
+            "uppercase",
+            "tracking-tight",
+            checked ? "text-foreground" : "text-muted-foreground",
           )}
         >
-          {/* Indicator dot when enabled */}
-          <AnimatePresence>
-            {enabled && (
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className={cn('absolute', 'inset-0', 'flex', 'items-center', 'justify-center')}
-              >
-                <div className={cn('w-1.5', 'h-1.5', 'bg-emerald-500', 'rounded-full')} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        {/* Ripple effect on toggle */}
-        <AnimatePresence>
-          {enabled && (
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0.5 }}
-              animate={{ scale: 1.5, opacity: 0 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ duration: 0.6 }}
-              className={cn('absolute', 'inset-0', 'bg-emerald-500', 'rounded-full')}
-            />
+          {title}
+        </h4>
+        <p
+          className={cn(
+            "text-xs",
+            "font-medium",
+            "text-muted-foreground",
+            "max-w-sm",
+            "leading-snug",
           )}
-        </AnimatePresence>
-      </motion.button>
-    </motion.div>
-  );
-};
-
-// Export types for reuse
-export type {
-  NotificationFrequency,
-  NotificationToggleProps,
-  NotificationConfig,
-};
+        >
+          {desc}
+        </p>
+      </div>
+    </div>
+    <button
+      onClick={() => onChange(!checked)}
+      className={cn(
+        "relative",
+        "w-12",
+        "h-6",
+        "rounded-full",
+        "transition-colors",
+        "duration-300",
+        "outline-none",
+        "cursor-pointer",
+        "shrink-0",
+        checked ? "bg-emerald-500" : "bg-slate-200",
+      )}
+    >
+      <motion.div
+        animate={{ x: checked ? 28 : 4 }}
+        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        className={cn(
+          "absolute",
+          "top-1",
+          "w-4",
+          "h-4",
+          "bg-background",
+          "rounded-full",
+          "shadow-sm",
+        )}
+      />
+    </button>
+  </motion.div>
+);

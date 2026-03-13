@@ -8,16 +8,16 @@ import {
   LuCalendar,
   LuZap,
 } from "react-icons/lu";
-import { Event } from "@/types/event";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import type {
+  RegisterEventData,
+  RegisterUserData,
+} from "@/app/events/[eventId]/register/page";
 
 interface TicketPreviewProps {
-  user: {
-    name: string;
-    avatar?: string;
-  };
-  event: Event;
+  user: RegisterUserData;
+  event: RegisterEventData;
   attendanceType: "physical" | "virtual";
 }
 
@@ -26,22 +26,25 @@ export const TicketPreviewCard = ({
   event,
   attendanceType,
 }: TicketPreviewProps) => {
+  const locationLine =
+    attendanceType === "virtual" ? "Zoom / Online" : event.location;
+
   return (
-    <section className={cn("w-full", "max-w-4xl", "mx-auto", "px-4", "py-12")}>
-      <div className={cn("text-center", "mb-10")}>
+    <div className={cn("w-full", "px-4", "py-6")}>
+      <div className={cn("text-center", "mb-6")}>
         <h3
           className={cn(
-            "text-sm",
+            "text-xs",
             "font-black",
-            "text-slate-400",
+            "text-muted-foreground",
             "uppercase",
             "tracking-[0.3em]",
-            "mb-2",
+            "mb-1",
           )}
         >
           Live Preview
         </h3>
-        <p className={cn("text-slate-500", "font-medium")}>
+        <p className={cn("text-muted-foreground", "text-xs", "font-medium")}>
           Your pass will look exactly like this
         </p>
       </div>
@@ -49,38 +52,31 @@ export const TicketPreviewCard = ({
       <motion.div
         initial={{ rotateY: -10, opacity: 0 }}
         whileInView={{ rotateY: 0, opacity: 1 }}
-        className={cn(
-          "relative",
-          "mx-auto",
-          "w-full",
-          "max-w-[380px]",
-          "perspective-1000",
-        )}
+        className={cn("mx-auto", "w-full", "max-w-[340px]")}
       >
-        {/* The Ticket Body */}
         <div
           className={cn(
-            "bg-slate-900",
+            "bg-foreground",
             "rounded-[2.5rem]",
             "overflow-hidden",
             "shadow-2xl",
-            "shadow-slate-400/50",
+            "shadow-slate-400/40",
             "border",
             "border-slate-800",
           )}
         >
-          {/* 1. Ticket Header */}
+          {/* Header */}
           <div
             className={cn(
-              "p-8",
-              "pb-6",
+              "px-8",
+              "py-6",
               "flex",
               "items-center",
               "justify-between",
               "border-b",
-              "border-white/5",
-              "bg-linear-to-b",
-              "from-white/5",
+              "border-background/5",
+              "bg-gradient-to-b",
+              "from-background/5",
               "to-transparent",
             )}
           >
@@ -97,11 +93,21 @@ export const TicketPreviewCard = ({
                 )}
               >
                 <LuZap
-                  className={cn("text-white", "w-5", "h-5", "fill-white")}
+                  className={cn(
+                    "text-background",
+                    "w-4",
+                    "h-4",
+                    "fill-background",
+                  )}
                 />
               </div>
               <span
-                className={cn("font-black", "text-white", "tracking-tighter")}
+                className={cn(
+                  "font-black",
+                  "text-background",
+                  "tracking-tighter",
+                  "text-sm",
+                )}
               >
                 DIUSCADI
               </span>
@@ -110,27 +116,27 @@ export const TicketPreviewCard = ({
               className={cn(
                 "px-3",
                 "py-1",
-                "bg-white/10",
+                "bg-background/10",
                 "rounded-full",
                 "text-[10px]",
                 "font-black",
                 "uppercase",
                 "tracking-widest",
-                "text-white/60",
+                "text-background/60",
               )}
             >
               {attendanceType === "physical" ? "Access Pass" : "Digital Entry"}
             </span>
           </div>
 
-          {/* 2. User Identity Section */}
-          <div className={cn("p-8", "text-center", "space-y-4")}>
+          {/* User */}
+          <div className={cn("px-8", "py-6", "text-center", "space-y-4")}>
             <div className={cn("relative", "inline-block")}>
               <div
                 className={cn(
-                  "w-24",
-                  "h-24",
-                  "rounded-[2rem]",
+                  "w-20",
+                  "h-20",
+                  "rounded-[1.5rem]",
                   "overflow-hidden",
                   "bg-slate-800",
                   "border-2",
@@ -140,15 +146,15 @@ export const TicketPreviewCard = ({
               >
                 {user.avatar ? (
                   <Image
-                    height={300}
-                    width={500}
                     src={user.avatar}
                     alt={user.name}
+                    width={80}
+                    height={80}
                     className={cn("w-full", "h-full", "object-cover")}
                   />
                 ) : (
                   <LuCircleUser
-                    className={cn("w-full", "h-full", "text-slate-600", "p-4")}
+                    className={cn("w-full", "h-full", "text-slate-600", "p-3")}
                   />
                 )}
               </div>
@@ -159,29 +165,29 @@ export const TicketPreviewCard = ({
                   "left-1/2",
                   "-translate-x-1/2",
                   "bg-primary",
-                  "text-white",
+                  "text-background",
                   "text-[8px]",
                   "font-black",
                   "uppercase",
-                  "px-3",
-                  "py-1",
+                  "px-2",
+                  "py-0.5",
                   "rounded-full",
                   "border-2",
-                  "border-slate-900",
+                  "border-foreground",
+                  "whitespace-nowrap",
                 )}
               >
                 Verified
               </div>
             </div>
-
-            <div className="space-y-1">
-              <h4 className={cn("text-2xl", "font-black", "text-white")}>
+            <div className={cn("space-y-0.5", "pt-1")}>
+              <h4 className={cn("text-lg", "font-black", "text-background")}>
                 {user.name || "Your Name"}
               </h4>
               <p
                 className={cn(
                   "text-primary",
-                  "text-xs",
+                  "text-[10px]",
                   "font-black",
                   "uppercase",
                   "tracking-widest",
@@ -192,7 +198,7 @@ export const TicketPreviewCard = ({
             </div>
           </div>
 
-          {/* 3. Perforation (The "Tear" effect) */}
+          {/* Tear */}
           <div
             className={cn(
               "relative",
@@ -204,12 +210,11 @@ export const TicketPreviewCard = ({
           >
             <div
               className={cn(
-                "w-6",
-                "h-6",
-                "bg-white",
+                "w-5",
+                "h-5",
+                "bg-background",
                 "rounded-full",
-                "-ml-5",
-                "z-10",
+                "-ml-4",
               )}
             />
             <div
@@ -217,57 +222,58 @@ export const TicketPreviewCard = ({
                 "flex-1",
                 "border-t-2",
                 "border-dashed",
-                "border-white/10",
-                "mx-2",
+                "border-background/10",
+                "mx-1",
               )}
             />
             <div
               className={cn(
-                "w-6",
-                "h-6",
-                "bg-white",
+                "w-5",
+                "h-5",
+                "bg-background",
                 "rounded-full",
-                "-mr-5",
-                "z-10",
+                "-mr-4",
               )}
             />
           </div>
 
-          {/* 4. Event Details Section */}
-          <div className={cn("p-8", "pt-6", "space-y-6")}>
-            <div className="space-y-1">
+          {/* Event details */}
+          <div className={cn("px-8", "py-6", "space-y-5")}>
+            <div>
               <p
                 className={cn(
                   "text-[10px]",
                   "font-black",
-                  "text-white/30",
+                  "text-background/30",
                   "uppercase",
                   "tracking-widest",
+                  "mb-1",
                 )}
               >
-                Event Title
+                Event
               </p>
               <h5
                 className={cn(
-                  "text-lg",
+                  "text-sm",
                   "font-bold",
-                  "text-white",
+                  "text-background",
                   "leading-tight",
+                  "line-clamp-2",
                 )}
               >
                 {event.title}
               </h5>
             </div>
-
             <div className={cn("grid", "grid-cols-2", "gap-4")}>
-              <div className="space-y-1">
+              <div>
                 <p
                   className={cn(
                     "text-[10px]",
                     "font-black",
-                    "text-white/30",
+                    "text-background/30",
                     "uppercase",
                     "tracking-widest",
+                    "mb-1",
                   )}
                 >
                   Date
@@ -276,26 +282,25 @@ export const TicketPreviewCard = ({
                   className={cn(
                     "flex",
                     "items-center",
-                    "gap-2",
-                    "text-white/80",
+                    "gap-1.5",
+                    "text-background/80",
                     "text-xs",
                     "font-bold",
                   )}
                 >
-                  <LuCalendar
-                    className={cn("w-3.5", "h-3.5", "text-primary")}
-                  />
-                  {event.date}
+                  <LuCalendar className={cn("w-3", "h-3", "text-primary")} />{" "}
+                  {event.eventDate}
                 </div>
               </div>
-              <div className="space-y-1">
+              <div>
                 <p
                   className={cn(
                     "text-[10px]",
                     "font-black",
-                    "text-white/30",
+                    "text-background/30",
                     "uppercase",
                     "tracking-widest",
+                    "mb-1",
                   )}
                 >
                   Location
@@ -304,58 +309,50 @@ export const TicketPreviewCard = ({
                   className={cn(
                     "flex",
                     "items-center",
-                    "gap-2",
-                    "text-white/80",
+                    "gap-1.5",
+                    "text-background/80",
                     "text-xs",
                     "font-bold",
                   )}
                 >
-                  <LuMapPin className={cn("w-3.5", "h-3.5", "text-primary")} />
-                  <span className="truncate">
-                    {attendanceType === "physical"
-                      ? event.location
-                      : "Zoom Link"}
-                  </span>
+                  <LuMapPin className={cn("w-3", "h-3", "text-primary")} />
+                  <span className="truncate">{locationLine}</span>
                 </div>
               </div>
             </div>
 
-            {/* 5. QR Code Placeholder */}
+            {/* QR placeholder */}
             <div
               className={cn(
-                "mt-8",
-                "p-6",
-                "bg-white",
-                "rounded-[2rem]",
+                "p-5",
+                "bg-background",
+                "rounded-[1.5rem]",
                 "flex",
                 "flex-col",
                 "items-center",
-                "justify-center",
-                "gap-4",
+                "gap-3",
               )}
             >
               <div
                 className={cn(
-                  "p-4",
-                  "bg-slate-50",
-                  "rounded-2xl",
+                  "p-3",
+                  "bg-muted",
+                  "rounded-xl",
                   "border-2",
-                  "border-slate-100",
-                  "opacity-20",
-                  "group-hover:opacity-100",
-                  "transition-opacity",
+                  "border-border",
+                  "opacity-25",
                 )}
               >
-                <LuQrCode className={cn("w-24", "h-24", "text-slate-900")} />
+                <LuQrCode className={cn("w-16", "h-16", "text-foreground")} />
               </div>
               <div className="text-center">
                 <p
                   className={cn(
                     "text-[9px]",
                     "font-black",
-                    "text-slate-400",
+                    "text-muted-foreground",
                     "uppercase",
-                    "tracking-[0.2em]",
+                    "tracking-[0.15em]",
                   )}
                 >
                   Ticket ID: DIU-2026-XXXX
@@ -365,7 +362,7 @@ export const TicketPreviewCard = ({
                     "text-[8px]",
                     "font-medium",
                     "text-slate-300",
-                    "mt-1",
+                    "mt-0.5",
                   )}
                 >
                   Scan at entrance for validation
@@ -375,6 +372,6 @@ export const TicketPreviewCard = ({
           </div>
         </div>
       </motion.div>
-    </section>
+    </div>
   );
 };

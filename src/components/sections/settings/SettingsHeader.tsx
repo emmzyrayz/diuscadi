@@ -1,21 +1,22 @@
 "use client";
 import React from "react";
 import { LuSettings, LuChevronRight, LuCircleUser } from "react-icons/lu";
-import { cn } from "../../../lib/utils";
+import { cn } from "@/lib/utils";
 import Image from "next/image";
+import type { UserProfile } from "@/context/UserContext";
 
 interface SettingsHeaderProps {
-  user: {
-    name: string;
-    email: string;
-    avatar?: string;
-  };
+  profile: UserProfile | null;
 }
 
-export const SettingsHeader = ({ user }: SettingsHeaderProps) => {
+export const SettingsHeader = ({ profile }: SettingsHeaderProps) => {
+  const name = profile?.fullName ?? "Loading…";
+  const email = profile?.email ?? "";
+  const avatar = profile?.avatar;
+
   return (
     <header
-      className={cn("w-full", "bg-white", "border-b", "border-slate-100")}
+      className={cn("w-full", "bg-background", "border-b", "border-border")}
     >
       <div
         className={cn(
@@ -37,7 +38,7 @@ export const SettingsHeader = ({ user }: SettingsHeaderProps) => {
             "gap-6",
           )}
         >
-          {/* 1. Title & Breadcrumbs */}
+          {/* Breadcrumb + title */}
           <div className="space-y-2">
             <div
               className={cn(
@@ -46,7 +47,7 @@ export const SettingsHeader = ({ user }: SettingsHeaderProps) => {
                 "gap-2",
                 "text-[10px]",
                 "font-black",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
                 "tracking-[0.2em]",
               )}
@@ -59,7 +60,7 @@ export const SettingsHeader = ({ user }: SettingsHeaderProps) => {
               className={cn(
                 "text-3xl",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "tracking-tight",
               )}
             >
@@ -67,7 +68,7 @@ export const SettingsHeader = ({ user }: SettingsHeaderProps) => {
             </h1>
           </div>
 
-          {/* 2. ProfileQuickCard (Premium Orientation) */}
+          {/* Profile quick-card */}
           <div
             className={cn(
               "flex",
@@ -75,11 +76,11 @@ export const SettingsHeader = ({ user }: SettingsHeaderProps) => {
               "gap-4",
               "p-3",
               "pr-6",
-              "bg-slate-50",
+              "bg-muted",
               "rounded-[2rem]",
               "border",
-              "border-slate-100",
-              "hover:bg-white",
+              "border-border",
+              "hover:bg-background",
               "hover:shadow-xl",
               "hover:shadow-slate-200/50",
               "transition-all",
@@ -94,17 +95,17 @@ export const SettingsHeader = ({ user }: SettingsHeaderProps) => {
                 "rounded-2xl",
                 "overflow-hidden",
                 "border-2",
-                "border-white",
+                "border-background",
                 "shadow-sm",
                 "shrink-0",
               )}
             >
-              {user.avatar ? (
+              {avatar ? (
                 <Image
-                  height={300}
-                  width={500}
-                  src={user.avatar}
-                  alt={user.name}
+                  src={avatar}
+                  alt={name}
+                  width={48}
+                  height={48}
                   className={cn("w-full", "h-full", "object-cover")}
                 />
               ) : (
@@ -112,11 +113,11 @@ export const SettingsHeader = ({ user }: SettingsHeaderProps) => {
                   className={cn(
                     "w-full",
                     "h-full",
-                    "bg-slate-200",
+                    "text-muted",
                     "flex",
                     "items-center",
                     "justify-center",
-                    "text-slate-400",
+                    "text-muted-foreground",
                   )}
                 >
                   <LuCircleUser className={cn("w-6", "h-6")} />
@@ -128,23 +129,23 @@ export const SettingsHeader = ({ user }: SettingsHeaderProps) => {
                 className={cn(
                   "text-xs",
                   "font-black",
-                  "text-slate-900",
+                  "text-foreground",
                   "leading-none",
                   "group-hover:text-primary",
                   "transition-colors",
                 )}
               >
-                {user.name}
+                {name}
               </span>
               <span
                 className={cn(
                   "text-[10px]",
                   "font-bold",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "mt-1",
                 )}
               >
-                {user.email}
+                {email}
               </span>
             </div>
           </div>

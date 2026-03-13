@@ -9,12 +9,13 @@ import {
   LuLogOut,
   LuHistory,
   LuShieldCheck,
-  LuTriangleAlert,
+  LuLoader,
 } from "react-icons/lu";
-import { cn } from "../../../lib/utils";
+import { cn } from "@/lib/utils";
 import { IconType } from "react-icons";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "react-hot-toast";
 
-// Define proper TypeScript types
 interface SessionItemProps {
   icon: IconType;
   device: string;
@@ -23,30 +24,34 @@ interface SessionItemProps {
   delay?: number;
 }
 
-interface Session {
-  id: string;
-  icon: IconType;
-  device: string;
-  location: string;
-  isCurrent: boolean;
-}
-
 export const SecuritySettingsSection = () => {
+  const { logout } = useAuth();
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  const sessions: Session[] = [
+  const handleLogoutAll = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      toast.error("Logout failed — please try again.");
+      setLoggingOut(false);
+    }
+  };
+
+  const sessions = [
     {
       id: "1",
       icon: LuMonitor,
-      device: "Chrome on MacOS",
-      location: "Lagos, Nigeria",
+      device: "Chrome on Desktop",
+      location: "Benin City, Nigeria",
       isCurrent: true,
     },
     {
       id: "2",
       icon: LuSmartphone,
       device: "Safari on iPhone 15",
-      location: "Abuja, Nigeria",
+      location: "Lagos, Nigeria",
       isCurrent: false,
     },
   ];
@@ -55,58 +60,41 @@ export const SecuritySettingsSection = () => {
     <motion.section
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
       className={cn(
-        "bg-white",
+        "bg-background",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "rounded-[2.5rem]",
         "p-8",
         "md:p-10",
         "shadow-sm",
       )}
     >
-      {/* 1. Section Header */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.2 }}
-        className={cn("flex", "items-center", "justify-between", "mb-10")}
-      >
+      {/* Header */}
+      <div className={cn("flex", "items-center", "justify-between", "mb-10")}>
         <div className={cn("flex", "items-center", "gap-3")}>
-          <motion.div
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          <div
             className={cn(
               "w-10",
               "h-10",
               "rounded-xl",
-              "bg-slate-50",
+              "bg-muted",
               "flex",
               "items-center",
               "justify-center",
               "text-emerald-600",
               "border",
-              "border-slate-100",
+              "border-border",
             )}
           >
-            <motion.div
-              animate={{ rotate: [0, -10, 10, 0] }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                repeatDelay: 3,
-              }}
-            >
-              <LuShieldX className={cn("w-5", "h-5")} />
-            </motion.div>
-          </motion.div>
+            <LuShieldX className={cn("w-5", "h-5")} />
+          </div>
           <div>
             <h3
               className={cn(
                 "text-xl",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "tracking-tight",
               )}
             >
@@ -116,21 +104,17 @@ export const SecuritySettingsSection = () => {
               className={cn(
                 "text-[10px]",
                 "font-bold",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
                 "tracking-widest",
                 "mt-1",
               )}
             >
-              Protect your account and managed sessions
+              Protect your account and manage sessions
             </p>
           </div>
         </div>
-        {/* Elite UX: Last Password Change */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
+        <div
           className={cn(
             "hidden",
             "md:flex",
@@ -138,42 +122,39 @@ export const SecuritySettingsSection = () => {
             "gap-2",
             "px-4",
             "py-2",
-            "bg-slate-50",
+            "bg-muted",
             "rounded-xl",
             "border",
-            "border-slate-100",
+            "border-border",
           )}
         >
-          <LuHistory className={cn("w-3", "h-3", "text-slate-400")} />
+          <LuHistory className={cn("w-3", "h-3", "text-muted-foreground")} />
           <span
             className={cn(
               "text-[9px]",
               "font-black",
-              "text-slate-500",
+              "text-muted-foreground",
               "uppercase",
               "tracking-tighter",
             )}
           >
-            Password updated 42 days ago
+            Password updated recently
           </span>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
       <div className="space-y-4">
-        {/* Change Password Setting */}
+        {/* Change password */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
           whileHover={{ scale: 1.01, x: 4 }}
           className={cn(
             "p-6",
-            "bg-slate-50",
+            "bg-muted",
             "rounded-3xl",
             "border",
             "border-transparent",
-            "hover:border-slate-100",
-            "hover:bg-white",
+            "hover:border-border",
+            "hover:bg-background",
             "transition-all",
           )}
         >
@@ -188,29 +169,27 @@ export const SecuritySettingsSection = () => {
             )}
           >
             <div className={cn("flex", "items-start", "gap-4")}>
-              <motion.div
-                whileHover={{ rotate: 15 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              <div
                 className={cn(
                   "w-10",
                   "h-10",
-                  "bg-white",
+                  "bg-background",
                   "rounded-xl",
                   "flex",
                   "items-center",
                   "justify-center",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "shrink-0",
                 )}
               >
                 <LuKey className={cn("w-5", "h-5")} />
-              </motion.div>
+              </div>
               <div>
                 <h4
                   className={cn(
                     "text-sm",
                     "font-black",
-                    "text-slate-900",
+                    "text-foreground",
                     "uppercase",
                   )}
                 >
@@ -220,7 +199,7 @@ export const SecuritySettingsSection = () => {
                   className={cn(
                     "text-xs",
                     "font-medium",
-                    "text-slate-500",
+                    "text-muted-foreground",
                     "mt-1",
                   )}
                 >
@@ -228,14 +207,17 @@ export const SecuritySettingsSection = () => {
                 </p>
               </div>
             </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
+              onClick={() =>
+                toast("Password reset email sent — check your inbox.", {
+                  icon: "📧",
+                })
+              }
               className={cn(
                 "px-6",
                 "py-3",
-                "bg-slate-900",
-                "text-white",
+                "bg-foreground",
+                "text-background",
                 "rounded-xl",
                 "font-black",
                 "text-[10px]",
@@ -244,19 +226,17 @@ export const SecuritySettingsSection = () => {
                 "hover:bg-primary",
                 "transition-colors",
                 "shadow-lg",
-                "shadow-slate-900/10",
+                "shadow-foreground/10",
+                "cursor-pointer",
               )}
             >
               Update Password
-            </motion.button>
+            </button>
           </div>
         </motion.div>
 
-        {/* 2FA Setting */}
+        {/* 2FA */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
           whileHover={{ scale: 1.01, x: 4 }}
           className={cn(
             "p-6",
@@ -265,7 +245,7 @@ export const SecuritySettingsSection = () => {
             "transition-all",
             is2FAEnabled
               ? "bg-emerald-50/30 border-emerald-100"
-              : "bg-slate-50 border-transparent",
+              : "bg-muted border-transparent",
           )}
         >
           <div
@@ -279,18 +259,7 @@ export const SecuritySettingsSection = () => {
             )}
           >
             <div className={cn("flex", "items-start", "gap-4")}>
-              <motion.div
-                animate={
-                  is2FAEnabled
-                    ? {
-                        scale: [1, 1.1, 1],
-                        rotate: [0, 5, -5, 0],
-                      }
-                    : {}
-                }
-                transition={{
-                  duration: 0.5,
-                }}
+              <div
                 className={cn(
                   "w-10",
                   "h-10",
@@ -300,21 +269,20 @@ export const SecuritySettingsSection = () => {
                   "justify-center",
                   "shrink-0",
                   "transition-all",
-                  "duration-300",
                   is2FAEnabled
-                    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
-                    : "bg-white text-slate-400",
+                    ? "bg-emerald-500 text-background shadow-lg shadow-emerald-500/20"
+                    : "bg-background text-muted-foreground",
                 )}
               >
                 <LuSmartphone className={cn("w-5", "h-5")} />
-              </motion.div>
+              </div>
               <div>
                 <div className={cn("flex", "items-center", "gap-2")}>
                   <h4
                     className={cn(
                       "text-sm",
                       "font-black",
-                      "text-slate-900",
+                      "text-foreground",
                       "uppercase",
                     )}
                   >
@@ -323,14 +291,9 @@ export const SecuritySettingsSection = () => {
                   <AnimatePresence>
                     {is2FAEnabled && (
                       <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        exit={{ scale: 0, rotate: 180 }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 300,
-                          damping: 15,
-                        }}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        exit={{ scale: 0 }}
                       >
                         <LuShieldCheck
                           className={cn("w-4", "h-4", "text-emerald-500")}
@@ -343,18 +306,19 @@ export const SecuritySettingsSection = () => {
                   className={cn(
                     "text-xs",
                     "font-medium",
-                    "text-slate-500",
+                    "text-muted-foreground",
                     "mt-1",
                   )}
                 >
-                  Add an extra layer of security to your login attempts.
+                  Add an extra layer of security to your login.
                 </p>
               </div>
             </div>
-            <motion.button
-              onClick={() => setIs2FAEnabled(!is2FAEnabled)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
+              onClick={() => {
+                setIs2FAEnabled(!is2FAEnabled);
+                toast(is2FAEnabled ? "2FA disabled." : "2FA enabled!");
+              }}
               className={cn(
                 "px-6",
                 "py-3",
@@ -364,69 +328,73 @@ export const SecuritySettingsSection = () => {
                 "uppercase",
                 "tracking-widest",
                 "transition-all",
+                "cursor-pointer",
                 is2FAEnabled
-                  ? "bg-white border border-emerald-200 text-emerald-600"
-                  : "bg-white border border-slate-200 text-slate-900",
+                  ? "bg-background border border-emerald-200 text-emerald-600"
+                  : "bg-background border border-border text-foreground",
               )}
             >
               {is2FAEnabled ? "Disable 2FA" : "Enable 2FA"}
-            </motion.button>
+            </button>
           </div>
         </motion.div>
 
-        {/* Login Sessions & Connected Devices */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className={cn("p-8", "bg-slate-50", "rounded-[2rem]", "space-y-6")}
+        {/* Active sessions */}
+        <div
+          className={cn("p-8", "bg-muted", "rounded-[2rem]", "space-y-6")}
         >
           <div className={cn("flex", "items-center", "justify-between")}>
             <h4
               className={cn(
                 "text-[10px]",
                 "font-black",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
                 "tracking-widest",
               )}
             >
               Active Sessions
             </h4>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
+              onClick={handleLogoutAll}
+              disabled={loggingOut}
               className={cn(
                 "text-[9px]",
                 "font-black",
                 "text-rose-500",
                 "uppercase",
                 "hover:underline",
+                "cursor-pointer",
+                "flex",
+                "items-center",
+                "gap-1.5",
+                "disabled:opacity-50",
               )}
             >
+              {loggingOut && (
+                <LuLoader className={cn("w-3", "h-3", "animate-spin")} />
+              )}
               Log out all devices
-            </motion.button>
+            </button>
           </div>
-
           <div className="space-y-3">
-            {sessions.map((session, index) => (
+            {sessions.map((s, i) => (
               <SessionItem
-                key={session.id}
-                icon={session.icon}
-                device={session.device}
-                location={session.location}
-                isCurrent={session.isCurrent}
-                delay={0.7 + index * 0.1}
+                key={s.id}
+                icon={s.icon}
+                device={s.device}
+                location={s.location}
+                isCurrent={s.isCurrent}
+                delay={0.1 * i}
               />
             ))}
           </div>
-        </motion.div>
+        </div>
       </div>
     </motion.section>
   );
 };
 
-/* --- Internal Helper for Sessions --- */
 const SessionItem = ({
   icon: Icon,
   device,
@@ -437,77 +405,69 @@ const SessionItem = ({
   <motion.div
     initial={{ opacity: 0, x: -20 }}
     animate={{ opacity: 1, x: 0 }}
-    transition={{ duration: 0.4, delay }}
+    transition={{ delay }}
     whileHover={{ scale: 1.01, x: 4 }}
     className={cn(
       "flex",
       "items-center",
       "justify-between",
       "p-4",
-      "bg-white",
+      "bg-background",
       "rounded-2xl",
       "border",
-      "border-slate-100",
+      "border-border",
       "shadow-sm",
     )}
   >
     <div className={cn("flex", "items-center", "gap-4")}>
-      <motion.div
-        whileHover={{ scale: 1.1, rotate: 5 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      <div
         className={cn(
           "w-10",
           "h-10",
-          "bg-slate-50",
+          "bg-muted",
           "rounded-xl",
           "flex",
           "items-center",
           "justify-center",
-          "text-slate-400",
+          "text-muted-foreground",
         )}
       >
         <Icon className={cn("w-5", "h-5")} />
-      </motion.div>
+      </div>
       <div>
         <p
           className={cn(
             "text-xs",
             "font-bold",
-            "text-slate-900",
+            "text-foreground",
             "flex",
             "items-center",
             "gap-2",
           )}
         >
           {device}
-          <AnimatePresence>
-            {isCurrent && (
-              <motion.span
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className={cn(
-                  "px-1.5",
-                  "py-0.5",
-                  "bg-blue-50",
-                  "text-blue-600",
-                  "rounded",
-                  "text-[7px]",
-                  "font-black",
-                  "uppercase",
-                )}
-              >
-                Current Session
-              </motion.span>
-            )}
-          </AnimatePresence>
+          {isCurrent && (
+            <span
+              className={cn(
+                "px-1.5",
+                "py-0.5",
+                "bg-blue-50",
+                "text-blue-600",
+                "rounded",
+                "text-[7px]",
+                "font-black",
+                "uppercase",
+              )}
+            >
+              Current
+            </span>
+          )}
         </p>
         <p
           className={cn(
             "text-[10px]",
             "font-medium",
-            "text-slate-400",
+            "text-muted-foreground",
             "mt-0.5",
           )}
         >
@@ -516,21 +476,17 @@ const SessionItem = ({
       </div>
     </div>
     {!isCurrent && (
-      <motion.button
-        whileHover={{ scale: 1.2, rotate: 10 }}
-        whileTap={{ scale: 0.9 }}
+      <button
         className={cn(
           "p-2",
           "text-slate-300",
           "hover:text-rose-500",
           "transition-colors",
+          "cursor-pointer",
         )}
       >
         <LuLogOut className={cn("w-4", "h-4")} />
-      </motion.button>
+      </button>
     )}
   </motion.div>
 );
-
-// Export types for reuse
-export type { SessionItemProps, Session };

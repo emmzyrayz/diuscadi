@@ -104,10 +104,10 @@ export const AdminEventRow: React.FC<EventRowProps> = ({
               "w-12",
               "h-12",
               "rounded-xl",
-              "bg-slate-100",
+              "text-muted",
               "overflow-hidden",
               "border",
-              "border-slate-100",
+              "border-border",
               "shrink-0",
             )}
           >
@@ -124,7 +124,7 @@ export const AdminEventRow: React.FC<EventRowProps> = ({
               className={cn(
                 "text-xs",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "leading-tight",
                 "uppercase",
                 "tracking-tight",
@@ -156,11 +156,16 @@ export const AdminEventRow: React.FC<EventRowProps> = ({
           <div
             className={cn("flex", "items-center", "gap-1.5", "text-slate-600")}
           >
-            <LuCalendar className={cn("w-3", "h-3", "text-slate-400")} />
+            <LuCalendar className={cn("w-3", "h-3", "text-muted-foreground")} />
             <span className={cn("text-[10px]", "font-bold")}>{event.date}</span>
           </div>
           <div
-            className={cn("flex", "items-center", "gap-1.5", "text-slate-400")}
+            className={cn(
+              "flex",
+              "items-center",
+              "gap-1.5",
+              "text-muted-foreground",
+            )}
           >
             <LuMapPin className={cn("w-3", "h-3")} />
             <span className={cn("text-[10px]", "font-medium")}>
@@ -173,7 +178,7 @@ export const AdminEventRow: React.FC<EventRowProps> = ({
       {/* 4. Registrations */}
       <td className={cn("px-6", "py-5")}>
         <div className={cn("flex", "flex-col", "gap-1")}>
-          <span className={cn("text-[10px]", "font-black", "text-slate-900")}>
+          <span className={cn("text-[10px]", "font-black", "text-foreground")}>
             {event.enrolled}{" "}
             <span className="text-slate-300">/ {event.capacity}</span>
           </span>
@@ -181,7 +186,7 @@ export const AdminEventRow: React.FC<EventRowProps> = ({
             className={cn(
               "w-20",
               "h-1",
-              "bg-slate-100",
+              "text-muted",
               "rounded-full",
               "overflow-hidden",
             )}
@@ -216,10 +221,10 @@ export const AdminEventRow: React.FC<EventRowProps> = ({
             "p-2",
             "border",
             "border-transparent",
-            "hover:border-slate-200",
+            "hover:border-border",
             "rounded-lg",
-            "text-slate-400",
-            "hover:text-slate-900",
+            "text-muted-foreground",
+            "hover:text-foreground",
             "transition-colors",
           )}
         >
@@ -252,9 +257,9 @@ export const AdminEventRow: React.FC<EventRowProps> = ({
                   "right-8",
                   "top-14",
                   "w-48",
-                  "bg-white",
+                  "bg-background",
                   "border",
-                  "border-slate-100",
+                  "border-border",
                   "rounded-2xl",
                   "shadow-2xl",
                   "z-20",
@@ -269,7 +274,7 @@ export const AdminEventRow: React.FC<EventRowProps> = ({
                 <DropdownItem
                   icon={LuSquarePen}
                   label="Edit Event"
-                  color="text-slate-900"
+                  color="text-foreground"
                   onClick={() => handleAction("edit")}
                 />
                 <DropdownItem
@@ -277,7 +282,7 @@ export const AdminEventRow: React.FC<EventRowProps> = ({
                   label="Duplicate"
                   onClick={() => handleAction("duplicate")}
                 />
-                <div className={cn("h-px", "bg-slate-50", "my-1")} />
+                <div className={cn("h-px", "bg-muted", "my-1")} />
                 <DropdownItem
                   icon={LuCircleX}
                   label="Cancel Event"
@@ -344,7 +349,7 @@ const VisibilityBadge: React.FC<VisibilityBadgeProps> = ({ visibility }) => (
       "font-bold",
       "uppercase",
       "tracking-widest",
-      visibility === "Published" ? "text-emerald-500" : "text-slate-400",
+      visibility === "Published" ? "text-emerald-500" : "text-muted-foreground",
     )}
   >
     <motion.span
@@ -390,7 +395,7 @@ const DropdownItem: React.FC<DropdownItemProps> = ({
       "px-3",
       "py-2.5",
       "rounded-xl",
-      "hover:bg-slate-50",
+      "hover:bg-muted",
       "transition-colors",
       color,
     )}

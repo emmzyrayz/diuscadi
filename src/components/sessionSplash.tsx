@@ -20,7 +20,7 @@ export const SessionSplash: React.FC<SessionSplashProps> = ({
           key="session-splash"
           initial={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.4, ease: "easeOut" } }}
-          className="fixed inset-0 bg-slate-50 flex flex-col items-center justify-center"
+          className="fixed inset-0 bg-muted flex flex-col items-center justify-center"
           style={{ zIndex: 9999 }}
         >
           {/* Logo */}
@@ -30,7 +30,7 @@ export const SessionSplash: React.FC<SessionSplashProps> = ({
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             className="relative mb-8"
           >
-            <div className="w-20 h-20 bg-slate-900 rounded-[1.75rem] flex items-center justify-center shadow-2xl shadow-slate-900/20 border border-white/10">
+            <div className="w-20 h-20 bg-foreground rounded-[1.75rem] flex items-center justify-center shadow-2xl shadow-foreground/20 border border-background/10">
               <LuHexagon className="w-9 h-9 text-primary" />
             </div>
             {/* Ping ring */}
@@ -49,7 +49,7 @@ export const SessionSplash: React.FC<SessionSplashProps> = ({
               {[0, 1, 2, 3].map((i) => (
                 <motion.span
                   key={i}
-                  className="w-1 h-4 bg-slate-900 rounded-full"
+                  className="w-1 h-4 bg-foreground rounded-full"
                   animate={{ scaleY: [0.4, 1, 0.4] }}
                   transition={{
                     duration: 0.9,
@@ -60,7 +60,7 @@ export const SessionSplash: React.FC<SessionSplashProps> = ({
                 />
               ))}
             </div>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em]">
+            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">
               Restoring Session...
             </p>
           </motion.div>

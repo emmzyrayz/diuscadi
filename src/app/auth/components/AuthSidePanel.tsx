@@ -27,7 +27,7 @@ const itemVariants = {
 export const AuthSidePanel: React.FC = () => {
   return (
     <motion.div
-      className="hidden lg:flex flex-1 bg-slate-900 relative overflow-hidden p-20 flex-col justify-between"
+      className="hidden lg:flex flex-1 bg-foreground relative overflow-hidden p-20 flex-col justify-between"
       initial="hidden"
       animate="visible"
       variants={panelVariants}
@@ -48,13 +48,13 @@ export const AuthSidePanel: React.FC = () => {
 
       {/* 1. Brand Identity */}
       <motion.div className="relative z-10" variants={itemVariants}>
-        <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-slate-900 mb-6 shadow-lg shadow-primary/20">
+        <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-foreground mb-6 shadow-lg shadow-primary/20">
           <LuSparkles className="w-6 h-6" />
         </div>
-        <h2 className="text-4xl font-black text-white uppercase tracking-tighter leading-none mb-4">
+        <h2 className="text-4xl font-black text-background uppercase tracking-tighter leading-none mb-4">
           The Hub for <br /> <span className="text-primary">Innovation.</span>
         </h2>
-        <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.2em]">
+        <p className="text-muted-foreground font-bold text-xs uppercase tracking-[0.2em]">
           DIUSCADI Ecosystem v3.0
         </p>
       </motion.div>
@@ -75,7 +75,7 @@ export const AuthSidePanel: React.FC = () => {
 
       {/* 3. Social Proof/Quote */}
       <motion.div
-        className="relative z-10 pt-10 border-t border-white/10"
+        className="relative z-10 pt-10 border-t border-background/10"
         variants={itemVariants}
       >
         <p className="text-sm italic text-slate-300 font-medium leading-relaxed">
@@ -83,8 +83,8 @@ export const AuthSidePanel: React.FC = () => {
           networking on campus.&quot;
         </p>
         <div className="mt-4 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/10" />
-          <span className="text-[10px] font-black text-white uppercase tracking-widest">
+          <div className="w-8 h-8 rounded-full bg-slate-800 border border-background/10" />
+          <span className="text-[10px] font-black text-background uppercase tracking-widest">
             Engineering Faculty Admin
           </span>
         </div>
@@ -107,10 +107,10 @@ const FeatureItem = ({
       <Icon className="w-5 h-5" />
     </div>
     <div>
-      <h4 className="text-xs font-black text-white uppercase tracking-widest mb-1">
+      <h4 className="text-xs font-black text-background uppercase tracking-widest mb-1">
         {title}
       </h4>
-      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+      <p className="text-[11px] font-medium text-muted-foreground leading-relaxed">
         {desc}
       </p>
     </div>

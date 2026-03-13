@@ -2,204 +2,183 @@
 import React from "react";
 import {
   LuSquareUser,
-  LuUser,
-  LuMail,
-  LuPhone,
+  LuTicket,
+  LuCalendar,
   LuShieldCheck,
+  LuCircleCheck,
 } from "react-icons/lu";
+import { cn } from "@/lib/utils";
 
-import { cn } from "../../../../lib/utils";
-import Image from "next/image";
-
+// AttendeeInfo shows ticket-level data (what we actually have from context).
+// Name/email/phone are NOT in TicketDetail from API — those live in UserContext.
+// We show the ticket ownership data that IS available.
 interface AttendeeInfoProps {
-  attendee: {
-    name: string;
-    email: string;
-    phone: string;
-    avatar?: string; // Optional, but adds a premium touch if you have profile pics
+  ticket: {
+    inviteCode: string;
+    registeredAt: string;
+    ticketType: string;
+    checkedInAt: string | null;
   };
 }
 
-export const AttendeeInfoSection = ({ attendee }: AttendeeInfoProps) => {
-  return (
-    <section
-      className={cn("w-full", "mt-8", "pt-8", "border-t", "border-slate-100")}
-    >
-      {/* Section Header */}
-      <div className={cn("flex", "items-center", "gap-3", "mb-6")}>
-        <div
-          className={cn(
-            "w-8",
-            "h-8",
-            "rounded-lg",
-            "bg-slate-100",
-            "flex",
-            "items-center",
-            "justify-center",
-            "text-slate-500",
-          )}
-        >
-          <LuSquareUser className={cn("w-4", "h-4")} />
-        </div>
-        <div>
-          <h3
-            className={cn(
-              "text-xl",
-              "font-black",
-              "text-slate-900",
-              "tracking-tight",
-              "leading-none",
-            )}
-          >
-            Attendee Information
-          </h3>
-          <p
-            className={cn(
-              "text-[10px]",
-              "font-black",
-              "uppercase",
-              "tracking-widest",
-              "text-slate-400",
-              "mt-1",
-              "flex",
-              "items-center",
-              "gap-1",
-            )}
-          >
-            <LuShieldCheck className={cn("w-3", "h-3", "text-emerald-500")} />
-            Verified Profile Data
-          </p>
-        </div>
-      </div>
-
-      {/* Identity Data Card */}
+export const AttendeeInfoSection = ({ ticket }: AttendeeInfoProps) => (
+  <section
+    className={cn("w-full", "mt-8", "pt-8", "border-t", "border-border")}
+  >
+    <div className={cn("flex", "items-center", "gap-3", "mb-6")}>
       <div
         className={cn(
-          "bg-white",
-          "border-2",
-          "border-slate-100",
-          "rounded-[2rem]",
-          "p-6",
-          "md:p-8",
+          "w-8",
+          "h-8",
+          "rounded-lg",
+          "text-muted",
           "flex",
-          "flex-col",
-          "md:flex-row",
-          "items-start",
-          "md:items-center",
-          "gap-8",
+          "items-center",
+          "justify-center",
+          "text-muted-foreground",
         )}
       >
-        {/* Optional Avatar / Placeholder */}
-        <div
+        <LuSquareUser className={cn("w-4", "h-4")} />
+      </div>
+      <div>
+        <h3
           className={cn(
-            "shrink-0",
-            "w-20",
-            "h-20",
-            "rounded-2xl",
-            "bg-slate-50",
-            "border-2",
-            "border-slate-100",
+            "text-xl",
+            "font-black",
+            "text-foreground",
+            "tracking-tight",
+            "leading-none",
+          )}
+        >
+          Registration Details
+        </h3>
+        <p
+          className={cn(
+            "text-[10px]",
+            "font-black",
+            "uppercase",
+            "tracking-widest",
+            "text-muted-foreground",
+            "mt-1",
             "flex",
             "items-center",
-            "justify-center",
-            "overflow-hidden",
+            "gap-1",
           )}
         >
-          {attendee.avatar ? (
-            <Image
-              height={300}
-              width={500}
-              src={attendee.avatar}
-              alt={attendee.name}
-              className={cn("w-full", "h-full", "object-cover")}
-            />
-          ) : (
-            <LuUser className={cn("w-8", "h-8", "text-slate-300")} />
-          )}
+          <LuShieldCheck className={cn("w-3", "h-3", "text-emerald-500")} />{" "}
+          Verified Booking
+        </p>
+      </div>
+    </div>
+
+    <div
+      className={cn(
+        "bg-background",
+        "border-2",
+        "border-border",
+        "rounded-[2rem]",
+        "p-6",
+        "md:p-8",
+      )}
+    >
+      <div className={cn("grid", "grid-cols-1", "sm:grid-cols-3", "gap-6")}>
+        {/* Ticket type */}
+        <div className="space-y-1">
+          <p
+            className={cn(
+              "text-[9px]",
+              "font-black",
+              "text-muted-foreground",
+              "uppercase",
+              "tracking-widest",
+              "flex",
+              "items-center",
+              "gap-1.5",
+            )}
+          >
+            <LuTicket className={cn("w-3", "h-3")} /> Ticket Tier
+          </p>
+          <p className={cn("text-sm", "font-bold", "text-primary")}>
+            {ticket.ticketType}
+          </p>
         </div>
 
-        {/* Info Grid */}
-        <div
-          className={cn(
-            "flex-1",
-            "w-full",
-            "grid",
-            "grid-cols-1",
-            "sm:grid-cols-3",
-            "gap-6",
+        {/* Registration date */}
+        <div className="space-y-1">
+          <p
+            className={cn(
+              "text-[9px]",
+              "font-black",
+              "text-muted-foreground",
+              "uppercase",
+              "tracking-widest",
+              "flex",
+              "items-center",
+              "gap-1.5",
+            )}
+          >
+            <LuCalendar className={cn("w-3", "h-3")} /> Registered On
+          </p>
+          <p className={cn("text-sm", "font-bold", "text-foreground")}>
+            {ticket.registeredAt}
+          </p>
+        </div>
+
+        {/* Check-in status */}
+        <div className="space-y-1">
+          <p
+            className={cn(
+              "text-[9px]",
+              "font-black",
+              "text-muted-foreground",
+              "uppercase",
+              "tracking-widest",
+              "flex",
+              "items-center",
+              "gap-1.5",
+            )}
+          >
+            <LuCircleCheck className={cn("w-3", "h-3")} /> Check-In Status
+          </p>
+          {ticket.checkedInAt ? (
+            <p className={cn("text-sm", "font-bold", "text-emerald-600")}>
+              Checked in · {ticket.checkedInAt}
+            </p>
+          ) : (
+            <p className={cn("text-sm", "font-bold", "text-muted-foreground")}>
+              Not yet checked in
+            </p>
           )}
-        >
-          {/* Name */}
-          <div className="space-y-1">
-            <p
-              className={cn(
-                "text-[9px]",
-                "font-black",
-                "text-slate-400",
-                "uppercase",
-                "tracking-widest",
-                "flex",
-                "items-center",
-                "gap-1.5",
-              )}
-            >
-              <LuUser className={cn("w-3", "h-3")} /> Full Name
-            </p>
-            <p className={cn("text-sm", "font-bold", "text-slate-900")}>
-              {attendee.name}
-            </p>
-          </div>
-
-          {/* Email */}
-          <div className="space-y-1">
-            <p
-              className={cn(
-                "text-[9px]",
-                "font-black",
-                "text-slate-400",
-                "uppercase",
-                "tracking-widest",
-                "flex",
-                "items-center",
-                "gap-1.5",
-              )}
-            >
-              <LuMail className={cn("w-3", "h-3")} /> Email Address
-            </p>
-            <p
-              className={cn(
-                "text-sm",
-                "font-bold",
-                "text-slate-900",
-                "truncate",
-              )}
-            >
-              {attendee.email}
-            </p>
-          </div>
-
-          {/* Phone */}
-          <div className="space-y-1">
-            <p
-              className={cn(
-                "text-[9px]",
-                "font-black",
-                "text-slate-400",
-                "uppercase",
-                "tracking-widest",
-                "flex",
-                "items-center",
-                "gap-1.5",
-              )}
-            >
-              <LuPhone className={cn("w-3", "h-3")} /> Phone Number
-            </p>
-            <p className={cn("text-sm", "font-bold", "text-slate-900")}>
-              {attendee.phone || "Not provided"}
-            </p>
-          </div>
         </div>
       </div>
-    </section>
-  );
-};
+
+      {/* Invite code */}
+      <div
+        className={cn(
+          "mt-6",
+          "pt-6",
+          "border-t",
+          "border-border",
+          "flex",
+          "items-center",
+          "gap-3",
+        )}
+      >
+        <LuShieldCheck
+          className={cn("w-4", "h-4", "text-emerald-500", "shrink-0")}
+        />
+        <p className={cn("text-xs", "font-bold", "text-muted-foreground")}>
+          This ticket is electronically linked to your{" "}
+          <span className={cn("text-foreground", "font-black")}>
+            DIUSCADI ID
+          </span>{" "}
+          via invite code{" "}
+          <span className={cn("font-mono", "text-primary")}>
+            {ticket.inviteCode}
+          </span>
+          . Ensure your name matches your valid government-issued ID.
+        </p>
+      </div>
+    </div>
+  </section>
+);

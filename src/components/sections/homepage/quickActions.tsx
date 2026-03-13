@@ -53,7 +53,7 @@ export const QuickActions = ({ actions }: QuickActionsProps) => {
         {actions.map((action, index) => {
           const style = ACTION_STYLES[index] ?? {
             color: "text-slate-600",
-            bg: "bg-slate-50",
+            bg: "bg-muted",
           };
           const icon = ACTION_ICONS[index] ?? null;
           return (
@@ -65,7 +65,7 @@ export const QuickActions = ({ actions }: QuickActionsProps) => {
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -4 }}
               className={cn(
-                "group relative p-5 bg-white border border-slate-100 rounded-3xl",
+                "group relative p-5 bg-background border border-border rounded-3xl",
                 "shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300",
               )}
             >
@@ -102,14 +102,14 @@ export const QuickActions = ({ actions }: QuickActionsProps) => {
                 <h4
                   className={cn(
                     "font-bold",
-                    "text-slate-900",
+                    "text-foreground",
                     "group-hover:text-primary",
                     "transition-colors",
                   )}
                 >
                   {action.title}
                 </h4>
-                <p className={cn("text-xs", "font-medium", "text-slate-400")}>
+                <p className={cn("text-xs", "font-medium", "text-muted-foreground")}>
                   {action.desc}
                 </p>
               </div>

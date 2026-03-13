@@ -1,157 +1,289 @@
-import React from "react";
-import { getEventById } from "@/assets/data/event";
+// app/events/[eventId]/register/page.tsx — Server Component
+import { getDb } from "@/lib/mongodb";
+import { Collections } from "@/lib/db/collections";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { verifyJWT } from "@/lib/auth";
+import { ObjectId } from "mongodb";
+import { cn } from "@/lib/utils";
 
-// Auth State Components
 import { AuthRequiredCard } from "@/components/sections/events/tickets/AuthReqCard";
 import { CompleteProfilePrompt } from "@/components/sections/events/tickets/CompleteProfile";
+import { RegistrationShell } from "@/components/sections/events/tickets/RegistrationShell";
 
-// Registration Flow Components
-import { TicketEventSummary } from "@/components/sections/events/tickets/TicketSummary";
-import { TicketProgressIndicator } from "@/components/sections/events/tickets/TicketProgressIndicator";
-import { TicketFormSection } from "@/components/sections/events/tickets/TicketForm";
-import { TicketTermsAndAgreement } from "@/components/sections/events/tickets/TicketTA";
-import { TicketSubmitSection } from "@/components/sections/events/tickets/TicketSubmit";
-import { TicketUserVerificationCard } from "@/components/sections/events/tickets/TicketUserVerificationCard";
-import { TicketPreviewCard } from "@/components/sections/events/tickets/TicketPreview";
-import { TicketHelpSection } from "@/components/sections/events/tickets/TicketHelp";
-import { cn } from "../../../../lib/utils";
+// ── Types exported for child components ──────────────────────────────────────
 
-// Define auth state type
-type AuthState = "unauthenticated" | "incomplete" | "verified";
+export interface RegisterEventData {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  format: string;
+  eventDate: string;
+  location: string;
+  image: string;
+  price: string;
+  isFree: boolean;
+  capacity: number;
+  registered: number;
+  slotsRemaining: number;
+  registrationDeadline: string; // ISO string for countdown
+  ticketTypes: TicketTypeOption[];
+}
 
-export default async function RegistrationLayout({
+export interface TicketTypeOption {
+  id: string;
+  name: string;
+  price: number;
+  currency: string;
+  label: string; // formatted price string
+}
+
+export interface RegisterUserData {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  role: string;
+  hasAvatar: boolean;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function fmtPrice(price: number, currency: string) {
+  if (price === 0) return "Free";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: currency || "NGN",
+    maximumFractionDigits: 0,
+  }).format(price);
+}
+
+function fmtDate(d: Date) {
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+// ── Data fetcher ──────────────────────────────────────────────────────────────
+
+async function fetchRegisterData(
+  slug: string,
+): Promise<RegisterEventData | null> {
+  const db = await getDb();
+  const now = new Date();
+
+  const doc = await Collections.events(db).findOne({
+    slug,
+    status: "published",
+  });
+  if (!doc) return null;
+
+  // Check deadline hasn't passed
+  const deadline = new Date(doc.registrationDeadline as Date);
+  if (deadline < now) return null; // closed
+
+  const [registered, tickets] = await Promise.all([
+    Collections.eventRegistrations(db).countDocuments({
+      eventId: doc._id,
+      status: { $ne: "cancelled" },
+    }),
+    Collections.ticketTypes(db)
+      .find({ eventId: doc._id, isActive: true })
+      .sort({ price: 1 })
+      .toArray(),
+  ]);
+
+  const locationStr = doc.location
+    ? [doc.location.venue, doc.location.city].filter(Boolean).join(", ")
+    : String(doc.format);
+
+  const cheapest = tickets[0];
+  const isFree = !cheapest || cheapest.price === 0;
+  const priceStr = cheapest
+    ? fmtPrice(cheapest.price, cheapest.currency)
+    : "Free";
+
+  return {
+    id: doc._id!.toString(),
+    slug: doc.slug,
+    title: doc.title,
+    category: doc.category,
+    format: doc.format,
+    eventDate: fmtDate(new Date(doc.eventDate as Date)),
+    location: locationStr,
+    image: doc.image ?? "/images/events/default.jpg",
+    price: priceStr,
+    isFree,
+    capacity: doc.capacity,
+    registered,
+    slotsRemaining: Math.max(0, doc.capacity - registered),
+    registrationDeadline: deadline.toISOString(),
+    ticketTypes: tickets.map((t) => ({
+      id: t._id!.toString(),
+      name: t.name,
+      price: t.price,
+      currency: t.currency,
+      label: fmtPrice(t.price, t.currency),
+    })),
+  };
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export default async function RegisterPage({
   params,
 }: {
   params: Promise<{ eventId: string }>;
 }) {
   const { eventId } = await params;
-  const event = getEventById(eventId);
 
+  // Fetch event data
+  const event = await fetchRegisterData(eventId);
   if (!event) notFound();
 
-  // MOCK AUTH STATE LOGIC (Replace with your actual Auth Provider)
-  // Use 'as AuthState' or function to get dynamic state
-  const authState = getAuthState(); // Better: use a function
-  // OR if you want to test different states manually:
-  // const authState: AuthState = "verified"; // Change this to test different states
+  // Sold out
+  if (event.slotsRemaining === 0) notFound();
 
-  const mockUser = {
-    name: "John Doe",
-    email: "johndoe@example.com",
-    status: "Professional" as const,
-    avatar:
-      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200",
-  };
+  // Resolve auth from cookie — same pattern as home page
+  let authUser: RegisterUserData | null = null;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("diuscadi_token")?.value;
+    if (token) {
+      const payload = await verifyJWT(token);
+      if (payload?.vaultId) {
+        const db = await getDb();
+        const userData = await Collections.userData(db).findOne({
+          vaultId: new ObjectId(payload.vaultId),
+        });
+        if (userData) {
+          const vault = await Collections.vault(db).findOne({
+            _id: new ObjectId(payload.vaultId),
+          });
+          authUser = {
+            id: userData._id!.toString(),
+            name: userData.fullName ?? "",
+            email: vault?.email ?? "",
+            avatar: userData.avatar ?? "",
+            role: userData.role ?? "participant",
+            hasAvatar: !!userData.avatar,
+          };
+        }
+      }
+    }
+  } catch {
+    // unauthenticated — authUser stays null
+  }
+
+  // Auth states
+  const isUnauthenticated = !authUser;
+  const isIncomplete = authUser && !authUser.hasAvatar;
+  const isVerified = authUser && authUser.hasAvatar;
 
   return (
-    <main className={cn("min-h-screen", "bg-slate-50/50", "pb-20")}>
-      {/* Top Banner: Always Visible */}
-      <TicketEventSummary event={event} />
-
-      {/* STATE 1: Not Logged In */}
-      {authState === "unauthenticated" && <AuthRequiredCard />}
-
-      {/* STATE 2: Logged In, No Photo */}
-      {authState === "incomplete" && <CompleteProfilePrompt />}
-
-      {/* STATE 3: Verified & Ready to Register */}
-      {authState === "verified" && (
-        <div
-          className={cn(
-            "max-w-7xl",
-            "mx-auto",
-            "px-4",
-            "sm:px-6",
-            "lg:px-8",
-            "py-10",
-          )}
-        >
-          {/* THE 65/35 GRID */}
+    <main
+      className={cn("min-h-screen", "bg-muted/50", "pb-20", "pt-[72px]")}
+    >
+      {isUnauthenticated && (
+        <>
+          {/* Still show the event summary at top so user knows what they're registering for */}
           <div
             className={cn(
-              "grid",
-              "grid-cols-1",
-              "lg:grid-cols-12",
-              "gap-8",
-              "items-start",
+              "w-full",
+              "bg-background",
+              "border-b",
+              "border-border",
+              "py-6",
             )}
           >
-            {/* LEFT COLUMN (65% on Desktop) */}
             <div
               className={cn(
-                "lg:col-span-7",
-                "xl:col-span-8",
-                "space-y-6",
-                "md:space-y-8",
+                "max-w-7xl",
+                "mx-auto",
+                "px-4",
+                "sm:px-6",
+                "lg:px-8",
               )}
             >
-              <TicketProgressIndicator currentStep={2} isSignedIn={true} />
-
-              {/* Mobile Only: User Verification (Appears below Progress on Mobile) */}
-              <div className={cn("block", "lg:hidden")}>
-                <TicketUserVerificationCard user={mockUser} />
-              </div>
-
-              <TicketFormSection user={mockUser} />
-
-              {/* Mobile Only: Ticket Preview (Appears below Form on Mobile) */}
-              <div className={cn("block", "lg:hidden")}>
-                <TicketPreviewCard
-                  user={mockUser}
-                  event={event}
-                  attendanceType="physical"
-                />
-              </div>
-
-              <TicketTermsAndAgreement />
-
-              <TicketSubmitSection price={event.price} />
-            </div>
-
-            {/* RIGHT COLUMN (35% on Desktop - STICKY) */}
-            <div
-              className={cn(
-                "hidden",
-                "lg:block",
-                "lg:col-span-5",
-                "xl:col-span-4",
-                "sticky",
-                "top-24",
-                "space-y-8",
-              )}
-            >
-              {/* Wrapping in a div with shadow/border to unify the right sidebar */}
-              <div className="space-y-8">
-                <TicketUserVerificationCard user={mockUser} />
-                <TicketPreviewCard
-                  user={mockUser}
-                  event={event}
-                  attendanceType="physical"
-                />
+              <div
+                className={cn(
+                  "flex",
+                  "items-center",
+                  "gap-2",
+                  "text-xs",
+                  "font-bold",
+                  "text-muted-foreground",
+                  "uppercase",
+                  "tracking-widest",
+                )}
+              >
+                <span>Events</span>
+                <span className="text-slate-200">/</span>
+                <span className={cn("text-slate-600", "truncate", "max-w-xs")}>
+                  {event.title}
+                </span>
+                <span className="text-slate-200">/</span>
+                <span className="text-primary">Registration</span>
               </div>
             </div>
           </div>
+          <AuthRequiredCard eventSlug={event.slug} />
+        </>
+      )}
 
-          {/* Global Fallback (Outside the Grid) */}
-          <div className={cn("mt-12", "border-t", "border-slate-200", "pt-12")}>
-            <TicketHelpSection />
+      {isIncomplete && (
+        <>
+          <div
+            className={cn(
+              "w-full",
+              "bg-background",
+              "border-b",
+              "border-border",
+              "py-6",
+            )}
+          >
+            <div
+              className={cn(
+                "max-w-7xl",
+                "mx-auto",
+                "px-4",
+                "sm:px-6",
+                "lg:px-8",
+              )}
+            >
+              <div
+                className={cn(
+                  "flex",
+                  "items-center",
+                  "gap-2",
+                  "text-xs",
+                  "font-bold",
+                  "text-muted-foreground",
+                  "uppercase",
+                  "tracking-widest",
+                )}
+              >
+                <span>Events</span>
+                <span className="text-slate-200">/</span>
+                <span className={cn("text-slate-600", "truncate", "max-w-xs")}>
+                  {event.title}
+                </span>
+                <span className="text-slate-200">/</span>
+                <span className="text-primary">Registration</span>
+              </div>
+            </div>
           </div>
-        </div>
+          <CompleteProfilePrompt />
+        </>
+      )}
+
+      {isVerified && authUser && (
+        <RegistrationShell event={event} user={authUser} />
       )}
     </main>
   );
-}
-
-// Helper function to simulate auth state (replace with real auth logic)
-function getAuthState(): AuthState {
-  // TODO: Replace with actual auth logic from your auth provider
-  // Example:
-  // const session = await getServerSession();
-  // if (!session) return "unauthenticated";
-  // if (!session.user.avatar) return "incomplete";
-  // return "verified";
-
-  // For testing, you can manually return different states:
-  return "verified"; // Change to "unauthenticated" or "incomplete" to test
 }

@@ -45,7 +45,7 @@ export const FAQSection = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section id="faqs" className="py-24 bg-white">
+    <section id="faqs" className="py-24 bg-background">
       <div className="container mx-auto px-6">
         <div className="flex flex-col lg:flex-row gap-16">
           {/* Left Side: Header */}
@@ -55,17 +55,17 @@ export const FAQSection = () => {
                 <HelpCircle className="w-4 h-4" />
                 <span>Support Center</span>
               </div>
-              <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">
+              <h2 className="text-4xl md:text-5xl font-black text-foreground mb-6 tracking-tight">
                 Frequently Asked Questions
               </h2>
               <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-                Everything you need to know about the seminar. Can&apos;t find the
-                answer you&apos;re looking for? Reach out to our team.
+                Everything you need to know about the seminar. Can&apos;t find
+                the answer you&apos;re looking for? Reach out to our team.
               </p>
 
               {/* Quick Contact Card */}
-              <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                <p className="font-bold text-slate-900 mb-4">
+              <div className="p-6 bg-muted rounded-3xl border border-border">
+                <p className="font-bold text-foreground mb-4">
                   Still have questions?
                 </p>
                 <div className="space-y-3">
@@ -93,8 +93,8 @@ export const FAQSection = () => {
                 key={index}
                 className={`border-2 rounded-[2rem] transition-all duration-300 ${
                   openIndex === index
-                    ? "border-primary bg-slate-50"
-                    : "border-slate-100 bg-white"
+                    ? "border-primary bg-muted"
+                    : "border-border bg-background"
                 }`}
               >
                 <button
@@ -105,7 +105,7 @@ export const FAQSection = () => {
                 >
                   <span
                     className={`text-lg md:text-xl font-bold transition-colors ${
-                      openIndex === index ? "text-primary" : "text-slate-900"
+                      openIndex === index ? "text-primary" : "text-foreground"
                     }`}
                   >
                     {item.question}
@@ -113,8 +113,8 @@ export const FAQSection = () => {
                   <div
                     className={`flex-none ml-4 p-2 rounded-full transition-transform duration-300 ${
                       openIndex === index
-                        ? "bg-primary text-white rotate-180"
-                        : "bg-slate-100 text-slate-400"
+                        ? "bg-primary text-background rotate-180"
+                        : "text-muted text-muted-foreground"
                     }`}
                   >
                     {openIndex === index ? (
@@ -134,7 +134,7 @@ export const FAQSection = () => {
                       transition={{ duration: 0.3, ease: "easeInOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="px-6 md:px-8 pb-8 text-slate-600 leading-relaxed text-lg border-t border-slate-100 pt-4 mt-2">
+                      <div className="px-6 md:px-8 pb-8 text-slate-600 leading-relaxed text-lg border-t border-border pt-4 mt-2">
                         {item.answer}
                       </div>
                     </motion.div>

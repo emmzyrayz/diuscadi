@@ -1,12 +1,15 @@
 import { AuthProvider } from "@/context/AuthContext";
 import { PlatformProvider } from "@/context/PlatformContext";
 import { UserProvider } from "@/context/UserContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+import { MediaProvider } from "@/context/MediaContext";
 import { EventProvider } from "@/context/EventContext";
 import { TicketProvider } from "@/context/TicketContext";
 import { NotFoundProvider } from "@/context/notFoundContext";
 import { HealthProvider } from "@/context/HealthContext";
 import { AuthenticatedProviders } from "./AuthenticatedProviders";
 import { ProviderConfig } from "./types";
+import { DocProvider } from "@/context/DocContext";
 
 /**
  * Provider Registry
@@ -17,7 +20,9 @@ import { ProviderConfig } from "./types";
  *   AuthProvider
  *     └─ PlatformProvider        (public data, no auth needed)
  *         └─ UserProvider        (seeds from AuthContext on login)
- *             └─ EventProvider
+ *             └─ ThemeProvider   (reads profile.preferences → writes to <html>)
+ *                 └─ MediaProvider  (Cloudinary upload pipeline)
+ *                     └─ EventProvider
  *                 └─ TicketProvider
  *                     └─ AuthenticatedProviders  (wraps ApplicationProvider + AdminProvider — need token)
  *                         └─ HealthProvider      (auto-reports on every navigation + webmaster dashboard)
@@ -38,6 +43,27 @@ export const providerRegistry: ProviderConfig[] = [
     id: "user",
     provider: { component: UserProvider },
     enabled: true,
+  },
+  {
+    id: "theme",
+    provider: { component: ThemeProvider },
+    enabled: true,
+    // Must be inside UserProvider so it can read profile.preferences.
+    // Must wrap everything else so dark/accent applies to all children.
+  },
+  {
+    id: "media",
+    provider: { component: MediaProvider },
+    enabled: true,
+    // Inside ThemeProvider — uploads can trigger toasts that respect theme.
+    // Inside UserProvider — uploadImage uses the auth token from localStorage.
+  },
+  {
+    id: "doc",
+    provider: { component: DocProvider },
+    enabled: true,
+    // Sibling of MediaProvider — both are upload pipelines under ThemeProvider.
+    // Order doesn't matter relative to MediaProvider.
   },
   {
     id: "event",

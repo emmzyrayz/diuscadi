@@ -15,7 +15,7 @@ const ctaCards = [
   {
     title: "Become a Mentor",
     desc: "Share your professional journey and guide the next generation of tech talent.",
-    icon: <LuUsers className={cn('w-8', 'h-8')} />,
+    icon: <LuUsers className={cn("w-8", "h-8")} />,
     cta: "Apply to Lead",
     variant: "orange",
     gridSpan: "md:col-span-2",
@@ -23,7 +23,7 @@ const ctaCards = [
   {
     title: "Sponsor a Student",
     desc: "Help fund a student's participation in our advanced career tracks.",
-    icon: <LuHeartHandshake className={cn('w-8', 'h-8')} />,
+    icon: <LuHeartHandshake className={cn("w-8", "h-8")} />,
     cta: "Support Now",
     variant: "blue",
     gridSpan: "md:col-span-1",
@@ -74,7 +74,7 @@ export const HomeCTAOptional = () => {
                 "flex",
                 "items-center",
                 "justify-center",
-                "text-white",
+                "text-background",
                 "shadow-lg",
                 "shadow-emerald-200",
               )}
@@ -82,7 +82,7 @@ export const HomeCTAOptional = () => {
               <LuGift className={cn("w-6", "h-6")} />
             </div>
             <div>
-              <h4 className={cn("font-black", "text-slate-900")}>
+              <h4 className={cn("font-black", "text-foreground")}>
                 Refer a Friend
               </h4>
               <p className={cn("text-xs", "font-bold", "text-emerald-700")}>
@@ -128,7 +128,7 @@ export const HomeCTAOptional = () => {
                 "flex",
                 "items-center",
                 "justify-center",
-                "text-white",
+                "text-background",
                 "shadow-lg",
                 "shadow-purple-200",
               )}
@@ -136,7 +136,7 @@ export const HomeCTAOptional = () => {
               <LuShieldCheck className={cn("w-6", "h-6")} />
             </div>
             <div>
-              <h4 className={cn("font-black", "text-slate-900")}>
+              <h4 className={cn("font-black", "text-foreground")}>
                 Verify Profile
               </h4>
               <p className={cn("text-xs", "font-bold", "text-purple-700")}>
@@ -166,9 +166,9 @@ export const HomeCTAOptional = () => {
               "relative overflow-hidden rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between min-h-[280px]",
               card.gridSpan,
               card.variant === "orange" &&
-                "bg-linear-to-br from-orange-500 to-primary text-white",
+                "bg-linear-to-br from-orange-500 to-primary text-background",
               card.variant === "blue" &&
-                "bg-linear-to-br from-blue-600 to-indigo-700 text-white",
+                "bg-linear-to-br from-blue-600 to-indigo-700 text-background",
             )}
           >
             <div
@@ -180,7 +180,7 @@ export const HomeCTAOptional = () => {
                 "-mt-16",
                 "w-64",
                 "h-64",
-                "bg-white/10",
+                "bg-background/10",
                 "rounded-full",
                 "blur-3xl",
               )}
@@ -192,7 +192,7 @@ export const HomeCTAOptional = () => {
                   "mb-6",
                   "inline-flex",
                   "p-3",
-                  "bg-white/20",
+                  "bg-background/20",
                   "backdrop-blur-md",
                   "rounded-2xl",
                 )}
@@ -210,7 +210,9 @@ export const HomeCTAOptional = () => {
               >
                 {card.title}
               </h3>
-              <p className={cn("text-white/80", "font-medium", "max-w-md")}>
+              <p
+                className={cn("text-background/80", "font-medium", "max-w-md")}
+              >
                 {card.desc}
               </p>
             </div>
@@ -227,9 +229,9 @@ export const HomeCTAOptional = () => {
                   "rounded-xl",
                   "font-black",
                   "text-sm",
-                  "bg-white",
-                  "text-slate-900",
-                  "hover:bg-slate-100",
+                  "bg-background",
+                  "text-foreground",
+                  "hover:text-muted",
                   "transition-all duration-700 ease-in-out cursor-pointer",
                 )}
               >
@@ -277,7 +279,7 @@ export const HomeCTAOptional = () => {
                 "rounded-3xl",
                 "items-center",
                 "justify-center",
-                "text-white",
+                "text-background",
                 "shrink-0",
               )}
             >
@@ -285,11 +287,16 @@ export const HomeCTAOptional = () => {
             </div>
             <div className={cn("text-center", "md:text-left")}>
               <h3
-                className={cn("text-2xl", "font-black", "text-white", "mb-2")}
+                className={cn(
+                  "text-2xl",
+                  "font-black",
+                  "text-background",
+                  "mb-2",
+                )}
               >
                 Advanced Fellowship
               </h3>
-              <p className={cn("text-slate-400", "max-w-md")}>
+              <p className={cn("text-muted-foreground", "max-w-md")}>
                 Ready for more? Join our 6-month intensive leadership and
                 technical program.
               </p>
@@ -302,7 +309,7 @@ export const HomeCTAOptional = () => {
               "px-8",
               "py-4",
               "bg-primary",
-              "text-white",
+              "text-background",
               "font-black",
               "rounded-2xl",
               "hover:bg-orange-600",

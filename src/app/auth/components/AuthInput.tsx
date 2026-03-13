@@ -22,7 +22,7 @@ export const AuthInput: React.FC<AuthInputProps> = ({
   return (
     <div className="space-y-1.5 w-full">
       <div className="relative group">
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
           <Icon className="w-4 h-4" />
         </div>
 
@@ -30,16 +30,16 @@ export const AuthInput: React.FC<AuthInputProps> = ({
           {...props}
           type={isPassword && showPassword ? "text" : type}
           placeholder={label}
-          className={`w-full bg-slate-50 border ${
-            error ? "border-rose-500" : "border-slate-100"
-          } rounded-2xl py-4 pl-12 pr-12 text-xs font-bold text-slate-900 placeholder:text-slate-400 placeholder:uppercase placeholder:tracking-widest focus:bg-white focus:border-slate-900 focus:ring-0 transition-all outline-none`}
+          className={`w-full bg-muted border ${
+            error ? "border-rose-500" : "border-border"
+          } rounded-2xl py-4 pl-12 pr-12 text-xs font-bold text-foreground placeholder:text-muted-foreground placeholder:uppercase placeholder:tracking-widest focus:bg-background focus:border-foreground focus:ring-0 transition-all outline-none`}
         />
 
         {isPassword && (
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
           >
             {showPassword ? (
               <LuEyeOff className="w-4 h-4" />

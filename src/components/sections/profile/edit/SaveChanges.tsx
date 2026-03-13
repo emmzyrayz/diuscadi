@@ -30,9 +30,9 @@ export const SaveChangesSection = ({
       className={cn(
         "mt-12",
         "p-8",
-        "bg-slate-900",
+        "bg-foreground",
         "rounded-[2.5rem]",
-        "text-white",
+        "text-background",
         "shadow-2xl",
         "relative",
         "overflow-hidden",
@@ -101,7 +101,7 @@ export const SaveChangesSection = ({
               className={cn(
                 "text-[10px]",
                 "font-bold",
-                "text-slate-400",
+                "text-muted-foreground",
                 "uppercase",
                 "tracking-widest",
               )}
@@ -128,9 +128,9 @@ export const SaveChangesSection = ({
               "gap-2",
               "px-8",
               "py-4",
-              "bg-white/5",
-              "hover:bg-white/10",
-              "text-white",
+              "bg-backgroundround/5",
+              "hover:bg-backgroundround/10",
+              "text-backgroundround",
               "rounded-2xl",
               "font-black",
               "text-[10px]",
@@ -138,7 +138,7 @@ export const SaveChangesSection = ({
               "tracking-widest",
               "transition-all",
               "border",
-              "border-white/10",
+              "border-backgroundround/10",
             )}
           >
             <LuCircleX className={cn("w-4", "h-4")} />
@@ -152,8 +152,8 @@ export const SaveChangesSection = ({
               flex-1 md:flex-none flex items-center justify-center gap-2 px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all
               ${
                 hasChanges && !isSaving
-                  ? "bg-primary text-white shadow-xl shadow-primary/20 hover:scale-105 active:scale-95"
-                  : "bg-slate-800 text-slate-500 cursor-not-allowed"
+                  ? "bg-primary text-backgroundround shadow-xl shadow-primary/20 hover:scale-105 active:scale-95"
+                  : "bg-slate-800 text-muted-foreground cursor-not-allowed"
               }
             `}
           >

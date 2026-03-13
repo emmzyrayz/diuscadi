@@ -75,7 +75,7 @@ export const RecentActivity = ({ activities }: RecentActivityProps) => {
           className={cn(
             "text-xl",
             "font-black",
-            "text-slate-900",
+            "text-foreground",
             "uppercase",
             "tracking-tighter",
           )}
@@ -86,7 +86,7 @@ export const RecentActivity = ({ activities }: RecentActivityProps) => {
           className={cn(
             "text-xs",
             "font-bold",
-            "text-slate-400",
+            "text-muted-foreground",
             "hover:text-primary",
             "transition-colors",
             "flex",
@@ -106,7 +106,7 @@ export const RecentActivity = ({ activities }: RecentActivityProps) => {
             "top-0",
             "bottom-0",
             "w-0.5",
-            "bg-slate-100",
+            "text-muted",
             "hidden",
             "sm:block",
           )}
@@ -131,7 +131,7 @@ export const RecentActivity = ({ activities }: RecentActivityProps) => {
                 <div
                   className={cn(
                     "relative z-10 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all duration-300",
-                    "bg-white border border-slate-100 shadow-sm group-hover:shadow-md group-hover:border-primary/20",
+                    "bg-background border border-border shadow-sm group-hover:shadow-md group-hover:border-primary/20",
                     style.color,
                   )}
                 >
@@ -140,11 +140,17 @@ export const RecentActivity = ({ activities }: RecentActivityProps) => {
                   </div>
                 </div>
                 <div className={cn("flex-1", "min-w-0")}>
-                  <p className={cn("text-sm", "text-slate-500", "font-medium")}>
+                  <p
+                    className={cn(
+                      "text-sm",
+                      "text-muted-foreground",
+                      "font-medium",
+                    )}
+                  >
                     {activity.content}{" "}
                     <span
                       className={cn(
-                        "text-slate-900",
+                        "text-foreground",
                         "font-bold",
                         "group-hover:text-primary",
                         "transition-colors",
@@ -158,7 +164,7 @@ export const RecentActivity = ({ activities }: RecentActivityProps) => {
                     className={cn(
                       "text-[10px]",
                       "font-bold",
-                      "text-slate-400",
+                      "text-muted-foreground",
                       "uppercase",
                       "tracking-wide",
                     )}
@@ -174,8 +180,8 @@ export const RecentActivity = ({ activities }: RecentActivityProps) => {
                     "justify-center",
                     "p-2",
                     "rounded-lg",
-                    "bg-slate-50",
-                    "text-slate-400",
+                    "bg-muted",
+                    "text-muted-foreground",
                   )}
                 >
                   <LuChevronRight className={cn("w-4", "h-4")} />

@@ -71,8 +71,16 @@ export const OtpInput: React.FC<OtpInputProps> = ({
   };
 
   return (
-    <div className={cn('flex', 'flex-col', 'items-center', 'gap-3', 'w-full')}>
-      <div className={cn('flex', 'items-center', 'justify-center', 'gap-2', 'w-full')}>
+    <div className={cn("flex", "flex-col", "items-center", "gap-3", "w-full")}>
+      <div
+        className={cn(
+          "flex",
+          "items-center",
+          "justify-center",
+          "gap-2",
+          "w-full",
+        )}
+      >
         {Array.from({ length }).map((_, i) => (
           <input
             key={i}
@@ -89,10 +97,10 @@ export const OtpInput: React.FC<OtpInputProps> = ({
             onPaste={handlePaste}
             onFocus={(e) => e.target.select()}
             className={`
-              w-11 h-14 text-center text-lg font-black text-slate-900 rounded-2xl border
-              bg-slate-50 focus:bg-white focus:ring-0 outline-none transition-all
-              ${error ? "border-rose-400" : value[i] ? "border-slate-900" : "border-slate-100"}
-              focus:border-slate-900 disabled:opacity-40 disabled:cursor-not-allowed
+              w-11 h-14 text-center text-lg font-black text-foreground rounded-2xl border
+              bg-muted focus:bg-background focus:ring-0 outline-none transition-all
+              ${error ? "border-rose-400" : value[i] ? "border-foreground" : "border-border"}
+              focus:border-foreground disabled:opacity-40 disabled:cursor-not-allowed
               caret-transparent
             `}
             aria-label={`Digit ${i + 1}`}
@@ -100,7 +108,16 @@ export const OtpInput: React.FC<OtpInputProps> = ({
         ))}
       </div>
       {error && (
-        <p className={cn('text-[9px]', 'font-black', 'text-rose-500', 'uppercase', 'tracking-widest', 'text-center')}>
+        <p
+          className={cn(
+            "text-[9px]",
+            "font-black",
+            "text-rose-500",
+            "uppercase",
+            "tracking-widest",
+            "text-center",
+          )}
+        >
           {error}
         </p>
       )}

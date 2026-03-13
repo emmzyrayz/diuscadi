@@ -3,13 +3,13 @@ import React from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Heart } from "lucide-react";
 import Image from "next/image";
-import airtel from "@/assets/img/logo/Airtel.webp"
-import mtn from "@/assets/img/logo/mtn.jpg"
-import i1960 from "@/assets/img/logo/1960.webp"
-import codex from "@/assets/img/logo/codex.webp"
-import radopin from "@/assets/img/logo/adopin.jpg"
-import lovebite from "@/assets/img/logo/Lovebite.webp"
-import AICIC from "@/assets/img/logo/AICIC.png"
+import airtel from "@/assets/img/logo/Airtel.webp";
+import mtn from "@/assets/img/logo/mtn.jpg";
+import i1960 from "@/assets/img/logo/1960.webp";
+import codex from "@/assets/img/logo/codex.webp";
+import radopin from "@/assets/img/logo/adopin.jpg";
+import lovebite from "@/assets/img/logo/Lovebite.webp";
+import AICIC from "@/assets/img/logo/AICIC.png";
 
 const PARTNERS = [
   {
@@ -58,7 +58,7 @@ export const SponsorSection = () => {
             <span>Pay It Forward</span>
           </motion.div>
 
-          <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-6 leading-tight">
+          <h2 className="text-4xl md:text-5xl font-black text-foreground mb-6 leading-tight">
             Support Career Development of Nigerian Youths
           </h2>
           <p className="text-xl text-slate-600 leading-relaxed">
@@ -109,20 +109,20 @@ export const SponsorSection = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          className="mt-20 p-8 md:p-12 rounded-[3rem] bg-slate-900 text-white flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden"
+          className="mt-20 p-8 md:p-12 rounded-[3rem] bg-foreground text-background flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden"
         >
           <div className="relative z-10">
             <h3 className="text-2xl md:text-3xl font-bold mb-2">
               Ready to make an impact?
             </h3>
-            <p className="text-slate-400 text-lg">
+            <p className="text-muted-foreground text-lg">
               Partner with us for the 2026 Academic Session.
             </p>
           </div>
 
           <a
             href="/sponsor"
-            className="relative z-10 group flex items-center gap-3 bg-primary hover:bg-orange-600 text-white px-8 py-4 rounded-2xl font-bold transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-primary/25"
+            className="relative z-10 group flex items-center gap-3 bg-primary hover:bg-orange-600 text-background px-8 py-4 rounded-2xl font-bold transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-primary/25"
           >
             Sponsor DIUSCADI
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

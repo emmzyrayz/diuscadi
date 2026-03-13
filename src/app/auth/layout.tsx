@@ -12,7 +12,7 @@ export default function AuthLayout({
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen w-full flex bg-slate-50">
+    <div className="min-h-screen w-full flex bg-muted">
       {/* Left Section: Interaction Area */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12 lg:p-20 overflow-hidden">
         {/*

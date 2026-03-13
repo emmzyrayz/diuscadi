@@ -56,7 +56,7 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
         >
           <div
             className={cn(
-              "bg-slate-900",
+              "bg-foreground",
               "rounded-[3rem]",
               "overflow-hidden",
               "shadow-2xl",
@@ -93,7 +93,7 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                       "text-3xl",
                       "md:text-4xl",
                       "font-black",
-                      "text-white",
+                      "text-background",
                       "tracking-tighter",
                       "leading-none",
                     )}
@@ -105,14 +105,14 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                   className={cn(
                     "w-16",
                     "h-16",
-                    "bg-white/10",
+                    "bg-backgroundround/10",
                     "rounded-2xl",
                     "flex",
                     "items-center",
                     "justify-center",
                     "backdrop-blur-md",
                     "border",
-                    "border-white/10",
+                    "border-backgroundround/10",
                   )}
                 >
                   <LuShieldCheck className={cn("w-8", "h-8", "text-primary")} />
@@ -132,7 +132,7 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                 {/* QR Code Zone */}
                 <div
                   className={cn(
-                    "bg-white",
+                    "bg-backgroundround",
                     "p-5",
                     "rounded-[2rem]",
                     "shadow-xl",
@@ -142,19 +142,19 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                     className={cn(
                       "w-44",
                       "h-44",
-                      "bg-slate-100",
+                      "text-muted",
                       "flex",
                       "items-center",
                       "justify-center",
                       "rounded-xl",
                       "overflow-hidden",
                       "border",
-                      "border-slate-100",
+                      "border-border",
                     )}
                   >
                     {/* Placeholder for QR - In production use a QR Component */}
                     <LuQrCode
-                      className={cn("w-32", "h-32", "text-slate-900")}
+                      className={cn("w-32", "h-32", "text-foreground")}
                     />
                   </div>
                   <p
@@ -163,7 +163,7 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                       "mt-4",
                       "font-mono",
                       "text-[10px]",
-                      "text-slate-400",
+                      "text-muted-foreground",
                       "font-bold",
                       "tracking-widest",
                     )}
@@ -187,7 +187,7 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                         className={cn(
                           "text-[9px]",
                           "font-black",
-                          "text-slate-500",
+                          "text-muted-foreground",
                           "uppercase",
                           "tracking-widest",
                           "mb-1",
@@ -195,7 +195,13 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                       >
                         Access Type
                       </p>
-                      <p className={cn("text-white", "font-bold", "text-sm")}>
+                      <p
+                        className={cn(
+                          "text-backgroundround",
+                          "font-bold",
+                          "text-sm",
+                        )}
+                      >
                         Full Premium
                       </p>
                     </div>
@@ -204,7 +210,7 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                         className={cn(
                           "text-[9px]",
                           "font-black",
-                          "text-slate-500",
+                          "text-muted-foreground",
                           "uppercase",
                           "tracking-widest",
                           "mb-1",
@@ -212,18 +218,26 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                       >
                         Zone/Seat
                       </p>
-                      <p className={cn("text-white", "font-bold", "text-sm")}>
+                      <p
+                        className={cn(
+                          "text-backgroundround",
+                          "font-bold",
+                          "text-sm",
+                        )}
+                      >
                         VIP Main Hall
                       </p>
                     </div>
                   </div>
-                  <div className={cn("h-px", "bg-white/10", "w-full")} />
+                  <div
+                    className={cn("h-px", "bg-backgroundround/10", "w-full")}
+                  />
                   <div>
                     <p
                       className={cn(
                         "text-[9px]",
                         "font-black",
-                        "text-slate-500",
+                        "text-muted-foreground",
                         "uppercase",
                         "tracking-widest",
                         "mb-1",
@@ -231,7 +245,13 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                     >
                       Pass Holder
                     </p>
-                    <p className={cn("text-xl", "font-black", "text-white")}>
+                    <p
+                      className={cn(
+                        "text-xl",
+                        "font-black",
+                        "text-backgroundround",
+                      )}
+                    >
                       {ticket.userName}
                     </p>
                   </div>
@@ -247,7 +267,7 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                 "-left-4",
                 "w-8",
                 "h-8",
-                "bg-white",
+                "bg-backgroundround",
                 "rounded-full",
                 "hidden",
                 "md:block",
@@ -260,7 +280,7 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                 "-right-4",
                 "w-8",
                 "h-8",
-                "bg-white",
+                "bg-backgroundround",
                 "rounded-full",
                 "hidden",
                 "md:block",
@@ -274,7 +294,7 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                 "right-8",
                 "border-t-2",
                 "border-dashed",
-                "border-white/10",
+                "border-backgroundround/10",
                 "hidden",
                 "md:block",
               )}
@@ -282,10 +302,10 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
 
             <div
               className={cn(
-                "bg-white/5",
+                "bg-backgroundround/5",
                 "p-6",
                 "border-t",
-                "border-white/10",
+                "border-backgroundround/10",
                 "flex",
                 "justify-center",
               )}
@@ -294,7 +314,7 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
                 className={cn(
                   "text-[10px]",
                   "font-black",
-                  "text-slate-500",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-[0.4em]",
                 )}
@@ -316,9 +336,9 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
         <aside className={cn("lg:col-span-5", "xl:col-span-4", "space-y-6")}>
           <div
             className={cn(
-              "bg-white",
+              "bg-backgroundround",
               "border-2",
-              "border-slate-100",
+              "border-border",
               "rounded-[2.5rem]",
               "p-8",
               "shadow-sm",
@@ -328,7 +348,7 @@ export const TicketContainer = ({ ticket }: TicketContainerProps) => {
               className={cn(
                 "text-sm",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "uppercase",
                 "tracking-widest",
                 "mb-6",
@@ -408,19 +428,19 @@ const MetaRow = ({
         "w-10",
         "h-10",
         "rounded-xl",
-        "bg-slate-50",
+        "bg-muted",
         "flex",
         "items-center",
         "justify-center",
         "shrink-0",
         "border",
-        "border-slate-100",
+        "border-border",
       )}
     >
       <Icon
         className={cn(
           "w-5 h-5",
-          isSuccess ? "text-emerald-500" : "text-slate-400",
+          isSuccess ? "text-emerald-500" : "text-muted-foreground",
         )}
       />
     </div>
@@ -429,7 +449,7 @@ const MetaRow = ({
         className={cn(
           "text-[9px]",
           "font-black",
-          "text-slate-400",
+          "text-muted-foreground",
           "uppercase",
           "tracking-widest",
         )}
@@ -454,8 +474,8 @@ const TicketActionButtons = () => (
         "gap-2",
         "px-6",
         "py-4",
-        "bg-slate-900",
-        "text-white",
+        "bg-foreground",
+        "text-backgroundround",
         "rounded-2xl",
         "font-black",
         "text-xs",
@@ -464,7 +484,7 @@ const TicketActionButtons = () => (
         "hover:bg-primary",
         "transition-all",
         "shadow-lg",
-        "shadow-slate-900/10",
+        "shadow-foreground/10",
       )}
     >
       <LuDownload className={cn("w-4", "h-4")} /> Download PDF
@@ -477,9 +497,9 @@ const TicketActionButtons = () => (
         "gap-2",
         "px-6",
         "py-4",
-        "bg-white",
+        "bg-backgroundround",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "text-slate-600",
         "rounded-2xl",
         "font-black",
@@ -501,9 +521,9 @@ const TicketActionButtons = () => (
         "gap-2",
         "px-6",
         "py-4",
-        "bg-white",
+        "bg-backgroundround",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "text-slate-600",
         "rounded-2xl",
         "font-black",
@@ -525,9 +545,9 @@ const TicketActionButtons = () => (
         "gap-2",
         "px-6",
         "py-4",
-        "bg-white",
+        "bg-backgroundround",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "text-slate-600",
         "rounded-2xl",
         "font-black",

@@ -49,8 +49,8 @@ export const UserActionsDropdown: React.FC<UserActionsProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         className={`p-2 rounded-xl transition-all border ${
           isOpen
-            ? "bg-slate-900 text-white border-slate-900 shadow-md"
-            : "bg-transparent text-slate-400 border-transparent hover:border-slate-200 hover:bg-white hover:text-slate-900"
+            ? "bg-foreground text-background border-foreground shadow-md"
+            : "bg-transparent text-muted-foreground border-transparent hover:border-border hover:bg-background hover:text-foreground"
         }`}
       >
         <LuEllipsis className="w-5 h-5" />
@@ -65,7 +65,7 @@ export const UserActionsDropdown: React.FC<UserActionsProps> = ({
             onClick={() => setIsOpen(false)}
           />
 
-          <div className="absolute right-0 top-12 w-56 bg-white border border-slate-100 rounded-2xl shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 duration-200">
+          <div className="absolute right-0 top-12 w-56 bg-background border border-border rounded-2xl shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 duration-200">
             {/* Safe Actions Group */}
             <div className="space-y-0.5">
               <DropdownItem
@@ -80,7 +80,7 @@ export const UserActionsDropdown: React.FC<UserActionsProps> = ({
               />
             </div>
 
-            <div className="h-px bg-slate-50 my-1.5 mx-2" />
+            <div className="h-px bg-muted my-1.5 mx-2" />
 
             {/* Status Modifiers Group */}
             <div className="space-y-0.5">
@@ -110,7 +110,7 @@ export const UserActionsDropdown: React.FC<UserActionsProps> = ({
               )}
             </div>
 
-            <div className="h-px bg-slate-50 my-1.5 mx-2" />
+            <div className="h-px bg-muted my-1.5 mx-2" />
 
             {/* Destructive Group */}
             <div className="space-y-0.5">
@@ -140,7 +140,7 @@ const DropdownItem: React.FC<ItemProps> = ({
   icon: Icon,
   label,
   onClick,
-  color = "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+  color = "text-slate-600 hover:bg-muted hover:text-foreground",
 }) => (
   <button
     onClick={onClick}

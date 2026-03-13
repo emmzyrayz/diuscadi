@@ -5,7 +5,20 @@
 import { Db, ObjectId } from "mongodb";
 import { Collections } from "@/lib/db/collections";
 import { UserDataDocument, PhoneNumber } from "@/lib/models/UserData";
-import { COMMITTEES, SKILLS, Committee, Skill } from "@/types/domain";
+import {
+  COMMITTEES,
+  SKILLS,
+  Committee,
+  Skill,
+  UserPreferences,
+  DEFAULT_PREFERENCES,
+  NotificationFrequency,
+  ThemeMode,
+  AccentColor,
+  NOTIF_FREQS,
+  THEME_MODES,
+  ACCENT_COLORS,
+} from "@/types/domain";
 
 // ─── Read ─────────────────────────────────────────────────────────────────────
 
@@ -274,6 +287,121 @@ export async function updateUserCommittee(
   );
   const updated = await Collections.userData(db).findOne({ vaultId });
   return { updated: updated ?? undefined };
+}
+
+// ─── Preferences ──────────────────────────────────────────────────────────────
+
+export function mergeWithDefaults(
+  partial: Partial<UserPreferences> | undefined,
+): UserPreferences {
+  if (!partial) return DEFAULT_PREFERENCES;
+  return {
+    notifications: {
+      ...DEFAULT_PREFERENCES.notifications,
+      ...partial.notifications,
+    },
+    appearance: { ...DEFAULT_PREFERENCES.appearance, ...partial.appearance },
+    privacy: { ...DEFAULT_PREFERENCES.privacy, ...partial.privacy },
+  };
+}
+
+export function validatePreferences(
+  body: Record<string, unknown>,
+):
+  | { ok: true; patch: Partial<Record<string, unknown>> }
+  | { ok: false; error: string } {
+  const patch: Record<string, unknown> = {};
+
+  if ("notifications" in body) {
+    const n = body.notifications as Record<string, unknown>;
+    if (
+      n.frequency !== undefined &&
+      !NOTIF_FREQS.includes(n.frequency as NotificationFrequency)
+    ) {
+      return {
+        ok: false,
+        error: `frequency must be one of: ${NOTIF_FREQS.join(", ")}`,
+      };
+    }
+    for (const key of [
+      "tickets",
+      "reminders",
+      "messages",
+      "marketing",
+    ] as const) {
+      if (key in n && typeof n[key] !== "boolean") {
+        return { ok: false, error: `notifications.${key} must be boolean` };
+      }
+    }
+    patch["preferences.notifications"] = n;
+  }
+
+  if ("appearance" in body) {
+    const a = body.appearance as Record<string, unknown>;
+    if (a.theme !== undefined && !THEME_MODES.includes(a.theme as ThemeMode)) {
+      return {
+        ok: false,
+        error: `theme must be one of: ${THEME_MODES.join(", ")}`,
+      };
+    }
+    if (
+      a.accent !== undefined &&
+      !ACCENT_COLORS.includes(a.accent as AccentColor)
+    ) {
+      return {
+        ok: false,
+        error: `accent must be one of: ${ACCENT_COLORS.join(", ")}`,
+      };
+    }
+    patch["preferences.appearance"] = a;
+  }
+
+  if ("privacy" in body) {
+    const p = body.privacy as Record<string, unknown>;
+    for (const key of ["profilePrivate", "showEmail", "showPhone"] as const) {
+      if (key in p && typeof p[key] !== "boolean") {
+        return { ok: false, error: `privacy.${key} must be boolean` };
+      }
+    }
+    patch["preferences.privacy"] = p;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return { ok: false, error: "No valid preference fields provided" };
+  }
+
+  return { ok: true, patch };
+}
+
+export async function getUserPreferences(
+  db: Db,
+  vaultId: ObjectId,
+): Promise<UserPreferences> {
+  const doc = await Collections.userData(db).findOne(
+    { vaultId },
+    { projection: { preferences: 1 } },
+  );
+  return mergeWithDefaults(
+    doc?.preferences as Partial<UserPreferences> | undefined,
+  );
+}
+
+export async function updateUserPreferences(
+  db: Db,
+  vaultId: ObjectId,
+  body: Record<string, unknown>,
+): Promise<ServiceResult> {
+  const validation = validatePreferences(body);
+  if (!validation.ok) return { error: validation.error, status: 400 };
+
+  // Use dot-notation patch so sections don't overwrite each other
+  await Collections.userData(db).updateOne(
+    { vaultId },
+    { $set: { ...validation.patch, updatedAt: new Date() } },
+  );
+
+  const prefs = await getUserPreferences(db, vaultId);
+  return { updated: { preferences: prefs } as unknown as UserDataDocument };
 }
 
 // ─── Strip internal fields before sending to client ──────────────────────────

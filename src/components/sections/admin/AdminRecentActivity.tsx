@@ -37,7 +37,7 @@ export const AdminRecentActivity = () => {
       iconColor: "text-blue-600 bg-blue-50",
       text: (
         <>
-          <span className={cn("font-black", "text-slate-900")}>John Doe</span>{" "}
+          <span className={cn("font-black", "text-foreground")}>John Doe</span>{" "}
           registered for{" "}
           <span className={cn("font-bold", "text-blue-600")}>
             Web Dev Bootcamp
@@ -53,7 +53,7 @@ export const AdminRecentActivity = () => {
       text: (
         <>
           New event created:{" "}
-          <span className={cn("font-black", "text-slate-900")}>
+          <span className={cn("font-black", "text-foreground")}>
             Cybersecurity Essentials
           </span>
         </>
@@ -66,7 +66,9 @@ export const AdminRecentActivity = () => {
       iconColor: "text-emerald-600 bg-emerald-50",
       text: (
         <>
-          <span className={cn("font-black", "text-slate-900")}>Jane Smith</span>{" "}
+          <span className={cn("font-black", "text-foreground")}>
+            Jane Smith
+          </span>{" "}
           created a new professional account
         </>
       ),
@@ -79,7 +81,7 @@ export const AdminRecentActivity = () => {
       text: (
         <>
           System auto-verified{" "}
-          <span className={cn("font-black", "text-slate-900")}>
+          <span className={cn("font-black", "text-foreground")}>
             42 Digital IDs
           </span>
         </>
@@ -94,9 +96,9 @@ export const AdminRecentActivity = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className={cn(
-        "bg-white",
+        "bg-background",
         "border-2",
-        "border-slate-100",
+        "border-border",
         "rounded-[2.5rem]",
         "p-8",
         "shadow-sm",
@@ -117,13 +119,13 @@ export const AdminRecentActivity = () => {
               "w-10",
               "h-10",
               "rounded-xl",
-              "bg-slate-50",
+              "bg-muted",
               "flex",
               "items-center",
               "justify-center",
-              "text-slate-900",
+              "text-foreground",
               "border",
-              "border-slate-100",
+              "border-border",
             )}
           >
             <LuHistory className={cn("w-5", "h-5")} />
@@ -133,7 +135,7 @@ export const AdminRecentActivity = () => {
               className={cn(
                 "text-sm",
                 "font-black",
-                "text-slate-900",
+                "text-foreground",
                 "uppercase",
                 "tracking-widest",
               )}
@@ -169,7 +171,7 @@ export const AdminRecentActivity = () => {
                 className={cn(
                   "text-[9px]",
                   "font-black",
-                  "text-slate-400",
+                  "text-muted-foreground",
                   "uppercase",
                   "tracking-widest",
                 )}
@@ -185,8 +187,8 @@ export const AdminRecentActivity = () => {
           className={cn(
             "px-4",
             "py-2",
-            "bg-slate-50",
-            "hover:bg-slate-100",
+            "bg-muted",
+            "hover:text-muted",
             "rounded-xl",
             "text-[10px]",
             "font-black",
@@ -239,7 +241,7 @@ export const AdminRecentActivity = () => {
           className={cn(
             "text-[10px]",
             "font-black",
-            "text-slate-400",
+            "text-muted-foreground",
             "uppercase",
             "tracking-[0.2em]",
             "group-hover:text-primary",
@@ -292,8 +294,8 @@ const ActivityItem = ({
       "rounded-2xl",
       "border",
       "border-transparent",
-      "hover:border-slate-100",
-      "hover:bg-slate-50/50",
+      "hover:border-border",
+      "hover:bg-muted/50",
       "transition-all",
       "group",
       "cursor-pointer",
@@ -317,7 +319,7 @@ const ActivityItem = ({
     </motion.div>
 
     <div className="flex-1">
-      <p className={cn("text-[11px]", "text-slate-500", "leading-snug")}>
+      <p className={cn("text-[11px]", "text-muted-foreground", "leading-snug")}>
         {text}
       </p>
       <motion.p
@@ -327,7 +329,7 @@ const ActivityItem = ({
         className={cn(
           "text-[9px]",
           "font-bold",
-          "text-slate-400",
+          "text-muted-foreground",
           "uppercase",
           "mt-1",
         )}
@@ -344,7 +346,7 @@ const ActivityItem = ({
       <motion.button
         whileHover={{ scale: 1.2, x: 2 }}
         whileTap={{ scale: 0.9 }}
-        className={cn("p-2", "text-slate-300", "hover:text-slate-900")}
+        className={cn("p-2", "text-slate-300", "hover:text-foreground")}
       >
         <LuChevronRight className={cn("w-4", "h-4")} />
       </motion.button>
