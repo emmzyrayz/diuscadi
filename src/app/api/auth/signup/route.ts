@@ -15,6 +15,7 @@ import {
   PhoneNumber,
   EDU_STATUSES,
   SKILLS,
+  DEFAULT_PREFERENCES,
 } from "@/types/domain";
 import { VaultDocument } from "@/lib/models/vault";
 import { UserDataDocument } from "@/lib/models/UserData";
@@ -198,6 +199,7 @@ export async function POST(req: NextRequest) {
         eventsRegistered: 0,
         eventsAttended: 0,
       },
+      preferences: DEFAULT_PREFERENCES,
       createdAt: now,
       updatedAt: now,
     };
