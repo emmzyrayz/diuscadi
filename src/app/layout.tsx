@@ -6,7 +6,7 @@ import LayoutWrapper from "@/components/layoutWrapper";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
 import { ProvidersWrapper } from "./providers";
-import { RouteGuard } from "@/components/RouteGaurd";
+import { RouteGuard } from "@/components/RouteGuard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
