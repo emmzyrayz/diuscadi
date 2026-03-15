@@ -33,7 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${inter.className} ${geistMono.variable} min-h-screen w-full antialiased`}
+        className={`${geistSans.variable} ${inter.className} ${geistMono.variable} min-h-screen w-full antialiased md:px-5`}
       >
         {/*
           ProvidersWrapper composes all providers via the registry:

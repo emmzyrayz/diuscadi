@@ -72,8 +72,8 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     marketing: false,
   },
   appearance: {
-    theme: "system",
-    accent: "orange",
+    theme: "light",
+    accent: "emerald",
   },
   privacy: {
     profilePrivate: false,

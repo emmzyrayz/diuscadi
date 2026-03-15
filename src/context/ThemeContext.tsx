@@ -1,19 +1,24 @@
 "use client";
 // context/ThemeContext.tsx
 //
-// Applies the full DIUSCADI theme system to <html>.
+// Applies the DIUSCADI theme system to <html>.
 //
-// Each accent is a FULL THEME — not just a primary color swap.
-// The CSS does the heavy lifting via [data-accent="x"].dark / :not(.dark)
-// attribute selectors in globals.css. ThemeProvider's job is to:
+// Light mode:  accent-driven. CSS [data-accent="x"]:not(.dark) blocks in
+//              globals.css define a full coloured surface system per accent.
+//
+// Dark mode:   universal. CSS .dark defines a pure black/white/grey surface
+//              system regardless of accent. Only --primary, --ring, and a
+//              very faint gradient-blob-a carry the accent colour so that
+//              buttons, links, and focus rings still feel themed.
+//
+// ThemeProvider's jobs:
 //   1. Toggle class="dark" on <html>
-//   2. Set data-accent="orange|emerald|violet|rose|amber" on <html>
-//   3. Set data-theme="light|dark|system" on <html>
-//   4. Patch --primary, --ring, --primary-foreground + gradient blobs
-//      via style.setProperty() for instant JS-driven swaps.
-//
-// The CSS [data-accent] blocks in globals.css are the SSR / first-paint
-// fallback. ThemeProvider re-applies the same values after hydration.
+//   2. Set data-accent on <html>        (CSS picks up light mode surfaces)
+//   3. Set data-theme on <html>         (for any future CSS targeting)
+//   4. Patch --primary, --ring, --primary-foreground via style.setProperty()
+//      for instant JS-driven swaps (both modes)
+//   5. In dark mode only: patch --gradient-blob-a with a faint primary tint
+//      (5%) so there's just a hint of colour depth in the background
 
 import React, {
   createContext,
@@ -26,119 +31,78 @@ import { useUser } from "@/context/UserContext";
 import type { ThemeMode, AccentColor } from "@/types/domain";
 import { DEFAULT_PREFERENCES } from "@/types/domain";
 
-// ─── Per-accent token tables ──────────────────────────────────────────────────
+// ─── Per-accent primary tokens ────────────────────────────────────────────────
+// Only primary / ring / primaryForeground differ per accent.
+// Everything else (surfaces, borders, blobs) is handled by CSS.
 
-interface AccentModeTokens {
+interface AccentTokens {
   primary: string;
   primaryForeground: string;
   ring: string;
-  gradientBlobA: string;
-  gradientBlobB: string;
-  gradientBlobC: string;
+  // Light-mode gradient blobs — full colour
+  lightBlobA: string;
+  lightBlobB: string;
+  lightBlobC: string;
+  // Dark-mode gradient blobs — very faint primary tint only
+  darkBlobA: string;
 }
 
-interface AccentTheme {
-  light: AccentModeTokens;
-  dark: AccentModeTokens;
-}
-
-const ACCENT_THEMES: Record<AccentColor, AccentTheme> = {
+const ACCENT_TOKENS: Record<AccentColor, AccentTokens> = {
   orange: {
-    light: {
-      primary: "oklch(0.65 0.22 47)",
-      primaryForeground: "oklch(1 0 0)",
-      ring: "oklch(0.65 0.22 47)",
-      gradientBlobA: "oklch(0.65 0.22 47 / 18%)",
-      gradientBlobB: "oklch(0.82 0.1 55 / 14%)",
-      gradientBlobC: "oklch(0.9 0.05 35 / 10%)",
-    },
-    dark: {
-      primary: "oklch(0.72 0.2 47)",
-      primaryForeground: "oklch(1 0 0)",
-      ring: "oklch(0.72 0.2 47)",
-      gradientBlobA: "oklch(0.72 0.2 47 / 22%)",
-      gradientBlobB: "oklch(0.5 0.15 55 / 15%)",
-      gradientBlobC: "oklch(0.35 0.08 35 / 10%)",
-    },
+    primary: "oklch(0.65 0.22 47)",
+    primaryForeground: "oklch(1 0 0)",
+    ring: "oklch(0.65 0.22 47)",
+    lightBlobA: "oklch(0.65 0.22 47 / 18%)",
+    lightBlobB: "oklch(0.82 0.10 55  / 14%)",
+    lightBlobC: "oklch(0.90 0.05 35  / 10%)",
+    darkBlobA: "oklch(0.65 0.22 47 /  5%)",
   },
   emerald: {
-    light: {
-      primary: "oklch(0.55 0.18 162)",
-      primaryForeground: "oklch(1 0 0)",
-      ring: "oklch(0.55 0.18 162)",
-      gradientBlobA: "oklch(0.65 0.18 162 / 18%)",
-      gradientBlobB: "oklch(0.82 0.08 155 / 14%)",
-      gradientBlobC: "oklch(0.88 0.05 175 / 10%)",
-    },
-    dark: {
-      primary: "oklch(0.7 0.18 162)",
-      primaryForeground: "oklch(1 0 0)",
-      ring: "oklch(0.7 0.18 162)",
-      gradientBlobA: "oklch(0.7 0.18 162 / 22%)",
-      gradientBlobB: "oklch(0.48 0.14 155 / 15%)",
-      gradientBlobC: "oklch(0.32 0.07 175 / 10%)",
-    },
+    primary: "oklch(0.55 0.18 162)",
+    primaryForeground: "oklch(1 0 0)",
+    ring: "oklch(0.55 0.18 162)",
+    lightBlobA: "oklch(0.65 0.18 162 / 18%)",
+    lightBlobB: "oklch(0.82 0.08 155 / 14%)",
+    lightBlobC: "oklch(0.88 0.05 175 / 10%)",
+    darkBlobA: "oklch(0.55 0.18 162 /  5%)",
   },
   violet: {
-    light: {
-      primary: "oklch(0.55 0.25 293)",
-      primaryForeground: "oklch(1 0 0)",
-      ring: "oklch(0.55 0.25 293)",
-      gradientBlobA: "oklch(0.6 0.25 293 / 18%)",
-      gradientBlobB: "oklch(0.78 0.1 280 / 14%)",
-      gradientBlobC: "oklch(0.88 0.06 310 / 10%)",
-    },
-    dark: {
-      primary: "oklch(0.72 0.24 293)",
-      primaryForeground: "oklch(1 0 0)",
-      ring: "oklch(0.72 0.24 293)",
-      gradientBlobA: "oklch(0.72 0.24 293 / 22%)",
-      gradientBlobB: "oklch(0.5 0.18 280 / 15%)",
-      gradientBlobC: "oklch(0.35 0.1 310 / 10%)",
-    },
+    primary: "oklch(0.55 0.25 293)",
+    primaryForeground: "oklch(1 0 0)",
+    ring: "oklch(0.55 0.25 293)",
+    lightBlobA: "oklch(0.60 0.25 293 / 18%)",
+    lightBlobB: "oklch(0.78 0.10 280 / 14%)",
+    lightBlobC: "oklch(0.88 0.06 310 / 10%)",
+    darkBlobA: "oklch(0.55 0.25 293 /  5%)",
   },
   rose: {
-    light: {
-      primary: "oklch(0.58 0.23 10)",
-      primaryForeground: "oklch(1 0 0)",
-      ring: "oklch(0.58 0.23 10)",
-      gradientBlobA: "oklch(0.65 0.23 10 / 18%)",
-      gradientBlobB: "oklch(0.82 0.1 355 / 14%)",
-      gradientBlobC: "oklch(0.88 0.06 25 / 10%)",
-    },
-    dark: {
-      primary: "oklch(0.72 0.22 10)",
-      primaryForeground: "oklch(1 0 0)",
-      ring: "oklch(0.72 0.22 10)",
-      gradientBlobA: "oklch(0.72 0.22 10 / 22%)",
-      gradientBlobB: "oklch(0.5 0.16 355 / 15%)",
-      gradientBlobC: "oklch(0.34 0.08 25 / 10%)",
-    },
+    primary: "oklch(0.58 0.23 10)",
+    primaryForeground: "oklch(1 0 0)",
+    ring: "oklch(0.58 0.23 10)",
+    lightBlobA: "oklch(0.65 0.23 10  / 18%)",
+    lightBlobB: "oklch(0.82 0.10 355 / 14%)",
+    lightBlobC: "oklch(0.88 0.06 25  / 10%)",
+    darkBlobA: "oklch(0.58 0.23 10  /  5%)",
   },
-  // Amber: primary-foreground is DARK — gold is too bright for white text
+  // Amber: primary-foreground is DARK — gold cannot carry white text
   amber: {
-    light: {
-      primary: "oklch(0.72 0.18 84)",
-      primaryForeground: "oklch(0.15 0.04 84)",
-      ring: "oklch(0.72 0.18 84)",
-      gradientBlobA: "oklch(0.78 0.18 84 / 20%)",
-      gradientBlobB: "oklch(0.88 0.1 72 / 14%)",
-      gradientBlobC: "oklch(0.92 0.06 95 / 10%)",
-    },
-    dark: {
-      primary: "oklch(0.82 0.17 84)",
-      primaryForeground: "oklch(0.15 0.04 84)",
-      ring: "oklch(0.82 0.17 84)",
-      gradientBlobA: "oklch(0.82 0.17 84 / 22%)",
-      gradientBlobB: "oklch(0.58 0.13 72 / 15%)",
-      gradientBlobC: "oklch(0.38 0.07 95 / 10%)",
-    },
+    primary: "oklch(0.72 0.18 84)",
+    primaryForeground: "oklch(0.15 0.04 84)",
+    ring: "oklch(0.72 0.18 84)",
+    lightBlobA: "oklch(0.78 0.18 84 / 20%)",
+    lightBlobB: "oklch(0.88 0.10 72 / 14%)",
+    lightBlobC: "oklch(0.92 0.06 95 / 10%)",
+    darkBlobA: "oklch(0.72 0.18 84 /  5%)",
   },
 };
 
+// Dark mode neutral blob values (blob-b and blob-c are always achromatic)
+const DARK_BLOB_B = "oklch(1 0 0 / 2.0%)";
+const DARK_BLOB_C = "oklch(1 0 0 / 1.5%)";
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function resolveTheme(mode: ThemeMode): "light" | "dark" {
+function resolveMode(mode: ThemeMode): "light" | "dark" {
   if (mode === "system") {
     return window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
@@ -149,37 +113,45 @@ function resolveTheme(mode: ThemeMode): "light" | "dark" {
 
 function applyFullTheme(mode: ThemeMode, accent: AccentColor): void {
   const html = document.documentElement;
-  const resolved = resolveTheme(mode);
+  const resolved = resolveMode(mode);
+  const tokens = ACCENT_TOKENS[accent];
 
-  // 1. Dark class
+  // 1. Dark class + data attributes
   html.setAttribute("data-theme", mode);
+  html.setAttribute("data-accent", accent);
   if (resolved === "dark") {
     html.classList.add("dark");
   } else {
     html.classList.remove("dark");
   }
 
-  // 2. Accent attribute — activates the full [data-accent="x"].dark / :not(.dark) blocks
-  html.setAttribute("data-accent", accent);
-
-  // 3. Inline style patch for instant swaps (overrides CSS specificity)
-  const tokens = ACCENT_THEMES[accent][resolved];
   const set = (k: string, v: string) => html.style.setProperty(k, v);
 
+  // 2. Primary / ring — always the accent colour regardless of mode
   set("--primary", tokens.primary);
   set("--primary-foreground", tokens.primaryForeground);
   set("--ring", tokens.ring);
   set("--sidebar-primary", tokens.primary);
   set("--sidebar-ring", tokens.ring);
-  set("--gradient-blob-a", tokens.gradientBlobA);
-  set("--gradient-blob-b", tokens.gradientBlobB);
-  set("--gradient-blob-c", tokens.gradientBlobC);
 
-  // Amber sidebar needs dark foreground too
+  // Amber sidebar also needs the dark foreground
   if (accent === "amber") {
     set("--sidebar-primary-foreground", tokens.primaryForeground);
   } else {
     html.style.removeProperty("--sidebar-primary-foreground");
+  }
+
+  // 3. Gradient blobs
+  //    Light → full-colour blobs from accent
+  //    Dark  → blob-a = faint primary tint; blob-b/c = achromatic neutral
+  if (resolved === "light") {
+    set("--gradient-blob-a", tokens.lightBlobA);
+    set("--gradient-blob-b", tokens.lightBlobB);
+    set("--gradient-blob-c", tokens.lightBlobC);
+  } else {
+    set("--gradient-blob-a", tokens.darkBlobA); // whisper of accent
+    set("--gradient-blob-b", DARK_BLOB_B);
+    set("--gradient-blob-c", DARK_BLOB_C);
   }
 }
 
@@ -201,11 +173,7 @@ export function useTheme(): ThemeContextValue {
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
-interface ThemeProviderProps {
-  children: ReactNode;
-}
-
-export function ThemeProvider({ children }: ThemeProviderProps) {
+export function ThemeProvider({ children }: { children: ReactNode }) {
   const { profile } = useUser();
 
   const mode =
@@ -215,13 +183,10 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     profile?.preferences.appearance.accent ??
     DEFAULT_PREFERENCES.appearance.accent;
 
-  // profileLoaded gates re-application when the profile first arrives.
-  // Without this, if mode/accent happen to equal the defaults, React won't
-  // re-run the effect after profile loads — and the correct tokens never apply.
+  // profileLoaded ensures we re-apply when the real profile replaces the seed,
+  // even if mode/accent values happen to match the defaults.
   const profileLoaded = profile !== null;
 
-  // mode, accent, AND profileLoaded are all deps — ensures we re-apply the
-  // moment the real profile replaces the default seed.
   useEffect(() => {
     applyFullTheme(mode, accent);
 
@@ -234,7 +199,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   const resolvedTheme: "light" | "dark" = useMemo(() => {
     if (typeof window === "undefined") return "light";
-    return resolveTheme(mode);
+    return resolveMode(mode);
   }, [mode]);
 
   return (

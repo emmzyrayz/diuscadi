@@ -9,60 +9,85 @@ import {
   LuBadgeCheck,
   LuNetwork,
 } from "react-icons/lu";
+import { cn } from "@/lib/utils";
 import { IconType } from "react-icons";
+import type { UserProfile, Institution } from "@/context/UserContext";
+import type { EduStatus } from "@/types/domain";
 
-interface ProfessionalInfoProps {
-  data: {
-    status: "Student" | "Graduate" | "Professional";
-    institution: string;
-    fieldOfStudy: string;
-    company: string;
-    jobTitle: string;
-  };
+interface ProfessionalInfoSectionProps {
+  eduStatus: EduStatus;
+  institution: Institution | undefined;
 }
 
-interface ProfessionalItemProps {
-  icon: IconType;
-  label: string;
-  value: string;
-  delay?: number;
-}
-
-export const ProfessionalInfoSection = ({ data }: ProfessionalInfoProps) => {
+export const ProfessionalInfoSection = ({
+  eduStatus,
+  institution,
+}: ProfessionalInfoSectionProps) => {
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="bg-background border-2 border-border rounded-[2.5rem] p-8 md:p-10 shadow-sm relative overflow-hidden"
+      className={cn(
+        "glass",
+        "rounded-[2.5rem]",
+        "p-8",
+        "md:p-10",
+        "relative",
+        "overflow-hidden",
+      )}
     >
-      {/* 1. Header with Ecosystem Badge */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
+      {/* Header */}
+      <div
+        className={cn(
+          "flex",
+          "flex-col",
+          "sm:flex-row",
+          "sm:items-center",
+          "justify-between",
+          "gap-6",
+          "mb-10",
+        )}
+      >
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
           className="space-y-1"
         >
-          <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-[0.2em]">
+          <div
+            className={cn(
+              "flex",
+              "items-center",
+              "gap-2",
+              "text-primary",
+              "font-black",
+              "text-[10px]",
+              "uppercase",
+              "tracking-[0.2em]",
+            )}
+          >
             <motion.div
               animate={{ rotate: [0, 360] }}
-              transition={{
-                duration: 20,
-                repeat: Infinity,
-                ease: "linear",
-              }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
             >
-              <LuNetwork className="w-3.5 h-3.5" />
+              <LuNetwork className={cn("w-3.5", "h-3.5")} />
             </motion.div>
             Career Profile
           </div>
-          <h3 className="text-2xl font-black text-foreground tracking-tight">
+          <h3
+            className={cn(
+              "text-2xl",
+              "font-black",
+              "text-foreground",
+              "tracking-tight",
+            )}
+          >
             Professional Context
           </h3>
         </motion.div>
 
-        {/* Dynamic Status Pill */}
+        {/* Status pill */}
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -72,121 +97,179 @@ export const ProfessionalInfoSection = ({ data }: ProfessionalInfoProps) => {
             stiffness: 300,
             damping: 20,
           }}
-          whileHover={{ scale: 1.05 }}
-          className="flex items-center gap-2 px-4 py-2 bg-primary/5 border border-primary/10 rounded-xl"
+          className={cn(
+            "flex",
+            "items-center",
+            "gap-2",
+            "px-4",
+            "py-2",
+            "bg-primary/5",
+            "border",
+            "border-primary/10",
+            "rounded-xl",
+          )}
         >
-          <motion.div
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              repeatDelay: 3,
-            }}
+          <LuBadgeCheck className={cn("w-4", "h-4", "text-primary")} />
+          <span
+            className={cn(
+              "text-[10px]",
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              "text-primary",
+            )}
           >
-            <LuBadgeCheck className="w-4 h-4 text-primary" />
-          </motion.div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-            Currently: {data.status}
+            {eduStatus}
           </span>
         </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* --- ACADEMIC BLOCK --- */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4 }}
-          className="space-y-8"
-        >
-          <motion.h4
-            initial={{ opacity: 0, width: 0 }}
-            animate={{ opacity: 1, width: "auto" }}
-            transition={{ delay: 0.5 }}
-            className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] flex items-center gap-2"
+      {institution ? (
+        <div className={cn("grid", "grid-cols-1", "lg:grid-cols-2", "gap-12")}>
+          {/* Academic */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            className="space-y-8"
           >
-            <motion.span
-              initial={{ width: 0 }}
-              animate={{ width: "2rem" }}
-              transition={{ delay: 0.6, duration: 0.5 }}
-              className="h-px text-muted"
-            />
-            Academic Background
-          </motion.h4>
+            <h4
+              className={cn(
+                "text-[10px]",
+                "font-black",
+                "text-muted-foreground",
+                "uppercase",
+                "tracking-[0.3em]",
+                "flex",
+                "items-center",
+                "gap-2",
+              )}
+            >
+              <span className={cn("w-8", "h-px", "bg-border", "block")} />
+              Academic Background
+            </h4>
+            <div className="space-y-6">
+              <ProfessionalItem
+                icon={LuGraduationCap}
+                label="Institution"
+                value={institution.name ?? "—"}
+                delay={0.5}
+              />
+              <ProfessionalItem
+                icon={LuBookOpen}
+                label="Faculty"
+                value={institution.faculty ?? "—"}
+                delay={0.6}
+              />
+              <ProfessionalItem
+                icon={LuBookOpen}
+                label="Department"
+                value={institution.department ?? "—"}
+                delay={0.7}
+              />
+            </div>
+          </motion.div>
 
-          <div className="space-y-6">
-            <ProfessionalItem
-              icon={LuGraduationCap}
-              label="Institution"
-              value={data.institution}
-              delay={0.7}
-            />
-            <ProfessionalItem
-              icon={LuBookOpen}
-              label="Field of Study"
-              value={data.fieldOfStudy}
-              delay={0.8}
-            />
-          </div>
-        </motion.div>
-
-        {/* --- CORPORATE BLOCK --- */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4 }}
-          className="space-y-8"
-        >
-          <motion.h4
-            initial={{ opacity: 0, width: 0 }}
-            animate={{ opacity: 1, width: "auto" }}
-            transition={{ delay: 0.5 }}
-            className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] flex items-center gap-2"
+          {/* Level / type */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            className="space-y-8"
           >
-            <motion.span
-              initial={{ width: 0 }}
-              animate={{ width: "2rem" }}
-              transition={{ delay: 0.6, duration: 0.5 }}
-              className="h-px text-muted"
-            />
-            Current Occupation
-          </motion.h4>
+            <h4
+              className={cn(
+                "text-[10px]",
+                "font-black",
+                "text-muted-foreground",
+                "uppercase",
+                "tracking-[0.3em]",
+                "flex",
+                "items-center",
+                "gap-2",
+              )}
+            >
+              <span className={cn("w-8", "h-px", "bg-border", "block")} />
+              Details
+            </h4>
+            <div className="space-y-6">
+              {institution.Type && (
+                <ProfessionalItem
+                  icon={LuBuilding2}
+                  label="Institution Type"
+                  value={institution.Type}
+                  delay={0.5}
+                />
+              )}
+              {institution.level && (
+                <ProfessionalItem
+                  icon={LuBriefcase}
+                  label="Level"
+                  value={institution.level}
+                  delay={0.6}
+                />
+              )}
+              {institution.semester && (
+                <ProfessionalItem
+                  icon={LuBriefcase}
+                  label="Semester"
+                  value={institution.semester}
+                  delay={0.7}
+                />
+              )}
+            </div>
+          </motion.div>
+        </div>
+      ) : (
+        <div className={cn("text-center", "py-8", "space-y-3")}>
+          <LuBuilding2
+            className={cn("w-10", "h-10", "text-muted-foreground", "mx-auto")}
+          />
+          <p className={cn("text-sm", "font-bold", "text-muted-foreground")}>
+            No institution linked yet.
+          </p>
+          <p className={cn("text-xs", "text-muted-foreground")}>
+            Go to Settings → Account to link your institution.
+          </p>
+        </div>
+      )}
 
-          <div className="space-y-6">
-            <ProfessionalItem
-              icon={LuBuilding2}
-              label="Organization / Company"
-              value={data.company}
-              delay={0.7}
-            />
-            <ProfessionalItem
-              icon={LuBriefcase}
-              label="Official Job Title"
-              value={data.jobTitle}
-              delay={0.8}
-            />
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Logic-Driven Hint for Mentorship */}
+      {/* Mentorship hint */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.9 }}
-        whileHover={{ scale: 1.01 }}
-        className="mt-10 p-4 bg-muted rounded-2xl border border-border flex items-start gap-3"
+        className={cn(
+          "mt-10",
+          "p-4",
+          "bg-muted",
+          "rounded-2xl",
+          "border",
+          "border-border",
+          "flex",
+          "items-start",
+          "gap-3",
+        )}
       >
-        <motion.div
-          whileHover={{ rotate: 360 }}
-          transition={{ duration: 0.6 }}
-          className="p-2 bg-background rounded-lg shadow-xs"
+        <div className={cn("p-2", "bg-background", "rounded-lg")}>
+          <LuNetwork className={cn("w-4", "h-4", "text-primary")} />
+        </div>
+        <p
+          className={cn(
+            "text-[11px]",
+            "font-bold",
+            "text-muted-foreground",
+            "leading-relaxed",
+          )}
         >
-          <LuNetwork className="w-4 h-4 text-primary" />
-        </motion.div>
-        <p className="text-[11px] font-bold text-muted-foreground leading-relaxed">
           This data is used to match you with industry mentors in the{" "}
-          <span className="text-foreground underline decoration-primary/30">
+          <span
+            className={cn(
+              "text-foreground",
+              "underline",
+              "decoration-primary/30",
+            )}
+          >
             DIUSCADI Incubation Track.
           </span>{" "}
           Keep it updated for better opportunities.
@@ -196,7 +279,13 @@ export const ProfessionalInfoSection = ({ data }: ProfessionalInfoProps) => {
   );
 };
 
-/* Internal Helper Component */
+interface ProfessionalItemProps {
+  icon: IconType;
+  label: string;
+  value: string;
+  delay?: number;
+}
+
 const ProfessionalItem = ({
   icon: Icon,
   label,
@@ -208,30 +297,48 @@ const ProfessionalItem = ({
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.4, delay }}
     whileHover={{ x: 4 }}
-    className="flex items-start gap-4 group"
+    className={cn("flex", "items-start", "gap-4", "group")}
   >
     <motion.div
       whileHover={{ scale: 1.1, rotate: 5 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0 border border-border group-hover:border-primary/20 transition-colors"
+      className={cn(
+        "w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0",
+        "border border-border group-hover:border-primary/20 transition-colors",
+      )}
     >
-      <Icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+      <Icon
+        className={cn(
+          "w-5",
+          "h-5",
+          "text-muted-foreground",
+          "group-hover:text-primary",
+          "transition-colors",
+        )}
+      />
     </motion.div>
-    <div className="space-y-0.5 flex-1">
-      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
+    <div className={cn("space-y-0.5", "flex-1")}>
+      <p
+        className={cn(
+          "text-[9px]",
+          "font-black",
+          "text-muted-foreground",
+          "uppercase",
+          "tracking-widest",
+        )}
+      >
         {label}
       </p>
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: delay + 0.1 }}
-        className="text-sm font-bold text-slate-700 leading-snug"
+      <p
+        className={cn(
+          "text-sm",
+          "font-bold",
+          "text-foreground",
+          "leading-snug",
+        )}
       >
         {value || "Not specified"}
-      </motion.p>
+      </p>
     </div>
   </motion.div>
 );
-
-// Export types for reuse
-export type { ProfessionalInfoProps, ProfessionalItemProps };

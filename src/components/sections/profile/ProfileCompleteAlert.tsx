@@ -1,9 +1,9 @@
 "use client";
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LuTriangleAlert, LuArrowRight, LuSparkles, LuX } from "react-icons/lu";
+import { LuTriangleAlert, LuArrowRight, LuSparkles } from "react-icons/lu";
+import { cn } from "@/lib/utils";
 
-// 1. Define Props Interface
 interface ProfileCompletionAlertProps {
   isVisible: boolean;
   missingFields: string[];
@@ -15,34 +15,43 @@ export const ProfileCompletionAlert = ({
   missingFields,
   onAction,
 }: ProfileCompletionAlertProps) => {
-  if (!isVisible) return null;
+  if (!isVisible || missingFields.length === 0) return null;
 
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6"
+        exit={{ opacity: 0, y: -16 }}
+        className="mt-6"
       >
-        <div className="bg-amber-50 border-2 border-amber-100 rounded-[2rem] p-4 md:p-6 relative overflow-hidden group">
-          {/* Decorative Background Icon */}
-          <LuSparkles className="absolute -right-4 -bottom-4 w-24 h-24 text-amber-200/40 rotate-12" />
+        <div
+          className={cn(
+            "bg-amber-500/8 border border-amber-500/20 rounded-[2rem] p-4 md:p-6",
+            "relative overflow-hidden",
+          )}
+        >
+          {/* Background sparkle */}
+          <LuSparkles className="absolute -right-4 -bottom-4 w-24 h-24 text-amber-500/10 rotate-12 pointer-events-none" />
 
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-            {/* Left: Warning Message */}
+            {/* Warning */}
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-background flex items-center justify-center shrink-0 shadow-sm border border-amber-200">
-                <LuTriangleAlert className="w-6 h-6 text-amber-600 animate-pulse" />
+              <div
+                className={cn(
+                  "w-12 h-12 rounded-2xl bg-background flex items-center justify-center shrink-0",
+                  "shadow-sm border border-amber-500/20",
+                )}
+              >
+                <LuTriangleAlert className="w-6 h-6 text-amber-500 animate-pulse" />
               </div>
               <div className="space-y-1">
-                <h4 className="text-sm font-black text-amber-900 uppercase tracking-tight">
+                <h4 className="text-sm font-black text-foreground uppercase tracking-tight">
                   Incomplete Profile
                 </h4>
-                <p className="text-xs font-bold text-amber-700/80 leading-relaxed max-w-md">
-                  Complete your profile to unlock event registrations. Missing:
-                  <span className="text-amber-900">
-                    {" "}
+                <p className="text-xs font-bold text-muted-foreground leading-relaxed max-w-md">
+                  Complete your profile to unlock event registrations. Missing:{" "}
+                  <span className="text-foreground">
                     {missingFields.join(", ")}
                   </span>
                   .
@@ -50,10 +59,16 @@ export const ProfileCompletionAlert = ({
               </div>
             </div>
 
-            {/* Right: CTA Button */}
+            {/* CTA */}
             <button
               onClick={onAction}
-              className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-amber-600 text-background rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-amber-700 hover:shadow-lg hover:shadow-amber-600/20 transition-all group/btn"
+              className={cn(
+                "w-full md:w-auto flex items-center justify-center gap-3",
+                "px-8 py-4 bg-amber-500 text-white rounded-2xl",
+                "font-black text-xs uppercase tracking-widest",
+                "hover:bg-amber-600 hover:shadow-lg hover:shadow-amber-500/20 transition-all",
+                "group/btn cursor-pointer",
+              )}
             >
               Finish Profile Setup
               <LuArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />

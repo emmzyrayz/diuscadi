@@ -2,179 +2,82 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { LuUserCog, LuShieldCheck, LuSparkles } from "react-icons/lu";
-import { cn } from "../../../lib/utils";
+import { cn } from "@/lib/utils";
 
 interface ProfileHeaderProps {
   completionPercentage: number;
+  onEditClick: () => void;
 }
 
-export const ProfileHeader = ({ completionPercentage }: ProfileHeaderProps) => {
+export const ProfileHeader = ({
+  completionPercentage,
+  onEditClick,
+}: ProfileHeaderProps) => {
   return (
     <header
-      className={cn(
-        "w-full",
-        "bg-background",
-        "border-b",
-        "border-border",
-        "py-10",
-        "md:py-14",
-      )}
+      className={cn("w-full", "border-b", "border-border", "py-10", "md:py-14")}
     >
-      <div className={cn("max-w-7xl", "mx-auto", "px-4", "sm:px-6", "lg:px-8")}>
-        <div
-          className={cn(
-            "flex",
-            "flex-col",
-            "md:flex-row",
-            "md:items-end",
-            "justify-between",
-            "gap-8",
-          )}
-        >
-          {/* 1. Identity Context */}
-          <div className={cn("space-y-4", "max-w-xl")}>
+      <div className={cn('max-w-7xl', 'mx-auto', 'px-4', 'sm:px-6', 'lg:px-8')}>
+        <div className={cn('flex', 'flex-col', 'md:flex-row', 'md:items-end', 'justify-between', 'gap-8')}>
+          {/* Identity + progress */}
+          <div className={cn('space-y-4', 'max-w-xl')}>
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className={cn(
-                "flex",
-                "items-center",
-                "gap-2",
-                "text-primary",
-                "font-black",
-                "text-[10px]",
-                "uppercase",
-                "tracking-[0.3em]",
-              )}
+              className={cn('flex', 'items-center', 'gap-2', 'text-primary', 'font-black', 'text-[10px]', 'uppercase', 'tracking-[0.3em]')}
             >
-              <LuShieldCheck className={cn("w-4", "h-4")} />
+              <LuShieldCheck className={cn('w-4', 'h-4')} />
               Secure Identity Hub
             </motion.div>
 
             <div className="space-y-1">
-              <h1
-                className={cn(
-                  "text-4xl",
-                  "md:text-5xl",
-                  "font-black",
-                  "text-foreground",
-                  "tracking-tighter",
-                )}
-              >
+              <h1 className={cn('text-4xl', 'md:text-5xl', 'font-black', 'text-foreground', 'tracking-tighter')}>
                 My <span className="text-primary">Profile.</span>
               </h1>
-              <p
-                className={cn(
-                  "text-muted-foreground",
-                  "font-medium",
-                  "text-lg",
-                )}
-              >
+              <p className={cn('text-muted-foreground', 'font-medium', 'text-lg')}>
                 Manage your personal information and membership credentials.
               </p>
             </div>
 
-            {/* 2. Completion Progress (The Nudge) */}
+            {/* Completion progress */}
             <div className="pt-2">
-              <div
-                className={cn(
-                  "flex",
-                  "items-center",
-                  "justify-between",
-                  "mb-2",
-                )}
-              >
-                <span
-                  className={cn(
-                    "text-[10px]",
-                    "font-black",
-                    "uppercase",
-                    "tracking-widest",
-                    "text-muted-foreground",
-                  )}
-                >
+              <div className={cn('flex', 'items-center', 'justify-between', 'mb-2')}>
+                <span className={cn('text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'text-muted-foreground')}>
                   Profile Completion
                 </span>
-                <span
-                  className={cn("text-[10px]", "font-black", "text-primary")}
-                >
+                <span className={cn('text-[10px]', 'font-black', 'text-primary')}>
                   {completionPercentage}%
                 </span>
               </div>
-              <div
-                className={cn(
-                  "w-full",
-                  "h-2",
-                  "text-muted",
-                  "rounded-full",
-                  "overflow-hidden",
-                )}
-              >
+              <div className={cn('w-full', 'h-2', 'bg-muted', 'rounded-full', 'overflow-hidden')}>
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${completionPercentage}%` }}
                   transition={{ duration: 1, ease: "easeOut" }}
-                  className={cn(
-                    "h-full",
-                    "bg-linear-to-r",
-                    "from-primary",
-                    "to-blue-600",
-                  )}
+                  className={cn('h-full', 'bg-primary', 'rounded-full')}
                 />
               </div>
               {completionPercentage < 100 && (
-                <p
-                  className={cn(
-                    "mt-2",
-                    "text-[11px]",
-                    "font-bold",
-                    "text-muted-foreground",
-                    "flex",
-                    "items-center",
-                    "gap-1.5",
-                  )}
-                >
-                  <LuSparkles className={cn("w-3", "h-3", "text-primary")} />
+                <p className={cn('mt-2', 'text-[11px]', 'font-bold', 'text-muted-foreground', 'flex', 'items-center', 'gap-1.5')}>
+                  <LuSparkles className={cn('w-3', 'h-3', 'text-primary')} />
                   Complete your profile to unlock all ticket features.
                 </p>
               )}
             </div>
           </div>
 
-          {/* 3. Global Actions */}
-          <div className={cn("flex", "items-center", "gap-3")}>
+          {/* Edit button */}
+          <div className={cn('flex', 'items-center', 'gap-3')}>
             <button
+              onClick={onEditClick}
               className={cn(
-                "flex-1",
-                "md:flex-none",
-                "flex",
-                "items-center",
-                "justify-center",
-                "gap-2",
-                "px-8",
-                "py-4",
-                "bg-foreground",
-                "text-background",
-                "rounded-2xl",
-                "font-black",
-                "text-xs",
-                "uppercase",
-                "tracking-widest",
-                "hover:bg-primary",
-                "transition-all",
-                "shadow-xl",
-                "shadow-foreground/10",
-                "group",
+                "flex-1 md:flex-none flex items-center justify-center gap-2",
+                "px-8 py-4 bg-foreground text-background rounded-2xl",
+                "font-black text-xs uppercase tracking-widest",
+                "hover:bg-primary transition-all shadow-xl shadow-foreground/10 group cursor-pointer",
               )}
             >
-              <LuUserCog
-                className={cn(
-                  "w-4",
-                  "h-4",
-                  "group-hover:rotate-45",
-                  "transition-transform",
-                )}
-              />
+              <LuUserCog className={cn('w-4', 'h-4', 'group-hover:rotate-45', 'transition-transform')} />
               Edit Profile
             </button>
           </div>

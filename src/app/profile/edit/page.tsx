@@ -12,17 +12,22 @@ import { PreferencesSection } from "@/components/sections/profile/edit/Preferenc
 import { SaveChangesSection } from "@/components/sections/profile/edit/SaveChanges";
 import { toast, Toaster } from "react-hot-toast"; // For the Success Toast
 import { cn } from "../../../lib/utils";
+import { useUser } from "@/context/UserContext";
 
 export default function EditProfilePage() {
+  const { profile, updateProfile } = useUser();
+
   // 1. Central State for Live Preview & Tracking
   const [formData, setFormData] = useState({
     firstName: "Alexander",
     lastName: "Chidubem",
+    username: "",
+    bio: "",
     role: "Senior Fullstack Developer",
     organization: "TechNexus Africa",
     city: "Lagos, Nigeria",
     path: "DEVELOPER",
-    image: null,
+    image: null as string | null,
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -30,13 +35,54 @@ export default function EditProfilePage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(new Date());
   const [activeSection, setActiveSection] = useState("basic");
 
-  // 2. Mock Save Function
+  // Seed form preview from real profile when available
+  useEffect(() => {
+    if (!profile) return;
+
+    const fullName = profile.fullName ?? "";
+    const [firstName, ...rest] = fullName.split(" ").filter(Boolean);
+    const lastName = rest.join(" ");
+
+    const cityParts = [
+      profile.location?.city,
+      profile.location?.state,
+      profile.location?.country,
+    ].filter(Boolean);
+
+    setFormData((prev) => ({
+      ...prev,
+      firstName: firstName || prev.firstName,
+      lastName: lastName || prev.lastName,
+      username: prev.username, // no username field in backend yet
+      bio: profile.profile?.bio ?? prev.bio,
+      role: prev.role, // keep design-specific role text for now
+      organization: profile.Institution?.name ?? prev.organization,
+      city: cityParts.join(", ") || prev.city,
+      path: prev.path,
+      image: profile.avatar ?? prev.image,
+    }));
+    setHasChanges(false);
+  }, [profile]);
+
+  // 2. Save Function — persists basic profile fields
   const handleSave = async () => {
+    if (!profile) return;
+
     setIsSaving(true);
-    // Simulate API Call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim();
+
+    const result = await updateProfile({
+      fullName: fullName || profile.fullName,
+      bio: formData.bio,
+    });
 
     setIsSaving(false);
+
+    if (!result.success) {
+      toast.error(result.error ?? "Failed to update profile");
+      return;
+    }
+
     setHasChanges(false);
     setLastSaved(new Date());
 
@@ -93,8 +139,17 @@ export default function EditProfilePage() {
             <div id="photo">
               <ProfilePhotoSection />
             </div>
-            <div id="basic" onChange={() => setHasChanges(true)}>
-              <BasicInfoSection />
+            <div id="basic">
+              <BasicInfoSection
+                firstName={formData.firstName}
+                lastName={formData.lastName}
+                username={formData.username}
+                bio={formData.bio}
+                onChange={(patch) => {
+                  setFormData((prev) => ({ ...prev, ...patch }));
+                  setHasChanges(true);
+                }}
+              />
             </div>
             <div id="pro" onChange={() => setHasChanges(true)}>
               <ProfessionalInfoSection />
