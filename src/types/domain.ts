@@ -1,22 +1,38 @@
+// types/domain.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Committee, Skill, and CommitteeRole are now DB-driven (see PlatformConfig.ts).
+// They are typed as `string` here so any slug from the DB is accepted.
+// Validation against live DB values happens in API routes, not at the type level.
+//
+// The former COMMITTEES, SKILLS, COMMITTEE_ROLES const arrays are removed.
+// Source of truth is now:
+//   GET /api/platform/committees
+//   GET /api/platform/skills
+//   GET /api/platform/committee-roles
+// ─────────────────────────────────────────────────────────────────────────────
+
 import { ObjectId } from "mongodb";
 
 export type EduStatus = "STUDENT" | "GRADUATE";
 export type AccountRole = "participant" | "moderator" | "admin" | "webmaster";
-export type Committee =
-  | "socials"
-  | "media"
-  | "logistics"
-  | "innovation"
-  | "mentorship"
-  | "protocol";
-export type Skill =
-  | "photography"
-  | "design"
-  | "electronics"
-  | "fashion"
-  | "tech"
-  | "programming";
-export type CommitteeRole = "MEMBER" | "COORDINATOR" | "HEAD" | "ADMIN";
+
+/**
+ * DB-driven — value is a committee slug from the `committees` collection.
+ * e.g. "socials", "media", "logistics"
+ */
+export type Committee = string;
+
+/**
+ * DB-driven — value is a skill slug from the `skills` collection.
+ * e.g. "photography", "programming", "design"
+ */
+export type Skill = string;
+
+/**
+ * DB-driven — value is a role slug from the `committeeRoles` collection.
+ * e.g. "MEMBER", "COORDINATOR", "HEAD", "ADMIN"
+ */
+export type CommitteeRole = string;
 
 export interface PhoneNumber {
   countryCode: number;
@@ -82,6 +98,8 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   },
 };
 
+// ── Static value lists (these are NOT DB-driven — keep them here) ─────────────
+
 export const ACCENT_COLORS: AccentColor[] = [
   "orange",
   "emerald",
@@ -95,33 +113,10 @@ export const NOTIF_FREQS: NotificationFrequency[] = [
   "daily",
   "weekly",
 ];
-
 export const EDU_STATUSES: EduStatus[] = ["STUDENT", "GRADUATE"];
 export const ACCOUNT_ROLES: AccountRole[] = [
   "participant",
   "moderator",
   "admin",
   "webmaster",
-];
-export const COMMITTEES: Committee[] = [
-  "socials",
-  "media",
-  "logistics",
-  "innovation",
-  "mentorship",
-  "protocol",
-];
-export const SKILLS: Skill[] = [
-  "photography",
-  "design",
-  "electronics",
-  "fashion",
-  "tech",
-  "programming",
-];
-export const COMMITTEE_ROLES: CommitteeRole[] = [
-  "MEMBER",
-  "COORDINATOR",
-  "HEAD",
-  "ADMIN",
 ];

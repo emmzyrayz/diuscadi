@@ -9,6 +9,7 @@ import {
   verificationEmail,
   resetPasswordEmail,
   welcomeEmail,
+  schoolVerificationEmail,
 } from "@/lib/MailTemplate";
 
 const IS_DEV =
@@ -98,6 +99,32 @@ export async function sendWelcomeEmail(opts: {
   const { subject, html, text } = welcomeEmail({
     name: opts.name,
     role: opts.role,
+  });
+  await prodSend({ to: opts.to, subject, html, text });
+}
+
+// ─── 4. School email verification ────────────────────────────────────────────
+//
+// Sent to the school email address being linked — NOT the primary account email.
+// The recipient needs to understand they're receiving this on their institutional
+// address because they (or someone) initiated a school email link on DIUSCADI.
+
+export async function sendSchoolVerificationEmail(opts: {
+  to: string; // the school email address itself
+  name: string; // user's display name for the greeting
+  code: string; // 6-digit OTP
+}): Promise<void> {
+  if (IS_DEV) {
+    console.log(`[DEV EMAIL] School email verification → ${opts.to}`);
+    console.log(`  Name:  ${opts.name}`);
+    console.log(`  OTP:   ${opts.code}`);
+    return;
+  }
+
+  const { subject, html, text } = schoolVerificationEmail({
+    name: opts.name,
+    code: opts.code,
+    schoolEmail: opts.to,
   });
   await prodSend({ to: opts.to, subject, html, text });
 }

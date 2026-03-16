@@ -35,9 +35,11 @@ export interface CropperResult {
 }
 
 // ─── Default crop rectangles per upload type ──────────────────────────────────
-// These match the aspect ratios from cloudinaryService.ts
+// Centered crops that match the target aspect ratio of each type.
+// x/y/width/height are all percentages of the source image dimensions.
 
 const DEFAULT_CROPS: Record<UploadType, PercentCrop> = {
+  // ── 1:1 square types ──────────────────────────────────────────────────────
   avatar: {
     unit: "%",
     x: 12.5,
@@ -45,37 +47,80 @@ const DEFAULT_CROPS: Record<UploadType, PercentCrop> = {
     width: 75,
     height: 75,
   },
-  "event-banner": {
-    unit: "%",
-    x: 0,
-    y: 10,
-    width: 100,
-    height: 80, // approx 1200:630 ≈ 1.9:1
-  },
-  "org-logo": {
+  "event-logo": {
     unit: "%",
     x: 12.5,
     y: 12.5,
     width: 75,
     height: 75,
   },
+  "inst-logo": {
+    // Starts at 100% — pad transform preserves aspect ratio, no forced crop
+    unit: "%",
+    x: 0,
+    y: 0,
+    width: 100,
+    height: 100,
+  },
+
+  // ── Wide banner types (1200×630 — ~1.905:1) ───────────────────────────────
+  "event-banner": {
+    unit: "%",
+    x: 0,
+    y: 10,
+    width: 100,
+    height: 80,
+  },
+  "inst-banner": {
+    // 1200×400 — 3:1 — taller/wider than event banners
+    unit: "%",
+    x: 0,
+    y: 17,
+    width: 100,
+    height: 67,
+  },
+
+  // ── Gallery — 4:3 landscape ───────────────────────────────────────────────
+  "event-gallery": {
+    unit: "%",
+    x: 0,
+    y: 12.5,
+    width: 100,
+    height: 75,
+  },
 };
 
-// ─── Aspect ratios ─────────────────────────────────────────────────────────────
+// ─── Aspect ratios ────────────────────────────────────────────────────────────
+// Passed to react-image-crop's `aspect` prop to lock the crop handle ratio.
 
 export const CROP_ASPECT: Record<UploadType, number> = {
   avatar: 1, // 1:1
+  "event-logo": 1, // 1:1
+  "inst-logo": 1, // 1:1 — pad transform handles non-square logos
   "event-banner": 1200 / 630, // ~1.905:1
-  "org-logo": 1, // 1:1
+  "inst-banner": 1200 / 400, // 3:1
+  "event-gallery": 1200 / 900, // 4:3
 };
 
-// ─── Output dimensions (canvas size for croppedBlob) ─────────────────────────
+// ─── Output canvas dimensions ─────────────────────────────────────────────────
+// Must match the eager transform output in CloudinaryService.ts exactly.
+// The canvas produces the blob that gets uploaded — Cloudinary's eager transform
+// is a server-side safety net, not a substitute for correct client dimensions.
 
 const OUTPUT_DIMS: Record<UploadType, { width: number; height: number }> = {
   avatar: { width: 400, height: 400 },
+  "event-logo": { width: 400, height: 400 },
+  "inst-logo": { width: 400, height: 400 },
   "event-banner": { width: 1200, height: 630 },
-  "org-logo": { width: 400, height: 400 },
+  "inst-banner": { width: 1200, height: 400 },
+  "event-gallery": { width: 1200, height: 900 },
 };
+
+// ─── Types that use a white background fill ───────────────────────────────────
+// Logo types use Cloudinary's c_pad (no crop) which pads with white.
+// We replicate that on the canvas so the preview matches the final output.
+
+const WHITE_BG_TYPES = new Set<UploadType>(["inst-logo"]);
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -91,7 +136,6 @@ export function useImageCropper(uploadType: UploadType): CropperResult {
   // ── selectFile ─────────────────────────────────────────────────────────────
   const selectFile = useCallback(
     (file: File) => {
-      // Revoke any previous object URL to avoid memory leaks
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
       }
@@ -115,7 +159,7 @@ export function useImageCropper(uploadType: UploadType): CropperResult {
 
       const { width: outW, height: outH } = OUTPUT_DIMS[uploadType];
 
-      // Convert percent crop → pixel crop on the natural image dimensions
+      // Convert percent crop → pixel crop relative to the natural image size
       const naturalW = imgEl.naturalWidth;
       const naturalH = imgEl.naturalHeight;
 
@@ -128,13 +172,14 @@ export function useImageCropper(uploadType: UploadType): CropperResult {
       canvas.width = outW;
       canvas.height = outH;
       const ctx = canvas.getContext("2d");
+
       if (!ctx) {
         setState("selected");
         return;
       }
 
-      // For org-logo: fill background white first (pad mode)
-      if (uploadType === "org-logo") {
+      // White background fill for logo types (replicates Cloudinary's c_pad,b_white)
+      if (WHITE_BG_TYPES.has(uploadType)) {
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, outW, outH);
       }
@@ -142,7 +187,7 @@ export function useImageCropper(uploadType: UploadType): CropperResult {
       // Draw the cropped region scaled to output dimensions
       ctx.drawImage(imgEl, pixelX, pixelY, pixelW, pixelH, 0, 0, outW, outH);
 
-      // Produce a Blob (webp preferred, fallback jpeg)
+      // Produce a Blob (webp preferred — matches Cloudinary eager f_webp output)
       const blob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob(resolve, "image/webp", 0.92);
       });

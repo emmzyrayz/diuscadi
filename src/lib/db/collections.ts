@@ -12,6 +12,12 @@ import { DepartmentDocument } from "@/lib/models/Department";
 import { InviteDocument } from "@/lib/models/invite";
 import { HealthReportDocument } from "@/lib/models/healthReport";
 import { FileDocument } from "@/lib/models/FileDocument";
+import type { CurriculumSubmissionDocument } from "@/lib/models/CurriculumSubmission";
+import type {
+  CommitteeDocument,
+  SkillDocument,
+  CommitteeRoleDocument,
+} from "@/lib/models/platformConfig";
 
 export const Collections = {
   vault: (db: Db) => db.collection<VaultDocument>("vault"),
@@ -29,4 +35,14 @@ export const Collections = {
   healthReports: (db: Db) =>
     db.collection<HealthReportDocument>("healthReports"),
   files: (db: Db) => db.collection<FileDocument>("files"),
+
+  // ── Academic / curriculum ──────────────────────────────────────────────────
+  curriculumSubmissions: (db: Db) =>
+    db.collection<CurriculumSubmissionDocument>("curriculumSubmissions"),
+
+  // ── Platform config (DB-driven lists) ─────────────────────────────────────
+  committees: (db: Db) => db.collection<CommitteeDocument>("committees"),
+  skills: (db: Db) => db.collection<SkillDocument>("skills"),
+  committeeRoles: (db: Db) =>
+    db.collection<CommitteeRoleDocument>("committeeRoles"),
 };

@@ -1,6 +1,6 @@
-// app/api/platform/committees/route.ts
-// GET /api/platform/committees — public
-// Returns all active committees ordered by displayOrder.
+// app/api/platform/committee-roles/route.ts
+// GET /api/platform/committee-roles — public
+// Returns all active committee roles ordered by rank (lowest to highest authority).
 
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
@@ -12,25 +12,21 @@ export async function GET() {
     const db = await getDb();
     await seedIfEmpty();
 
-    const committees = await Collections.committees(db)
+    const roles = await Collections.committeeRoles(db)
       .find({ isActive: true })
-      .sort({ displayOrder: 1 })
+      .sort({ rank: 1 })
       .project({
         _id: 0,
         slug: 1,
         name: 1,
+        rank: 1,
         description: 1,
-        color: 1,
-        icon: 1,
-        headName: 1,
-        memberCount: 1,
-        displayOrder: 1,
       })
       .toArray();
 
-    return NextResponse.json({ committees });
+    return NextResponse.json({ roles });
   } catch (err) {
-    console.error("[GET /api/platform/committees]", err);
+    console.error("[GET /api/platform/committee-roles]", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

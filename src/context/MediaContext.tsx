@@ -3,17 +3,18 @@
 //
 // Owns the Cloudinary upload pipeline:
 //   1. POST /api/media/sign    → get signed params from server
-//   2. POST to Cloudinary      → direct upload with the signed params
-//   3. POST /api/media/confirm → persist secure_url to MongoDB
+//   2. POST to Cloudinary      → direct upload using signed params
+//   3. POST /api/media/confirm → server assembles CloudinaryImage + persists to DB
 //
-// Exposes:
-//   uploadImage(file, uploadType, ownerId?) → { secureUrl, publicId }
-//   removeImage(publicId, uploadType)       → void
+// The context is a pure pipeline — it never assembles CloudinaryImage objects
+// and never touches MongoDB. All DB logic lives in the confirm route.
+//
+// Public API:
+//   uploadImage(file, uploadType, ownerId?, imageAlt?) → CloudinaryImage | null
+//   removeImage(uploadType, publicId, ownerId?, galleryImageId?) → boolean
 //   uploading: boolean
 //   uploadError: string | null
-//
-// Components never talk to Cloudinary or the sign/confirm endpoints directly —
-// they call uploadImage() and get back a URL. That's the entire public API.
+//   clearUploadError: () => void
 
 import React, {
   createContext,
@@ -22,15 +23,13 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import type { UploadType } from "@/lib/services/CloudinaryService";
-import type { SignedUploadParams } from "@/lib/services/CloudinaryService";
+import type {
+  UploadType,
+  SignedUploadParams,
+} from "@/lib/services/CloudinaryService";
+import type { CloudinaryImage } from "@/types/cloudinary";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface UploadResult {
-  secureUrl: string;
-  publicId: string;
-}
 
 interface MediaContextType {
   uploading: boolean;
@@ -39,8 +38,14 @@ interface MediaContextType {
     file: Blob | File,
     uploadType: UploadType,
     ownerId?: string,
-  ) => Promise<UploadResult | null>;
-  removeImage: (publicId: string, uploadType: UploadType) => Promise<boolean>;
+    imageAlt?: string,
+  ) => Promise<CloudinaryImage | null>;
+  removeImage: (
+    uploadType: UploadType,
+    publicId: string,
+    ownerId?: string,
+    galleryImageId?: string,
+  ) => Promise<boolean>;
   clearUploadError: () => void;
 }
 
@@ -48,7 +53,7 @@ interface MediaContextType {
 
 const MediaContext = createContext<MediaContextType | undefined>(undefined);
 
-// ─── Internal helpers ─────────────────────────────────────────────────────────
+// ─── Auth header helper ───────────────────────────────────────────────────────
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -75,7 +80,7 @@ export function MediaProvider({ children }: { children: ReactNode }) {
     async (
       uploadType: UploadType,
       ownerId?: string,
-    ): Promise<SignedUploadParams | null> => {
+    ): Promise<SignedUploadParams> => {
       const res = await fetch("/api/media/sign", {
         method: "POST",
         headers: authHeaders(),
@@ -93,16 +98,16 @@ export function MediaProvider({ children }: { children: ReactNode }) {
   );
 
   // ── Step 2: upload directly to Cloudinary ─────────────────────────────────
+  // Returns the raw Cloudinary response — the confirm route will validate and
+  // assemble the CloudinaryImage from it.
   const uploadToCloudinary = useCallback(
     async (
       file: Blob | File,
       params: SignedUploadParams,
-    ): Promise<{ secure_url: string; public_id: string }> => {
+    ): Promise<Record<string, unknown>> => {
       const form = new FormData();
-
-      // Cloudinary requires a filename — use "upload.webp" as a sensible default
-      // since the cropper always produces webp. For File objects, use their name.
       const filename = file instanceof File ? file.name : "upload.webp";
+
       form.append("file", file, filename);
       form.append("api_key", params.apiKey);
       form.append("timestamp", String(params.timestamp));
@@ -121,29 +126,41 @@ export function MediaProvider({ children }: { children: ReactNode }) {
         throw new Error(data.error?.message ?? "Cloudinary upload failed");
       }
 
-      return res.json() as Promise<{ secure_url: string; public_id: string }>;
+      return res.json() as Promise<Record<string, unknown>>;
     },
     [],
   );
 
   // ── Step 3: confirm with our server ──────────────────────────────────────
+  // Passes the raw Cloudinary response + metadata to the confirm route.
+  // The confirm route assembles the CloudinaryImage and writes to DB.
+  // Returns the assembled CloudinaryImage for the caller to use locally.
   const confirmUpload = useCallback(
     async (
       uploadType: UploadType,
-      secureUrl: string,
-      publicId: string,
+      cloudinaryResponse: Record<string, unknown>,
       ownerId?: string,
-    ): Promise<void> => {
+      imageAlt?: string,
+    ): Promise<CloudinaryImage> => {
       const res = await fetch("/api/media/confirm", {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify({ uploadType, secureUrl, publicId, ownerId }),
+        body: JSON.stringify({
+          uploadType,
+          ownerId,
+          imageAlt,
+          // Spread the full Cloudinary response — confirm route picks what it needs
+          ...cloudinaryResponse,
+        }),
       });
 
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         throw new Error(data.error ?? "Failed to confirm upload");
       }
+
+      const data = (await res.json()) as { image: CloudinaryImage };
+      return data.image;
     },
     [],
   );
@@ -154,25 +171,21 @@ export function MediaProvider({ children }: { children: ReactNode }) {
       file: Blob | File,
       uploadType: UploadType,
       ownerId?: string,
-    ): Promise<UploadResult | null> => {
+      imageAlt?: string,
+    ): Promise<CloudinaryImage | null> => {
       setUploading(true);
       setUploadError(null);
 
       try {
-        // 1. Sign
         const params = await fetchSignedParams(uploadType, ownerId);
-        if (!params) throw new Error("No upload params returned");
-
-        // 2. Upload
-        const { secure_url, public_id } = await uploadToCloudinary(
-          file,
-          params,
+        const cloudinaryResponse = await uploadToCloudinary(file, params);
+        const image = await confirmUpload(
+          uploadType,
+          cloudinaryResponse,
+          ownerId,
+          imageAlt,
         );
-
-        // 3. Confirm
-        await confirmUpload(uploadType, secure_url, public_id, ownerId);
-
-        return { secureUrl: secure_url, publicId: public_id };
+        return image;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Upload failed";
         setUploadError(msg);
@@ -186,7 +199,12 @@ export function MediaProvider({ children }: { children: ReactNode }) {
 
   // ── Remove ────────────────────────────────────────────────────────────────
   const removeImage = useCallback(
-    async (publicId: string, uploadType: UploadType): Promise<boolean> => {
+    async (
+      uploadType: UploadType,
+      publicId: string, // CloudinaryImage.imagePublicId
+      ownerId?: string,
+      galleryImageId?: string, // CloudinaryImage.imageId — for gallery items only
+    ): Promise<boolean> => {
       setUploading(true);
       setUploadError(null);
 
@@ -194,7 +212,12 @@ export function MediaProvider({ children }: { children: ReactNode }) {
         const res = await fetch("/api/media/remove", {
           method: "DELETE",
           headers: authHeaders(),
-          body: JSON.stringify({ publicId, uploadType }),
+          body: JSON.stringify({
+            uploadType,
+            publicId,
+            ownerId,
+            galleryImageId,
+          }),
         });
 
         if (!res.ok) {

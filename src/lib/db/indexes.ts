@@ -1,5 +1,6 @@
 // lib/db/indexes.ts
-// Run once after deploy: npx ts-node --project tsconfig.json lib/db/indexes.ts
+// Run once after deploy:
+//   pnpm dotenv -e .env.local -- tsx lib/db/indexes.ts
 
 import { getDb } from "../mongodb";
 
@@ -43,11 +44,27 @@ export async function createIndexes() {
       sparse: true,
       name: "userData_inviteCode",
     },
+    // schoolEmail moved inside Institution subdocument — path updated accordingly.
+    // sparse: true allows many documents to have no schoolEmail at all.
     {
-      key: { schoolEmail: 1 },
+      key: { "Institution.schoolEmail": 1 },
       unique: true,
       sparse: true,
       name: "userData_schoolEmail",
+    },
+    // referredBy — look up everyone a member recruited
+    {
+      key: { referredBy: 1 },
+      sparse: true,
+      name: "userData_referredBy",
+    },
+    // membership status filter — admin dashboard queries
+    { key: { membershipStatus: 1 }, name: "userData_membershipStatus" },
+    // activity — dormant account detection, re-engagement campaigns
+    {
+      key: { "analytics.lastActiveAt": -1 },
+      sparse: true,
+      name: "userData_lastActive",
     },
   ]);
   console.log("✓ userData");
@@ -70,9 +87,12 @@ export async function createIndexes() {
       partialFilterExpression: { status: "pending" },
       name: "applications_no_duplicate_pending",
     },
-    { key: { userId: 1, type: 1, status: 1 } },
-    { key: { status: 1, createdAt: 1 } },
-    { key: { vaultId: 1 } },
+    {
+      key: { userId: 1, type: 1, status: 1 },
+      name: "applications_user_type_status",
+    },
+    { key: { status: 1, createdAt: 1 }, name: "applications_status_date" },
+    { key: { vaultId: 1 }, name: "applications_vaultId" },
   ]);
   console.log("✓ applications");
 
@@ -98,7 +118,6 @@ export async function createIndexes() {
 
   // ── eventRegistrations ─────────────────────────────────────────────────────
   await db.collection("eventRegistrations").createIndexes([
-    // Prevent duplicate registration for same user + event
     {
       key: { userId: 1, eventId: 1 },
       unique: true,
@@ -108,46 +127,123 @@ export async function createIndexes() {
     { key: { eventId: 1 }, name: "reg_eventId" },
     { key: { userId: 1 }, name: "reg_userId" },
     { key: { status: 1 }, name: "reg_status" },
-    // Referral tracking
     { key: { referralCodeUsed: 1 }, sparse: true, name: "reg_referral" },
   ]);
   console.log("✓ eventRegistrations");
 
   // ── invites ────────────────────────────────────────────────────────────────
   await db.collection("invites").createIndexes([
-    { key: { code: 1 }, unique: true },
-    { key: { status: 1 } },
-    { key: { createdBy: 1 } },
-    { key: { expiresAt: 1 }, expireAfterSeconds: 0 }, // TTL on null-safe expiry
+    { key: { code: 1 }, unique: true, name: "invites_code" },
+    { key: { status: 1 }, name: "invites_status" },
+    { key: { createdBy: 1 }, name: "invites_createdBy" },
+    { key: { expiresAt: 1 }, expireAfterSeconds: 0, name: "invites_ttl" },
   ]);
   console.log("✓ invites");
 
   // ── healthReports ──────────────────────────────────────────────────────────
   await db.collection("healthReports").createIndexes([
-    { key: { reportedAt: -1 } },
-    { key: { userId: 1, reportedAt: -1 } },
-    { key: { "browser.name": 1, reportedAt: -1 } },
-    { key: { page: 1, reportedAt: -1 } },
-    { key: { "jsErrors.0": 1 } },
+    { key: { reportedAt: -1 }, name: "health_reportedAt" },
+    { key: { userId: 1, reportedAt: -1 }, name: "health_user" },
+    { key: { "browser.name": 1, reportedAt: -1 }, name: "health_browser" },
+    { key: { page: 1, reportedAt: -1 }, name: "health_page" },
+    { key: { "jsErrors.0": 1 }, name: "health_jsErrors" },
     // Auto-delete reports older than 90 days
-    { key: { reportedAt: 1 }, expireAfterSeconds: 90 * 24 * 60 * 60 },
+    {
+      key: { reportedAt: 1 },
+      expireAfterSeconds: 90 * 24 * 60 * 60,
+      name: "health_ttl",
+    },
   ]);
   console.log("✓ healthReports");
 
   // ── files ──────────────────────────────────────────────────────────────────
   await db.collection("files").createIndexes([
-    // Ownership lookups — list files for a user, event, application, etc.
     { key: { ownerType: 1, ownerId: 1, createdAt: -1 }, name: "files_owner" },
-    // Uploader — find all files a user has ever uploaded
     { key: { uploadedBy: 1, createdAt: -1 }, name: "files_uploader" },
-    // Processing queue — find files still awaiting processing
     { key: { processingStatus: 1, createdAt: 1 }, name: "files_processing" },
-    // Category filter
     { key: { category: 1, ownerType: 1 }, name: "files_category" },
-    // Public files lookup
     { key: { isPublic: 1, createdAt: -1 }, sparse: true, name: "files_public" },
   ]);
   console.log("✓ files");
+
+  // ── institutions ───────────────────────────────────────────────────────────
+  await db.collection("institutions").createIndexes([
+    // Case-insensitive text search — essential for the public API and admin search
+    {
+      key: { name: "text", abbreviation: "text" },
+      name: "institutions_text_search",
+    },
+    { key: { name: 1 }, name: "institutions_name" },
+    {
+      key: { abbreviation: 1 },
+      unique: true,
+      sparse: true,
+      name: "institutions_abbreviation",
+    },
+    { key: { type: 1 }, name: "institutions_type" },
+    { key: { state: 1 }, name: "institutions_state" },
+    { key: { isActive: 1 }, name: "institutions_active" },
+    // gradingSystemConfirmed — quickly find institutions still awaiting config
+    {
+      key: { gradingSystemConfirmed: 1 },
+      name: "institutions_gradingConfirmed",
+    },
+  ]);
+  console.log("✓ institutions");
+
+  // ── faculties ──────────────────────────────────────────────────────────────
+  await db.collection("faculties").createIndexes([
+    { key: { name: 1 }, name: "faculties_name" },
+    { key: { isActive: 1 }, name: "faculties_active" },
+  ]);
+  console.log("✓ faculties");
+
+  // ── departments ────────────────────────────────────────────────────────────
+  await db.collection("departments").createIndexes([
+    { key: { name: 1 }, name: "departments_name" },
+    { key: { isActive: 1 }, name: "departments_active" },
+  ]);
+  console.log("✓ departments");
+
+  // ── curriculumSubmissions ──────────────────────────────────────────────────
+  await db.collection("curriculumSubmissions").createIndexes([
+    // Primary lookup: find submissions for a specific dept/level/semester/session
+    {
+      key: {
+        institutionId: 1,
+        department: 1,
+        level: 1,
+        semester: 1,
+        session: 1,
+      },
+      name: "curriculum_scope",
+    },
+    // Prevent a student submitting the same scope twice
+    {
+      key: {
+        institutionId: 1,
+        department: 1,
+        level: 1,
+        semester: 1,
+        session: 1,
+        submittedBy: 1,
+      },
+      unique: true,
+      name: "curriculum_no_duplicate_submission",
+    },
+    // Find all submissions by a student (their submission history)
+    { key: { submittedBy: 1 }, name: "curriculum_submittedBy" },
+    // Admin review queue — pending and flagged items sorted by oldest first
+    { key: { status: 1, createdAt: 1 }, name: "curriculum_status_date" },
+    // Prevent a student flagging the same submission twice
+    { key: { "flags.flaggedBy": 1 }, name: "curriculum_flaggedBy" },
+    // Institution-scoped admin view
+    {
+      key: { institutionId: 1, status: 1 },
+      name: "curriculum_institution_status",
+    },
+  ]);
+  console.log("✓ curriculumSubmissions");
 
   console.log("\n✅ All indexes created.");
 }
@@ -160,31 +256,3 @@ if (require.main === module) {
       process.exit(1);
     });
 }
-
-// ── Institution / Faculty / Department indexes ────────────────────────────────
-// Run: pnpm dotenv -e .env.local -- tsx src/lib/db/indexes.ts
-
-async function createPlatformIndexes() {
-  const db = await getDb();
-
-  await db.collection("institutions").createIndexes([
-    { key: { name: 1 }, name: "institutions_name" },
-    { key: { type: 1 }, name: "institutions_type" },
-    { key: { state: 1 }, name: "institutions_state" },
-    { key: { isActive: 1 }, name: "institutions_active" },
-  ]);
-
-  await db.collection("faculties").createIndexes([
-    { key: { name: 1 }, name: "faculties_name" },
-    { key: { isActive: 1 }, name: "faculties_active" },
-  ]);
-
-  await db.collection("departments").createIndexes([
-    { key: { name: 1 }, name: "departments_name" },
-    { key: { isActive: 1 }, name: "departments_active" },
-  ]);
-
-  console.log("Platform indexes created");
-}
-
-createPlatformIndexes().catch(console.error);

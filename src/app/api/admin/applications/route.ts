@@ -6,7 +6,6 @@ import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
-import { ObjectId } from "mongodb";
 
 const ALLOWED_ROLES = ["admin", "webmaster", "moderator"];
 

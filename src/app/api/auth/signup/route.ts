@@ -1,3 +1,4 @@
+// app/api/auth/signup/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
@@ -26,14 +27,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       firstName,
+      secondName, // optional middle name
       lastName,
       email,
       password,
       eduStatus,
       phone, // { countryCode: number, phoneNumber: number } — required
-      avatar,
-      schoolEmail, // optional
-      skills, // optional — committee entry requires application after signup
+      schoolEmail, // optional — stored inside Institution subdoc
+      skills, // optional
+      inviteCode, // optional — referral code from another member
     } = body;
 
     // ── Validate required fields ──────────────────────────────────────────────
@@ -49,6 +51,21 @@ export async function POST(req: NextRequest) {
         {
           error:
             "Missing required fields: firstName, lastName, email, password, eduStatus, phone",
+        },
+        { status: 400 },
+      );
+    }
+
+    // ── Validate name strings ─────────────────────────────────────────────────
+    if (
+      typeof firstName !== "string" ||
+      typeof lastName !== "string" ||
+      (secondName !== undefined && typeof secondName !== "string")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "firstName, lastName, and secondName (if provided) must be strings",
         },
         { status: 400 },
       );
@@ -123,9 +140,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Check duplicate school email ──────────────────────────────────────────
+    // Path is now "Institution.schoolEmail" — schoolEmail moved into subdoc.
     if (schoolEmailLower) {
       const existingSchoolEmail = await Collections.userData(db).findOne({
-        schoolEmail: schoolEmailLower,
+        "Institution.schoolEmail": schoolEmailLower,
       });
       if (existingSchoolEmail) {
         return NextResponse.json(
@@ -133,6 +151,18 @@ export async function POST(req: NextRequest) {
           { status: 409 },
         );
       }
+    }
+
+    // ── Resolve referrer from invite code ─────────────────────────────────────
+    // If a valid inviteCode was provided, look up the referring member's _id.
+    // A bad/expired code is silently ignored — we never block signup over it.
+    let referredBy: ObjectId | undefined;
+    if (inviteCode && typeof inviteCode === "string") {
+      const referrer = await Collections.userData(db).findOne(
+        { signupInviteCode: inviteCode.trim() },
+        { projection: { _id: 1 } },
+      );
+      if (referrer) referredBy = referrer._id as ObjectId;
     }
 
     // ── Prepare IDs + tokens ──────────────────────────────────────────────────
@@ -179,26 +209,55 @@ export async function POST(req: NextRequest) {
     await Collections.vault(db).insertOne(vaultDoc);
 
     // ── Create UserData document ──────────────────────────────────────────────
-    // committeeMembership starts as null — user must apply after signup.
     const userDataDoc: UserDataDocument = {
       _id: userDataId,
       vaultId,
-      fullName: `${firstName.trim()} ${lastName.trim()}`,
+
+      // fullName is now a structured object — not a concatenated string
+      fullName: {
+        firstname: firstName.trim(),
+        lastname: lastName.trim(),
+        ...(secondName?.trim() && { secondname: secondName.trim() }),
+      },
+
       email: emailLower,
       phone: phoneData,
-      schoolEmail: schoolEmailLower,
       role: defaultRole,
       eduStatus: eduStatus as EduStatus,
-      avatar: avatar ?? undefined,
+
+      // Avatar: never accepted at signup — no upload pipeline has run yet.
+      // Set hasAvatar: false explicitly so profile completion logic doesn't
+      // need to null-check the avatar field.
+      hasAvatar: false,
+
+      // Institution: initialize a minimal skeleton so the subdoc always exists
+      // for users who will later fill in academic details.
+      // schoolEmail + verifiedSchoolEmail are set here if provided at signup.
+      Institution: {
+        ...(schoolEmailLower && {
+          schoolEmail: schoolEmailLower,
+        }),
+        verifiedSchoolEmail: false, // always false at signup — requires OTP later
+        gpaRecord: [],
+        cgpa: null,
+      },
+
       committeeMembership: null,
       skills: (skills as Skill[]) ?? [],
       profileCompleted: false,
+
       membershipStatus: "pending",
       signupInviteCode: generateInviteCode(),
+
+      // Store referrer _id if a valid invite code was used
+      ...(referredBy && { referredBy }),
+
       analytics: {
         eventsRegistered: 0,
         eventsAttended: 0,
+        lastActiveAt: now, // set on account creation — baseline for dormancy checks
       },
+
       preferences: DEFAULT_PREFERENCES,
       createdAt: now,
       updatedAt: now,
@@ -209,7 +268,7 @@ export async function POST(req: NextRequest) {
     // ── Send verification email ───────────────────────────────────────────────
     await sendVerificationEmail({
       to: emailLower,
-      name: `${firstName.trim()} ${lastName.trim()}`,
+      name: firstName.trim(),
       code: emailOTP,
       token: emailToken,
     });

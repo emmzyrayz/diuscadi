@@ -1,3 +1,4 @@
+// lib/MailTemplate.ts
 // ─── Email templates ──────────────────────────────────────────────────────────
 //
 // Plain HTML strings intentionally — no template engine dependency.
@@ -93,6 +94,21 @@ function ctaButton(label: string, href: string): string {
       <p style="margin:12px 0 0;font-size:9px;color:#94a3b8;">
         Or copy this link: <span style="color:${PRIMARY_COLOR};word-break:break-all;">${href}</span>
       </p>
+    </div>
+  `;
+}
+
+// ─── Info badge block — used to highlight contextual info (e.g. which email) ──
+
+function infoBadge(label: string, value: string): string {
+  return `
+    <div style="margin:20px 0;background:#f8fafc;border-left:3px solid ${ACCENT_COLOR};border-radius:8px;padding:12px 16px;">
+      <div style="font-size:9px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;margin-bottom:4px;">
+        ${label}
+      </div>
+      <div style="font-size:13px;font-weight:700;color:${PRIMARY_COLOR};word-break:break-all;">
+        ${value}
+      </div>
     </div>
   `;
 }
@@ -212,6 +228,53 @@ export function welcomeEmail({ name, role }: WelcomeEmailOptions) {
   `);
 
   const text = `Welcome to DIUSCADI, ${name}!\n\nYour account is verified. Sign in at: ${process.env.NEXT_PUBLIC_APP_URL}/auth`;
+
+  return { subject, html, text };
+}
+
+// ─── 4. School Email Verification ────────────────────────────────────────────
+//
+// Sent to the *school email address* being verified — not the primary account
+// email. Copy is intentionally specific about this distinction so the recipient
+// understands why they're receiving it on their institutional address.
+
+interface SchoolVerificationEmailOptions {
+  name: string;
+  code: string;
+  schoolEmail: string;
+}
+
+export function schoolVerificationEmail({
+  name,
+  code,
+  schoolEmail,
+}: SchoolVerificationEmailOptions) {
+  const subject = `${APP_NAME} — Verify your institutional email`;
+  const html = wrapper(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:900;color:${PRIMARY_COLOR};text-transform:uppercase;letter-spacing:-0.02em;">
+      Verify Your School Email
+    </h1>
+    <p style="margin:0 0 4px;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;">
+      Hi, ${name}
+    </p>
+    <p style="margin:20px 0;font-size:13px;color:#475569;line-height:1.7;">
+      You requested to link the following institutional email address to your
+      <strong>${APP_NAME}</strong> account. Enter the 6-digit code in the app
+      to complete verification.
+    </p>
+
+    ${infoBadge("Institutional email being verified", schoolEmail)}
+
+    ${otpBlock(code)}
+
+    <p style="margin:24px 0 0;font-size:11px;color:#94a3b8;text-align:center;">
+      If you didn't make this request, someone may have entered your school email
+      on their ${APP_NAME} account. You can safely ignore this email — no changes
+      will be made without the code.
+    </p>
+  `);
+
+  const text = `Hi ${name},\n\nYour ${APP_NAME} school email verification code is: ${code}\n\nThis code is to verify: ${schoolEmail}\n\nExpires in 15 minutes.\n\nIf you didn't request this, ignore this email.`;
 
   return { subject, html, text };
 }

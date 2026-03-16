@@ -1,5 +1,7 @@
 // lib/models/UserData.ts
 import { ObjectId } from "mongodb";
+import { CloudinaryImage } from "@/types/cloudinary";
+import { SemesterGPARecord } from "@/types/academic";
 import {
   EduStatus,
   AccountRole,
@@ -8,7 +10,6 @@ import {
   Skill,
   PhoneNumber,
   UserPreferences,
-  DEFAULT_PREFERENCES,
 } from "@/types/domain";
 
 export type {
@@ -27,9 +28,16 @@ export interface UserDataDocument {
   vaultId: ObjectId; // → Vault._id
 
   // ── Identity ──────────────────────────────────────────────────────────────
-  fullName: string;
+  fullName: {
+    firstname: string;
+    secondname?: string;
+    lastname: string;
+  };
   email: string; // personal email (mirrored from Vault)
-  avatar?: string;
+
+  // ── Avatar ────────────────────────────────────────────────────────────────
+  hasAvatar: boolean;
+  avatar?: CloudinaryImage; // tag: "avatar"
 
   // ── Phone (mirrored from Vault for display) ───────────────────────────────
   phone: PhoneNumber;
@@ -39,10 +47,6 @@ export interface UserDataDocument {
     state?: string;
     city?: string;
   };
-
-  // ── School email (optional — students with active institutional email) ─────
-  // Sparse unique index — two users can both have null, but not the same address.
-  schoolEmail?: string;
 
   // ── Role (mirrored from Vault — Vault is source of truth) ─────────────────
   role: AccountRole;
@@ -55,14 +59,63 @@ export interface UserDataDocument {
     name?: string;
     department?: string;
     faculty?: string;
-    level?: string;
     semester?: "First" | "Second";
-    graduationYear?: number; // graduates only
-    currentStatus?: string; // graduates only
+
+    // ── Students ──────────────────────────────────────────────────────────
+    /**
+     * Year the student enrolled, e.g. 2023.
+     * Derive year-of-study as: currentAcademicYear - enrollmentYear + 1.
+     * Never store a "level" string that goes stale — compute it.
+     */
+    enrollmentYear?: number;
+
+    level?: string; // display convenience e.g. "300 Level" — not source of truth
+
+    // ── School email ──────────────────────────────────────────────────────
+    schoolEmail?: string; // sparse unique index
+    verifiedSchoolEmail: boolean;
+    RegistrationNumber?: string;
+
+    // ── Graduates ─────────────────────────────────────────────────────────
+    graduationYear?: number;
+    currentStatus?: "Graduate" | "Student";
+
+    // ── Academic record ───────────────────────────────────────────────────
+    /**
+     * One entry per semester. Each entry contains all courses for that
+     * semester with credit units and grades entered by the student.
+     *
+     * Append-only in normal usage — never delete past semesters.
+     * Sorted by session + semester for display (sort in application layer).
+     */
+    gpaRecord: SemesterGPARecord[];
+
+    /**
+     * Cumulative GPA across all submitted semesters.
+     * Formula: Σ(qualityPoints) / Σ(creditUnits) across all submitted records.
+     * Recalculated automatically:
+     *   - When a student submits or edits a SemesterGPARecord.
+     *   - When an admin manually triggers recalculation.
+     * Rounded to 2 decimal places. Null until at least one semester is submitted.
+     */
+    cgpa: number | null;
+
+    /**
+     * ISO-8601 timestamp of the last CGPA recalculation.
+     * Shown in UI so students/admins know how fresh the value is.
+     */
+    cgpaLastCalculatedAt?: string;
+  };
+
+  // ── Social links ──────────────────────────────────────────────────────────
+  socials?: {
+    linkedin?: string;
+    github?: string;
+    twitter?: string;
+    portfolio?: string;
   };
 
   // One committee membership per user. null = not in any committee yet.
-  // Entry is via approved application. Role is assigned/promoted by admin.
   committeeMembership: CommitteeMembership | null;
 
   // Multiple skills. [] = not yet set.
@@ -78,19 +131,19 @@ export interface UserDataDocument {
   // ── Membership ────────────────────────────────────────────────────────────
   membershipStatus: "pending" | "approved" | "suspended";
 
-  // ── Invite code (unique per user, generated at signup) ────────────────────
+  // ── Referral ──────────────────────────────────────────────────────────────
   signupInviteCode: string;
+  referredBy?: ObjectId; // → UserData._id of referring member
 
   // ── Event tracking ────────────────────────────────────────────────────────
   analytics: {
     eventsRegistered: number;
     eventsAttended: number;
     lastEventRegisteredAt?: Date;
+    lastActiveAt?: Date;
   };
 
-  // ── Preferences (notifications, appearance, privacy) ──────────────────────
-  // Stored inline — no separate collection needed. Defaults applied on read
-  // via DEFAULT_PREFERENCES if the field is absent (legacy documents).
+  // ── Preferences ───────────────────────────────────────────────────────────
   preferences: UserPreferences;
 
   createdAt: Date;

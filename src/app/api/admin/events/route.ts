@@ -34,6 +34,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
     const db = await getDb();
     const col = Collections.events(db);
+
     const total = await col.countDocuments(filter);
     const events = await col
       .find(filter)
@@ -42,7 +43,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       .limit(limit)
       .toArray();
 
-    // Attach registration counts
+    // Attach registration counts via aggregation — avoids N+1 queries
     const eventIds = events.map((e) => e._id!);
     const regCounts = await Collections.eventRegistrations(db)
       .aggregate([
@@ -71,6 +72,17 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         requiredSkills: e.requiredSkills ?? [],
         createdAt: e.createdAt.toISOString(),
         updatedAt: e.updatedAt.toISOString(),
+
+        // ── Media flags + URLs for admin list view ──────────────────────────
+        // Flags let the UI show "no logo" / "no banner" badges without having
+        // to inspect the full CloudinaryImage object.
+        // imageUrl fields are included for quick thumbnail previews in the list.
+        hasEventLogo: e.hasEventLogo,
+        eventLogoUrl: e.eventLogo?.imageUrl ?? null,
+        hasEventBanner: e.hasEventBanner,
+        eventBannerUrl: e.eventBanner?.imageUrl ?? null,
+        hasEventGallery: e.hasEventGallery,
+        galleryCount: e.eventGallery?.length ?? 0,
       })),
       pagination: {
         page,
@@ -111,7 +123,6 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       format,
       location,
       locationScope,
-      image,
       eventDate,
       endDate,
       registrationDeadline,
@@ -125,6 +136,11 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       duration,
       status,
     } = body;
+
+    // Note: `image` is intentionally NOT accepted here.
+    // Event media (logo, banner, gallery) is uploaded separately via the
+    // media upload pipeline after the event document is created.
+    // Accepting a raw image string at creation time would bypass Cloudinary.
 
     if (
       !title ||
@@ -164,7 +180,6 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       format,
       location: location ?? {},
       locationScope: locationScope ?? "local",
-      image: image ?? "",
       eventDate: new Date(eventDate),
       registrationDeadline: new Date(registrationDeadline),
       capacity: typeof capacity === "number" ? capacity : 0,
@@ -174,9 +189,18 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       tags: tags ?? [],
       status: status ?? "draft",
       createdBy: new ObjectId(req.auth.vaultId),
+
+      // ── Media — initialised as empty at creation time ─────────────────────
+      // Images are attached after creation via PATCH /api/admin/events/[id]/media.
+      // Flags default to false; image fields are omitted until an upload succeeds.
+      hasEventLogo: false,
+      hasEventBanner: false,
+      hasEventGallery: false,
+
       createdAt: now,
       updatedAt: now,
-      // Optional fields — only included when provided
+
+      // Optional fields — only spread when provided
       ...(endDate ? { endDate: new Date(endDate) } : {}),
       ...(level ? { level } : {}),
       ...(instructor ? { instructor } : {}),

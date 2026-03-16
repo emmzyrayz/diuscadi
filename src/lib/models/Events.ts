@@ -1,5 +1,6 @@
 // lib/models/Event.ts
 import { ObjectId } from "mongodb";
+import { CloudinaryImage } from "@/types/cloudinary";
 
 export type EventFormat = "physical" | "virtual" | "hybrid";
 export type EventStatus = "draft" | "published" | "cancelled";
@@ -52,7 +53,26 @@ export interface EventDocument {
   capacity: number;
 
   // ── Media ─────────────────────────────────────────────────────────────────
-  image: string; // URL or storage path
+  /**
+   * Primary event identity image (square / round logo).
+   * Optional — some events may be created before assets are ready.
+   */
+  hasEventLogo: boolean;
+  eventLogo?: CloudinaryImage; // tag: "event-logo"
+
+  /**
+   * Wide hero / cover image shown at the top of the event page.
+   * Optional — limited or low-budget events may skip this.
+   */
+  hasEventBanner: boolean;
+  eventBanner?: CloudinaryImage; // tag: "event-banner"
+
+  /**
+   * Photo gallery for the event (before, during, or after shots).
+   * Optional array — may be empty or absent for future/draft events.
+   */
+  hasEventGallery: boolean;
+  eventGallery?: CloudinaryImage[]; // tag: "event-gallery" on each item
 
   // ── Status ────────────────────────────────────────────────────────────────
   status: EventStatus;

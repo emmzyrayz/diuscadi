@@ -1,25 +1,28 @@
-// lib/services/cloudinaryService.ts
+// lib/services/CloudinaryService.ts
 //
 // Server-only. Never import this in client components.
-// Handles Cloudinary signed upload parameter generation and asset deletion.
 //
 // Upload flow:
-//   1. Client calls POST /api/media/sign with { uploadType, fileName }
-//   2. This service generates signed params (timestamp + signature)
-//   3. Client POSTs directly to Cloudinary using those params
-//   4. Cloudinary returns { secure_url, public_id }
-//   5. Client calls POST /api/media/confirm to persist the URL to the DB
+//   1. Client calls POST /api/media/sign  → signed params from server
+//   2. Client POSTs directly to Cloudinary using those params
+//   3. Cloudinary returns its full response payload
+//   4. Client calls POST /api/media/confirm with the raw Cloudinary response
+//   5. confirm route assembles CloudinaryImage and persists it to MongoDB
 //
-// Why signed uploads?
-//   - API secret never leaves the server
-//   - We control folder structure, transformations, and file size limits
-//   - Unsigned uploads require a public upload preset (less secure)
+// The context (MediaContext) owns steps 1–4 as a pipeline.
+// The confirm route owns step 5 entirely — context never touches the DB.
 
 import crypto from "crypto";
+import type { ImageTag } from "@/types/cloudinary";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type UploadType = "avatar" | "event-banner" | "org-logo";
+/**
+ * UploadType mirrors ImageTag exactly — every tag has a corresponding
+ * upload config. Kept as a separate alias so CloudinaryService remains
+ * decoupled from the domain type layer.
+ */
+export type UploadType = ImageTag;
 
 export interface SignedUploadParams {
   signature: string;
@@ -28,10 +31,9 @@ export interface SignedUploadParams {
   cloudName: string;
   folder: string;
   publicId: string;
-  // Eager transformation applied server-side by Cloudinary after upload
   eager: string;
-  // Max file size enforced by Cloudinary (bytes)
-  maxFileSize: number;
+  maxFileSize: number; // bytes — enforced by Cloudinary
+  uploadType: UploadType; // echoed back so the client knows which type was signed
 }
 
 // ─── Env validation ───────────────────────────────────────────────────────────
@@ -43,55 +45,70 @@ function requireEnv(key: string): string {
 }
 
 // ─── Transformation presets ───────────────────────────────────────────────────
-// These are applied by Cloudinary AFTER the upload (eager transforms).
-// The client also crops before uploading — this is a server-side safety net
-// to ensure consistent output dimensions and format regardless of client behaviour.
+// eager transforms are applied by Cloudinary server-side after upload.
+// The client crops before uploading — these are a server-side safety net.
 
-const TRANSFORM_PRESETS: Record<
-  UploadType,
-  {
-    eager: string; // Cloudinary eager transformation string
-    folder: string; // Storage folder in Cloudinary
-    maxFileSize: number; // Bytes — enforced by Cloudinary
-  }
-> = {
-  // Square crop, face-detect gravity, 400×400 webp — profile pictures
+interface UploadPreset {
+  eager: string; // Cloudinary eager transformation string
+  folder: string; // Storage folder in Cloudinary
+  maxFileSize: number; // bytes
+}
+
+const TRANSFORM_PRESETS: Record<UploadType, UploadPreset> = {
+  // ── User ──────────────────────────────────────────────────────────────────
   avatar: {
     eager: "c_fill,g_face,w_400,h_400,f_webp,q_auto:good",
     folder: "diuscadi/avatars",
     maxFileSize: 5 * 1024 * 1024, // 5 MB
   },
-  // Wide crop, 1200×630 (OG image ratio), webp — event banners
+
+  // ── Event ─────────────────────────────────────────────────────────────────
+  "event-logo": {
+    // Square crop, face-aware — used as the event's primary identity badge
+    eager: "c_fill,g_auto,w_400,h_400,f_webp,q_auto:good",
+    folder: "diuscadi/events/logos",
+    maxFileSize: 5 * 1024 * 1024, // 5 MB
+  },
   "event-banner": {
+    // 1200×630 (OG image ratio) — wide hero / cover image
     eager: "c_fill,w_1200,h_630,f_webp,q_auto:good",
-    folder: "diuscadi/events",
+    folder: "diuscadi/events/banners",
     maxFileSize: 10 * 1024 * 1024, // 10 MB
   },
-  // Pad (no crop — preserves logo ratio), 400×400, white bg, webp
-  "org-logo": {
+  "event-gallery": {
+    // 1200×900 (4:3) — gallery photos, multiple per event
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/events/gallery",
+    maxFileSize: 15 * 1024 * 1024, // 15 MB — allows short video clips too
+  },
+
+  // ── Institution ───────────────────────────────────────────────────────────
+  "inst-logo": {
+    // Pad (no crop) preserves logo aspect ratio, white bg, square output
     eager: "c_pad,w_400,h_400,b_white,f_webp,q_auto:good",
-    folder: "diuscadi/logos",
+    folder: "diuscadi/institutions/logos",
     maxFileSize: 3 * 1024 * 1024, // 3 MB
+  },
+  "inst-banner": {
+    // Wide banner for institution profile pages
+    eager: "c_fill,w_1200,h_400,f_webp,q_auto:good",
+    folder: "diuscadi/institutions/banners",
+    maxFileSize: 10 * 1024 * 1024, // 10 MB
   },
 };
 
 // ─── Public ID generator ──────────────────────────────────────────────────────
-// Deterministic per owner so re-uploads overwrite the previous asset
-// (no orphaned files accumulating in Cloudinary).
-//
-// Pattern: diuscadi/{type}/{ownerId}_{timestamp}
-// The timestamp suffix prevents browser caching the old image at the same URL.
+// Deterministic per owner so re-uploads overwrite the previous asset.
+// Timestamp suffix busts CDN cache on re-upload.
+// Pattern: {folder}/{ownerId}_{timestamp}
 
 function buildPublicId(type: UploadType, ownerId: string): string {
-  const preset = TRANSFORM_PRESETS[type];
-  const timestamp = Date.now();
-  return `${preset.folder}/${ownerId}_${timestamp}`;
+  const { folder } = TRANSFORM_PRESETS[type];
+  return `${folder}/${ownerId}_${Date.now()}`;
 }
 
 // ─── Signature ────────────────────────────────────────────────────────────────
-// Cloudinary signature algorithm:
-//   SHA1( "eager=...&folder=...&public_id=...&timestamp=..." + API_SECRET )
-// Parameters must be sorted alphabetically and joined with &.
+// SHA1( sorted_params_string + API_SECRET )
 
 function sign(
   params: Record<string, string | number>,
@@ -112,10 +129,6 @@ function sign(
 
 /**
  * Generate signed upload parameters for a direct client-to-Cloudinary upload.
- * Call from POST /api/media/sign.
- *
- * @param uploadType  - "avatar" | "event-banner" | "org-logo"
- * @param ownerId     - vaultId or entity id — used to build the public_id
  */
 export function generateSignedParams(
   uploadType: UploadType,
@@ -136,10 +149,8 @@ export function generateSignedParams(
     timestamp,
   };
 
-  const signature = sign(paramsToSign, apiSecret);
-
   return {
-    signature,
+    signature: sign(paramsToSign, apiSecret),
     timestamp,
     apiKey,
     cloudName,
@@ -147,17 +158,17 @@ export function generateSignedParams(
     publicId,
     eager: preset.eager,
     maxFileSize: preset.maxFileSize,
+    uploadType, // echoed so confirm route can trust the type without re-deriving it
   };
 }
 
 /**
  * Delete a Cloudinary asset by its public_id.
- * Call from DELETE /api/media/remove.
- *
  * Returns true if deleted, false if not found.
  */
 export async function deleteCloudinaryAsset(
   publicId: string,
+  resourceType: "image" | "video" | "raw" = "image",
 ): Promise<boolean> {
   const apiKey = requireEnv("CLOUDINARY_API_KEY");
   const apiSecret = requireEnv("CLOUDINARY_API_SECRET");
@@ -180,36 +191,39 @@ export async function deleteCloudinaryAsset(
   });
 
   const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`,
+    `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/destroy`,
     { method: "POST", body },
   );
   const data = (await res.json()) as { result?: string };
-
   return data.result === "ok";
 }
 
+// ─── Validation helpers ───────────────────────────────────────────────────────
+
+export const ALL_UPLOAD_TYPES = Object.keys(TRANSFORM_PRESETS) as UploadType[];
+
+export function isValidUploadType(value: unknown): value is UploadType {
+  return (
+    typeof value === "string" && ALL_UPLOAD_TYPES.includes(value as UploadType)
+  );
+}
+
 /**
- * Extract the public_id from a Cloudinary secure_url.
- * Used when we need to delete the old asset before setting a new one.
- *
- * e.g. https://res.cloudinary.com/{cloud}/image/upload/v.../diuscadi/avatars/abc_123
- *   → "diuscadi/avatars/abc_123"
+ * Returns which roles are allowed to use a given upload type.
+ * Used by sign + confirm routes to enforce access control.
  */
-export function extractPublicId(secureUrl: string): string | null {
-  try {
-    const url = new URL(secureUrl);
-    const parts = url.pathname.split("/");
-    // pathname: /image/upload/v{version}/{...publicId}
-    const uploadIdx = parts.indexOf("upload");
-    if (uploadIdx === -1) return null;
-    // Skip the version segment (starts with "v" + digits)
-    const afterUpload = parts.slice(uploadIdx + 1);
-    const start = afterUpload[0]?.match(/^v\d+$/) ? 1 : 0;
-    // Remove file extension from last segment
-    const last = afterUpload[afterUpload.length - 1].replace(/\.[^.]+$/, "");
-    afterUpload[afterUpload.length - 1] = last;
-    return afterUpload.slice(start).join("/");
-  } catch {
-    return null;
+export function allowedRolesForType(type: UploadType): string[] {
+  switch (type) {
+    case "avatar":
+      // Any authenticated user — it's their own profile picture
+      return ["participant", "committee", "admin", "webmaster"];
+    case "event-logo":
+    case "event-banner":
+    case "event-gallery":
+      return ["admin", "webmaster"];
+    case "inst-logo":
+    case "inst-banner":
+      // Institution media is webmaster-only — institutional identity is sensitive
+      return ["webmaster"];
   }
 }
