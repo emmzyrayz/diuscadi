@@ -1,6 +1,9 @@
 // app/api/users/profile/route.ts
 // GET  — fetch current user's full profile
-// PATCH — update fullName, avatar, profile.bio, phone
+// PATCH — update fullName, bio, phone
+//
+// avatar is NOT accepted here — it is set exclusively via
+// POST /api/media/confirm after a successful Cloudinary upload.
 
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
@@ -38,14 +41,16 @@ async function getHandler(req: AuthenticatedRequest): Promise<NextResponse> {
 }
 
 // ─── PATCH /api/users/profile ─────────────────────────────────────────────────
-// Allowed fields: fullName, avatar, bio, phone
+// Allowed fields: fullName, bio, phone
 // Body example:
 // {
-//   "fullName": "John Doe",
-//   "phone": { "countryCode": 234, "phoneNumber": 8012345678 },
-//   "bio": "I am a tech enthusiast",
-//   "avatar": "https://..."
+//   "fullName": { "firstname": "John", "lastname": "Doe" },
+//   "phone":    { "countryCode": 234, "phoneNumber": 8012345678 },
+//   "bio":      "I am a tech enthusiast"
 // }
+//
+// NOT accepted here:
+//   avatar — use POST /api/media/confirm (Cloudinary upload pipeline)
 
 async function patchHandler(req: AuthenticatedRequest): Promise<NextResponse> {
   try {
@@ -56,6 +61,8 @@ async function patchHandler(req: AuthenticatedRequest): Promise<NextResponse> {
     // Guard: reject any attempt to write restricted fields
     const RESTRICTED = [
       "vaultId",
+      "avatar", // set via /api/media/confirm only
+      "hasAvatar", // managed by confirm/remove routes
       "analytics",
       "signupInviteCode",
       "membershipStatus",
@@ -72,7 +79,6 @@ async function patchHandler(req: AuthenticatedRequest): Promise<NextResponse> {
 
     const result = await updateUserProfile(db, vaultId, {
       fullName: body.fullName,
-      avatar: body.avatar,
       bio: body.bio,
       phone: body.phone,
     });
