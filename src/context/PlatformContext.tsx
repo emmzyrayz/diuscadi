@@ -2,15 +2,13 @@
 
 // context/PlatformContext.tsx
 // Manages all public platform data: institutions, faculties, departments,
-// skills list, and committees list.
+// skills list, committees list, and committee roles.
+//
+// skills, committees, and committeeRoles are now DB-driven —
+// fetched from /api/platform/* instead of imported from domain.ts.
 //
 // READ operations are public — no auth needed.
-// WRITE operations (create/update/assign) are webmaster only — the API
-// enforces this, the context just calls the route.
-//
-// PlatformContext is consumed by:
-//   - UserContext   → institution/faculty/department dropdowns on profile setup
-//   - AdminContext  → institution management UI
+// WRITE operations (create/update/assign) are webmaster only — the API enforces this.
 
 import {
   createContext,
@@ -19,7 +17,6 @@ import {
   useCallback,
   ReactNode,
 } from "react";
-import { SKILLS, COMMITTEES } from "@/types/domain";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -43,8 +40,40 @@ export interface Institution {
   state: string;
   country: string;
   isActive: boolean;
-  faculties: string[]; // faculty IDs — populated separately via loadFaculties
+  faculties: string[];
 }
+
+// ── DB-driven list types ──────────────────────────────────────────────────────
+
+export interface CommitteeItem {
+  slug: string;
+  name: string;
+  description: string;
+  color: string;
+  icon: string;
+  headName?: string;
+  memberCount: number;
+  displayOrder: number;
+}
+
+export interface SkillItem {
+  slug: string;
+  name: string;
+  category: string;
+}
+
+export interface SkillsGrouped {
+  [category: string]: { slug: string; name: string; displayOrder: number }[];
+}
+
+export interface CommitteeRoleItem {
+  slug: string;
+  name: string;
+  rank: number;
+  description: string;
+}
+
+// ── Write payload types ───────────────────────────────────────────────────────
 
 export interface CreateInstitutionPayload {
   name: string;
@@ -61,26 +90,33 @@ export interface UpdateInstitutionPayload {
   isActive?: boolean;
 }
 
-interface PlatformState {
-  // ── Data ──────────────────────────────────────────────────────────────────
-  institutions: Institution[];
-  // facultyMap: keyed by institutionId → Faculty[]
-  facultyMap: Record<string, Faculty[]>;
-  // departmentMap: keyed by facultyId → Department[]
-  departmentMap: Record<string, Department[]>;
-  // Static domain lists (from domain.ts — no API call needed)
-  skills: string[];
-  committees: string[];
+// ── State ─────────────────────────────────────────────────────────────────────
 
-  // ── Loading / error states ────────────────────────────────────────────────
+interface PlatformState {
+  institutions: Institution[];
+  facultyMap: Record<string, Faculty[]>;
+  departmentMap: Record<string, Department[]>;
+
+  // DB-driven lists — null = not yet fetched
+  committees: CommitteeItem[] | null;
+  skills: SkillItem[] | null;
+  skillsGrouped: SkillsGrouped | null;
+  committeeRoles: CommitteeRoleItem[] | null;
+
   loadingInstitutions: boolean;
-  loadingFaculties: Record<string, boolean>; // keyed by institutionId
-  loadingDepartments: Record<string, boolean>; // keyed by facultyId
+  loadingFaculties: Record<string, boolean>;
+  loadingDepartments: Record<string, boolean>;
+  loadingLists: boolean; // committees / skills / roles
   error: string | null;
 }
 
 interface PlatformContextValue extends PlatformState {
-  // ── Read ──────────────────────────────────────────────────────────────────
+  // ── DB-driven list loaders ────────────────────────────────────────────────
+  loadCommittees: () => Promise<CommitteeItem[]>;
+  loadSkills: () => Promise<{ skills: SkillItem[]; grouped: SkillsGrouped }>;
+  loadCommitteeRoles: () => Promise<CommitteeRoleItem[]>;
+
+  // ── Institution read ──────────────────────────────────────────────────────
   loadInstitutions: (opts?: {
     search?: string;
     type?: string;
@@ -89,7 +125,7 @@ interface PlatformContextValue extends PlatformState {
   loadFaculties: (institutionId: string) => Promise<Faculty[]>;
   loadDepartments: (facultyId: string) => Promise<Department[]>;
 
-  // ── Write (webmaster only — token passed from AuthContext) ─────────────────
+  // ── Institution write (webmaster only) ────────────────────────────────────
   createInstitution: (
     payload: CreateInstitutionPayload,
     token: string,
@@ -109,7 +145,6 @@ interface PlatformContextValue extends PlatformState {
     facultyId: string,
     token: string,
   ) => Promise<void>;
-
   createFaculty: (name: string, token: string) => Promise<Faculty>;
   updateFaculty: (
     id: string,
@@ -126,7 +161,6 @@ interface PlatformContextValue extends PlatformState {
     departmentId: string,
     token: string,
   ) => Promise<void>;
-
   createDepartment: (name: string, token: string) => Promise<Department>;
   updateDepartment: (
     id: string,
@@ -147,7 +181,7 @@ export function usePlatform(): PlatformContextValue {
   return ctx;
 }
 
-// ── Helper ────────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function authHeaders(token: string): HeadersInit {
   return {
@@ -169,11 +203,14 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     institutions: [],
     facultyMap: {},
     departmentMap: {},
-    skills: [...SKILLS],
-    committees: [...COMMITTEES],
+    committees: null,
+    skills: null,
+    skillsGrouped: null,
+    committeeRoles: null,
     loadingInstitutions: false,
     loadingFaculties: {},
     loadingDepartments: {},
+    loadingLists: false,
     error: null,
   });
 
@@ -181,7 +218,91 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, error: null }));
   }, []);
 
-  // ── loadInstitutions ───────────────────────────────────────────────────────
+  // ── loadCommittees ────────────────────────────────────────────────────────
+  const loadCommittees = useCallback(async (): Promise<CommitteeItem[]> => {
+    // Return cached if already loaded
+    if (state.committees) return state.committees;
+
+    setState((s) => ({ ...s, loadingLists: true, error: null }));
+    try {
+      const res = await fetch("/api/platform/committees");
+      const data = await handleResponse<{ committees: CommitteeItem[] }>(res);
+      setState((s) => ({
+        ...s,
+        committees: data.committees,
+        loadingLists: false,
+      }));
+      return data.committees;
+    } catch (err) {
+      setState((s) => ({
+        ...s,
+        loadingLists: false,
+        error: err instanceof Error ? err.message : "Failed to load committees",
+      }));
+      return [];
+    }
+  }, [state.committees]);
+
+  // ── loadSkills ────────────────────────────────────────────────────────────
+  const loadSkills = useCallback(async (): Promise<{
+    skills: SkillItem[];
+    grouped: SkillsGrouped;
+  }> => {
+    if (state.skills)
+      return { skills: state.skills, grouped: state.skillsGrouped! };
+
+    setState((s) => ({ ...s, loadingLists: true, error: null }));
+    try {
+      const res = await fetch("/api/platform/skills");
+      const data = await handleResponse<{
+        skills: SkillItem[];
+        grouped: SkillsGrouped;
+      }>(res);
+      setState((s) => ({
+        ...s,
+        skills: data.skills,
+        skillsGrouped: data.grouped,
+        loadingLists: false,
+      }));
+      return data;
+    } catch (err) {
+      setState((s) => ({
+        ...s,
+        loadingLists: false,
+        error: err instanceof Error ? err.message : "Failed to load skills",
+      }));
+      return { skills: [], grouped: {} };
+    }
+  }, [state.skills, state.skillsGrouped]);
+
+  // ── loadCommitteeRoles ────────────────────────────────────────────────────
+  const loadCommitteeRoles = useCallback(async (): Promise<
+    CommitteeRoleItem[]
+  > => {
+    if (state.committeeRoles) return state.committeeRoles;
+
+    setState((s) => ({ ...s, loadingLists: true, error: null }));
+    try {
+      const res = await fetch("/api/platform/committee-roles");
+      const data = await handleResponse<{ roles: CommitteeRoleItem[] }>(res);
+      setState((s) => ({
+        ...s,
+        committeeRoles: data.roles,
+        loadingLists: false,
+      }));
+      return data.roles;
+    } catch (err) {
+      setState((s) => ({
+        ...s,
+        loadingLists: false,
+        error:
+          err instanceof Error ? err.message : "Failed to load committee roles",
+      }));
+      return [];
+    }
+  }, [state.committeeRoles]);
+
+  // ── loadInstitutions ──────────────────────────────────────────────────────
   const loadInstitutions = useCallback(
     async (opts: { search?: string; type?: string; all?: boolean } = {}) => {
       setState((s) => ({ ...s, loadingInstitutions: true, error: null }));
@@ -210,10 +331,9 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  // ── loadFaculties ──────────────────────────────────────────────────────────
+  // ── loadFaculties ─────────────────────────────────────────────────────────
   const loadFaculties = useCallback(
     async (institutionId: string): Promise<Faculty[]> => {
-      // Return cached if already loaded
       if (state.facultyMap[institutionId])
         return state.facultyMap[institutionId];
 
@@ -246,7 +366,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [state.facultyMap],
   );
 
-  // ── loadDepartments ────────────────────────────────────────────────────────
+  // ── loadDepartments ───────────────────────────────────────────────────────
   const loadDepartments = useCallback(
     async (facultyId: string): Promise<Department[]> => {
       if (state.departmentMap[facultyId]) return state.departmentMap[facultyId];
@@ -280,7 +400,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [state.departmentMap],
   );
 
-  // ── createInstitution ──────────────────────────────────────────────────────
+  // ── createInstitution ─────────────────────────────────────────────────────
   const createInstitution = useCallback(
     async (
       payload: CreateInstitutionPayload,
@@ -301,7 +421,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  // ── updateInstitution ──────────────────────────────────────────────────────
+  // ── updateInstitution ─────────────────────────────────────────────────────
   const updateInstitution = useCallback(
     async (id: string, payload: UpdateInstitutionPayload, token: string) => {
       const res = await fetch(`/api/platform/institutions/${id}`, {
@@ -320,7 +440,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  // ── assignFaculty ──────────────────────────────────────────────────────────
+  // ── assignFaculty ─────────────────────────────────────────────────────────
   const assignFaculty = useCallback(
     async (institutionId: string, facultyId: string, token: string) => {
       const res = await fetch(
@@ -332,7 +452,6 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
         },
       );
       await handleResponse(res);
-      // Invalidate faculty cache for this institution so next loadFaculties re-fetches
       setState((s) => ({
         ...s,
         facultyMap: { ...s.facultyMap, [institutionId]: undefined as never },
@@ -341,7 +460,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  // ── unassignFaculty ────────────────────────────────────────────────────────
+  // ── unassignFaculty ───────────────────────────────────────────────────────
   const unassignFaculty = useCallback(
     async (institutionId: string, facultyId: string, token: string) => {
       const res = await fetch(
@@ -362,7 +481,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  // ── createFaculty ──────────────────────────────────────────────────────────
+  // ── createFaculty ─────────────────────────────────────────────────────────
   const createFaculty = useCallback(
     async (name: string, token: string): Promise<Faculty> => {
       const res = await fetch("/api/platform/faculties", {
@@ -376,7 +495,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  // ── updateFaculty ──────────────────────────────────────────────────────────
+  // ── updateFaculty ─────────────────────────────────────────────────────────
   const updateFaculty = useCallback(
     async (
       id: string,
@@ -389,13 +508,12 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(payload),
       });
       await handleResponse(res);
-      // Invalidate all faculty caches since we don't know which institution holds this faculty
       setState((s) => ({ ...s, facultyMap: {} }));
     },
     [],
   );
 
-  // ── assignDepartment ───────────────────────────────────────────────────────
+  // ── assignDepartment ──────────────────────────────────────────────────────
   const assignDepartment = useCallback(
     async (facultyId: string, departmentId: string, token: string) => {
       const res = await fetch(
@@ -407,18 +525,16 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
         },
       );
       await handleResponse(res);
-      // Invalidate department cache for this faculty
       setState((s) => ({
         ...s,
         departmentMap: { ...s.departmentMap, [facultyId]: undefined as never },
-        // Also invalidate faculty cache since departments are embedded in faculty responses
         facultyMap: {},
       }));
     },
     [],
   );
 
-  // ── unassignDepartment ─────────────────────────────────────────────────────
+  // ── unassignDepartment ────────────────────────────────────────────────────
   const unassignDepartment = useCallback(
     async (facultyId: string, departmentId: string, token: string) => {
       const res = await fetch(
@@ -440,7 +556,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  // ── createDepartment ───────────────────────────────────────────────────────
+  // ── createDepartment ──────────────────────────────────────────────────────
   const createDepartment = useCallback(
     async (name: string, token: string): Promise<Department> => {
       const res = await fetch("/api/platform/departments", {
@@ -454,7 +570,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  // ── updateDepartment ───────────────────────────────────────────────────────
+  // ── updateDepartment ──────────────────────────────────────────────────────
   const updateDepartment = useCallback(
     async (
       id: string,
@@ -467,7 +583,6 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(payload),
       });
       await handleResponse(res);
-      // Invalidate all department caches
       setState((s) => ({ ...s, departmentMap: {} }));
     },
     [],
@@ -477,6 +592,9 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     <PlatformContext.Provider
       value={{
         ...state,
+        loadCommittees,
+        loadSkills,
+        loadCommitteeRoles,
         loadInstitutions,
         loadFaculties,
         loadDepartments,
