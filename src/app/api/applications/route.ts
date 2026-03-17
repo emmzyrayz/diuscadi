@@ -7,14 +7,13 @@ import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
-import { SKILLS, COMMITTEES } from "@/types/domain";
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
     const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type"); // "committee" | "skills"
-    const status = searchParams.get("status"); // "pending" | "approved" | "rejected"
+    const type = searchParams.get("type");
+    const status = searchParams.get("status");
 
     const db = await getDb();
     const vaultId = new ObjectId(req.auth.vaultId);
@@ -76,20 +75,35 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
+    const db = await getDb();
+
+    // ── Validate committee against live DB list ────────────────────────────────
     if (type === "committee") {
-      if (
-        !requestedCommittee ||
-        !(COMMITTEES as string[]).includes(requestedCommittee)
-      ) {
+      if (!requestedCommittee || typeof requestedCommittee !== "string") {
+        return NextResponse.json(
+          { error: "requestedCommittee is required" },
+          { status: 400 },
+        );
+      }
+
+      const committeeDoc = await Collections.committees(db).findOne({
+        slug: requestedCommittee,
+        isActive: true,
+      });
+      if (!committeeDoc) {
+        const valid = await Collections.committees(db)
+          .find({ isActive: true }, { projection: { slug: 1, _id: 0 } })
+          .toArray();
         return NextResponse.json(
           {
-            error: `requestedCommittee must be one of: ${COMMITTEES.join(", ")}`,
+            error: `Invalid committee. Must be one of: ${valid.map((c) => c.slug).join(", ")}`,
           },
           { status: 400 },
         );
       }
     }
 
+    // ── Validate skills against live DB list ──────────────────────────────────
     if (type === "skills") {
       if (!Array.isArray(requestedSkills) || requestedSkills.length === 0) {
         return NextResponse.json(
@@ -97,8 +111,13 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
           { status: 400 },
         );
       }
-      const invalid = requestedSkills.filter(
-        (s: string) => !(SKILLS as string[]).includes(s),
+
+      const validSkills = await Collections.skills(db)
+        .find({ isActive: true }, { projection: { slug: 1, _id: 0 } })
+        .toArray();
+      const validSlugs = validSkills.map((s) => s.slug as string);
+      const invalid = (requestedSkills as string[]).filter(
+        (s) => !validSlugs.includes(s),
       );
       if (invalid.length > 0) {
         return NextResponse.json(
@@ -108,9 +127,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       }
     }
 
-    const db = await getDb();
     const vaultId = new ObjectId(req.auth.vaultId);
-
     const userData = await Collections.userData(db).findOne({ vaultId });
     if (!userData) {
       return NextResponse.json(

@@ -15,7 +15,6 @@ import {
   Skill,
   PhoneNumber,
   EDU_STATUSES,
-  SKILLS,
   DEFAULT_PREFERENCES,
 } from "@/types/domain";
 import { VaultDocument } from "@/lib/models/vault";
@@ -27,15 +26,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       firstName,
-      secondName, // optional middle name
+      secondName,
       lastName,
       email,
       password,
       eduStatus,
-      phone, // { countryCode: number, phoneNumber: number } — required
-      schoolEmail, // optional — stored inside Institution subdoc
-      skills, // optional
-      inviteCode, // optional — referral code from another member
+      phone,
+      schoolEmail,
+      skills,
+      inviteCode,
     } = body;
 
     // ── Validate required fields ──────────────────────────────────────────────
@@ -92,7 +91,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── Validate optional skills ──────────────────────────────────────────────
+    const emailLower = email.toLowerCase().trim();
+    const schoolEmailLower = schoolEmail?.toLowerCase().trim() ?? undefined;
+    const db = await getDb();
+
+    // ── Validate optional skills against live DB ──────────────────────────────
+    // SKILLS array removed from domain.ts — validate against the skills collection.
     if (skills !== undefined) {
       if (!Array.isArray(skills)) {
         return NextResponse.json(
@@ -100,22 +104,25 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
-      const invalid = (skills as string[]).filter(
-        (s) => !(SKILLS as string[]).includes(s),
-      );
-      if (invalid.length > 0) {
-        return NextResponse.json(
-          {
-            error: `Invalid skills: ${invalid.join(", ")}. Must be from: ${SKILLS.join(", ")}`,
-          },
-          { status: 400 },
+
+      if (skills.length > 0) {
+        const validSkills = await Collections.skills(db)
+          .find({ isActive: true }, { projection: { slug: 1, _id: 0 } })
+          .toArray();
+        const validSlugs = validSkills.map((s) => s.slug as string);
+        const invalid = (skills as string[]).filter(
+          (s) => !validSlugs.includes(s),
         );
+        if (invalid.length > 0) {
+          return NextResponse.json(
+            {
+              error: `Invalid skills: ${invalid.join(", ")}. Must be from: ${validSlugs.join(", ")}`,
+            },
+            { status: 400 },
+          );
+        }
       }
     }
-
-    const emailLower = email.toLowerCase().trim();
-    const schoolEmailLower = schoolEmail?.toLowerCase().trim() ?? undefined;
-    const db = await getDb();
 
     // ── Check duplicate email ─────────────────────────────────────────────────
     const existingEmail = await Collections.vault(db).findOne({
@@ -140,7 +147,6 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Check duplicate school email ──────────────────────────────────────────
-    // Path is now "Institution.schoolEmail" — schoolEmail moved into subdoc.
     if (schoolEmailLower) {
       const existingSchoolEmail = await Collections.userData(db).findOne({
         "Institution.schoolEmail": schoolEmailLower,
@@ -154,8 +160,6 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Resolve referrer from invite code ─────────────────────────────────────
-    // If a valid inviteCode was provided, look up the referring member's _id.
-    // A bad/expired code is silently ignored — we never block signup over it.
     let referredBy: ObjectId | undefined;
     if (inviteCode && typeof inviteCode === "string") {
       const referrer = await Collections.userData(db).findOne(
@@ -171,12 +175,11 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     const vaultId = new ObjectId();
     const userDataId = new ObjectId();
-
     const emailOTP = generateOTP();
     const emailToken = generateSecureToken();
     const phoneOTP = generateOTP();
-
     const defaultRole = "participant" as const;
+
     const phoneData: PhoneNumber = {
       countryCode: phone.countryCode,
       phoneNumber: phone.phoneNumber,
@@ -212,52 +215,33 @@ export async function POST(req: NextRequest) {
     const userDataDoc: UserDataDocument = {
       _id: userDataId,
       vaultId,
-
-      // fullName is now a structured object — not a concatenated string
       fullName: {
         firstname: firstName.trim(),
         lastname: lastName.trim(),
         ...(secondName?.trim() && { secondname: secondName.trim() }),
       },
-
       email: emailLower,
       phone: phoneData,
       role: defaultRole,
       eduStatus: eduStatus as EduStatus,
-
-      // Avatar: never accepted at signup — no upload pipeline has run yet.
-      // Set hasAvatar: false explicitly so profile completion logic doesn't
-      // need to null-check the avatar field.
       hasAvatar: false,
-
-      // Institution: initialize a minimal skeleton so the subdoc always exists
-      // for users who will later fill in academic details.
-      // schoolEmail + verifiedSchoolEmail are set here if provided at signup.
       Institution: {
-        ...(schoolEmailLower && {
-          schoolEmail: schoolEmailLower,
-        }),
-        verifiedSchoolEmail: false, // always false at signup — requires OTP later
+        ...(schoolEmailLower && { schoolEmail: schoolEmailLower }),
+        verifiedSchoolEmail: false,
         gpaRecord: [],
         cgpa: null,
       },
-
       committeeMembership: null,
       skills: (skills as Skill[]) ?? [],
       profileCompleted: false,
-
       membershipStatus: "pending",
       signupInviteCode: generateInviteCode(),
-
-      // Store referrer _id if a valid invite code was used
       ...(referredBy && { referredBy }),
-
       analytics: {
         eventsRegistered: 0,
         eventsAttended: 0,
-        lastActiveAt: now, // set on account creation — baseline for dormancy checks
+        lastActiveAt: now,
       },
-
       preferences: DEFAULT_PREFERENCES,
       createdAt: now,
       updatedAt: now,
@@ -274,7 +258,6 @@ export async function POST(req: NextRequest) {
     });
 
     // ── Mock SMS OTP ──────────────────────────────────────────────────────────
-    // TODO: replace with real SMS provider (Twilio, Termii, etc.) once CAC is ready
     console.log(`[MOCK SMS] To: +${phone.countryCode}${phone.phoneNumber}`);
     console.log(`  Phone OTP: ${phoneOTP}`);
 

@@ -2,16 +2,16 @@
 // Admin + webmaster only.
 // Assigns or updates a user's committee role within their existing membership.
 // User must already be in a committee (approved application) before role can be changed.
-// Body: { role: "MEMBER" | "COORDINATOR" | "HEAD" | "ADMIN" }
+// Body: { role: string } — validated against live committeeRoles collection
 
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
-import { COMMITTEE_ROLES } from "@/types/domain";
 
 const ALLOWED_ROLES = ["admin", "webmaster"];
+
 type Context = {
   params?: Promise<Record<string, string>> | Record<string, string>;
 };
@@ -35,16 +35,34 @@ export const PATCH = withAuth(
       }
 
       const { role } = await req.json();
-      if (!role || !(COMMITTEE_ROLES as string[]).includes(role)) {
+      if (!role || typeof role !== "string") {
         return NextResponse.json(
-          { error: `role must be one of: ${COMMITTEE_ROLES.join(", ")}` },
+          { error: "role is required" },
           { status: 400 },
         );
       }
 
       const db = await getDb();
-      const now = new Date();
 
+      // ── Validate role against live committeeRoles collection ──────────────
+      const roleDoc = await Collections.committeeRoles(db).findOne({
+        slug: role,
+        isActive: true,
+      });
+      if (!roleDoc) {
+        const validRoles = await Collections.committeeRoles(db)
+          .find({ isActive: true }, { projection: { slug: 1, _id: 0 } })
+          .sort({ rank: 1 })
+          .toArray();
+        return NextResponse.json(
+          {
+            error: `Invalid role. Must be one of: ${validRoles.map((r) => r.slug).join(", ")}`,
+          },
+          { status: 400 },
+        );
+      }
+
+      const now = new Date();
       const userData = await Collections.userData(db).findOne({
         _id: new ObjectId(id),
       });
