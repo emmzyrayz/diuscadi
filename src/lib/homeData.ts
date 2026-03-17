@@ -1,20 +1,16 @@
 // lib/homeData.ts
 // Server-side data fetchers for the homepage.
 // All functions run on the server — never imported by client components.
-// No ObjectId or Date objects cross the server→client boundary — all
-// values are serialised to strings/numbers before being returned.
+// No ObjectId or Date objects cross the server→client boundary.
 
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
 import { verifyJWT } from "@/lib/auth";
 import { cookies } from "next/headers";
-import type { EduStatus, CommitteeMembership } from "@/types/domain"; // ← single source of truth
+import type { EduStatus, CommitteeMembership } from "@/types/domain";
 
 // ─── Auth helper ──────────────────────────────────────────────────────────────
-// Reads the JWT from the cookie store (server-side).
-// Client-side auth uses localStorage — set the cookie in your signin route
-// alongside localStorage so server components can read it.
 
 async function getServerAuth() {
   const cookieStore = await cookies();
@@ -28,13 +24,12 @@ async function getServerAuth() {
 }
 
 // ─── Serialisable return types ────────────────────────────────────────────────
-// All dates → ISO strings, all ObjectIds → plain strings.
 
 export interface HomeUser {
   name: string;
-  avatar: string;
+  avatar: string; // imageUrl string or "" — never a CloudinaryImage object
   role: string;
-  eduStatus: EduStatus; // "STUDENT" | "GRADUATE"
+  eduStatus: EduStatus;
   skills: string[];
   committeeMembership: CommitteeMembership | null;
   profileCompleted: boolean;
@@ -48,7 +43,7 @@ export interface HomeFeaturedEvent {
   id: string;
   slug: string;
   title: string;
-  date: string; // ISO string
+  date: string;
   daysLeft: number;
   image: string;
   location: string;
@@ -59,8 +54,8 @@ export interface HomeFeaturedEvent {
 
 export interface HomeScheduledEvent {
   id: string;
-  date: string; // day number padded e.g. "18"
-  month: string; // e.g. "FEB"
+  date: string;
+  month: string;
   title: string;
   time: string;
   location: string;
@@ -78,8 +73,6 @@ export interface HomeRecommendation {
   slug: string;
   image: string;
 }
-
-// ─── Static stub types (used for systems not yet built) ───────────────────────
 
 export interface QuickAction {
   title: string;
@@ -109,6 +102,24 @@ export interface ContinueItem {
   action: string;
 }
 
+// ─── Image resolver ───────────────────────────────────────────────────────────
+// Shared across all fetchers — resolves the best available image URL
+// from the structured CloudinaryImage fields on an event document.
+
+const FALLBACK_EVENT_IMAGE = "/images/events/default.jpg";
+
+function resolveEventImage(e: {
+  hasEventBanner?: boolean;
+  eventBanner?: { imageUrl: string } | null;
+  hasEventLogo?: boolean;
+  eventLogo?: { imageUrl: string } | null;
+}): string {
+  if (e.hasEventBanner && e.eventBanner?.imageUrl)
+    return e.eventBanner.imageUrl;
+  if (e.hasEventLogo && e.eventLogo?.imageUrl) return e.eventLogo.imageUrl;
+  return FALLBACK_EVENT_IMAGE;
+}
+
 // ─── Fetch user data ──────────────────────────────────────────────────────────
 
 export async function fetchHomeUser(): Promise<HomeUser | null> {
@@ -128,6 +139,7 @@ export async function fetchHomeUser(): Promise<HomeUser | null> {
       {
         projection: {
           fullName: 1,
+          hasAvatar: 1,
           avatar: 1,
           eduStatus: 1,
           skills: 1,
@@ -143,9 +155,18 @@ export async function fetchHomeUser(): Promise<HomeUser | null> {
 
   if (!vault || !userData) return null;
 
+  // fullName is now a structured object — build a display string
+  const fn = userData.fullName;
+  const name = fn
+    ? [fn.firstname, fn.secondname, fn.lastname].filter(Boolean).join(" ")
+    : "";
+
+  // avatar is now a CloudinaryImage object — extract the URL for the client
+  const avatarUrl = userData.hasAvatar ? (userData.avatar?.imageUrl ?? "") : "";
+
   return {
-    name: userData.fullName,
-    avatar: userData.avatar ?? "",
+    name,
+    avatar: avatarUrl,
     role: vault.role,
     eduStatus: userData.eduStatus as EduStatus,
     skills: userData.skills ?? [],
@@ -159,7 +180,6 @@ export async function fetchHomeUser(): Promise<HomeUser | null> {
 }
 
 // ─── Fetch featured event ─────────────────────────────────────────────────────
-// Returns the next upcoming published event with open registration.
 
 export async function fetchFeaturedEvent(): Promise<HomeFeaturedEvent | null> {
   const db = await getDb();
@@ -175,8 +195,6 @@ export async function fetchFeaturedEvent(): Promise<HomeFeaturedEvent | null> {
     },
     { $sort: { eventDate: 1 } },
     { $limit: 1 },
-
-    // Count active registrations for slot calculation
     {
       $lookup: {
         from: "eventRegistrations",
@@ -197,8 +215,6 @@ export async function fetchFeaturedEvent(): Promise<HomeFeaturedEvent | null> {
         as: "regCount",
       },
     },
-
-    // Get the first active ticket type
     {
       $lookup: {
         from: "ticketTypes",
@@ -208,7 +224,6 @@ export async function fetchFeaturedEvent(): Promise<HomeFeaturedEvent | null> {
         as: "ticket",
       },
     },
-
     {
       $addFields: {
         registered: { $ifNull: [{ $arrayElemAt: ["$regCount.total", 0] }, 0] },
@@ -235,7 +250,7 @@ export async function fetchFeaturedEvent(): Promise<HomeFeaturedEvent | null> {
     title: event.title,
     date: event.eventDate.toISOString(),
     daysLeft,
-    image: event.image,
+    image: resolveEventImage(event),
     location: locationStr,
     format: event.format,
     slotsRemaining: Math.max(0, event.capacity - (event.registered as number)),
@@ -258,12 +273,7 @@ export async function fetchUpcomingEvents(
   if (!userData) return [];
 
   const pipeline = [
-    {
-      $match: {
-        userId: userData._id,
-        status: { $ne: "cancelled" },
-      },
-    },
+    { $match: { userId: userData._id, status: { $ne: "cancelled" } } },
     {
       $lookup: {
         from: "events",
@@ -313,7 +323,6 @@ export async function fetchUpcomingEvents(
 }
 
 // ─── Fetch recommendations ────────────────────────────────────────────────────
-// Returns published upcoming events matching the user's eduStatus or skills.
 
 export async function fetchRecommendations(
   userData: { skills: string[]; eduStatus: EduStatus },
@@ -321,10 +330,6 @@ export async function fetchRecommendations(
 ): Promise<HomeRecommendation[]> {
   const db = await getDb();
   const now = new Date();
-
-  // targetEduStatus on EventDocument: "ALL" | "STUDENT" | "GRADUATE" (uppercase)
-  // EduStatus in domain.ts:           "STUDENT" | "GRADUATE"  (also uppercase)
-  // No mapping needed — query directly.
 
   const events = await Collections.events(db)
     .find({
@@ -373,13 +378,12 @@ export async function fetchRecommendations(
       meta: metaParts.join(" · "),
       tag,
       slug: String(e.slug),
-      image: String(e.image),
+      image: resolveEventImage(e),
     };
   });
 }
 
 // ─── Static stubs ─────────────────────────────────────────────────────────────
-// Replace each with a real DB call when the corresponding system is built.
 
 export function getStaticQuickActions(): QuickAction[] {
   return [
@@ -394,21 +398,21 @@ export function getStaticAnnouncements(): StaticAnnouncement[] {
   return [
     {
       id: 1,
+      type: "Update",
       title: "DevFest Lagos 2026 Schedule Released!",
       desc: "The full lineup of speakers and workshop tracks is now live.",
-      type: "Update",
     },
     {
       id: 2,
+      type: "New",
       title: "New Career Mentorship Program",
       desc: "Applications now open for the Q2 Senior Executive Mentorship cohort.",
-      type: "New",
     },
     {
       id: 3,
+      type: "Alert",
       title: "Platform Maintenance Notice",
       desc: "The portal will be offline for 2 hours this Sunday for security upgrades.",
-      type: "Alert",
     },
   ];
 }
@@ -446,17 +450,17 @@ export function getStaticContinueItems(): ContinueItem[] {
   return [
     {
       type: "Learning",
-      title: "Resume: Effective Networking for Introverts",
-      status: "65% Complete",
       link: "/learning/module-4",
       action: "Resume Video",
+      title: "Resume: Effective Networking for Introverts",
+      status: "65% Complete",
     },
     {
       type: "Application",
-      title: "Pending: Mentor Match Request",
-      status: "Awaiting your input",
       link: "/mentorship/apply",
       action: "Continue App",
+      title: "Pending: Mentor Match Request",
+      status: "Awaiting your input",
     },
   ];
 }

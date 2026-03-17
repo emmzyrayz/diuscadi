@@ -38,20 +38,20 @@ export interface EventDetail {
     state: string;
     country: string;
   };
-  // Dates — ISO strings (safe to pass through server→client boundary)
   eventDate: string;
   endDate: string;
   registrationDeadline: string;
   duration: string;
-  // Capacity
   capacity: number;
   registered: number;
   slotsRemaining: number;
-  // Price — derived from cheapest active TicketType
   price: string;
   isFree: boolean;
-  // Display
-  image: string;
+  // Image fields — resolved from CloudinaryImage fields on the event document
+  image: string; // banner URL (preferred) or logo URL or fallback
+  logoImage: string; // logo URL or fallback — used in meta bar / OG tags
+  hasGallery: boolean;
+  galleryUrls: string[]; // first 6 gallery imageUrls for preview
   status: string;
   locationScope: string;
 }
@@ -86,6 +86,8 @@ function formatPrice(price: number, currency: string): string {
   }).format(price);
 }
 
+const FALLBACK_IMAGE = "/images/events/default.jpg";
+
 // ── Data fetcher ──────────────────────────────────────────────────────────────
 
 async function fetchEventDetail(
@@ -99,7 +101,6 @@ async function fetchEventDetail(
   });
   if (!doc) return null;
 
-  // Parallel: registration count + cheapest ticket + related events
   const [registered, tickets, relatedDocs] = await Promise.all([
     Collections.eventRegistrations(db).countDocuments({
       eventId: doc._id,
@@ -127,6 +128,15 @@ async function fetchEventDetail(
     ? formatPrice(cheapest.price, cheapest.currency)
     : "Free";
   const now = new Date();
+
+  // ── Resolve image fields ──────────────────────────────────────────────────
+  const bannerUrl = doc.hasEventBanner ? (doc.eventBanner?.imageUrl ?? "") : "";
+  const logoUrl = doc.hasEventLogo ? (doc.eventLogo?.imageUrl ?? "") : "";
+  const heroImage = bannerUrl || logoUrl || FALLBACK_IMAGE;
+  const logoImage = logoUrl || FALLBACK_IMAGE;
+  const galleryUrls = doc.hasEventGallery
+    ? (doc.eventGallery ?? []).slice(0, 6).map((g) => g.imageUrl)
+    : [];
 
   const detail: EventDetail = {
     id: doc._id!.toString(),
@@ -161,7 +171,10 @@ async function fetchEventDetail(
     slotsRemaining: Math.max(0, doc.capacity - registered),
     price: priceStr,
     isFree,
-    image: doc.image ?? "/images/events/default.jpg",
+    image: heroImage,
+    logoImage,
+    hasGallery: doc.hasEventGallery ?? false,
+    galleryUrls,
     status: doc.status,
     locationScope: doc.locationScope ?? "local",
   };
@@ -169,13 +182,18 @@ async function fetchEventDetail(
   const related: RelatedEventItem[] = relatedDocs.map((e) => {
     const d = new Date(e.eventDate as Date);
     const tag = d > now ? "Upcoming" : "Past";
+    const img = e.hasEventBanner
+      ? (e.eventBanner?.imageUrl ?? FALLBACK_IMAGE)
+      : e.hasEventLogo
+        ? (e.eventLogo?.imageUrl ?? FALLBACK_IMAGE)
+        : FALLBACK_IMAGE;
     return {
       id: e._id!.toString(),
       slug: e.slug,
       title: e.title,
       date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
       location: e.location?.city ?? String(e.format),
-      image: e.image ?? "/images/events/default.jpg",
+      image: img,
       tag,
     };
   });
@@ -188,10 +206,10 @@ async function fetchEventDetail(
 export default async function EventDetailPage({
   params,
 }: {
-  params: Promise<{ eventId: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { eventId } = await params;
-  const result = await fetchEventDetail(eventId);
+  const { slug } = await params;
+  const result = await fetchEventDetail(slug);
 
   if (!result) notFound();
 

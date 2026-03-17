@@ -67,6 +67,26 @@ function formatFullDate(d: Date): string {
   );
 }
 
+/**
+ * Resolve the best available image URL for an event document.
+ * Priority: banner → logo → fallback.
+ * The fallback is a static asset so the UI never shows a broken image.
+ */
+function resolveEventImage(
+  e: {
+    hasEventBanner?: boolean;
+    eventBanner?: { imageUrl: string } | null;
+    hasEventLogo?: boolean;
+    eventLogo?: { imageUrl: string } | null;
+  },
+  fallback = "/images/events/default.jpg",
+): string {
+  if (e.hasEventBanner && e.eventBanner?.imageUrl)
+    return e.eventBanner.imageUrl;
+  if (e.hasEventLogo && e.eventLogo?.imageUrl) return e.eventLogo.imageUrl;
+  return fallback;
+}
+
 // ── Data fetcher ──────────────────────────────────────────────────────────────
 
 async function fetchEvents(): Promise<{
@@ -110,7 +130,7 @@ async function fetchEvents(): Promise<{
       location: locationStr,
       format: e.format,
       tag: eventTag(d, now),
-      image: e.image ?? "/images/events/default.jpg",
+      image: resolveEventImage(e),
       category: e.category,
       isFree: true,
     };
@@ -129,7 +149,7 @@ async function fetchEvents(): Promise<{
           : String(spotlightDoc.format),
         description:
           spotlightDoc.shortDescription ?? spotlightDoc.overview ?? "",
-        image: spotlightDoc.image ?? "/images/events/default.jpg",
+        image: resolveEventImage(spotlightDoc),
         registered: registeredCount,
       }
     : null;
