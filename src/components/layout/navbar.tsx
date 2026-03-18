@@ -132,7 +132,13 @@ export default function Navbar() {
               </Link>
             ))}
 
-            <Button className={cn("w-full", "rounded-xl")}>Register</Button>
+            <Link
+              href="/auth"
+              className={cn("w-full", "rounded-xl")}
+              onClick={() => setOpen(false)}
+            >
+              Register
+            </Link>
           </div>
         )}
       </div>

@@ -7,15 +7,17 @@
 // Usage:
 //   <ImageUploader
 //     uploadType="avatar"
-//     currentUrl={profile.avatar}
-//     onSuccess={(url) => console.log("uploaded:", url)}
+//     currentUrl={profile.avatar?.imageUrl}
+//     currentPublicId={profile.avatar?.imagePublicId}
+//     onSuccess={(image) => console.log("uploaded:", image.imageUrl)}
 //   />
 //
 //   <ImageUploader
 //     uploadType="event-banner"
 //     ownerId={event.slug}
-//     currentUrl={event.image}
-//     onSuccess={(url) => setEventImage(url)}
+//     currentUrl={event.eventBanner?.imageUrl}
+//     currentPublicId={event.eventBanner?.imagePublicId}
+//     onSuccess={(image) => setEventBanner(image)}
 //     aspectHint="1200 × 630"
 //   />
 
@@ -33,22 +35,30 @@ import { ImageCropper } from "@/components/ui/ImageCropper";
 import { useImageCropper, CROP_ASPECT } from "@/hooks/useImageCropper";
 import { useMedia } from "@/context/MediaContext";
 import type { UploadType } from "@/lib/services/CloudinaryService";
+import type { CloudinaryImage } from "@/types/cloudinary";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface ImageUploaderProps {
   uploadType: UploadType;
-  currentUrl?: string | null; // existing image to show as preview
-  ownerId?: string; // required for event-banner and org-logo
-  onSuccess?: (secureUrl: string) => void;
-  onRemove?: () => void; // called after successful remove
+  /** Current image URL for preview — pass CloudinaryImage.imageUrl */
+  currentUrl?: string | null;
+  /** Current image publicId — pass CloudinaryImage.imagePublicId, needed for removal */
+  currentPublicId?: string | null;
+  /** Required for all non-avatar types */
+  ownerId?: string;
+  /** Called with the full CloudinaryImage after a successful upload */
+  onSuccess?: (image: CloudinaryImage) => void;
+  /** Called after a successful remove */
+  onRemove?: () => void;
+  /** For gallery items: the imageId of the specific item to remove */
+  galleryImageId?: string;
   className?: string;
-  // Visual config
-  shape?: "square" | "circle"; // default: square
-  aspectHint?: string; // e.g. "1200 × 630" shown in empty state
-  label?: string; // e.g. "Profile picture"
-  cropLabel?: string; // label shown in the crop overlay
-  maxMB?: number; // client-side size guard, default 10
+  shape?: "square" | "circle";
+  aspectHint?: string;
+  label?: string;
+  cropLabel?: string;
+  maxMB?: number;
   disabled?: boolean;
 }
 
@@ -62,9 +72,11 @@ const ACCEPTED_EXT = ".jpg, .jpeg, .png, .webp, .gif";
 export function ImageUploader({
   uploadType,
   currentUrl,
+  currentPublicId,
   ownerId,
   onSuccess,
   onRemove,
+  galleryImageId,
   className,
   shape = "square",
   aspectHint,
@@ -75,15 +87,17 @@ export function ImageUploader({
 }: ImageUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [successUrl, setSuccessUrl] = useState<string | null>(null);
+  const [successImage, setSuccessImage] = useState<CloudinaryImage | null>(
+    null,
+  );
   const [localError, setLocalError] = useState<string | null>(null);
 
   const { uploading, uploadError, uploadImage, removeImage, clearUploadError } =
     useMedia();
   const cropper = useImageCropper(uploadType);
 
-  // The URL to preview — prefer just-uploaded, then existing
-  const previewUrl = successUrl ?? currentUrl ?? null;
+  // Preview URL — prefer just-uploaded, then existing
+  const previewUrl = successImage?.imageUrl ?? currentUrl ?? null;
 
   // ── File validation ────────────────────────────────────────────────────────
   const validateFile = useCallback(
@@ -116,7 +130,6 @@ export function ImageUploader({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) handleFile(file);
-      // Reset input so the same file can be selected again
       e.target.value = "";
     },
     [handleFile],
@@ -141,7 +154,7 @@ export function ImageUploader({
     [handleFile],
   );
 
-  // ── Crop confirmed → upload ────────────────────────────────────────────────
+  // ── Crop confirmed ────────────────────────────────────────────────────────
   const handleCropConfirm = useCallback(
     async (imgEl: HTMLImageElement) => {
       await cropper.confirmCrop(imgEl);
@@ -149,42 +162,54 @@ export function ImageUploader({
     [cropper],
   );
 
-  // After croppedBlob is ready, trigger the upload
+  // ── Upload ────────────────────────────────────────────────────────────────
   const handleUpload = useCallback(async () => {
     if (!cropper.croppedBlob) return;
-    const result = await uploadImage(cropper.croppedBlob, uploadType, ownerId);
-    if (result) {
-      setSuccessUrl(result.secureUrl);
-      onSuccess?.(result.secureUrl);
+
+    // uploadImage returns CloudinaryImage | null — no URL extraction needed
+    const image = await uploadImage(cropper.croppedBlob, uploadType, ownerId);
+    if (image) {
+      setSuccessImage(image);
+      onSuccess?.(image);
       cropper.reset();
     }
   }, [cropper, uploadImage, uploadType, ownerId, onSuccess]);
 
-  // ── Remove ─────────────────────────────────────────────────────────────────
+  // ── Remove ────────────────────────────────────────────────────────────────
   const handleRemove = useCallback(async () => {
-    const url = successUrl ?? currentUrl;
-    if (!url) return;
+    // Use the just-uploaded publicId first, then fall back to the prop
+    const publicId = successImage?.imagePublicId ?? currentPublicId;
+    if (!publicId) return;
 
-    // Extract publicId from URL — format: .../upload/v.../diuscadi/...
-    const match = url.match(/\/diuscadi\/.+(?=\.\w+$|$)/);
-    const publicId = match ? `diuscadi${match[0].split("/diuscadi")[1]}` : null;
-
-    if (publicId) {
-      await removeImage(publicId, uploadType);
+    // removeImage(uploadType, publicId, ownerId?, galleryImageId?)
+    const deleted = await removeImage(
+      uploadType,
+      publicId,
+      ownerId,
+      galleryImageId,
+    );
+    if (deleted) {
+      setSuccessImage(null);
+      onRemove?.();
     }
-    setSuccessUrl(null);
-    onRemove?.();
-  }, [successUrl, currentUrl, removeImage, uploadType, onRemove]);
+  }, [
+    successImage,
+    currentPublicId,
+    removeImage,
+    uploadType,
+    ownerId,
+    galleryImageId,
+    onRemove,
+  ]);
 
-  // ── Error to display ───────────────────────────────────────────────────────
   const errorMsg = localError ?? uploadError;
 
-  // ── Crop overlay (shown when file is selected/cropped) ────────────────────
+  // ── Crop overlay ──────────────────────────────────────────────────────────
   if (cropper.state === "selected" || cropper.state === "cropping") {
     return (
       <div className={cn("w-full", className)}>
         {cropper.srcUrl && (
-          <div className={cn('glass', 'rounded-3xl', 'p-5')}>
+          <div className={cn("glass", "rounded-3xl", "p-5")}>
             <ImageCropper
               srcUrl={cropper.srcUrl}
               crop={cropper.crop}
@@ -201,13 +226,29 @@ export function ImageUploader({
     );
   }
 
-  // ── Post-crop preview (show cropped blob, confirm to upload) ──────────────
+  // ── Post-crop preview ─────────────────────────────────────────────────────
   if (cropper.state === "cropped" && cropper.croppedBlob) {
     const blobUrl = URL.createObjectURL(cropper.croppedBlob);
     return (
       <div className={cn("w-full", className)}>
-        <div className={cn('glass', 'rounded-3xl', 'p-5', 'flex', 'flex-col', 'gap-4')}>
-          <p className={cn('text-sm', 'font-bold', 'text-foreground', 'tracking-tight')}>
+        <div
+          className={cn(
+            "glass",
+            "rounded-3xl",
+            "p-5",
+            "flex",
+            "flex-col",
+            "gap-4",
+          )}
+        >
+          <p
+            className={cn(
+              "text-sm",
+              "font-bold",
+              "text-foreground",
+              "tracking-tight",
+            )}
+          >
             {label ?? "Preview"}
           </p>
 
@@ -217,20 +258,22 @@ export function ImageUploader({
               shape === "circle"
                 ? "rounded-full aspect-square w-32 mx-auto"
                 : "rounded-2xl w-full",
-              uploadType === "event-banner"
+              uploadType === "event-banner" || uploadType === "inst-banner"
                 ? "aspect-[1200/630]"
-                : "aspect-square",
+                : uploadType === "event-gallery"
+                  ? "aspect-[4/3]"
+                  : "aspect-square",
             )}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={blobUrl}
               alt="Cropped preview"
-              className={cn('w-full', 'h-full', 'object-cover')}
+              className={cn("w-full", "h-full", "object-cover")}
             />
           </div>
 
-          <div className={cn('flex', 'gap-2')}>
+          <div className={cn("flex", "gap-2")}>
             <button
               onClick={cropper.reset}
               disabled={uploading}
@@ -255,11 +298,12 @@ export function ImageUploader({
             >
               {uploading ? (
                 <>
-                  <LuLoader className={cn('w-3.5', 'h-3.5', 'animate-spin')} /> Uploading…
+                  <LuLoader className={cn("w-3.5", "h-3.5", "animate-spin")} />{" "}
+                  Uploading…
                 </>
               ) : (
                 <>
-                  <LuUpload className={cn('w-3.5', 'h-3.5')} /> Upload
+                  <LuUpload className={cn("w-3.5", "h-3.5")} /> Upload
                 </>
               )}
             </button>
@@ -269,7 +313,7 @@ export function ImageUploader({
     );
   }
 
-  // ── Default: drop zone (with optional current image preview) ─────────────
+  // ── Default: drop zone ────────────────────────────────────────────────────
   return (
     <div className={cn("w-full", className)}>
       <input
@@ -291,9 +335,11 @@ export function ImageUploader({
               shape === "circle"
                 ? "rounded-full aspect-square w-32 mx-auto"
                 : "rounded-2xl w-full",
-              uploadType === "event-banner"
+              uploadType === "event-banner" || uploadType === "inst-banner"
                 ? "aspect-[1200/630]"
-                : "aspect-square max-w-[200px] mx-auto",
+                : uploadType === "event-gallery"
+                  ? "aspect-[4/3]"
+                  : "aspect-square max-w-[200px] mx-auto",
             )}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -326,7 +372,7 @@ export function ImageUploader({
           )}
 
           {/* Success indicator */}
-          {successUrl && (
+          {successImage && (
             <div
               className={cn(
                 "absolute",
