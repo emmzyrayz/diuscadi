@@ -27,7 +27,7 @@ export interface RegisterEventData {
   capacity: number;
   registered: number;
   slotsRemaining: number;
-  registrationDeadline: string; // ISO string for countdown
+  registrationDeadline: string;
   ticketTypes: TicketTypeOption[];
 }
 
@@ -36,14 +36,14 @@ export interface TicketTypeOption {
   name: string;
   price: number;
   currency: string;
-  label: string; // formatted price string
+  label: string;
 }
 
 export interface RegisterUserData {
   id: string;
   name: string;
   email: string;
-  avatar: string;
+  avatar: string; // imageUrl string — never a CloudinaryImage object
   role: string;
   hasAvatar: boolean;
 }
@@ -68,6 +68,8 @@ function fmtDate(d: Date) {
   });
 }
 
+const FALLBACK_IMAGE = "/images/events/default.jpg";
+
 // ── Data fetcher ──────────────────────────────────────────────────────────────
 
 async function fetchRegisterData(
@@ -82,9 +84,8 @@ async function fetchRegisterData(
   });
   if (!doc) return null;
 
-  // Check deadline hasn't passed
   const deadline = new Date(doc.registrationDeadline as Date);
-  if (deadline < now) return null; // closed
+  if (deadline < now) return null;
 
   const [registered, tickets] = await Promise.all([
     Collections.eventRegistrations(db).countDocuments({
@@ -107,6 +108,13 @@ async function fetchRegisterData(
     ? fmtPrice(cheapest.price, cheapest.currency)
     : "Free";
 
+  // Resolve image: banner → logo → fallback
+  const image = doc.hasEventBanner
+    ? (doc.eventBanner?.imageUrl ?? FALLBACK_IMAGE)
+    : doc.hasEventLogo
+      ? (doc.eventLogo?.imageUrl ?? FALLBACK_IMAGE)
+      : FALLBACK_IMAGE;
+
   return {
     id: doc._id!.toString(),
     slug: doc.slug,
@@ -115,7 +123,7 @@ async function fetchRegisterData(
     format: doc.format,
     eventDate: fmtDate(new Date(doc.eventDate as Date)),
     location: locationStr,
-    image: doc.image ?? "/images/events/default.jpg",
+    image,
     price: priceStr,
     isFree,
     capacity: doc.capacity,
@@ -141,14 +149,10 @@ export default async function RegisterPage({
 }) {
   const { eventId } = await params;
 
-  // Fetch event data
   const event = await fetchRegisterData(eventId);
   if (!event) notFound();
-
-  // Sold out
   if (event.slotsRemaining === 0) notFound();
 
-  // Resolve auth from cookie — same pattern as home page
   let authUser: RegisterUserData | null = null;
   try {
     const cookieStore = await cookies();
@@ -164,13 +168,27 @@ export default async function RegisterPage({
           const vault = await Collections.vault(db).findOne({
             _id: new ObjectId(payload.vaultId),
           });
+
+          // fullName is now a structured object — build display string
+          const fn = userData.fullName;
+          const name = fn
+            ? [fn.firstname, fn.secondname, fn.lastname]
+                .filter(Boolean)
+                .join(" ")
+            : "";
+
+          // avatar is now a CloudinaryImage — extract URL for the client
+          const avatarUrl = userData.hasAvatar
+            ? (userData.avatar?.imageUrl ?? "")
+            : "";
+
           authUser = {
             id: userData._id!.toString(),
-            name: userData.fullName ?? "",
+            name,
             email: vault?.email ?? "",
-            avatar: userData.avatar ?? "",
+            avatar: avatarUrl,
             role: userData.role ?? "participant",
-            hasAvatar: !!userData.avatar,
+            hasAvatar: userData.hasAvatar,
           };
         }
       }
@@ -179,104 +197,58 @@ export default async function RegisterPage({
     // unauthenticated — authUser stays null
   }
 
-  // Auth states
   const isUnauthenticated = !authUser;
   const isIncomplete = authUser && !authUser.hasAvatar;
   const isVerified = authUser && authUser.hasAvatar;
 
-  return (
-    <main
-      className={cn("min-h-screen", "bg-muted/50", "pb-20", "pt-[72px]")}
+  // ── Breadcrumb (shared across all auth states) ────────────────────────────
+  const Breadcrumb = (
+    <div
+      className={cn(
+        "w-full",
+        "bg-background",
+        "border-b",
+        "border-border",
+        "py-6",
+      )}
     >
+      <div className={cn("max-w-7xl", "mx-auto", "px-4", "sm:px-6", "lg:px-8")}>
+        <div
+          className={cn(
+            "flex",
+            "items-center",
+            "gap-2",
+            "text-xs",
+            "font-bold",
+            "text-muted-foreground",
+            "uppercase",
+            "tracking-widest",
+          )}
+        >
+          <span>Events</span>
+          <span className="text-slate-200">/</span>
+          <span className={cn("text-slate-600", "truncate", "max-w-xs")}>
+            {event.title}
+          </span>
+          <span className="text-slate-200">/</span>
+          <span className="text-primary">Registration</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <main className={cn("min-h-screen", "bg-muted/50", "pb-20", "pt-[72px]")}>
       {isUnauthenticated && (
         <>
-          {/* Still show the event summary at top so user knows what they're registering for */}
-          <div
-            className={cn(
-              "w-full",
-              "bg-background",
-              "border-b",
-              "border-border",
-              "py-6",
-            )}
-          >
-            <div
-              className={cn(
-                "max-w-7xl",
-                "mx-auto",
-                "px-4",
-                "sm:px-6",
-                "lg:px-8",
-              )}
-            >
-              <div
-                className={cn(
-                  "flex",
-                  "items-center",
-                  "gap-2",
-                  "text-xs",
-                  "font-bold",
-                  "text-muted-foreground",
-                  "uppercase",
-                  "tracking-widest",
-                )}
-              >
-                <span>Events</span>
-                <span className="text-slate-200">/</span>
-                <span className={cn("text-slate-600", "truncate", "max-w-xs")}>
-                  {event.title}
-                </span>
-                <span className="text-slate-200">/</span>
-                <span className="text-primary">Registration</span>
-              </div>
-            </div>
-          </div>
+          {Breadcrumb}
           <AuthRequiredCard eventSlug={event.slug} />
         </>
       )}
 
       {isIncomplete && (
         <>
-          <div
-            className={cn(
-              "w-full",
-              "bg-background",
-              "border-b",
-              "border-border",
-              "py-6",
-            )}
-          >
-            <div
-              className={cn(
-                "max-w-7xl",
-                "mx-auto",
-                "px-4",
-                "sm:px-6",
-                "lg:px-8",
-              )}
-            >
-              <div
-                className={cn(
-                  "flex",
-                  "items-center",
-                  "gap-2",
-                  "text-xs",
-                  "font-bold",
-                  "text-muted-foreground",
-                  "uppercase",
-                  "tracking-widest",
-                )}
-              >
-                <span>Events</span>
-                <span className="text-slate-200">/</span>
-                <span className={cn("text-slate-600", "truncate", "max-w-xs")}>
-                  {event.title}
-                </span>
-                <span className="text-slate-200">/</span>
-                <span className="text-primary">Registration</span>
-              </div>
-            </div>
-          </div>
+          {Breadcrumb}
           <CompleteProfilePrompt />
         </>
       )}
