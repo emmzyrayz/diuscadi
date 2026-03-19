@@ -1,20 +1,5 @@
 "use client";
 // context/UserContext.tsx
-//
-// Owns the full UserData profile for the authenticated user.
-// Auth state (JWT, session, role) lives in AuthContext — this context
-// manages platform profile data only.
-//
-// Data flow:
-//   1. Mount        → seed from AuthContext.user (populated by /api/auth/me)
-//                     Gives the UI instant basic data with zero extra fetches.
-//   2. Profile page → call refreshProfile() to load Institution, bio, analytics
-//                     from GET /api/users/profile
-//   3. Updates      → dedicated methods each calling their own endpoint:
-//                     updateProfile()     → PATCH /api/users/profile
-//                     updateInstitution() → PATCH /api/users/institution
-//                     updateSkills()      → PATCH /api/users/skills
-//                     updateCommittee()   → PATCH /api/users/committee (leave only)
 
 import React, {
   createContext,
@@ -35,6 +20,7 @@ import type {
   UserPreferences,
 } from "@/types/domain";
 import { DEFAULT_PREFERENCES } from "@/types/domain";
+import type { CloudinaryImage } from "@/types/cloudinary";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,40 +31,61 @@ export interface Institution {
   faculty?: string;
   level?: string;
   semester?: "First" | "Second";
+  enrollmentYear?: number;
   graduationYear?: number;
-  currentStatus?: string;
+  currentStatus?: "Graduate" | "Student";
+  schoolEmail?: string;
+  verifiedSchoolEmail?: boolean;
+  cgpa?: number | null;
 }
 
 export interface UserProfile {
   id: string;
-  fullName: string;
+  fullName: {
+    firstname: string;
+    secondname?: string;
+    lastname: string;
+  };
   email: string;
-  avatar?: string;
   phone?: PhoneNumber;
-  schoolEmail?: string;
   role: AccountRole;
   eduStatus: EduStatus;
 
-  // Single committee membership — null = not in any committee yet
-  committeeMembership: CommitteeMembership | null;
+  // avatar is a CloudinaryImage object — never a plain string.
+  // hasAvatar is the cheap boolean flag for presence checks.
+  hasAvatar: boolean;
+  avatar?: CloudinaryImage;
 
+  socials?: {
+    linkedin?: string;
+    github?: string;
+    twitter?: string;
+    portfolio?: string;
+  };
+
+  committeeMembership: CommitteeMembership | null;
   skills: Skill[];
   profileCompleted: boolean;
   membershipStatus: "pending" | "approved" | "suspended";
+
   location?: {
     country?: string;
     state?: string;
     city?: string;
   };
+
   Institution?: Institution;
   profile?: {
     bio?: string;
   };
+
   analytics: {
     eventsRegistered: number;
     eventsAttended: number;
     lastEventRegisteredAt?: string;
+    lastActiveAt?: string;
   };
+
   signupInviteCode: string;
   preferences: UserPreferences;
   createdAt: string;
@@ -99,14 +106,13 @@ interface UserContextType {
 
   refreshProfile: () => Promise<void>;
   updateProfile: (data: {
-    fullName?: string;
-    avatar?: string;
+    fullName?: { firstname: string; secondname?: string; lastname: string };
     bio?: string;
     phone?: PhoneNumber;
+    // avatar intentionally absent — set exclusively via /api/media/confirm
   }) => Promise<UpdateResult>;
   updateInstitution: (data: Partial<Institution>) => Promise<UpdateResult>;
   updateSkills: (skills: Skill[]) => Promise<UpdateResult>;
-  // Only supports leaving (null) — joining requires POST /api/applications
   updateCommittee: (committee: Committee | null) => Promise<UpdateResult>;
   updatePreferences: (prefs: Partial<UserPreferences>) => Promise<UpdateResult>;
   clearError: () => void;
@@ -116,7 +122,7 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// ─── Internal helpers ─────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -131,14 +137,28 @@ function authHeaders(): HeadersInit {
   };
 }
 
+function parseFullName(raw: unknown): UserProfile["fullName"] {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const obj = raw as Record<string, unknown>;
+    return {
+      firstname: String(obj.firstname ?? ""),
+      secondname: obj.secondname != null ? String(obj.secondname) : undefined,
+      lastname: String(obj.lastname ?? ""),
+    };
+  }
+  // Legacy fallback: treat as first name only
+  return { firstname: String(raw ?? ""), lastname: "" };
+}
+
 function parseProfile(raw: Record<string, unknown>): UserProfile {
   return {
     id: String(raw._id ?? ""),
-    fullName: String(raw.fullName ?? ""),
+    fullName: parseFullName(raw.fullName),
     email: String(raw.email ?? ""),
-    avatar: raw.avatar as string | undefined,
+    hasAvatar: Boolean(raw.hasAvatar),
+    avatar: raw.avatar as CloudinaryImage | undefined,
     phone: raw.phone as PhoneNumber | undefined,
-    schoolEmail: raw.schoolEmail as string | undefined,
+    socials: raw.socials as UserProfile["socials"],
     role: (raw.role ?? "participant") as AccountRole,
     eduStatus: (raw.eduStatus ?? "STUDENT") as EduStatus,
     committeeMembership: (raw.committeeMembership ??
@@ -203,10 +223,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Step 1: seed from AuthContext on login ────────────────────────────────
+  // ── Seed from AuthContext on login ─────────────────────────────────────────
   useEffect(() => {
     if (sessionStatus === "pending") return;
-
     if (!isAuthenticated || !user) {
       setProfile(null);
       return;
@@ -214,11 +233,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     setProfile({
       id: user.userDataId ?? "",
-      fullName: user.fullName ?? "",
+      fullName: parseFullName(user.fullName),
       email: user.email ?? "",
-      avatar: user.avatar,
+      hasAvatar: user.hasAvatar ?? false,
+      avatar: user.avatar as CloudinaryImage | undefined,
       phone: user.phone,
-      schoolEmail: user.schoolEmail,
       role: user.role,
       eduStatus: user.eduStatus,
       committeeMembership: user.committeeMembership ?? null,
@@ -230,13 +249,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       profile: undefined,
       analytics: { eventsRegistered: 0, eventsAttended: 0 },
       signupInviteCode: "",
-      preferences: user.preferences, // ← from AuthContext.user, populated by /api/auth/me
+      preferences: user.preferences,
       createdAt: "",
       updatedAt: "",
     });
   }, [isAuthenticated, sessionStatus, user]);
 
-  // ── Step 2: refreshProfile → GET /api/users/profile ──────────────────────
+  // ── Full profile fetch ─────────────────────────────────────────────────────
   const refreshProfile = useCallback(async () => {
     if (!isAuthenticated) return;
     setIsLoading(true);
@@ -254,20 +273,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isAuthenticated]);
 
-  // ── Step 2b: auto-fetch full profile on mount ────────────────────────────
-  // Runs once when sessionStatus becomes "restored" (i.e. auth check done).
-  // Populates preferences, Institution, analytics etc. across ALL pages so
-  // ThemeProvider always has the real theme — no page needs to call
-  // refreshProfile() manually just to get the correct accent/mode.
   useEffect(() => {
     if (sessionStatus !== "restored" || !isAuthenticated) return;
     refreshProfile();
   }, [sessionStatus, isAuthenticated, refreshProfile]);
 
+  // ── Update methods ─────────────────────────────────────────────────────────
+
   const updateProfile = useCallback(
     (data: {
-      fullName?: string;
-      avatar?: string;
+      fullName?: { firstname: string; secondname?: string; lastname: string };
       bio?: string;
       phone?: PhoneNumber;
     }) =>
@@ -305,7 +320,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
-  // Only supports leaving (null). Joining requires POST /api/applications.
   const updateCommittee = useCallback(
     (committee: Committee | null) =>
       callPatch(
@@ -323,16 +337,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       setError(null);
       try {
-        const token =
-          typeof window !== "undefined"
-            ? localStorage.getItem("diuscadi_token")
-            : null;
         const res = await fetch("/api/users/preferences", {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+          headers: authHeaders(),
           body: JSON.stringify(prefs),
         });
         const data = await res.json();
@@ -340,7 +347,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           setError(data.error ?? "Failed to update preferences");
           return { success: false, error: data.error };
         }
-        // Merge the returned preferences back into profile
         setProfile((prev) =>
           prev ? { ...prev, preferences: data.preferences } : prev,
         );

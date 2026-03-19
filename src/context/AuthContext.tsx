@@ -18,8 +18,8 @@ import type {
   UserPreferences,
 } from "@/types/domain";
 import { DEFAULT_PREFERENCES } from "@/types/domain";
+import type { CloudinaryImage } from "@/types/cloudinary";
 
-// Re-export for consumers (RouteGuard, forms, etc.)
 export type { EduStatus, AccountRole, Committee, CommitteeMembership, Skill };
 
 // ─── 1. Types ────────────────────────────────────────────────────────────────
@@ -37,32 +37,43 @@ export interface User {
 
   // From UserData
   userDataId: string;
-  fullName: string;
-  avatar?: string;
+
+  // fullName is now a structured object — not a plain string
+  fullName: {
+    firstname: string;
+    secondname?: string;
+    lastname: string;
+  };
+
+  // avatar is a CloudinaryImage — never a plain string
+  hasAvatar: boolean;
+  avatar?: CloudinaryImage;
+
   schoolEmail?: string;
   committeeMembership: CommitteeMembership | null;
   skills: Skill[];
   membershipStatus: "pending" | "approved" | "suspended";
   profileCompleted: boolean;
-  preferences: UserPreferences; // ← loaded from /api/auth/me so ThemeProvider gets it immediately
+  preferences: UserPreferences;
 }
 
 export interface SigninCredentials {
-  identifier: string; // personal email or phone number
+  identifier: string;
   password: string;
 }
 
 export interface SignupData {
   firstName: string;
   lastName: string;
+  secondName?: string;
   email: string;
   password: string;
   confirmPassword: string;
   eduStatus: EduStatus;
   phone: PhoneNumber;
-  avatar?: string;
   schoolEmail?: string;
   skills?: Skill[];
+  inviteCode?: string;
 }
 
 export interface AuthError {
@@ -70,20 +81,13 @@ export interface AuthError {
   field?: string;
 }
 
-/**
- * "pending"         → app just mounted, session check in progress (show splash)
- * "restored"        → valid session found and user is set
- * "unauthenticated" → no session or session expired (show login)
- */
 export type SessionStatus = "pending" | "restored" | "unauthenticated";
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  /** True only during signin / signup / resetPassword actions — NOT during session restore */
   isLoading: boolean;
-  /** Tracks the initial session resolution lifecycle — use this to drive your app-level splash screen */
   sessionStatus: SessionStatus;
   error: AuthError | null;
 
@@ -98,7 +102,7 @@ interface AuthContextType {
   clearError: () => void;
 }
 
-// ─── 2. Helpers ──────────────────────────────────────────────────────────────
+// ─── 2. Helpers ───────────────────────────────────────────────────────────────
 
 const TOKEN_KEY = "diuscadi_token";
 
@@ -137,39 +141,52 @@ async function apiFetch<T>(
 
   const res = await fetch(url, { ...options, headers });
   const data = await res.json();
-
   if (!res.ok) throw new Error(data.error ?? data.message ?? "Request failed");
   return data as T;
 }
 
-// ─── 4. Map /api/auth/me response → User ─────────────────────────────────────
+// ─── 4. Parse /api/auth/me → User ────────────────────────────────────────────
+
+function parseFullName(raw: unknown): User["fullName"] {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const obj = raw as Record<string, unknown>;
+    return {
+      firstname: String(obj.firstname ?? ""),
+      secondname: obj.secondname != null ? String(obj.secondname) : undefined,
+      lastname: String(obj.lastname ?? ""),
+    };
+  }
+  // Legacy fallback — treat raw string as firstname only
+  return { firstname: String(raw ?? ""), lastname: "" };
+}
 
 function parseUserFromMe(
   vault: Record<string, unknown>,
   userData: Record<string, unknown>,
 ): User {
   return {
-    // From Vault
-    id: vault._id as string,
-    email: vault.email as string,
+    // ── From Vault ──────────────────────────────────────────────────────────
+    id: String(vault._id ?? ""),
+    email: String(vault.email ?? ""),
     phone: vault.phone as PhoneNumber,
     role: vault.role as AccountRole,
     eduStatus: vault.eduStatus as EduStatus,
-    isEmailVerified: vault.isEmailVerified as boolean,
-    isPhoneVerified: vault.isPhoneVerified as boolean,
-    isAccountActive: vault.isAccountActive as boolean,
+    isEmailVerified: Boolean(vault.isEmailVerified),
+    isPhoneVerified: Boolean(vault.isPhoneVerified),
+    isAccountActive: Boolean(vault.isAccountActive),
 
-    // From UserData
-    userDataId: userData._id as string,
-    fullName: userData.fullName as string,
-    avatar: userData.avatar as string | undefined,
+    // ── From UserData ────────────────────────────────────────────────────────
+    userDataId: String(userData._id ?? ""),
+    fullName: parseFullName(userData.fullName),
+    hasAvatar: Boolean(userData.hasAvatar),
+    avatar: userData.avatar as CloudinaryImage | undefined,
     schoolEmail: userData.schoolEmail as string | undefined,
     committeeMembership: (userData.committeeMembership ??
       null) as CommitteeMembership | null,
     skills: (userData.skills ?? []) as Skill[],
     membershipStatus: (userData.membershipStatus ??
       "pending") as User["membershipStatus"],
-    profileCompleted: userData.profileCompleted as boolean,
+    profileCompleted: Boolean(userData.profileCompleted),
     preferences:
       (userData.preferences as UserPreferences | undefined) ??
       DEFAULT_PREFERENCES,
@@ -194,7 +211,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const clearError = useCallback(() => setError(null), []);
 
-  // ── Session Restore on Mount ──────────────────────────────────────────────
+  // ── Session restore ────────────────────────────────────────────────────────
   useEffect(() => {
     const restoreSession = async () => {
       const storedToken = storage.get(TOKEN_KEY);
@@ -218,11 +235,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSessionStatus("unauthenticated");
       }
     };
-
     restoreSession();
   }, []);
 
-  // ── Signin ────────────────────────────────────────────────────────────────
+  // ── Signin ─────────────────────────────────────────────────────────────────
   const signin = useCallback(
     async (credentials: SigninCredentials) => {
       setIsLoading(true);
@@ -268,7 +284,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [router],
   );
 
-  // ── Signup ────────────────────────────────────────────────────────────────
+  // ── Signup ─────────────────────────────────────────────────────────────────
+  // Note: avatar removed from signup — uploaded separately after account creation.
   const signup = useCallback(
     async (data: SignupData) => {
       setIsLoading(true);
@@ -282,13 +299,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           body: JSON.stringify({
             firstName: data.firstName,
             lastName: data.lastName,
+            secondName: data.secondName,
             email: data.email,
             password: data.password,
             eduStatus: data.eduStatus,
             phone: data.phone,
-            avatar: data.avatar,
             schoolEmail: data.schoolEmail,
             skills: data.skills,
+            inviteCode: data.inviteCode,
           }),
         });
         router.push(`/auth/verify?email=${encodeURIComponent(data.email)}`);
@@ -307,7 +325,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [router],
   );
 
-  // ── Logout ────────────────────────────────────────────────────────────────
+  // ── Logout ─────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     const storedToken = storage.get(TOKEN_KEY);
     try {
@@ -315,7 +333,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await apiFetch("/api/auth/signout", { method: "POST" }, storedToken);
       }
     } catch {
-      // Swallow — clear client state regardless
+      /* swallow — clear client state regardless */
     } finally {
       clearStoredSession();
       setToken(null);
@@ -326,7 +344,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [router]);
 
-  // ── Forgot Password ───────────────────────────────────────────────────────
+  // ── Forgot password ────────────────────────────────────────────────────────
   const forgotPassword = useCallback(async (email: string) => {
     setError(null);
     try {
@@ -342,7 +360,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // ── Verify Email (OTP) ────────────────────────────────────────────────────
+  // ── Verify email OTP ───────────────────────────────────────────────────────
   const verifyEmail = useCallback(
     async (code: string, email: string) => {
       setIsLoading(true);
@@ -367,7 +385,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [router],
   );
 
-  // ── Resend Verification ───────────────────────────────────────────────────
+  // ── Resend verification ────────────────────────────────────────────────────
   const resendVerification = useCallback(async (email: string) => {
     setError(null);
     try {
@@ -383,7 +401,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // ── Verify Reset OTP ──────────────────────────────────────────────────────
+  // ── Verify reset OTP ───────────────────────────────────────────────────────
   const verifyResetOtp = useCallback(
     async (email: string, code: string): Promise<string> => {
       setError(null);
@@ -403,7 +421,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
-  // ── Reset Password ────────────────────────────────────────────────────────
+  // ── Reset password ─────────────────────────────────────────────────────────
   const resetPassword = useCallback(
     async (resetToken: string, newPassword: string) => {
       setIsLoading(true);
@@ -428,7 +446,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [router],
   );
 
-  // ── Provider value ────────────────────────────────────────────────────────
   return (
     <AuthContext.Provider
       value={{

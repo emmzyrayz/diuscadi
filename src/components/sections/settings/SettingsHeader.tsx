@@ -10,9 +10,22 @@ interface SettingsHeaderProps {
 }
 
 export const SettingsHeader = ({ profile }: SettingsHeaderProps) => {
-  const name = profile?.fullName ?? "Loading…";
+  // Build display string from structured fullName object
+  const name = profile
+    ? [
+        profile.fullName.firstname,
+        profile.fullName.secondname,
+        profile.fullName.lastname,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : "Loading…";
+
   const email = profile?.email ?? "";
-  const avatar = profile?.avatar;
+  // Extract URL string from CloudinaryImage — never pass the object to <Image src>
+  const avatarUrl = profile?.hasAvatar
+    ? (profile.avatar?.imageUrl ?? null)
+    : null;
 
   return (
     <header
@@ -100,9 +113,9 @@ export const SettingsHeader = ({ profile }: SettingsHeaderProps) => {
                 "shrink-0",
               )}
             >
-              {avatar ? (
+              {avatarUrl ? (
                 <Image
-                  src={avatar}
+                  src={avatarUrl}
                   alt={name}
                   width={48}
                   height={48}

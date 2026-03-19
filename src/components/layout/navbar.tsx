@@ -94,9 +94,12 @@ export default function Navbar() {
           {/* Right Side */}
           <div className={cn("flex", "items-center", "gap-3")}>
             {/* Register Button */}
-            <Button className={cn("hidden", "md:flex", "rounded-xl")}>
-              Register
-            </Button>
+            <Link
+              href="/auth"
+              className={cn("hidden", "md:flex", "rounded-xl")}
+            >
+              <Button>Register</Button>
+            </Link>
 
             {/* Mobile Menu Button */}
             <button className="md:hidden" onClick={() => setOpen(!open)}>
@@ -132,12 +135,8 @@ export default function Navbar() {
               </Link>
             ))}
 
-            <Link
-              href="/auth"
-              className={cn("w-full", "rounded-xl")}
-              onClick={() => setOpen(false)}
-            >
-              Register
+            <Link href="/auth" className={cn("w-full", "rounded-xl")}>
+              <Button>Register</Button>
             </Link>
           </div>
         )}

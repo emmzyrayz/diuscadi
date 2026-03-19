@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { EditProfileHeader } from "@/components/sections/profile/edit/EPHeader";
 import { EditProfileSidebar } from "@/components/sections/profile/edit/EPSideBar";
 import { ProfilePreviewCard } from "@/components/sections/profile/edit/ProfilePreviewCard";
@@ -10,69 +10,63 @@ import { ContactInfoSection } from "@/components/sections/profile/edit/ContactIn
 import { SocialLinksSection } from "@/components/sections/profile/edit/SocialLink";
 import { PreferencesSection } from "@/components/sections/profile/edit/Preferences";
 import { SaveChangesSection } from "@/components/sections/profile/edit/SaveChanges";
-import { toast, Toaster } from "react-hot-toast"; // For the Success Toast
+import { toast, Toaster } from "react-hot-toast";
 import { cn } from "../../../lib/utils";
 import { useUser } from "@/context/UserContext";
 
 export default function EditProfilePage() {
   const { profile, updateProfile } = useUser();
 
-  // 1. Central State for Live Preview & Tracking
-  const [formData, setFormData] = useState({
-    firstName: "Alexander",
-    lastName: "Chidubem",
-    username: "",
-    bio: "",
-    role: "Senior Fullstack Developer",
-    organization: "TechNexus Africa",
-    city: "Lagos, Nigeria",
-    path: "DEVELOPER",
-    image: null as string | null,
-  });
+  // ── Form state ─────────────────────────────────────────────────────────────
+  // Seeded from profile on first render via useMemo — no useEffect needed.
+  // fullName is split into firstname/lastname for the form inputs; the object
+  // shape is reassembled on save.
 
+  const initial = useMemo(() => {
+    const fn = profile?.fullName;
+    return {
+      firstName: fn?.firstname ?? "Alexander",
+      secondName: fn?.secondname ?? "",
+      lastName: fn?.lastname ?? "Chidubem",
+      username: "",
+      bio: profile?.profile?.bio ?? "",
+      role: "Senior Fullstack Developer", // UI-only, no backend field yet
+      organization: profile?.Institution?.name ?? "TechNexus Africa",
+      city:
+        [
+          profile?.location?.city,
+          profile?.location?.state,
+          profile?.location?.country,
+        ]
+          .filter(Boolean)
+          .join(", ") || "Lagos, Nigeria",
+      path: "DEVELOPER",
+      // image is a display URL string — extract from CloudinaryImage or use null
+      image: profile?.hasAvatar ? (profile.avatar?.imageUrl ?? null) : null,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — seed once on mount, user edits control state after
+
+  const [formData, setFormData] = useState(initial);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(new Date());
   const [activeSection, setActiveSection] = useState("basic");
 
-  // Seed form preview from real profile when available
-  useEffect(() => {
-    if (!profile) return;
+  // ── Save ───────────────────────────────────────────────────────────────────
 
-    const fullName = profile.fullName ?? "";
-    const [firstName, ...rest] = fullName.split(" ").filter(Boolean);
-    const lastName = rest.join(" ");
-
-    const cityParts = [
-      profile.location?.city,
-      profile.location?.state,
-      profile.location?.country,
-    ].filter(Boolean);
-
-    setFormData((prev) => ({
-      ...prev,
-      firstName: firstName || prev.firstName,
-      lastName: lastName || prev.lastName,
-      username: prev.username, // no username field in backend yet
-      bio: profile.profile?.bio ?? prev.bio,
-      role: prev.role, // keep design-specific role text for now
-      organization: profile.Institution?.name ?? prev.organization,
-      city: cityParts.join(", ") || prev.city,
-      path: prev.path,
-      image: profile.avatar ?? prev.image,
-    }));
-    setHasChanges(false);
-  }, [profile]);
-
-  // 2. Save Function — persists basic profile fields
   const handleSave = async () => {
     if (!profile) return;
 
     setIsSaving(true);
-    const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim();
 
+    // Reassemble the structured fullName object from form inputs
     const result = await updateProfile({
-      fullName: fullName || profile.fullName,
+      fullName: {
+        firstname: formData.firstName.trim() || profile.fullName.firstname,
+        secondname: formData.secondName.trim() || undefined,
+        lastname: formData.lastName.trim() || profile.fullName.lastname,
+      },
       bio: formData.bio,
     });
 
@@ -102,7 +96,6 @@ export default function EditProfilePage() {
     <main className={cn("min-h-screen w-full", "bg-background")}>
       <Toaster position="bottom-right" />
 
-      {/* Premium Sticky Header */}
       <EditProfileHeader
         isSaving={isSaving}
         hasChanges={hasChanges}
@@ -120,7 +113,7 @@ export default function EditProfilePage() {
         )}
       >
         <div className={cn("grid", "grid-cols-1", "lg:grid-cols-12", "gap-8")}>
-          {/* LEFT: Sidebar Nav (Col 2) */}
+          {/* LEFT: Sidebar Nav */}
           <aside className={cn("hidden", "lg:block", "lg:col-span-2")}>
             <EditProfileSidebar
               activeSection={activeSection}
@@ -134,7 +127,7 @@ export default function EditProfilePage() {
             />
           </aside>
 
-          {/* CENTER: Main Form (Col 7) */}
+          {/* CENTER: Main Form */}
           <div className={cn("lg:col-span-7", "space-y-8")}>
             <div id="photo">
               <ProfilePhotoSection />
@@ -173,14 +166,14 @@ export default function EditProfilePage() {
             />
           </div>
 
-          {/* RIGHT: Live Preview (Col 3) */}
+          {/* RIGHT: Live Preview */}
           <aside className={cn("hidden", "xl:block", "lg:col-span-3")}>
             <ProfilePreviewCard data={formData} />
           </aside>
         </div>
       </div>
 
-      {/* MOBILE: Sticky Save Action */}
+      {/* MOBILE: Sticky Save */}
       <div
         className={cn(
           "lg:hidden",

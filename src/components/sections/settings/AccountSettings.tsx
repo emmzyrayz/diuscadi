@@ -29,31 +29,76 @@ const ROLE_LABELS: Record<string, string> = {
 export const AccountSettingsSection = ({ profile }: Props) => {
   const { updateProfile } = useUser();
 
-  // Inline edit states
   const [editingName, setEditingName] = useState(false);
-  const [nameValue, setNameValue] = useState(profile?.fullName ?? "");
+  const [firstname, setFirstname] = useState(profile?.fullName.firstname ?? "");
+  const [secondname, setSecondname] = useState(
+    profile?.fullName.secondname ?? "",
+  );
+  const [lastname, setLastname] = useState(profile?.fullName.lastname ?? "");
   const [savingName, setSavingName] = useState(false);
 
+  const displayName = [
+    profile?.fullName.firstname,
+    profile?.fullName.secondname,
+    profile?.fullName.lastname,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const handleEditOpen = () => {
+    setFirstname(profile?.fullName.firstname ?? "");
+    setSecondname(profile?.fullName.secondname ?? "");
+    setLastname(profile?.fullName.lastname ?? "");
+    setEditingName(true);
+  };
+
   const handleSaveName = async () => {
-    if (!nameValue.trim() || nameValue === profile?.fullName) {
+    if (!firstname.trim() || !lastname.trim()) return;
+    const unchanged =
+      firstname.trim() === profile?.fullName.firstname &&
+      secondname.trim() === (profile?.fullName.secondname ?? "") &&
+      lastname.trim() === profile?.fullName.lastname;
+    if (unchanged) {
       setEditingName(false);
       return;
     }
+
     setSavingName(true);
-    const result = await updateProfile({ fullName: nameValue.trim() });
+    const result = await updateProfile({
+      fullName: {
+        firstname: firstname.trim(),
+        secondname: secondname.trim() || undefined,
+        lastname: lastname.trim(),
+      },
+    });
     setSavingName(false);
     setEditingName(false);
     if (result.success) {
       toast.success("Name updated!");
     } else {
       toast.error(result.error ?? "Update failed");
-      setNameValue(profile?.fullName ?? "");
+      setFirstname(profile?.fullName.firstname ?? "");
+      setSecondname(profile?.fullName.secondname ?? "");
+      setLastname(profile?.fullName.lastname ?? "");
     }
   };
 
+  const handleCancelName = () => {
+    setFirstname(profile?.fullName.firstname ?? "");
+    setSecondname(profile?.fullName.secondname ?? "");
+    setLastname(profile?.fullName.lastname ?? "");
+    setEditingName(false);
+  };
+
   const roleLabel = ROLE_LABELS[profile?.role ?? "participant"] ?? "Member";
-  const isVerified = true; // Email verified on signup; backend enforces it
+  const isVerified = true;
   const memberStatus = profile?.membershipStatus ?? "pending";
+
+  const inputCls = cn(
+    "bg-muted/60 border border-border rounded-xl px-3 py-2",
+    "text-sm font-bold text-foreground outline-none",
+    "focus:border-primary transition-colors w-full",
+  );
 
   return (
     <section
@@ -119,7 +164,7 @@ export const AccountSettingsSection = ({ profile }: Props) => {
             "flex",
             "flex-col",
             "md:flex-row",
-            "md:items-center",
+            "md:items-start",
             "justify-between",
             "p-6",
             "bg-muted",
@@ -132,7 +177,7 @@ export const AccountSettingsSection = ({ profile }: Props) => {
             "transition-all",
           )}
         >
-          <div className={cn("flex", "items-center", "gap-4")}>
+          <div className={cn("flex", "items-start", "gap-4", "flex-1")}>
             <div
               className={cn(
                 "w-10",
@@ -143,11 +188,12 @@ export const AccountSettingsSection = ({ profile }: Props) => {
                 "items-center",
                 "justify-center",
                 "text-muted-foreground",
+                "shrink-0",
               )}
             >
               <LuUser className={cn("w-5", "h-5")} />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p
                 className={cn(
                   "text-[10px]",
@@ -155,40 +201,49 @@ export const AccountSettingsSection = ({ profile }: Props) => {
                   "text-muted-foreground",
                   "uppercase",
                   "tracking-widest",
+                  "mb-1",
                 )}
               >
                 Full Name
               </p>
               {editingName ? (
-                <input
-                  autoFocus
-                  value={nameValue}
-                  onChange={(e) => setNameValue(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
-                  className={cn(
-                    "text-sm",
-                    "font-bold",
-                    "text-foreground",
-                    "bg-transparent",
-                    "border-b-2",
-                    "border-primary",
-                    "outline-none",
-                    "w-full",
-                    "mt-0.5",
-                  )}
-                />
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      autoFocus
+                      value={firstname}
+                      onChange={(e) => setFirstname(e.target.value)}
+                      placeholder="First name"
+                      className={inputCls}
+                    />
+                    <input
+                      value={secondname}
+                      onChange={(e) => setSecondname(e.target.value)}
+                      placeholder="Middle name (optional)"
+                      className={inputCls}
+                    />
+                  </div>
+                  <input
+                    value={lastname}
+                    onChange={(e) => setLastname(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
+                    placeholder="Last name"
+                    className={inputCls}
+                  />
+                </div>
               ) : (
                 <p className={cn("text-sm", "font-bold", "text-slate-700")}>
-                  {profile?.fullName ?? "—"}
+                  {displayName || "—"}
                 </p>
               )}
             </div>
           </div>
+
           {editingName ? (
-            <div className={cn("flex", "gap-2")}>
+            <div className={cn("flex", "gap-2", "shrink-0")}>
               <button
                 onClick={handleSaveName}
-                disabled={savingName}
+                disabled={savingName || !firstname.trim() || !lastname.trim()}
                 className={cn(
                   "flex",
                   "items-center",
@@ -216,10 +271,7 @@ export const AccountSettingsSection = ({ profile }: Props) => {
                 Save
               </button>
               <button
-                onClick={() => {
-                  setEditingName(false);
-                  setNameValue(profile?.fullName ?? "");
-                }}
+                onClick={handleCancelName}
                 className={cn(
                   "px-4",
                   "py-3",
@@ -242,10 +294,7 @@ export const AccountSettingsSection = ({ profile }: Props) => {
             </div>
           ) : (
             <button
-              onClick={() => {
-                setEditingName(true);
-                setNameValue(profile?.fullName ?? "");
-              }}
+              onClick={handleEditOpen}
               className={cn(
                 "flex",
                 "items-center",
@@ -266,6 +315,7 @@ export const AccountSettingsSection = ({ profile }: Props) => {
                 "hover:text-background",
                 "transition-all",
                 "cursor-pointer",
+                "shrink-0",
               )}
             >
               Edit Name

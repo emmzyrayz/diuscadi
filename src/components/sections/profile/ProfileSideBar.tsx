@@ -35,6 +35,20 @@ export const ProfileSidebar = ({
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  // Build display string from structured fullName object
+  const displayName = [
+    profile.fullName.firstname,
+    profile.fullName.secondname,
+    profile.fullName.lastname,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  // Extract image URL from CloudinaryImage for <Image src>
+  const avatarUrl = profile.hasAvatar
+    ? (profile.avatar?.imageUrl ?? null)
+    : null;
+
   const menuItems = [
     {
       label: "Overview",
@@ -48,21 +62,10 @@ export const ProfileSidebar = ({
       href: "/profile/edit",
       active: false,
     },
-    {
-      label: "My Tickets",
-      icon: LuTicket,
-      href: "/tickets",
-      active: false,
-    },
-    {
-      label: "Settings",
-      icon: LuSettings,
-      href: "/settings",
-      active: false,
-    },
+    { label: "My Tickets", icon: LuTicket, href: "/tickets", active: false },
+    { label: "Settings", icon: LuSettings, href: "/settings", active: false },
   ];
 
-  // Display label for membership status
   const statusLabel: Record<string, string> = {
     approved: "Active",
     pending: "Pending",
@@ -94,10 +97,10 @@ export const ProfileSidebar = ({
                 "shadow-xl overflow-hidden group-hover:border-primary/20 transition-all",
               )}
             >
-              {profile.avatar ? (
+              {avatarUrl ? (
                 <Image
-                  src={profile.avatar}
-                  alt={profile.fullName}
+                  src={avatarUrl}
+                  alt={displayName}
                   width={128}
                   height={128}
                   className="w-full h-full object-cover"
@@ -133,7 +136,7 @@ export const ProfileSidebar = ({
             className="space-y-1 mb-6"
           >
             <h2 className="text-xl font-black text-foreground tracking-tight">
-              {profile.fullName}
+              {displayName}
             </h2>
             <p className="text-xs font-bold text-muted-foreground flex items-center justify-center gap-1.5">
               <LuMail className="w-3.5 h-3.5" />
@@ -235,7 +238,6 @@ export const ProfileSidebar = ({
             </p>
           </div>
 
-          {/* Background glow */}
           <motion.div
             animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.3, 0.2] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
