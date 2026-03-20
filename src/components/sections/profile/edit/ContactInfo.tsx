@@ -9,8 +9,20 @@ import {
   LuContact,
 } from "react-icons/lu";
 import { cn } from "../../../../lib/utils";
+import { useUser } from "@/context/UserContext";
 
 export const ContactInfoSection = () => {
+  const { profile } = useUser();
+
+  const email = profile?.email ?? "";
+  const phone = profile?.phone
+    ? `+${profile.phone.countryCode} ${profile.phone.phoneNumber}`
+    : "";
+  const country = profile?.location?.country ?? "";
+  const cityState = [profile?.location?.city, profile?.location?.state]
+    .filter(Boolean)
+    .join(", ");
+
   return (
     <section
       className={cn(
@@ -25,7 +37,6 @@ export const ContactInfoSection = () => {
         "hover:border-primary/20",
       )}
     >
-      {/* 1. Section Header */}
       <div className={cn("flex", "items-center", "gap-3", "mb-10")}>
         <div
           className={cn(
@@ -69,7 +80,6 @@ export const ContactInfoSection = () => {
         </div>
       </div>
 
-      {/* 2. Form Grid */}
       <div
         className={cn(
           "grid",
@@ -79,7 +89,7 @@ export const ContactInfoSection = () => {
           "gap-y-8",
         )}
       >
-        {/* Email - Read Only State */}
+        {/* Email — read-only, from UserContext */}
         <div className="space-y-2">
           <label
             className={cn(
@@ -110,7 +120,7 @@ export const ContactInfoSection = () => {
             />
             <input
               type="email"
-              value="alex.chidubem@example.com"
+              value={email}
               readOnly
               className={cn(
                 "w-full",
@@ -150,7 +160,7 @@ export const ContactInfoSection = () => {
           </div>
         </div>
 
-        {/* Phone Number */}
+        {/* Phone — read-only, from UserContext (set at signup) */}
         <div className="space-y-2">
           <label
             className={cn(
@@ -160,9 +170,12 @@ export const ContactInfoSection = () => {
               "uppercase",
               "tracking-widest",
               "ml-1",
+              "flex",
+              "items-center",
+              "gap-2",
             )}
           >
-            Phone Number
+            Phone Number <LuLock className={cn("w-2.5", "h-2.5")} />
           </label>
           <div className="relative">
             <LuPhone
@@ -178,29 +191,28 @@ export const ContactInfoSection = () => {
             />
             <input
               type="tel"
-              placeholder="+234 --- --- ----"
+              value={phone}
+              readOnly
+              placeholder="Not set"
               className={cn(
                 "w-full",
-                "bg-muted",
+                "text-muted",
                 "border-2",
-                "border-slate-50",
+                "border-border",
                 "rounded-2xl",
                 "pl-12",
                 "pr-6",
                 "py-4",
                 "text-sm",
                 "font-bold",
-                "text-slate-700",
-                "outline-hidden",
-                "focus:border-primary/20",
-                "focus:bg-background",
-                "transition-all",
+                "text-muted-foreground",
+                "cursor-not-allowed",
               )}
             />
           </div>
         </div>
 
-        {/* Country Select */}
+        {/* Country — read-only display from UserContext */}
         <div className="space-y-2">
           <label
             className={cn(
@@ -226,37 +238,40 @@ export const ContactInfoSection = () => {
                 "h-4",
               )}
             />
-            <select
+            <input
+              type="text"
+              value={country}
+              readOnly
+              placeholder="Not set"
               className={cn(
                 "w-full",
-                "bg-muted",
+                "text-muted",
                 "border-2",
-                "border-slate-50",
+                "border-border",
                 "rounded-2xl",
                 "pl-12",
                 "pr-6",
                 "py-4",
                 "text-sm",
                 "font-bold",
-                "text-slate-700",
-                "outline-hidden",
-                "focus:border-primary/20",
-                "focus:bg-background",
-                "transition-all",
-                "appearance-none",
-                "cursor-pointer",
+                "text-muted-foreground",
+                "cursor-not-allowed",
               )}
-            >
-              <option value="NG">Nigeria</option>
-              <option value="GH">Ghana</option>
-              <option value="KE">Kenya</option>
-              <option value="RW">Rwanda</option>
-              {/* Add more as needed */}
-            </select>
+            />
           </div>
+          <p
+            className={cn(
+              "text-[9px]",
+              "text-muted-foreground",
+              "font-bold",
+              "ml-1",
+            )}
+          >
+            Update location via Settings → Account
+          </p>
         </div>
 
-        {/* City / State */}
+        {/* City / State — read-only display from UserContext */}
         <div className="space-y-2">
           <label
             className={cn(
@@ -284,23 +299,22 @@ export const ContactInfoSection = () => {
             />
             <input
               type="text"
-              placeholder="e.g. Lagos Island"
+              value={cityState}
+              readOnly
+              placeholder="Not set"
               className={cn(
                 "w-full",
-                "bg-muted",
+                "text-muted",
                 "border-2",
-                "border-slate-50",
+                "border-border",
                 "rounded-2xl",
                 "pl-12",
                 "pr-6",
                 "py-4",
                 "text-sm",
                 "font-bold",
-                "text-slate-700",
-                "outline-hidden",
-                "focus:border-primary/20",
-                "focus:bg-background",
-                "transition-all",
+                "text-muted-foreground",
+                "cursor-not-allowed",
               )}
             />
           </div>

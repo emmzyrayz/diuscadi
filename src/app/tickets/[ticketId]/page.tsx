@@ -1,5 +1,5 @@
 "use client";
-// app/home/tickets/[ticketId]/page.tsx
+// app/tickets/[ticketId]/page.tsx
 import React, { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTickets } from "@/context/TicketContext";
@@ -97,7 +97,7 @@ export default function TicketDetailPage() {
               "This ticket doesn't exist or you don't have access."}
           </p>
           <button
-            onClick={() => router.push("/home/tickets")}
+            onClick={() => router.push("/tickets")}
             className={cn(
               "mt-4",
               "px-6",
@@ -129,7 +129,6 @@ export default function TicketDetailPage() {
 
   return (
     <main className={cn("min-h-screen w-full", "bg-muted/50", "pt-[72px]")}>
-      {/* Header */}
       <TicketViewHeader status={displayStatus} />
 
       <div
@@ -142,7 +141,6 @@ export default function TicketDetailPage() {
           "space-y-12",
         )}
       >
-        {/* Main ticket section */}
         <section className={cn("flex", "flex-col", "gap-8")}>
           <TicketVisualCard
             ticket={{
@@ -185,7 +183,6 @@ export default function TicketDetailPage() {
           )}
         </section>
 
-        {/* Contextual sections */}
         <div className="space-y-0">
           <EventSummarySection
             event={{
@@ -197,7 +194,6 @@ export default function TicketDetailPage() {
               overview: t.event.overview,
             }}
           />
-
           <AttendeeInfoSection
             ticket={{
               inviteCode: t.inviteCode,
@@ -206,7 +202,6 @@ export default function TicketDetailPage() {
               checkedInAt: t.checkedInAt ? fmtDate(t.checkedInAt) : null,
             }}
           />
-
           <TicketHelpSection />
         </div>
       </div>

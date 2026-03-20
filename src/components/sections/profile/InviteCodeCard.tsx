@@ -1,15 +1,9 @@
 "use client";
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  LuCopy,
-  LuCheck,
-  LuQrCode,
-  LuInfo,
-  LuShieldCheck,
-} from "react-icons/lu";
-
+import { LuCopy, LuCheck, LuInfo, LuShieldCheck } from "react-icons/lu";
 import { cn } from "@/lib/utils";
+import { QRCode, buildInviteQRValue } from "@/components/ui/QRCode";
 
 interface InviteCodeCardProps {
   inviteCode: string;
@@ -23,6 +17,9 @@ export const InviteCodeCard = ({ inviteCode }: InviteCodeCardProps) => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // QR encodes a signup URL with the invite code pre-filled as a referral
+  const qrValue = buildInviteQRValue(inviteCode);
 
   return (
     <motion.div
@@ -40,7 +37,7 @@ export const InviteCodeCard = ({ inviteCode }: InviteCodeCardProps) => {
         "group",
       )}
     >
-      {/* 1. Card Header */}
+      {/* Card Header */}
       <div
         className={cn(
           "relative",
@@ -85,7 +82,7 @@ export const InviteCodeCard = ({ inviteCode }: InviteCodeCardProps) => {
         </div>
       </div>
 
-      {/* 2. QR Code Version (The Scannable Asset) */}
+      {/* Real QR Code */}
       <div
         className={cn(
           "relative",
@@ -108,23 +105,7 @@ export const InviteCodeCard = ({ inviteCode }: InviteCodeCardProps) => {
             "duration-500",
           )}
         >
-          <div
-            className={cn(
-              "w-32",
-              "h-32",
-              "bg-muted",
-              "flex",
-              "items-center",
-              "justify-center",
-              "rounded-xl",
-              "overflow-hidden",
-              "border",
-              "border-border",
-            )}
-          >
-            {/* Real-world: <QRCode value={inviteCode} size={128} /> */}
-            <LuQrCode className={cn("w-24", "h-24", "text-foreground")} />
-          </div>
+          <QRCode value={qrValue} size={128} className="rounded-xl" />
         </div>
         <p
           className={cn(
@@ -148,11 +129,11 @@ export const InviteCodeCard = ({ inviteCode }: InviteCodeCardProps) => {
               "animate-pulse",
             )}
           />
-          Scan at event entrance
+          Scan to join with your referral
         </p>
       </div>
 
-      {/* 3. The Interactive Code Display */}
+      {/* Code + copy button */}
       <div className={cn("relative", "z-10", "space-y-4")}>
         <div
           className={cn(
@@ -192,7 +173,6 @@ export const InviteCodeCard = ({ inviteCode }: InviteCodeCardProps) => {
               {inviteCode}
             </span>
           </div>
-
           <button
             onClick={handleCopy}
             className={cn(
@@ -203,6 +183,7 @@ export const InviteCodeCard = ({ inviteCode }: InviteCodeCardProps) => {
               "rounded-xl",
               "transition-all",
               "active:scale-90",
+              "cursor-pointer",
             )}
           >
             <AnimatePresence mode="wait">
@@ -211,6 +192,7 @@ export const InviteCodeCard = ({ inviteCode }: InviteCodeCardProps) => {
                   key="check"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
+                  exit={{ scale: 0 }}
                 >
                   <LuCheck className={cn("w-5", "h-5")} />
                 </motion.div>
@@ -219,6 +201,7 @@ export const InviteCodeCard = ({ inviteCode }: InviteCodeCardProps) => {
                   key="copy"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
+                  exit={{ scale: 0 }}
                 >
                   <LuCopy className={cn("w-5", "h-5")} />
                 </motion.div>
@@ -233,7 +216,7 @@ export const InviteCodeCard = ({ inviteCode }: InviteCodeCardProps) => {
             "items-start",
             "gap-3",
             "p-4",
-            "bg-background/3",
+            "bg-background/5",
             "rounded-2xl",
           )}
         >
@@ -248,14 +231,14 @@ export const InviteCodeCard = ({ inviteCode }: InviteCodeCardProps) => {
               "leading-relaxed",
             )}
           >
-            This code represents your DIUSCADI membership. Keep it private.
-            Present this QR code to staff for faster check-in at all
-            participating hubs.
+            Share this QR or code with friends. When they scan it or use it at
+            signup, you both earn Career Points and unlock exclusive event
+            invites.
           </p>
         </div>
       </div>
 
-      {/* Visual Flair: Abstract Background */}
+      {/* Background glow */}
       <div
         className={cn(
           "absolute",

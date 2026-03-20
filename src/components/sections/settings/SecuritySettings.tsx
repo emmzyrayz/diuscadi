@@ -1,33 +1,27 @@
 "use client";
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   LuShieldX,
   LuKey,
   LuSmartphone,
   LuMonitor,
-  LuLogOut,
-  LuHistory,
   LuShieldCheck,
   LuLoader,
+  LuInfo,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import { IconType } from "react-icons";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
 
-interface SessionItemProps {
-  icon: IconType;
-  device: string;
-  location: string;
-  isCurrent: boolean;
-  delay?: number;
-}
-
 export const SecuritySettingsSection = () => {
   const { logout } = useAuth();
-  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // TODO: 2FA — not yet implemented on backend. Wiring this toggle to a real
+  // TOTP/SMS flow requires: POST /api/auth/2fa/enable, GET /api/auth/2fa/qr,
+  // POST /api/auth/2fa/verify. Keep local state only until that exists.
+  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
 
   const handleLogoutAll = async () => {
     setLoggingOut(true);
@@ -38,23 +32,6 @@ export const SecuritySettingsSection = () => {
       setLoggingOut(false);
     }
   };
-
-  const sessions = [
-    {
-      id: "1",
-      icon: LuMonitor,
-      device: "Chrome on Desktop",
-      location: "Benin City, Nigeria",
-      isCurrent: true,
-    },
-    {
-      id: "2",
-      icon: LuSmartphone,
-      device: "Safari on iPhone 15",
-      location: "Lagos, Nigeria",
-      isCurrent: false,
-    },
-  ];
 
   return (
     <motion.section
@@ -71,80 +48,51 @@ export const SecuritySettingsSection = () => {
       )}
     >
       {/* Header */}
-      <div className={cn("flex", "items-center", "justify-between", "mb-10")}>
-        <div className={cn("flex", "items-center", "gap-3")}>
-          <div
-            className={cn(
-              "w-10",
-              "h-10",
-              "rounded-xl",
-              "bg-muted",
-              "flex",
-              "items-center",
-              "justify-center",
-              "text-emerald-600",
-              "border",
-              "border-border",
-            )}
-          >
-            <LuShieldX className={cn("w-5", "h-5")} />
-          </div>
-          <div>
-            <h3
-              className={cn(
-                "text-xl",
-                "font-black",
-                "text-foreground",
-                "tracking-tight",
-              )}
-            >
-              Security & Access
-            </h3>
-            <p
-              className={cn(
-                "text-[10px]",
-                "font-bold",
-                "text-muted-foreground",
-                "uppercase",
-                "tracking-widest",
-                "mt-1",
-              )}
-            >
-              Protect your account and manage sessions
-            </p>
-          </div>
-        </div>
+      <div className={cn("flex", "items-center", "gap-3", "mb-10")}>
         <div
           className={cn(
-            "hidden",
-            "md:flex",
-            "items-center",
-            "gap-2",
-            "px-4",
-            "py-2",
-            "bg-muted",
+            "w-10",
+            "h-10",
             "rounded-xl",
+            "bg-muted",
+            "flex",
+            "items-center",
+            "justify-center",
+            "text-emerald-600",
             "border",
             "border-border",
           )}
         >
-          <LuHistory className={cn("w-3", "h-3", "text-muted-foreground")} />
-          <span
+          <LuShieldX className={cn("w-5", "h-5")} />
+        </div>
+        <div>
+          <h3
             className={cn(
-              "text-[9px]",
+              "text-xl",
               "font-black",
-              "text-muted-foreground",
-              "uppercase",
-              "tracking-tighter",
+              "text-foreground",
+              "tracking-tight",
             )}
           >
-            Password updated recently
-          </span>
+            Security & Access
+          </h3>
+          <p
+            className={cn(
+              "text-[10px]",
+              "font-bold",
+              "text-muted-foreground",
+              "uppercase",
+              "tracking-widest",
+              "mt-1",
+            )}
+          >
+            Protect your account and manage sessions
+          </p>
         </div>
       </div>
 
       <div className="space-y-4">
-        {/* Change password */}
+        {/* Change password — sends reset email */}
         <motion.div
           whileHover={{ scale: 1.01, x: 4 }}
           className={cn(
@@ -235,7 +183,7 @@ export const SecuritySettingsSection = () => {
           </div>
         </motion.div>
 
-        {/* 2FA */}
+        {/* 2FA — UI-only until backend TOTP flow is built */}
         <motion.div
           whileHover={{ scale: 1.01, x: 4 }}
           className={cn(
@@ -288,19 +236,11 @@ export const SecuritySettingsSection = () => {
                   >
                     Two-Factor Authentication
                   </h4>
-                  <AnimatePresence>
-                    {is2FAEnabled && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        exit={{ scale: 0 }}
-                      >
-                        <LuShieldCheck
-                          className={cn("w-4", "h-4", "text-emerald-500")}
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  {is2FAEnabled && (
+                    <LuShieldCheck
+                      className={cn("w-4", "h-4", "text-emerald-500")}
+                    />
+                  )}
                 </div>
                 <p
                   className={cn(
@@ -312,13 +252,20 @@ export const SecuritySettingsSection = () => {
                 >
                   Add an extra layer of security to your login.
                 </p>
+                <p
+                  className={cn(
+                    "text-[10px]",
+                    "font-bold",
+                    "text-amber-600",
+                    "mt-1",
+                  )}
+                >
+                  Coming soon — backend 2FA flow not yet implemented
+                </p>
               </div>
             </div>
             <button
-              onClick={() => {
-                setIs2FAEnabled(!is2FAEnabled);
-                toast(is2FAEnabled ? "2FA disabled." : "2FA enabled!");
-              }}
+              onClick={() => toast("2FA setup coming soon.", { icon: "🔐" })}
               className={cn(
                 "px-6",
                 "py-3",
@@ -329,9 +276,7 @@ export const SecuritySettingsSection = () => {
                 "tracking-widest",
                 "transition-all",
                 "cursor-pointer",
-                is2FAEnabled
-                  ? "bg-background border border-emerald-200 text-emerald-600"
-                  : "bg-background border border-border text-foreground",
+                "bg-background border border-border text-muted-foreground cursor-not-allowed opacity-60",
               )}
             >
               {is2FAEnabled ? "Disable 2FA" : "Enable 2FA"}
@@ -339,10 +284,8 @@ export const SecuritySettingsSection = () => {
           </div>
         </motion.div>
 
-        {/* Active sessions */}
-        <div
-          className={cn("p-8", "bg-muted", "rounded-[2rem]", "space-y-6")}
-        >
+        {/* Active sessions — TODO: real session tracking not yet built */}
+        <div className={cn("p-8", "bg-muted", "rounded-[2rem]", "space-y-6")}>
           <div className={cn("flex", "items-center", "justify-between")}>
             <h4
               className={cn(
@@ -377,116 +320,103 @@ export const SecuritySettingsSection = () => {
               Log out all devices
             </button>
           </div>
-          <div className="space-y-3">
-            {sessions.map((s, i) => (
-              <SessionItem
-                key={s.id}
-                icon={s.icon}
-                device={s.device}
-                location={s.location}
-                isCurrent={s.isCurrent}
-                delay={0.1 * i}
-              />
-            ))}
+
+          {/* Current session — derived from browser environment, not a fake list */}
+          <div
+            className={cn(
+              "flex",
+              "items-center",
+              "justify-between",
+              "p-4",
+              "bg-background",
+              "rounded-2xl",
+              "border",
+              "border-border",
+              "shadow-sm",
+            )}
+          >
+            <div className={cn("flex", "items-center", "gap-4")}>
+              <div
+                className={cn(
+                  "w-10",
+                  "h-10",
+                  "bg-muted",
+                  "rounded-xl",
+                  "flex",
+                  "items-center",
+                  "justify-center",
+                  "text-muted-foreground",
+                )}
+              >
+                <LuMonitor className={cn("w-5", "h-5")} />
+              </div>
+              <div>
+                <p
+                  className={cn(
+                    "text-xs",
+                    "font-bold",
+                    "text-foreground",
+                    "flex",
+                    "items-center",
+                    "gap-2",
+                  )}
+                >
+                  Current Browser Session
+                  <span
+                    className={cn(
+                      "px-1.5",
+                      "py-0.5",
+                      "bg-blue-50",
+                      "text-blue-600",
+                      "rounded",
+                      "text-[7px]",
+                      "font-black",
+                      "uppercase",
+                    )}
+                  >
+                    Active
+                  </span>
+                </p>
+                <p
+                  className={cn(
+                    "text-[10px]",
+                    "font-medium",
+                    "text-muted-foreground",
+                    "mt-0.5",
+                  )}
+                >
+                  Signed in on this device
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Placeholder for future session list */}
+          <div className={cn("flex", "items-start", "gap-3", "px-2")}>
+            <LuInfo
+              className={cn(
+                "w-3.5",
+                "h-3.5",
+                "text-muted-foreground",
+                "shrink-0",
+                "mt-0.5",
+              )}
+            />
+            <p
+              className={cn(
+                "text-[10px]",
+                "font-medium",
+                "text-muted-foreground",
+                "leading-relaxed",
+              )}
+            >
+              Full multi-device session management coming soon. For now you can
+              log out all devices using the button above.
+              {/* TODO: implement GET /api/auth/sessions and DELETE /api/auth/sessions/[id] */}
+            </p>
           </div>
         </div>
       </div>
     </motion.section>
   );
 };
-
-const SessionItem = ({
-  icon: Icon,
-  device,
-  location,
-  isCurrent,
-  delay = 0,
-}: SessionItemProps) => (
-  <motion.div
-    initial={{ opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0 }}
-    transition={{ delay }}
-    whileHover={{ scale: 1.01, x: 4 }}
-    className={cn(
-      "flex",
-      "items-center",
-      "justify-between",
-      "p-4",
-      "bg-background",
-      "rounded-2xl",
-      "border",
-      "border-border",
-      "shadow-sm",
-    )}
-  >
-    <div className={cn("flex", "items-center", "gap-4")}>
-      <div
-        className={cn(
-          "w-10",
-          "h-10",
-          "bg-muted",
-          "rounded-xl",
-          "flex",
-          "items-center",
-          "justify-center",
-          "text-muted-foreground",
-        )}
-      >
-        <Icon className={cn("w-5", "h-5")} />
-      </div>
-      <div>
-        <p
-          className={cn(
-            "text-xs",
-            "font-bold",
-            "text-foreground",
-            "flex",
-            "items-center",
-            "gap-2",
-          )}
-        >
-          {device}
-          {isCurrent && (
-            <span
-              className={cn(
-                "px-1.5",
-                "py-0.5",
-                "bg-blue-50",
-                "text-blue-600",
-                "rounded",
-                "text-[7px]",
-                "font-black",
-                "uppercase",
-              )}
-            >
-              Current
-            </span>
-          )}
-        </p>
-        <p
-          className={cn(
-            "text-[10px]",
-            "font-medium",
-            "text-muted-foreground",
-            "mt-0.5",
-          )}
-        >
-          {location}
-        </p>
-      </div>
-    </div>
-    {!isCurrent && (
-      <button
-        className={cn(
-          "p-2",
-          "text-slate-300",
-          "hover:text-rose-500",
-          "transition-colors",
-          "cursor-pointer",
-        )}
-      >
-        <LuLogOut className={cn("w-4", "h-4")} />
-      </button>
-    )}
-  </motion.div>
-);

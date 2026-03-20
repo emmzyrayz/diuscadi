@@ -16,6 +16,24 @@ const VALID_STATUSES: RegistrationStatus[] = [
   "cancelled",
 ];
 
+const FALLBACK_IMAGE = "/images/events/default.jpg";
+
+function resolveEventImage(event: Record<string, unknown>): string {
+  if (
+    event.hasEventBanner &&
+    (event.eventBanner as Record<string, unknown>)?.imageUrl
+  ) {
+    return (event.eventBanner as Record<string, unknown>).imageUrl as string;
+  }
+  if (
+    event.hasEventLogo &&
+    (event.eventLogo as Record<string, unknown>)?.imageUrl
+  ) {
+    return (event.eventLogo as Record<string, unknown>).imageUrl as string;
+  }
+  return FALLBACK_IMAGE;
+}
+
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
     const { searchParams } = new URL(req.url);
@@ -49,8 +67,6 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const pipeline = [
       { $match: matchStage },
       { $sort: { registeredAt: -1 as const } },
-
-      // Join event
       {
         $lookup: {
           from: "events",
@@ -60,8 +76,6 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         },
       },
       { $unwind: "$event" },
-
-      // Join ticket type
       {
         $lookup: {
           from: "ticketTypes",
@@ -80,8 +94,9 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const tickets = registrations.map((r) => {
       const event = r.event as Record<string, unknown>;
       const ticketType = r.ticketType as Record<string, unknown>;
+
       return {
-        id: r._id!.toString(),
+        id: (r._id as ObjectId).toString(),
         inviteCode: r.inviteCode,
         status: r.status,
         registeredAt: (r.registeredAt as Date).toISOString(),
@@ -90,19 +105,20 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
           : null,
         referralCodeUsed: r.referralCodeUsed ?? null,
         event: {
-          id: event._id!.toString(),
+          id: (event._id as ObjectId).toString(),
           slug: event.slug,
           title: event.title,
           format: event.format,
           location: event.location ?? null,
           eventDate: (event.eventDate as Date).toISOString(),
           endDate: event.endDate ? (event.endDate as Date).toISOString() : null,
-          image: event.image,
+          // Resolve CloudinaryImage → plain URL string
+          image: resolveEventImage(event),
           category: event.category,
           status: event.status,
         },
         ticketType: {
-          id: ticketType._id!.toString(),
+          id: (ticketType._id as ObjectId).toString(),
           name: ticketType.name,
           price: ticketType.price,
           currency: ticketType.currency,

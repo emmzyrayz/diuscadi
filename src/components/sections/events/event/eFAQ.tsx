@@ -4,34 +4,42 @@ import { motion, AnimatePresence } from "framer-motion";
 import { LuCircleHelp, LuChevronDown } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import type { EventDetail } from "@/app/events/[eventId]/page";
+import type { EventFAQ } from "@/lib/models/Events";
 
-// Static FAQ items that apply to all events — replace with per-event FAQ
-// when an faq[] field is added to EventDocument.
-const DEFAULT_FAQS = [
+// Platform-level defaults shown when the event has no per-event FAQs.
+const DEFAULT_FAQS: EventFAQ[] = [
   {
-    q: "Is this event free to attend?",
-    a: "Check the entry fee displayed in the sticky bar above. Many DIUSCADI events are free for registered members.",
+    question: "Is this event free to attend?",
+    answer:
+      "Check the entry fee displayed in the sticky bar above. Many DIUSCADI events are free for registered members.",
   },
   {
-    q: "What happens after I register?",
-    a: "You will receive a confirmation email with your unique invite code. Bring it (or the QR code) for check-in on the event day.",
+    question: "What happens after I register?",
+    answer:
+      "You will receive a confirmation email with your unique invite code. Bring it (or the QR code) for check-in on the event day.",
   },
   {
-    q: "Can I cancel my registration?",
-    a: "Yes — open your Tickets page and cancel before the registration deadline. Refunds (if applicable) are processed within 5 business days.",
+    question: "Can I cancel my registration?",
+    answer:
+      "Yes — open your Tickets page and cancel before the registration deadline. Refunds (if applicable) are processed within 5 business days.",
   },
   {
-    q: "Will this event be recorded?",
-    a: "Select sessions may be recorded and shared with attendees afterward. Check back on the event page for updates.",
+    question: "Will this event be recorded?",
+    answer:
+      "Select sessions may be recorded and shared with attendees afterward. Check back on the event page for updates.",
   },
   {
-    q: "Who can attend?",
-    a: "The event details specify the target audience. Most events are open to all DIUSCADI members.",
+    question: "Who can attend?",
+    answer:
+      "The event details specify the target audience. Most events are open to all DIUSCADI members.",
   },
 ];
 
-export const FAQSection = ({ event: _event }: { event: EventDetail }) => {
+export const FAQSection = ({ event }: { event: EventDetail }) => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  // Use per-event FAQs if available, otherwise fall back to defaults
+  const faqs = event.faqs.length > 0 ? event.faqs : DEFAULT_FAQS;
 
   return (
     <section className={cn("w-full", "py-16")}>
@@ -53,7 +61,7 @@ export const FAQSection = ({ event: _event }: { event: EventDetail }) => {
         </div>
 
         <div className="space-y-3">
-          {DEFAULT_FAQS.map((faq, i) => {
+          {faqs.map((faq, i) => {
             const isOpen = openIndex === i;
             return (
               <motion.div
@@ -86,14 +94,19 @@ export const FAQSection = ({ event: _event }: { event: EventDetail }) => {
                   <span
                     className={cn("text-sm", "font-black", "text-foreground")}
                   >
-                    {faq.q}
+                    {faq.question}
                   </span>
                   <motion.div
                     animate={{ rotate: isOpen ? 180 : 0 }}
                     transition={{ duration: 0.2 }}
                   >
                     <LuChevronDown
-                      className={cn("w-4", "h-4", "text-muted-foreground", "shrink-0")}
+                      className={cn(
+                        "w-4",
+                        "h-4",
+                        "text-muted-foreground",
+                        "shrink-0",
+                      )}
                     />
                   </motion.div>
                 </button>
@@ -116,7 +129,7 @@ export const FAQSection = ({ event: _event }: { event: EventDetail }) => {
                           "font-medium",
                         )}
                       >
-                        {faq.a}
+                        {faq.answer}
                       </p>
                     </motion.div>
                   )}

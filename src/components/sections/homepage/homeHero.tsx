@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { LuCalendar, LuArrowRight, LuCirclePlay } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 export interface FeaturedEvent {
   image: string;
@@ -26,6 +27,19 @@ interface HomeHeroProps {
 }
 
 export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
+  const router = useRouter();
+
+  const handleRegister = () => {
+    if (featuredEvent.slug)
+      router.push(`/events/${featuredEvent.slug}/register`);
+    else router.push("/events");
+  };
+
+  const handleDetails = () => {
+    if (featuredEvent.slug) router.push(`/events/${featuredEvent.slug}`);
+    else router.push("/events");
+  };
+
   return (
     <section
       className={cn(
@@ -60,7 +74,7 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
         >
           <Image
             src={featuredEvent.image}
-            alt="Featured Event"
+            alt={featuredEvent.title}
             fill
             className={cn(
               "absolute",
@@ -133,6 +147,7 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
 
             <div className={cn("flex", "flex-wrap", "gap-4")}>
               <button
+                onClick={handleRegister}
                 className={cn(
                   "px-8",
                   "py-3.5",
@@ -163,6 +178,7 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
                 />
               </button>
               <button
+                onClick={handleDetails}
                 className={cn(
                   "px-6",
                   "py-3.5",
@@ -277,6 +293,7 @@ export const HomeHero = ({ featuredEvent, currentTask }: HomeHeroProps) => {
             </div>
           </div>
 
+          {/* TODO: wire to real learning module path when learning system is built */}
           <button
             className={cn(
               "mt-8",

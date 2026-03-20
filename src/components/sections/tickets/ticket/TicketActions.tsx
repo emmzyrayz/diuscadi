@@ -23,7 +23,7 @@ interface TicketActionsProps {
 }
 
 export const TicketActions = ({
-  ticketId,
+  ticketId: _ticketId,
   registrationId,
   eventSlug,
   status,
@@ -44,18 +44,11 @@ export const TicketActions = ({
   const handleConfirmCancel = async () => {
     setCancelLoading(true);
     setCancelError("");
-    try {
-      const result = await cancelRegistration(registrationId);
-      if (result.success) {
-        router.push("/home/tickets");
-      } else {
-        setCancelError(
-          result.error ?? "Cancellation failed. Please try again.",
-        );
-        setCancelLoading(false);
-      }
-    } catch {
-      setCancelError("Cancellation failed. Please try again.");
+    const result = await cancelRegistration(registrationId);
+    if (result.success) {
+      router.push("/tickets");
+    } else {
+      setCancelError(result.error ?? "Cancellation failed. Please try again.");
       setCancelLoading(false);
     }
   };
@@ -86,7 +79,6 @@ export const TicketActions = ({
         animate={{ opacity: 1, y: 0 }}
         className={cn("grid", "grid-cols-1", "sm:grid-cols-2", "gap-3")}
       >
-        {/* Download PDF */}
         <motion.button
           onClick={handleDownload}
           whileHover={{ scale: 1.02, y: -2 }}
@@ -125,22 +117,8 @@ export const TicketActions = ({
               </motion.span>
             )}
           </AnimatePresence>
-          <motion.div
-            className={cn(
-              "absolute",
-              "inset-0",
-              "bg-gradient-to-r",
-              "from-transparent",
-              "via-background/10",
-              "to-transparent",
-            )}
-            initial={{ x: "-100%" }}
-            whileHover={{ x: "100%" }}
-            transition={{ duration: 0.6 }}
-          />
         </motion.button>
 
-        {/* Add to calendar — only for upcoming */}
         {!isUsed ? (
           <motion.button
             whileHover={{ scale: 1.02, y: -2 }}
@@ -216,7 +194,7 @@ export const TicketActions = ({
         </Link>
       </motion.div>
 
-      {/* Cancel zone — only for upcoming */}
+      {/* Cancel zone */}
       {!isUsed && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -267,15 +245,8 @@ export const TicketActions = ({
                   "cursor-pointer",
                 )}
               >
-                <LuTriangleAlert
-                  className={cn(
-                    "w-4",
-                    "h-4",
-                    "opacity-0",
-                    "group-hover:opacity-100",
-                  )}
-                />
-                Cancel Registration
+                <LuTriangleAlert className={cn("w-4", "h-4")} /> Cancel
+                Registration
               </motion.button>
             ) : (
               <motion.div

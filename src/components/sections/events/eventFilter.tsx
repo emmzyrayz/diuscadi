@@ -12,35 +12,36 @@ import {
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 
-// Demo filter data
-const FILTER_OPTIONS = {
-  location: [
-    "All Locations",
-    "Lagos",
-    "Abuja",
-    "Port Harcourt",
-    "Ibadan",
-    "Enugu",
-  ],
-  category: [
-    "All Categories",
-    "Tech Workshop",
-    "Career Fair",
-    "Networking",
-    "Training",
-    "Conference",
-  ],
-  price: [
-    "All Prices",
-    "Free",
-    "Under ₦5,000",
-    "₦5,000 - ₦10,000",
-    "Above ₦10,000",
-  ],
-  date: ["All Dates", "Today", "This Week", "This Month", "Custom Range"],
-};
+// ── Static filter options ─────────────────────────────────────────────────────
+// Location, price, and date are static — they don't come from the DB.
+// Categories are passed as a prop from the parent page which fetches them.
 
-interface FilterState {
+const LOCATION_OPTIONS = [
+  "All Locations",
+  "Lagos",
+  "Abuja",
+  "Port Harcourt",
+  "Ibadan",
+  "Benin City",
+  "Enugu",
+  "Kano",
+  "Ibadan",
+  "Online",
+];
+
+const PRICE_OPTIONS = [
+  "All Prices",
+  "Free",
+  "Under ₦5,000",
+  "₦5,000 - ₦10,000",
+  "Above ₦10,000",
+];
+
+const DATE_OPTIONS = ["All Dates", "Today", "This Week", "This Month"];
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface FilterState {
   status: string;
   location: string;
   category: string;
@@ -49,7 +50,21 @@ interface FilterState {
   search: string;
 }
 
-export const EventsFilterBar = () => {
+interface EventsFilterBarProps {
+  /** Category list from DB — passed from the server page */
+  categories?: string[];
+  /** Called whenever any filter changes so the parent can filter the grid */
+  onFilterChange?: (filters: FilterState) => void;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export const EventsFilterBar = ({
+  categories = [],
+  onFilterChange,
+}: EventsFilterBarProps) => {
+  const categoryOptions = ["All Categories", ...categories];
+
   const [filters, setFilters] = useState<FilterState>({
     status: "All",
     location: "All Locations",
@@ -59,22 +74,25 @@ export const EventsFilterBar = () => {
     search: "",
   });
 
-  // Track which dropdown is currently open
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    const next = { ...filters, [key]: value };
+    setFilters(next);
+    onFilterChange?.(next);
   };
 
   const handleReset = () => {
-    setFilters({
+    const reset: FilterState = {
       status: "All",
       location: "All Locations",
       category: "All Categories",
       price: "All Prices",
       date: "All Dates",
       search: "",
-    });
+    };
+    setFilters(reset);
+    onFilterChange?.(reset);
   };
 
   const hasActiveFilters =
@@ -120,13 +138,8 @@ export const EventsFilterBar = () => {
             "gap-4",
           )}
         >
-          {/* SEARCH INPUT (Left) */}
-          <motion.div
-            initial={{ scale: 0.95 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.1 }}
-            className={cn("relative", "w-full", "lg:w-96", "group")}
-          >
+          {/* Search */}
+          <div className={cn("relative", "w-full", "lg:w-96", "group")}>
             <LuSearch
               className={cn(
                 "absolute",
@@ -162,21 +175,20 @@ export const EventsFilterBar = () => {
                 "transition-all",
               )}
             />
-          </motion.div>
+          </div>
 
-          {/* VERTICAL DIVIDER (Desktop Only) */}
           <div
             className={cn(
               "hidden",
               "lg:block",
               "w-px",
               "h-8",
-              "text-muted",
+              "bg-border",
               "mx-2",
             )}
           />
 
-          {/* FILTERS (Right - Scrollable on mobile) */}
+          {/* Filters */}
           <div
             className={cn(
               "w-full",
@@ -190,11 +202,8 @@ export const EventsFilterBar = () => {
               "no-scrollbar",
             )}
           >
-            {/* Quick Status Filter */}
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
+            {/* Status pills */}
+            <div
               className={cn(
                 "flex",
                 "items-center",
@@ -206,13 +215,10 @@ export const EventsFilterBar = () => {
                 "border-border",
               )}
             >
-              {["All", "Upcoming", "Ongoing", "Past"].map((status, index) => (
-                <motion.button
+              {["All", "Upcoming", "Ongoing", "Past"].map((status) => (
+                <button
                   key={status}
                   onClick={() => handleFilterChange("status", status)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ delay: index * 0.05 }}
                   className={cn(
                     "px-4 py-1.5 text-xs font-bold rounded-lg transition-all",
                     filters.status === status
@@ -221,63 +227,55 @@ export const EventsFilterBar = () => {
                   )}
                 >
                   {status}
-                </motion.button>
+                </button>
               ))}
-            </motion.div>
+            </div>
 
-            {/* Advanced Filters Dropdowns */}
             <FilterSelect
               id="location"
               icon={<LuMapPin />}
               label="Location"
-              options={FILTER_OPTIONS.location}
+              options={LOCATION_OPTIONS}
               value={filters.location}
-              onChange={(value) => handleFilterChange("location", value)}
-              delay={0.3}
+              onChange={(v) => handleFilterChange("location", v)}
               isOpen={openDropdown === "location"}
-              onToggle={(isOpen) => setOpenDropdown(isOpen ? "location" : null)}
+              onToggle={(o) => setOpenDropdown(o ? "location" : null)}
             />
+
             <FilterSelect
               id="category"
               icon={<LuTags />}
               label="Category"
-              options={FILTER_OPTIONS.category}
+              options={categoryOptions}
               value={filters.category}
-              onChange={(value) => handleFilterChange("category", value)}
-              delay={0.35}
+              onChange={(v) => handleFilterChange("category", v)}
               isOpen={openDropdown === "category"}
-              onToggle={(isOpen) => setOpenDropdown(isOpen ? "category" : null)}
+              onToggle={(o) => setOpenDropdown(o ? "category" : null)}
             />
+
             <FilterSelect
               id="price"
               icon={<LuBanknote />}
               label="Price"
-              options={FILTER_OPTIONS.price}
+              options={PRICE_OPTIONS}
               value={filters.price}
-              onChange={(value) => handleFilterChange("price", value)}
-              delay={0.4}
+              onChange={(v) => handleFilterChange("price", v)}
               isOpen={openDropdown === "price"}
-              onToggle={(isOpen) => setOpenDropdown(isOpen ? "price" : null)}
+              onToggle={(o) => setOpenDropdown(o ? "price" : null)}
             />
+
             <FilterSelect
               id="date"
               icon={<LuCalendar />}
               label="Date"
-              options={FILTER_OPTIONS.date}
+              options={DATE_OPTIONS}
               value={filters.date}
-              onChange={(value) => handleFilterChange("date", value)}
-              delay={0.45}
+              onChange={(v) => handleFilterChange("date", v)}
               isOpen={openDropdown === "date"}
-              onToggle={(isOpen) => setOpenDropdown(isOpen ? "date" : null)}
+              onToggle={(o) => setOpenDropdown(o ? "date" : null)}
             />
 
-            {/* Reset / Advanced Toggle */}
-            <motion.button
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
               onClick={handleReset}
               className={cn(
                 "flex",
@@ -297,7 +295,7 @@ export const EventsFilterBar = () => {
             >
               <LuSlidersHorizontal className={cn("w-4", "h-4")} />
               {hasActiveFilters ? "RESET" : "MORE"}
-            </motion.button>
+            </button>
           </div>
         </div>
       </div>
@@ -305,7 +303,8 @@ export const EventsFilterBar = () => {
   );
 };
 
-// Enhanced FilterSelect component with dropdown functionality
+// ── FilterSelect ──────────────────────────────────────────────────────────────
+
 interface FilterSelectProps {
   id: string;
   icon: React.ReactNode;
@@ -313,31 +312,27 @@ interface FilterSelectProps {
   options: string[];
   value: string;
   onChange: (value: string) => void;
-  delay?: number;
   isOpen: boolean;
   onToggle: (isOpen: boolean) => void;
 }
 
 const FilterSelect = ({
-  id,
   icon,
   label,
   options,
   value,
   onChange,
-  delay = 0,
   isOpen,
   onToggle,
 }: FilterSelectProps) => {
   const isActive = value !== options[0];
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const [pos, setPos] = useState({ top: 0, left: 0 });
 
-  // Update dropdown position when it opens
   useEffect(() => {
     if (isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setDropdownPosition({
+      setPos({
         top: rect.bottom + window.scrollY + 8,
         left: rect.left + window.scrollX,
       });
@@ -346,44 +341,24 @@ const FilterSelect = ({
 
   return (
     <>
-      {/* Backdrop */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className={cn("fixed", "inset-0", "z-100")}
+            className={cn("fixed", "inset-0", "z-[100]")}
             onClick={() => onToggle(false)}
           />
         )}
       </AnimatePresence>
 
-      {/* Trigger Button */}
       <div className={cn("relative", "shrink-0")}>
-        <motion.button
+        <button
           ref={buttonRef}
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
           onClick={() => onToggle(!isOpen)}
           className={cn(
-            "relative",
-            "flex",
-            "items-center",
-            "gap-2",
-            "px-4",
-            "py-2",
-            "bg-background",
-            "border",
-            "rounded-xl",
-            "text-xs",
-            "font-bold",
-            "transition-all",
-            "shrink-0",
-            "z-101",
+            "relative flex items-center gap-2 px-4 py-2 bg-background border rounded-xl text-xs font-bold transition-all shrink-0 z-[101]",
             isActive
               ? "border-primary/30 bg-primary/5 text-primary"
               : "border-border text-slate-600 hover:border-primary/30 hover:bg-muted",
@@ -415,10 +390,9 @@ const FilterSelect = ({
               d="M19 9l-7 7-7-7"
             />
           </motion.svg>
-        </motion.button>
+        </button>
       </div>
 
-      {/* Dropdown Menu - Fixed Positioning */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -427,7 +401,7 @@ const FilterSelect = ({
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
             className={cn(
-              "fixed -mt-[385px] -ml-[60px]",
+              "fixed",
               "w-56",
               "bg-background",
               "border",
@@ -435,35 +409,20 @@ const FilterSelect = ({
               "rounded-xl",
               "shadow-xl",
               "overflow-hidden",
-              "z-102",
+              "z-[102]",
             )}
-            style={{
-              top: `${dropdownPosition.top}px`,
-              left: `${dropdownPosition.left}px`,
-            }}
+            style={{ top: `${pos.top}px`, left: `${pos.left}px` }}
           >
             <div className={cn("max-h-64", "overflow-y-auto", "p-1")}>
-              {options.map((option, index) => (
-                <motion.button
+              {options.map((option) => (
+                <button
                   key={option}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.03 }}
                   onClick={() => {
                     onChange(option);
                     onToggle(false);
                   }}
                   className={cn(
-                    "w-full",
-                    "flex",
-                    "items-center",
-                    "justify-between",
-                    "px-3",
-                    "py-2.5",
-                    "text-sm",
-                    "rounded-lg",
-                    "transition-colors",
-                    "text-left",
+                    "w-full flex items-center justify-between px-3 py-2.5 text-sm rounded-lg transition-colors text-left",
                     value === option
                       ? "bg-primary/10 text-primary font-bold"
                       : "text-slate-600 hover:bg-muted",
@@ -471,19 +430,9 @@ const FilterSelect = ({
                 >
                   <span>{option}</span>
                   {value === option && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 500,
-                        damping: 30,
-                      }}
-                    >
-                      <LuCheck className={cn("w-4", "h-4", "text-primary")} />
-                    </motion.div>
+                    <LuCheck className={cn("w-4", "h-4", "text-primary")} />
                   )}
-                </motion.button>
+                </button>
               ))}
             </div>
           </motion.div>

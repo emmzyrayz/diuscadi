@@ -1,6 +1,8 @@
 "use client";
-// RegistrationShell — full client component that owns all interactive state
-// for the registration flow. The server page passes event + user as props.
+// context/EventContext — RegistrationShell
+// Owns all interactive state for the registration flow.
+// Server page passes event + user as props.
+
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEvents } from "@/context/EventContext";
@@ -46,28 +48,25 @@ export const RegistrationShell = ({ event, user }: Props) => {
     event.ticketTypes[0];
 
   const handleSubmit = async () => {
-    if (!agreed) return;
+    if (!agreed || status !== "idle") return;
+
     setStatus("loading");
     setErrorMsg("");
 
-    try {
-      await registerForEvent(event.id, selectedTicket?.id ?? "");
+    const result = await registerForEvent(event.id, selectedTicket?.id ?? "");
+
+    if (result.success) {
       setStatus("success");
-      // Brief pause then redirect to tickets page
-      setTimeout(() => router.push("/home/tickets"), 2000);
-    } catch (err: unknown) {
+      // Brief pause so the user sees the success state, then go to tickets
+      setTimeout(() => router.push("/tickets"), 2000);
+    } else {
       setStatus("error");
-      setErrorMsg(
-        err instanceof Error
-          ? err.message
-          : "Registration failed. Please try again.",
-      );
+      setErrorMsg(result.error ?? "Registration failed. Please try again.");
     }
   };
 
   return (
     <>
-      {/* Top event summary banner */}
       <TicketEventSummary event={event} />
 
       <div
@@ -89,7 +88,7 @@ export const RegistrationShell = ({ event, user }: Props) => {
             "items-start",
           )}
         >
-          {/* ── LEFT: Form Column (65%) ──────────────────────────────────── */}
+          {/* ── LEFT: Form Column ── */}
           <div
             className={cn(
               "lg:col-span-7",
@@ -155,7 +154,7 @@ export const RegistrationShell = ({ event, user }: Props) => {
             />
           </div>
 
-          {/* ── RIGHT: Sticky Sidebar (35%) ─────────────────────────────── */}
+          {/* ── RIGHT: Sticky Sidebar ── */}
           <div
             className={cn(
               "hidden",
@@ -176,7 +175,6 @@ export const RegistrationShell = ({ event, user }: Props) => {
           </div>
         </div>
 
-        {/* Help section */}
         <div className={cn("mt-12", "border-t", "border-border", "pt-12")}>
           <TicketHelpSection />
         </div>

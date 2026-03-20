@@ -8,6 +8,40 @@ export type EventLevel = "Beginner" | "Intermediate" | "Advanced";
 export type LocationScope = "local" | "state" | "national";
 export type TargetEduStatus = "STUDENT" | "GRADUATE" | "ALL";
 
+ 
+// ─── Sub-document types ───────────────────────────────────────────────────────
+ 
+export interface EventSpeaker {
+  name:        string;
+  title?:      string;        // e.g. "Senior Engineer at Google"
+  organisation?: string;
+  bio?:        string;
+  avatarUrl?:  string;        // plain URL — speakers use external images for now
+  socialUrl?:  string;        // LinkedIn or personal site
+}
+ 
+export interface EventScheduleItem {
+  time:        string;        // e.g. "09:00 AM"
+  title:       string;        // e.g. "Opening Ceremony"
+  description?: string;
+  speaker?:    string;        // speaker name only — denormalised for display
+  type:        "session" | "break" | "workshop" | "keynote" | "networking";
+}
+ 
+export interface EventSponsor {
+  name:        string;
+  logoUrl?:    string;        // plain URL — sponsor logos are external
+  tier?:       "gold" | "silver" | "bronze" | "partner";
+  website?:    string;
+}
+ 
+export interface EventFAQ {
+  question:    string;
+  answer:      string;
+}
+
+// ─── Main document ────────────────────────────────────────────────────────────
+
 export interface EventDocument {
   _id?: ObjectId;
 
@@ -73,6 +107,32 @@ export interface EventDocument {
    */
   hasEventGallery: boolean;
   eventGallery?: CloudinaryImage[]; // tag: "event-gallery" on each item
+
+  // ── Rich content (managed by admin after event creation) ──────────────────
+
+  /**
+   * Speakers and facilitators.
+   * Empty array = not yet announced. Shown as placeholder UI until populated.
+   */
+  speakers?: EventSpeaker[];
+
+  /**
+   * Agenda / schedule items ordered chronologically.
+   * Empty array = not yet published. Shown as placeholder UI until populated.
+   */
+  schedule?: EventScheduleItem[];
+
+  /**
+   * Sponsors for this specific event.
+   * Empty array = none yet confirmed.
+   */
+  sponsors?: EventSponsor[];
+
+  /**
+   * Per-event FAQs. When empty, the component falls back to
+   * platform-level default FAQs so the section is never blank.
+   */
+  faqs?: EventFAQ[];
 
   // ── Status ────────────────────────────────────────────────────────────────
   status: EventStatus;

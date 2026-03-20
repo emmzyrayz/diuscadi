@@ -5,6 +5,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
+import { ObjectId } from "mongodb";
+
+const FALLBACK_IMAGE = "/images/events/default.jpg";
+
+function resolveEventImage(e: Record<string, unknown>): string {
+  if (
+    e.hasEventBanner &&
+    (e.eventBanner as Record<string, unknown>)?.imageUrl
+  ) {
+    return (e.eventBanner as Record<string, unknown>).imageUrl as string;
+  }
+  if (e.hasEventLogo && (e.eventLogo as Record<string, unknown>)?.imageUrl) {
+    return (e.eventLogo as Record<string, unknown>).imageUrl as string;
+  }
+  return FALLBACK_IMAGE;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -79,7 +95,7 @@ export async function GET(req: NextRequest) {
     const events = await Collections.events(db).aggregate(pipeline).toArray();
 
     const serialised = events.map((e) => ({
-      id: e._id!.toString(),
+      id: (e._id as ObjectId).toString(),
       slug: e.slug,
       title: e.title,
       overview: e.overview,
@@ -95,14 +111,15 @@ export async function GET(req: NextRequest) {
       capacity: e.capacity,
       registeredCount: e.registeredCount as number,
       slotsRemaining: e.slotsRemaining as number,
-      image: e.image,
+      // Resolve CloudinaryImage → plain URL string
+      image: resolveEventImage(e),
       instructor: e.instructor ?? null,
       targetEduStatus: e.targetEduStatus,
       requiredSkills: e.requiredSkills,
       locationScope: e.locationScope,
       ticketTypes: (e.ticketTypes as Array<Record<string, unknown>>).map(
         (t) => ({
-          id: t._id!.toString(),
+          id: (t._id as ObjectId).toString(),
           name: t.name,
           price: t.price,
           currency: t.currency,

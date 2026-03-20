@@ -15,6 +15,7 @@ import { MembershipInfoSection } from "@/components/sections/profile/MembershipI
 import { ActivitySummarySection } from "@/components/sections/profile/ActivitySummary";
 import { ProfileCompletionAlert } from "@/components/sections/profile/ProfileCompleteAlert";
 import { cn } from "@/lib/utils";
+import { InviteCodeCard } from "@/components/sections/profile/InviteCodeCard";
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
@@ -214,6 +215,8 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
+
+            <InviteCodeCard inviteCode={profile.signupInviteCode} />
 
             <ProfileInfoSection
               key={profile.updatedAt} // ← add this

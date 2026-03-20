@@ -216,7 +216,7 @@ export function allowedRolesForType(type: UploadType): string[] {
   switch (type) {
     case "avatar":
       // Any authenticated user — it's their own profile picture
-      return ["participant", "committee", "admin", "webmaster"];
+      return ["participant", "moderator", "admin", "webmaster"];
     case "event-logo":
     case "event-banner":
     case "event-gallery":

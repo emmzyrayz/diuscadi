@@ -9,6 +9,21 @@ import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
 
+const FALLBACK_IMAGE = "/images/events/default.jpg";
+
+function resolveEventImage(e: Record<string, unknown>): string {
+  if (
+    e.hasEventBanner &&
+    (e.eventBanner as Record<string, unknown>)?.imageUrl
+  ) {
+    return (e.eventBanner as Record<string, unknown>).imageUrl as string;
+  }
+  if (e.hasEventLogo && (e.eventLogo as Record<string, unknown>)?.imageUrl) {
+    return (e.eventLogo as Record<string, unknown>).imageUrl as string;
+  }
+  return FALLBACK_IMAGE;
+}
+
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
     const { searchParams } = new URL(req.url);
@@ -20,12 +35,10 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const db = await getDb();
     const vaultId = new ObjectId(req.auth.vaultId);
 
-    // Get user's eduStatus + skills for personalisation
     const userData = await Collections.userData(db).findOne(
       { vaultId },
       { projection: { _id: 1, eduStatus: 1, skills: 1 } },
     );
-
     if (!userData) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -48,16 +61,12 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const pipeline = [
       { $match: matchStage },
       { $sort: { eventDate: 1 as const } },
-
-      // Count total for pagination
       {
         $facet: {
           total: [{ $count: "count" }],
           events: [
             { $skip: skip },
             { $limit: limit },
-
-            // Count active registrations
             {
               $lookup: {
                 from: "eventRegistrations",
@@ -78,8 +87,6 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
                 as: "regCount",
               },
             },
-
-            // Check if this user is registered
             {
               $lookup: {
                 from: "eventRegistrations",
@@ -101,8 +108,6 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
                 as: "myReg",
               },
             },
-
-            // Get active ticket types
             {
               $lookup: {
                 from: "ticketTypes",
@@ -112,7 +117,6 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
                 as: "ticketTypes",
               },
             },
-
             {
               $addFields: {
                 registeredCount: {
@@ -149,7 +153,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const events = result.events as Array<Record<string, unknown>>;
 
     const serialised = events.map((e) => ({
-      id: e._id!.toString(),
+      id: (e._id as ObjectId).toString(),
       slug: e.slug,
       title: e.title,
       overview: e.overview,
@@ -165,7 +169,8 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       capacity: e.capacity,
       registeredCount: e.registeredCount,
       slotsRemaining: e.slotsRemaining,
-      image: e.image,
+      // Resolve CloudinaryImage → plain URL string
+      image: resolveEventImage(e),
       instructor: e.instructor ?? null,
       targetEduStatus: e.targetEduStatus,
       requiredSkills: e.requiredSkills,
@@ -176,7 +181,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         : null,
       ticketTypes: (e.ticketTypes as Array<Record<string, unknown>>).map(
         (t) => ({
-          id: t._id!.toString(),
+          id: (t._id as ObjectId).toString(),
           name: t.name,
           price: t.price,
           currency: t.currency,

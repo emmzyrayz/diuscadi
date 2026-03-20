@@ -1,7 +1,13 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
-import { LuCalendar, LuMapPin, LuArrowRight, LuZap } from "react-icons/lu";
+import {
+  LuCalendar,
+  LuMapPin,
+  LuArrowRight,
+  LuZap,
+  LuUsers,
+} from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -136,8 +142,7 @@ export const FeaturedEvent = ({ event }: FeaturedEventProps) => {
                 "tracking-wider",
               )}
             >
-              <LuCalendar className={cn("w-4", "h-4")} />
-              {event.date}
+              <LuCalendar className={cn("w-4", "h-4")} /> {event.date}
             </div>
             <div className={cn("w-1", "h-1", "bg-slate-200", "rounded-full")} />
             <div
@@ -150,8 +155,7 @@ export const FeaturedEvent = ({ event }: FeaturedEventProps) => {
                 "font-bold",
               )}
             >
-              <LuMapPin className={cn("w-4", "h-4")} />
-              {event.location}
+              <LuMapPin className={cn("w-4", "h-4")} /> {event.location}
             </div>
           </div>
 
@@ -181,40 +185,29 @@ export const FeaturedEvent = ({ event }: FeaturedEventProps) => {
             {event.description}
           </p>
 
+          {/* Registered count — no fake avatars, just a real count with icon */}
           {event.registered > 0 && (
             <div className={cn("flex", "items-center", "gap-3", "mb-8")}>
-              <div className={cn("flex", "-space-x-2")}>
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "w-6",
-                      "h-6",
-                      "rounded-full",
-                      "border-2",
-                      "border-background",
-                      "bg-slate-200",
-                      "overflow-hidden",
-                    )}
-                  >
-                    <Image
-                      height={24}
-                      width={24}
-                      src={`https://i.pravatar.cc/100?u=${i}`}
-                      alt="avatar"
-                    />
-                  </div>
-                ))}
-              </div>
-              <span
+              <div
                 className={cn(
-                  "text-xs",
-                  "font-bold",
-                  "text-muted-foreground",
-                  "italic",
+                  "flex",
+                  "items-center",
+                  "justify-center",
+                  "w-9",
+                  "h-9",
+                  "rounded-2xl",
+                  "bg-primary/10",
                 )}
               >
-                {event.registered.toLocaleString()} already registered
+                <LuUsers className={cn("w-4", "h-4", "text-primary")} />
+              </div>
+              <span
+                className={cn("text-xs", "font-bold", "text-muted-foreground")}
+              >
+                <span className={cn("text-foreground", "font-black")}>
+                  {event.registered.toLocaleString()}
+                </span>{" "}
+                people already registered
               </span>
             </div>
           )}

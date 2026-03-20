@@ -1,4 +1,4 @@
-// lib/types/cloudinary.ts
+// /types/cloudinary.ts
 // ─────────────────────────────────────────────────────────────────────────────
 // Canonical Cloudinary image type used across all DIUSCADI models.
 // Replace every `string | StaticImageData` image field with `CloudinaryImage`

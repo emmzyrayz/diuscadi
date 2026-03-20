@@ -4,10 +4,7 @@ import { Collections } from "@/lib/db/collections";
 import { cn } from "@/lib/utils";
 
 import { EventsHeader } from "@/components/sections/events/eventHeader";
-import { EventsFilterBar } from "@/components/sections/events/eventFilter";
-import { FeaturedEvent } from "@/components/sections/events/featuredEvent";
-import { EventsTabs } from "@/components/sections/events/eventTabs";
-import { EventsGrid } from "@/components/sections/events/eventGrid";
+import { EventsListingClient } from "@/components/sections/events/EventsListingClient";
 import { NewsletterOrCTA } from "@/components/sections/events/eventCTA";
 
 // ── Shared types (imported by child components too) ───────────────────────────
@@ -67,11 +64,6 @@ function formatFullDate(d: Date): string {
   );
 }
 
-/**
- * Resolve the best available image URL for an event document.
- * Priority: banner → logo → fallback.
- * The fallback is a static asset so the UI never shows a broken image.
- */
 function resolveEventImage(
   e: {
     hasEventBanner?: boolean;
@@ -93,15 +85,44 @@ async function fetchEvents(): Promise<{
   events: EventItem[];
   spotlight: SpotlightEvent | null;
   counts: TabCount;
+  categories: string[];
 }> {
   const db = await getDb();
   const now = new Date();
 
+  // Fetch events + cheapest ticket per event in one aggregation
   const docs = await Collections.events(db)
-    .find({ status: "published" })
-    .sort({ eventDate: 1 })
-    .limit(50)
+    .aggregate([
+      { $match: { status: "published" } },
+      { $sort: { eventDate: 1 } },
+      { $limit: 50 },
+      {
+        $lookup: {
+          from: "ticketTypes",
+          localField: "_id",
+          foreignField: "eventId",
+          pipeline: [
+            { $match: { isActive: true } },
+            { $sort: { price: 1 } },
+            { $limit: 1 },
+          ],
+          as: "cheapestTicket",
+        },
+      },
+      {
+        $addFields: {
+          cheapestTicket: { $arrayElemAt: ["$cheapestTicket", 0] },
+        },
+      },
+    ])
     .toArray();
+
+  // Collect distinct categories from DB results (no hardcoding)
+  const categorySet = new Set<string>();
+  docs.forEach((e) => {
+    if (e.category) categorySet.add(String(e.category));
+  });
+  const categories = Array.from(categorySet).sort();
 
   // Pick first upcoming event as spotlight
   const spotlightDoc =
@@ -122,6 +143,10 @@ async function fetchEvents(): Promise<{
         String(e.format)
       : String(e.format);
 
+    // Derive isFree from cheapest ticket — not hardcoded
+    const cheapest = e.cheapestTicket as { price?: number } | undefined;
+    const isFree = !cheapest || !cheapest.price || cheapest.price === 0;
+
     return {
       id: e._id!.toString(),
       slug: e.slug,
@@ -132,7 +157,7 @@ async function fetchEvents(): Promise<{
       tag: eventTag(d, now),
       image: resolveEventImage(e),
       category: e.category,
-      isFree: true,
+      isFree,
     };
   });
 
@@ -160,13 +185,13 @@ async function fetchEvents(): Promise<{
     past: events.filter((e) => e.tag === "Past").length,
   };
 
-  return { events, spotlight, counts };
+  return { events, spotlight, counts, categories };
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function EventPage() {
-  const { events, spotlight, counts } = await fetchEvents();
+  const { events, spotlight, counts, categories } = await fetchEvents();
 
   return (
     <main
@@ -181,10 +206,13 @@ export default async function EventPage() {
       )}
     >
       <EventsHeader />
-      <EventsFilterBar />
-      {spotlight && <FeaturedEvent event={spotlight} />}
-      <EventsTabs counts={counts} />
-      <EventsGrid events={events} />
+      {/* EventsListingClient owns filter state + grid — client component */}
+      <EventsListingClient
+        events={events}
+        spotlight={spotlight}
+        counts={counts}
+        categories={categories}
+      />
       <NewsletterOrCTA />
     </main>
   );

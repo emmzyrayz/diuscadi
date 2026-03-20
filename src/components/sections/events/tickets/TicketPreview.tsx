@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   LuQrCode,
@@ -21,6 +21,18 @@ interface TicketPreviewProps {
   attendanceType: "physical" | "virtual";
 }
 
+/**
+ * Generate a deterministic preview ticket ID from user + event IDs.
+ * This is for display only — the real ID is assigned by the server on submit.
+ * Format: DIU-{year}-{4 chars from userId}-{4 chars from eventId}
+ */
+function buildPreviewTicketId(userId: string, eventId: string): string {
+  const year = new Date().getFullYear();
+  const userPart = userId.slice(-4).toUpperCase();
+  const eventPart = eventId.slice(-4).toUpperCase();
+  return `DIU-${year}-${userPart}${eventPart}`;
+}
+
 export const TicketPreviewCard = ({
   user,
   event,
@@ -28,6 +40,10 @@ export const TicketPreviewCard = ({
 }: TicketPreviewProps) => {
   const locationLine =
     attendanceType === "virtual" ? "Zoom / Online" : event.location;
+  const previewTicketId = useMemo(
+    () => buildPreviewTicketId(user.id, event.id),
+    [user.id, event.id],
+  );
 
   return (
     <div className={cn("w-full", "px-4", "py-6")}>
@@ -198,7 +214,7 @@ export const TicketPreviewCard = ({
             </div>
           </div>
 
-          {/* Tear */}
+          {/* Tear line */}
           <div
             className={cn(
               "relative",
@@ -321,7 +337,7 @@ export const TicketPreviewCard = ({
               </div>
             </div>
 
-            {/* QR placeholder */}
+            {/* QR placeholder + real preview ID */}
             <div
               className={cn(
                 "p-5",
@@ -355,7 +371,7 @@ export const TicketPreviewCard = ({
                     "tracking-[0.15em]",
                   )}
                 >
-                  Ticket ID: DIU-2026-XXXX
+                  Preview ID: {previewTicketId}
                 </p>
                 <p
                   className={cn(
@@ -365,7 +381,7 @@ export const TicketPreviewCard = ({
                     "mt-0.5",
                   )}
                 >
-                  Scan at entrance for validation
+                  Final ID assigned on confirmation
                 </p>
               </div>
             </div>

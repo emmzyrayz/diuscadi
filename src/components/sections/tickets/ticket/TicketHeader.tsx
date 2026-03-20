@@ -45,7 +45,7 @@ export const TicketViewHeader = ({ status }: TicketHeaderProps) => {
       <div className={cn("max-w-4xl", "mx-auto", "px-4", "sm:px-6")}>
         <div className={cn("flex", "items-center", "justify-between", "mb-6")}>
           <button
-            onClick={() => router.push("/home/tickets")}
+            onClick={() => router.push("/tickets")}
             className={cn(
               "flex",
               "items-center",

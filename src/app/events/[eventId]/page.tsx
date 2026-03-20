@@ -3,6 +3,12 @@ import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
+import type {
+  EventSpeaker,
+  EventScheduleItem,
+  EventSponsor,
+  EventFAQ,
+} from "@/lib/models/Events";
 
 import { EventHero } from "@/components/sections/events/event/eHero";
 import { EventMetaBar } from "@/components/sections/events/event/eMetaBar";
@@ -38,6 +44,10 @@ export interface EventDetail {
     state: string;
     country: string;
   };
+  speakers: EventSpeaker[];
+  schedule: EventScheduleItem[];
+  sponsors: EventSponsor[];
+  faqs: EventFAQ[];
   eventDate: string;
   endDate: string;
   registrationDeadline: string;
@@ -160,6 +170,10 @@ async function fetchEventDetail(
       state: doc.location?.state ?? "",
       country: doc.location?.country ?? "Nigeria",
     },
+    speakers: doc.speakers ?? [],
+    schedule: doc.schedule ?? [],
+    sponsors: doc.sponsors ?? [],
+    faqs: doc.faqs ?? [],
     eventDate: fmt(new Date(doc.eventDate as Date)),
     endDate: doc.endDate ? fmt(new Date(doc.endDate as Date)) : "",
     registrationDeadline: new Date(

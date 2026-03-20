@@ -1,12 +1,29 @@
 // GET /api/tickets/[id]
-// Auth required. Returns a single ticket (registration) with full event,
-// ticket type, and invite code details — used for QR display.
+// Auth required. Returns a single ticket with full event and ticket type details.
 
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
+
+const FALLBACK_IMAGE = "/images/events/default.jpg";
+
+function resolveEventImage(event: Record<string, unknown>): string {
+  if (
+    event.hasEventBanner &&
+    (event.eventBanner as Record<string, unknown>)?.imageUrl
+  ) {
+    return (event.eventBanner as Record<string, unknown>).imageUrl as string;
+  }
+  if (
+    event.hasEventLogo &&
+    (event.eventLogo as Record<string, unknown>)?.imageUrl
+  ) {
+    return (event.eventLogo as Record<string, unknown>).imageUrl as string;
+  }
+  return FALLBACK_IMAGE;
+}
 
 export const GET = withAuth(
   async (
@@ -40,12 +57,7 @@ export const GET = withAuth(
       }
 
       const pipeline = [
-        {
-          $match: {
-            _id: new ObjectId(id),
-            userId: userData._id as ObjectId,
-          },
-        },
+        { $match: { _id: new ObjectId(id), userId: userData._id as ObjectId } },
         { $limit: 1 },
         {
           $lookup: {
@@ -83,7 +95,7 @@ export const GET = withAuth(
 
       return NextResponse.json({
         ticket: {
-          id: registration._id!.toString(),
+          id: (registration._id as ObjectId).toString(),
           inviteCode: registration.inviteCode,
           status: registration.status,
           registeredAt: (registration.registeredAt as Date).toISOString(),
@@ -92,7 +104,7 @@ export const GET = withAuth(
             : null,
           referralCodeUsed: registration.referralCodeUsed ?? null,
           event: {
-            id: event._id!.toString(),
+            id: (event._id as ObjectId).toString(),
             slug: event.slug,
             title: event.title,
             overview: event.overview,
@@ -106,13 +118,14 @@ export const GET = withAuth(
               event.registrationDeadline as Date
             ).toISOString(),
             duration: event.duration ?? null,
-            image: event.image,
+            // Resolve CloudinaryImage → plain URL string
+            image: resolveEventImage(event),
             category: event.category,
             instructor: event.instructor ?? null,
             status: event.status,
           },
           ticketType: {
-            id: ticketType._id!.toString(),
+            id: (ticketType._id as ObjectId).toString(),
             name: ticketType.name,
             price: ticketType.price,
             currency: ticketType.currency,

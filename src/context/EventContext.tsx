@@ -3,14 +3,7 @@
 //
 // Owns event feed and single event detail for the authenticated user.
 // Lazy — nothing is fetched on mount. Pages call loadFeed() / loadEvent()
-// explicitly when they mount, keeping network usage predictable.
-//
-// EventContext handles:
-//   - Personalized feed (GET /api/events/feed)
-//   - Public events     (GET /api/events/public)
-//   - Single event      (GET /api/events/[slug])
-//   - Register          (POST /api/events/register)
-//   - Cancel            (DELETE /api/events/register/[id])
+// explicitly when they mount.
 
 import React, {
   createContext,
@@ -50,6 +43,11 @@ export interface EventSummary {
   capacity: number;
   registeredCount: number;
   slotsRemaining: number;
+  /**
+   * Resolved image URL — always a plain string for the client.
+   * The API route resolves CloudinaryImage fields (banner → logo → fallback)
+   * before returning this value so the context never handles CloudinaryImage objects.
+   */
   image: string;
   instructor: string | null;
   targetEduStatus: string;
@@ -87,7 +85,7 @@ export interface CancelResult {
 }
 
 interface EventContextType {
-  // Feed (authenticated, personalised)
+  // Feed
   feed: EventSummary[];
   feedPagination: Pagination | null;
   feedLoading: boolean;
@@ -95,20 +93,20 @@ interface EventContextType {
   loadFeed: (page?: number) => Promise<void>;
   refreshFeed: () => Promise<void>;
 
-  // Public events (no auth required)
+  // Public events
   publicEvents: EventSummary[];
   publicEventsLoading: boolean;
   publicEventsError: string | null;
   loadPublicEvents: (limit?: number, category?: string) => Promise<void>;
 
-  // Single event detail
+  // Single event
   currentEvent: EventDetail | null;
   currentEventLoading: boolean;
   currentEventError: string | null;
   loadEvent: (slug: string) => Promise<void>;
   clearCurrentEvent: () => void;
 
-  // Registration actions
+  // Registration
   registerForEvent: (
     eventId: string,
     ticketTypeId: string,
@@ -143,28 +141,25 @@ function authHeaders(): HeadersInit {
 export const EventProvider = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated } = useAuth();
 
-  // Feed state
   const [feed, setFeed] = useState<EventSummary[]>([]);
   const [feedPagination, setFeedPagination] = useState<Pagination | null>(null);
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [currentFeedPage, setCurrentFeedPage] = useState(1);
 
-  // Public events state
   const [publicEvents, setPublicEvents] = useState<EventSummary[]>([]);
   const [publicEventsLoading, setPublicEventsLoading] = useState(false);
   const [publicEventsError, setPublicEventsError] = useState<string | null>(
     null,
   );
 
-  // Current event state
   const [currentEvent, setCurrentEvent] = useState<EventDetail | null>(null);
   const [currentEventLoading, setCurrentEventLoading] = useState(false);
   const [currentEventError, setCurrentEventError] = useState<string | null>(
     null,
   );
 
-  // ── Load personalised feed ─────────────────────────────────────────────────
+  // ── Load feed ──────────────────────────────────────────────────────────────
   const loadFeed = useCallback(
     async (page = 1) => {
       if (!isAuthenticated) return;
@@ -215,7 +210,7 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // ── Load single event by slug ──────────────────────────────────────────────
+  // ── Load single event ──────────────────────────────────────────────────────
   const loadEvent = useCallback(async (slug: string) => {
     setCurrentEventLoading(true);
     setCurrentEventError(null);
@@ -237,7 +232,7 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCurrentEvent = useCallback(() => setCurrentEvent(null), []);
 
-  // ── Register for event ─────────────────────────────────────────────────────
+  // ── Register ───────────────────────────────────────────────────────────────
   const registerForEvent = useCallback(
     async (
       eventId: string,
@@ -258,7 +253,7 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
         if (!res.ok)
           return { success: false, error: data.error ?? "Registration failed" };
 
-        // Optimistically update feed — mark event as registered
+        // Optimistic update
         setFeed((prev) =>
           prev.map((e) =>
             e.id === eventId
@@ -271,7 +266,6 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
               : e,
           ),
         );
-        // Update current event if loaded
         setCurrentEvent((prev) =>
           prev?.id === eventId
             ? {
@@ -298,7 +292,7 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
-  // ── Cancel registration ────────────────────────────────────────────────────
+  // ── Cancel ─────────────────────────────────────────────────────────────────
   const cancelRegistration = useCallback(
     async (registrationId: string): Promise<CancelResult> => {
       try {
@@ -310,7 +304,6 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
         if (!res.ok)
           return { success: false, error: data.error ?? "Cancellation failed" };
 
-        // Optimistically update feed
         setFeed((prev) =>
           prev.map((e) =>
             e.myRegistrationId === registrationId

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
@@ -8,7 +8,6 @@ import {
   ChevronDown,
   Award,
   Zap,
-  // X,
   CheckCheck,
 } from "lucide-react";
 import Image from "next/image";
@@ -16,7 +15,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-// --- Types & Interfaces ---
+// ── Types ──────────────────────────────────────────────────────────────────────
+
 export interface User {
   name: string;
   avatar: string;
@@ -39,52 +39,30 @@ interface HomeHeaderProps {
   user: User;
 }
 
+// ── Component ──────────────────────────────────────────────────────────────────
+
 export const HomeHeader = ({ user }: HomeHeaderProps) => {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: "New Workshop",
-      desc: "Advanced React patterns is now live.",
-      time: "2m ago",
-      isNew: true,
-    },
-    {
-      id: 2,
-      title: "Project Approved",
-      desc: "Your submission for 'Design Sprint' was accepted.",
-      time: "1h ago",
-      isNew: true,
-    },
-    {
-      id: 3,
-      title: "System Update",
-      desc: "Maintenance scheduled for tonight at 12 AM.",
-      time: "5h ago",
-      isNew: false,
-    },
-  ]);
 
+  // TODO: replace with real notifications from /api/notifications when built.
+  // Keeping this as an empty array so the UI never shows fake data to users.
+  const notifications: {
+    id: number;
+    title: string;
+    desc: string;
+    time: string;
+    isNew: boolean;
+  }[] = [];
   const hasUnread = notifications.some((n) => n.isNew);
-
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, isNew: false })));
-  };
 
   const initials = user.name
     .split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase();
-
-  // ── Search loading simulation ─────────────────────────────────────────────
-  // useMemo derives isSearching synchronously from searchQuery —
-  // no useEffect + setState needed, which avoids cascading renders.
-  // For real search, replace this with a debounced fetch.
-  const isSearching = useMemo(() => searchQuery.length > 0, [searchQuery]);
 
   return (
     <header
@@ -190,7 +168,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
             </div>
           </div>
 
-          {/* MIDDLE: Search Bar */}
+          {/* MIDDLE: Search */}
           <div
             className={cn(
               "hidden",
@@ -222,7 +200,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search workshops..."
+                placeholder="Search events..."
                 className={cn(
                   "bg-transparent",
                   "border-none",
@@ -234,7 +212,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                 )}
               />
             </div>
-
+            {/* TODO: wire to real search API — currently just shows empty state */}
             <AnimatePresence>
               {searchQuery.length > 0 && (
                 <motion.div
@@ -253,42 +231,18 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                     "shadow-xl",
                     "rounded-xl",
                     "p-4",
-                    "min-h-[100px]",
                   )}
                 >
-                  {isSearching ? (
-                    <div className="space-y-3">
-                      <div
-                        className={cn(
-                          "h-4",
-                          "w-3/4",
-                          "text-muted",
-                          "rounded",
-                          "animate-pulse",
-                        )}
-                      />
-                      <div
-                        className={cn(
-                          "h-4",
-                          "w-1/2",
-                          "text-muted",
-                          "rounded",
-                          "animate-pulse",
-                        )}
-                      />
-                    </div>
-                  ) : (
-                    <p
-                      className={cn(
-                        "text-sm",
-                        "text-muted-foreground",
-                        "text-center",
-                        "py-4",
-                      )}
-                    >
-                      No results found for &apos;{searchQuery}&apos;
-                    </p>
-                  )}
+                  <p
+                    className={cn(
+                      "text-sm",
+                      "text-muted-foreground",
+                      "text-center",
+                      "py-4",
+                    )}
+                  >
+                    No results found for &apos;{searchQuery}&apos;
+                  </p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -315,19 +269,21 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                     showNotifications && "text-primary",
                   )}
                 />
-                <span
-                  className={cn(
-                    "absolute",
-                    "top-2",
-                    "right-2",
-                    "w-2",
-                    "h-2",
-                    "bg-primary",
-                    "rounded-full",
-                    "border-2",
-                    "border-background",
-                  )}
-                />
+                {hasUnread && (
+                  <span
+                    className={cn(
+                      "absolute",
+                      "top-2",
+                      "right-2",
+                      "w-2",
+                      "h-2",
+                      "bg-primary",
+                      "rounded-full",
+                      "border-2",
+                      "border-background",
+                    )}
+                  />
+                )}
               </button>
 
               <AnimatePresence>
@@ -371,21 +327,18 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                         >
                           Notifications
                         </h3>
-                        {hasUnread && (
-                          <p
-                            className={cn(
-                              "text-[10px]",
-                              "text-primary",
-                              "font-medium",
-                            )}
-                          >
-                            You have unread messages
-                          </p>
-                        )}
+                        <p
+                          className={cn(
+                            "text-[10px]",
+                            "text-muted-foreground",
+                            "font-medium",
+                          )}
+                        >
+                          You&apos;re all caught up
+                        </p>
                       </div>
                       {hasUnread && (
                         <button
-                          onClick={markAllAsRead}
                           className={cn(
                             "flex",
                             "items-center",
@@ -404,44 +357,23 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                         </button>
                       )}
                     </div>
-
                     <div
                       className={cn(
-                        "max-h-[300px]",
-                        "overflow-y-auto",
-                        "p-2",
-                        "space-y-1",
+                        "p-8",
+                        "text-center",
+                        "text-muted-foreground",
+                        "text-xs",
                       )}
                     >
-                      {notifications.length > 0 ? (
-                        notifications.map((n) => (
-                          <NotificationItem
-                            key={n.id}
-                            title={n.title}
-                            desc={n.desc}
-                            time={n.time}
-                            isNew={n.isNew}
-                          />
-                        ))
-                      ) : (
-                        <div
-                          className={cn(
-                            "py-8",
-                            "text-center",
-                            "text-muted-foreground",
-                            "text-xs",
-                          )}
-                        >
-                          No notifications yet
-                        </div>
-                      )}
+                      No notifications yet
+                      {/* TODO: replace with real notification list from /api/notifications */}
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
-            {/* Settings */}
+            {/* Settings dropdown */}
             <div className="relative">
               <button
                 onClick={() => setIsOpen(!isOpen)}
@@ -485,7 +417,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
                       "z-50",
                     )}
                   >
-                    {/* Points Card */}
+                    {/* Points card */}
                     <div
                       className={cn(
                         "bg-orange-50",
@@ -597,36 +529,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
   );
 };
 
-// --- Sub-components ---
-
-const NotificationItem = ({
-  title,
-  desc,
-  time,
-  isNew,
-}: {
-  title: string;
-  desc: string;
-  time: string;
-  isNew?: boolean;
-}) => (
-  <div
-    className={cn(
-      "p-3 rounded-xl hover:bg-muted transition-colors cursor-pointer mb-1",
-      isNew && "bg-blue-50/50",
-    )}
-  >
-    <div className={cn("flex", "justify-between", "items-start", "mb-1")}>
-      <span className={cn("text-sm", "font-bold", "text-foreground")}>
-        {title}
-      </span>
-      <span className={cn("text-[10px]", "text-muted-foreground")}>{time}</span>
-    </div>
-    <p className={cn("text-xs", "text-muted-foreground", "line-clamp-2")}>
-      {desc}
-    </p>
-  </div>
-);
+// ── Sub-components ─────────────────────────────────────────────────────────────
 
 const DropdownItem = ({ icon, label, value, color, bg }: DropdownItemProps) => (
   <div
