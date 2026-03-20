@@ -344,6 +344,11 @@ export default function TicketsPage() {
   }
 
   return (
-    <TicketListSection tickets={tickets} onClearFilters={() => loadTickets()} />
+    <div className={cn("w-full", "h-full mt-20")}>
+      <TicketListSection
+        tickets={tickets}
+        onClearFilters={() => loadTickets()}
+      />
+    </div>
   );
 }
