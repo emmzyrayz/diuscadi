@@ -409,7 +409,7 @@ const FilterSelect = ({
               "rounded-xl",
               "shadow-xl",
               "overflow-hidden",
-              "z-[102]",
+              "z-[102] -mt-[370px] -ml-[60px]",
             )}
             style={{ top: `${pos.top}px`, left: `${pos.left}px` }}
           >

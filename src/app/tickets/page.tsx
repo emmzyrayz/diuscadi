@@ -340,7 +340,9 @@ export default function TicketsPage() {
   }, [loadTickets]);
 
   if (ticketsLoading) {
-    return <div>Loading tickets...</div>;
+    return (
+      <div className={cn("w-full", "h-full mt-20")}>Loading tickets...</div>
+    );
   }
 
   return (
