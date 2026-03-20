@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   LuCalendar,
@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import type { Ticket } from "@/context/TicketContext";
+import { useTickets, type Ticket } from "@/context/TicketContext";
 import { EmptyState } from "@/components/sections/tickets/EmptyState";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -304,7 +304,7 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
 
 // ── List Section ──────────────────────────────────────────────────────────────
 
-export const TicketListSection = ({
+const TicketListSection = ({
   tickets,
   onClearFilters,
 }: {
@@ -331,3 +331,19 @@ export const TicketListSection = ({
     )}
   </section>
 );
+
+export default function TicketsPage() {
+  const { tickets, loadTickets, ticketsLoading } = useTickets();
+
+  useEffect(() => {
+    loadTickets(); // fetch on mount
+  }, [loadTickets]);
+
+  if (ticketsLoading) {
+    return <div>Loading tickets...</div>;
+  }
+
+  return (
+    <TicketListSection tickets={tickets} onClearFilters={() => loadTickets()} />
+  );
+}
