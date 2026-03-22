@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { LuHistory, LuUserPlus, LuChevronRight } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import type { Analytics } from "@/context/AdminContext";
+import { resolveAdminFullName } from "@/utils/adminFullName";
 
 interface Props {
   recentSignups: Analytics["recentSignups"];
@@ -146,7 +147,7 @@ export const AdminRecentActivity = ({ recentSignups }: Props) => {
               >
                 <LuUserPlus className={cn("w-5", "h-5")} />
               </div>
-              <div className={cn('flex-1', 'min-w-0')}>
+              <div className={cn("flex-1", "min-w-0")}>
                 <p
                   className={cn(
                     "text-[11px]",
@@ -155,7 +156,7 @@ export const AdminRecentActivity = ({ recentSignups }: Props) => {
                   )}
                 >
                   <span className={cn("font-black", "text-foreground")}>
-                    {user.fullName}
+                    {resolveAdminFullName(user.fullName as never)}
                   </span>{" "}
                   joined as{" "}
                   <span className={cn("font-bold", "text-primary")}>

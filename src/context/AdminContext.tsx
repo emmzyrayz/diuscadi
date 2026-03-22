@@ -25,7 +25,7 @@ import {
 export interface AdminUser {
   id: string;
   vaultId: string;
-  fullName: string;
+  fullName: { firstname: string; secondname?: string; lastname?: string }; // ← fix
   email: string;
   phone?: unknown;
   avatar: string | null;
@@ -119,7 +119,7 @@ export interface Analytics {
   }>;
   recentSignups: Array<{
     id: string;
-    fullName: string;
+    fullName: { firstname: string; secondname?: string; lastname?: string }; // ← fix
     email: string;
     role: string;
     eduStatus: string;
@@ -147,7 +147,9 @@ export interface AdminApplication {
   createdAt: string;
   user: {
     id: string;
-    fullName: string;
+    fullName:
+      | { firstname: string; secondname?: string; lastname?: string }
+      | string;
     email: string;
     avatar: string | null;
   } | null;

@@ -21,8 +21,11 @@ import {
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import type { AdminUser } from "@/context/AdminContext";
+import {
+  resolveAdminFullName,
+  resolveAdminInitial,
+} from "@/utils/adminFullName";
 import { IconType } from "react-icons";
-import Image from "next/image";
 
 type TabType = "info" | "tickets" | "events" | "activity";
 
@@ -171,15 +174,15 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                       )}
                     >
                       {avatarSrc ? (
-                        <Image
-                        height={300}
-                        width={500}
+                        <img
                           src={avatarSrc}
-                          alt={user.fullName}
+                          alt={resolveAdminFullName(user.fullName as never)}
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span>{user.fullName.charAt(0).toUpperCase()}</span>
+                        <span>
+                          {resolveAdminInitial(user.fullName as never)}
+                        </span>
                       )}
                     </div>
                     {user.isEmailVerified && (
@@ -210,7 +213,7 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                         "tracking-tight",
                       )}
                     >
-                      {user.fullName}
+                      {resolveAdminFullName(user.fullName as never)}
                     </h2>
                     <div
                       className={cn(

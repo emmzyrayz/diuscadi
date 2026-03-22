@@ -15,6 +15,7 @@ import { useAdmin } from "@/context/AdminContext";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
 import type { AdminUser } from "@/context/AdminContext";
+import { resolveAdminFullName, resolveAdminInitial } from "@/utils/adminFullName";
 
 interface Props {
   isOpen: boolean;
@@ -55,13 +56,19 @@ export const AdminUserRestrictModal: React.FC<Props> = ({
           reason || "Suspended by admin",
           token,
         );
-        toast.success(`${user.fullName} has been suspended`);
+        toast.success(
+          `${resolveAdminFullName(user.fullName as never)} has been suspended`,
+        );
       } else if (activeAction === "ban") {
         await changeStatus(user.id, false, reason || "Banned by admin", token);
-        toast.success(`${user.fullName} has been banned`);
+        toast.success(
+          `${resolveAdminFullName(user.fullName as never)} has been banned`,
+        );
       } else if (activeAction === "restore") {
         await changeStatus(user.id, true, undefined, token);
-        toast.success(`${user.fullName}'s account has been restored`);
+        toast.success(
+          `${resolveAdminFullName(user.fullName as never)}'s account has been restored`,
+        );
       } else if (activeAction === "role") {
         await changeRole(user.id, newRole, token);
         toast.success(`Role updated to ${newRole}`);
@@ -162,11 +169,11 @@ export const AdminUserRestrictModal: React.FC<Props> = ({
                     "text-sm",
                   )}
                 >
-                  {user.fullName.charAt(0).toUpperCase()}
+                  {resolveAdminInitial(user.fullName as never)}
                 </div>
                 <div>
                   <p className={cn("text-sm", "font-black", "text-foreground")}>
-                    {user.fullName}
+                    {resolveAdminFullName(user.fullName as never)}
                   </p>
                   <p
                     className={cn(

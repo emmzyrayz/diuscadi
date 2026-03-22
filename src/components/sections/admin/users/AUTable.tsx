@@ -23,6 +23,10 @@ import { AdminUserDeleteModal } from "./modal/AUDeleteModal";
 import { AdminUserEditModal } from "./modal/AUEditModal";
 import { AdminUserRestrictModal } from "./modal/AURestrictModal";
 import type { AdminUser } from "@/context/AdminContext";
+import {
+  resolveAdminFullName,
+  resolveAdminInitial,
+} from "@/utils/adminFullName";
 
 export type { AdminUser as UserRowData };
 
@@ -58,39 +62,31 @@ export const AdminUsersTable: React.FC<TableProps> = ({
   };
 
   return (
-    // ── FIX 1: removed "flex", "h-full", "w-full" constraints that caused
-    //           the container to shrink. Use block layout with w-full only.
-    // ── FIX 2: removed "overflow-hidden" from the outer wrapper — it was
-    //           clipping the dropdown menus. overflow-x-auto stays on the
-    //           inner scroll div so horizontal scroll still works.
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className={cn(
-        "w-full",
-        "bg-background",
-        "border-2",
-        "border-border",
-        "rounded-[2.5rem]",
-        // overflow-hidden intentionally removed — it clips portal-less dropdowns
-        // and forces the table into a fixed box. Rounded corners still render.
-        "shadow-sm",
-      )}
+      className="w-full bg-background px-4 py-2 border-2 border-border rounded-[2.5rem] shadow-sm"
     >
-      {/* overflow-x-auto only on this inner div for horizontal scroll */}
-      <div className="overflow-x-auto">
-        <table
-          className={cn(
-            "w-full",
-            "text-left",
-            "border-collapse",
-            "min-w-[1000px]",
-          )}
-        >
+      <div className="w-full">
+        <table className="w-full text-left border-collapse min-w-[360px]">
           <thead>
-            <tr className={cn("bg-muted/50", "border-b", "border-border")}>
-              <th className={cn("pl-8", "pr-4", "py-5", "w-10")}>
+            <tr className="bg-muted/50 border-b border-border">
+              {/* Checkbox */}
+              {/* Checkbox — hidden on mobile, visible md+ */}
+              <th
+                className={cn(
+                  "hidden",
+                  "md:table-cell",
+                  "pl-6",
+                  "pr-3",
+                  "lg:pl-8",
+                  "lg:pr-4",
+                  "py-4",
+                  "lg:py-5",
+                  "w-10",
+                )}
+              >
                 <input
                   type="checkbox"
                   checked={
@@ -108,32 +104,34 @@ export const AdminUsersTable: React.FC<TableProps> = ({
                   )}
                 />
               </th>
-              {[
-                "Identity & Profile",
-                "Contact",
-                "Status & Role",
-                "Activity",
-                "Actions",
-              ].map((h, i) => (
-                <th
-                  key={h}
-                  className={cn(
-                    "px-6",
-                    "py-5",
-                    "text-[10px]",
-                    "font-black",
-                    "text-muted-foreground",
-                    "uppercase",
-                    "tracking-[0.2em]",
-                    i === 4 && "text-right px-8",
-                  )}
-                >
-                  {h}
-                </th>
-              ))}
+
+              {/* Identity — always visible */}
+              <th className="px-3 md:px-4 lg:px-6 py-3 lg:py-5 text-[8px] md:text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em] md:tracking-[0.15em] lg:tracking-[0.2em]">
+                Identity
+              </th>
+
+              {/* Contact — lg+ only */}
+              <th className="hidden lg:table-cell px-4 lg:px-6 py-3 lg:py-5 text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] lg:tracking-[0.2em]">
+                Contact
+              </th>
+
+              {/* Status */}
+              <th className="px-2 md:px-4 lg:px-6 py-3 lg:py-5 text-[8px] md:text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em] md:tracking-[0.15em] lg:tracking-[0.2em]">
+                Status
+              </th>
+
+              {/* Activity — xl+ only */}
+              <th className="hidden xl:table-cell px-6 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">
+                Activity
+              </th>
+
+              {/* Actions */}
+              <th className="pr-3 md:pr-5 lg:pr-8 pl-2 py-3 lg:py-5 text-[8px] md:text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em] text-right">
+                Actions
+              </th>
             </tr>
           </thead>
-          <tbody className={cn("divide-y", "divide-slate-50")}>
+          <tbody className="divide-y divide-slate-50">
             {users.map((user, index) => (
               <AdminUserRow
                 key={user.id}
@@ -142,7 +140,7 @@ export const AdminUsersTable: React.FC<TableProps> = ({
                 onToggle={() => toggleOne(user.id)}
                 onViewDetails={onViewDetails}
                 onMutation={onMutation}
-                delay={0.1 + index * 0.05}
+                delay={0.1 + index * 0.04}
               />
             ))}
           </tbody>
@@ -151,8 +149,6 @@ export const AdminUsersTable: React.FC<TableProps> = ({
     </motion.div>
   );
 };
-
-// ── Row ───────────────────────────────────────────────────────────────────────
 
 interface RowProps {
   user: AdminUser;
@@ -225,22 +221,17 @@ const AdminUserRow: React.FC<RowProps> = ({
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4, delay }}
         className={cn(
-          "group",
-          "transition-all",
+          "group transition-all",
           isSelected ? "bg-primary/5" : "hover:bg-muted/50",
           !user.isAccountActive && "opacity-75",
         )}
       >
-        {/* Checkbox */}
-        <td className={cn("pl-8", "pr-4", "py-5", "relative")}>
+        {/* Checkbox — md+ */}
+        <td className="hidden md:table-cell pl-4 lg:pl-8 pr-2 lg:pr-4 py-3 lg:py-5 relative">
           {!user.isAccountActive && (
             <div
               className={cn(
-                "absolute",
-                "left-0",
-                "top-0",
-                "bottom-0",
-                "w-1",
+                "absolute left-0 top-0 bottom-0 w-1",
                 isBanned ? "bg-rose-500" : "bg-amber-500",
               )}
             />
@@ -249,126 +240,75 @@ const AdminUserRow: React.FC<RowProps> = ({
             type="checkbox"
             checked={isSelected}
             onChange={onToggle}
-            className={cn(
-              "w-4",
-              "h-4",
-              "rounded",
-              "border-slate-300",
-              "text-primary",
-              "focus:ring-primary",
-              "cursor-pointer",
-            )}
+            className="w-3.5 h-3.5 lg:w-4 lg:h-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
           />
         </td>
 
-        {/* Identity */}
-        <td className={cn("px-6", "py-5")}>
-          <div className={cn("flex", "items-center", "gap-4")}>
-            <div className="relative">
+        {/* ── Identity ──────────────────────────────────────────────────── */}
+        <td className="px-3 md:px-4 lg:px-6 py-2.5 md:py-3 lg:py-5">
+          <div className="flex items-center gap-2 md:gap-3 lg:gap-4">
+            {/* Avatar */}
+            <div className="relative shrink-0">
               <div
                 className={cn(
-                  "w-10",
-                  "h-10",
-                  "rounded-full",
-                  "bg-muted",
-                  "overflow-hidden",
-                  "border",
-                  "border-border",
-                  "shrink-0",
-                  "flex",
-                  "items-center",
-                  "justify-center",
-                  "text-sm",
-                  "font-black",
-                  "text-muted-foreground",
+                  "rounded-full bg-muted overflow-hidden border border-border",
+                  "flex items-center justify-center font-black text-muted-foreground",
+                  "w-7 h-7 text-[10px]", // mobile
+                  "md:w-9 md:h-9 md:text-xs", // tablet
+                  "lg:w-10 lg:h-10 lg:text-sm", // desktop
                 )}
               >
                 {avatarSrc ? (
                   <Image
                     src={avatarSrc}
-                    alt={user.fullName}
+                    alt={resolveAdminFullName(user.fullName as never)}
                     width={40}
                     height={40}
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <span>{user.fullName.charAt(0).toUpperCase()}</span>
+                  <span>{resolveAdminInitial(user.fullName as never)}</span>
                 )}
               </div>
               {user.isEmailVerified && (
-                <div
-                  className={cn(
-                    "absolute",
-                    "-bottom-1",
-                    "-right-1",
-                    "bg-background",
-                    "rounded-full",
-                    "p-0.5",
-                    "shadow-sm",
-                  )}
-                >
-                  <LuCircleCheck
-                    className={cn("w-3.5", "h-3.5", "text-emerald-500")}
-                  />
+                <div className="absolute -bottom-0.5 -right-0.5 bg-background rounded-full p-0.5 shadow-sm">
+                  <LuCircleCheck className="w-2.5 h-2.5 md:w-3 md:h-3 lg:w-3.5 lg:h-3.5 text-emerald-500" />
                 </div>
               )}
             </div>
-            <div className={cn("flex", "flex-col")}>
+
+            {/* Name + ID */}
+            <div className="flex flex-col min-w-0">
               <span
                 className={cn(
-                  "text-sm",
-                  "font-black",
-                  "tracking-tight",
-                  "transition-colors",
+                  "font-bold tracking-tight transition-colors truncate",
+                  "text-[11px] md:text-xs lg:text-sm", // size
+                  "font-semibold md:font-bold lg:font-black", // weight
                   !user.isAccountActive
                     ? "text-muted-foreground line-through"
                     : "text-foreground group-hover:text-primary",
                 )}
               >
-                {user.fullName}
+                {resolveAdminFullName(user.fullName as never)}
               </span>
-              <span
-                className={cn(
-                  "text-[9px]",
-                  "font-bold",
-                  "text-muted-foreground",
-                  "uppercase",
-                  "tracking-widest",
-                  "mt-0.5",
-                )}
-              >
+              {/* Vault ID — hide on smallest screens to save space */}
+              <span className="hidden sm:block text-[8px] md:text-[9px] font-medium md:font-bold text-muted-foreground uppercase tracking-widest mt-0.5 truncate">
                 {user.vaultId.slice(-8).toUpperCase()}
               </span>
             </div>
           </div>
         </td>
 
-        {/* Contact */}
-        <td className={cn("px-6", "py-5")}>
-          <div
-            className={cn("flex", "items-center", "gap-2", "text-slate-600")}
-          >
-            <LuMail className={cn("w-3.5", "h-3.5", "text-muted-foreground")} />
-            <span
-              className={cn(
-                "text-[11px]",
-                "font-bold",
-                "truncate",
-                "max-w-[180px]",
-              )}
-            >
+        {/* ── Contact — lg+ ─────────────────────────────────────────────── */}
+        <td className="hidden lg:table-cell px-4 lg:px-6 py-3 lg:py-5">
+          <div className="flex items-center gap-1.5 lg:gap-2 text-slate-600">
+            <LuMail className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-muted-foreground shrink-0" />
+            <span className="text-[10px] lg:text-[11px] font-medium lg:font-bold truncate max-w-[130px] xl:max-w-[180px]">
               {user.email}
             </span>
             <button
               onClick={copyEmail}
-              className={cn(
-                "p-1.5",
-                "hover:bg-slate-200",
-                "rounded-md",
-                "text-muted-foreground",
-                "hover:text-foreground",
-                "transition-colors",
-              )}
+              className="p-1 lg:p-1.5 hover:bg-slate-200 rounded-md text-muted-foreground hover:text-foreground transition-colors shrink-0"
             >
               <AnimatePresence mode="wait">
                 {copied ? (
@@ -378,9 +318,7 @@ const AdminUserRow: React.FC<RowProps> = ({
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
                   >
-                    <LuCircleCheck
-                      className={cn("w-3.5", "h-3.5", "text-emerald-500")}
-                    />
+                    <LuCircleCheck className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-emerald-500" />
                   </motion.div>
                 ) : (
                   <motion.div
@@ -389,7 +327,7 @@ const AdminUserRow: React.FC<RowProps> = ({
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
                   >
-                    <LuCopy className={cn("w-3.5", "h-3.5")} />
+                    <LuCopy className="w-3 h-3 lg:w-3.5 lg:h-3.5" />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -397,133 +335,149 @@ const AdminUserRow: React.FC<RowProps> = ({
           </div>
         </td>
 
-        {/* Status & Role */}
-        <td className={cn("px-6", "py-5")}>
-          <div className={cn("flex", "flex-col", "gap-2")}>
+        {/* ── Status & Role ─────────────────────────────────────────────── */}
+        <td className="px-2 md:px-4 lg:px-6 py-2.5 md:py-3 lg:py-5">
+          <div className="flex flex-col gap-1 md:gap-1.5 lg:gap-2">
             <span
               className={cn(
-                "w-fit",
-                "px-2",
-                "py-0.5",
-                "rounded",
-                "border",
-                "text-[8px]",
-                "font-black",
-                "uppercase",
-                "tracking-widest",
+                "w-fit rounded border font-black uppercase",
+                "px-1.5 py-0.5 text-[7px] tracking-[0.1em]", // mobile
+                "md:px-2 md:text-[8px] md:tracking-[0.15em]", // tablet
                 STATUS_STYLE,
               )}
             >
               {STATUS_LABEL}
             </span>
-            <span
-              className={cn(
-                "text-[9px]",
-                "font-black",
-                "text-muted-foreground",
-                "uppercase",
-                "tracking-[0.15em]",
-              )}
-            >
-              {user.role} · {user.eduStatus}
+            {/* Role — hide on smallest, show sm+ */}
+            <span className="hidden sm:block text-[8px] md:text-[9px] font-medium md:font-black text-muted-foreground uppercase tracking-[0.1em] md:tracking-[0.15em]">
+              {user.role}
             </span>
           </div>
         </td>
 
-        {/* Activity */}
-        <td className={cn("px-6", "py-5")}>
-          <div className={cn("flex", "flex-col", "gap-1.5")}>
-            <div className={cn("flex", "items-center", "gap-1.5")}>
+        {/* ── Activity — xl+ ────────────────────────────────────────────── */}
+        <td className="hidden xl:table-cell px-6 py-5">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5">
               <div
                 className={cn(
-                  "flex",
-                  "items-center",
-                  "justify-center",
-                  "w-5",
-                  "h-5",
-                  "rounded-md",
+                  "flex items-center justify-center w-5 h-5 rounded-md",
                   user.analytics.eventsRegistered > 0
                     ? "bg-primary/20 text-foreground"
                     : "bg-muted text-muted-foreground",
                 )}
               >
-                <LuTicket className={cn("w-3", "h-3")} />
+                <LuTicket className="w-3 h-3" />
               </div>
-              <span
-                className={cn(
-                  "text-[10px]",
-                  "font-black",
-                  "uppercase",
-                  "tracking-widest",
-                  "text-foreground",
-                )}
-              >
+              <span className="text-[10px] font-black uppercase tracking-widest text-foreground">
                 {user.analytics.eventsRegistered}{" "}
-                <span className={cn("text-muted-foreground", "font-bold")}>
-                  Events
-                </span>
+                <span className="text-muted-foreground font-bold">Events</span>
               </span>
             </div>
-            <span
-              className={cn(
-                "text-[9px]",
-                "font-medium",
-                "text-muted-foreground",
-              )}
-            >
+            <span className="text-[9px] font-medium text-muted-foreground">
               Attended: {user.analytics.eventsAttended}
             </span>
           </div>
         </td>
 
-        {/* Actions — dropdown is in Portal so overflow on parent doesn't clip it */}
-        <td className={cn("px-8", "py-5", "text-right")}>
+        {/* ── Actions ───────────────────────────────────────────────────── */}
+        <td className="pr-2 md:pr-5 lg:pr-8 pl-1 md:pl-2 py-2.5 md:py-3 lg:py-5 text-right relative">
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className={cn(
-              "p-2",
-              "hover:bg-background",
-              "border",
-              "border-transparent",
-              "hover:border-border",
-              "rounded-lg",
-              "text-muted-foreground",
-              "hover:text-foreground",
-              "transition-all",
-              "cursor-pointer",
-            )}
+            className="p-1.5 md:p-2 hover:bg-background border border-transparent hover:border-border rounded-lg text-muted-foreground hover:text-foreground transition-all cursor-pointer"
           >
-            <LuEllipsis className={cn("w-5", "h-5")} />
+            <LuEllipsis className="w-4 h-4 md:w-5 md:h-5" />
           </button>
+
+          <AnimatePresence>
+            {showMenu && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowMenu(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  className="absolute right-1 md:right-5 lg:right-8 top-10 md:top-12 w-44 md:w-48 lg:w-52 bg-background border border-border rounded-2xl shadow-2xl z-20 p-1.5 md:p-2"
+                >
+                  <MenuItem
+                    icon={LuEye}
+                    label="View Profile"
+                    onClick={() => {
+                      setShowMenu(false);
+                      onViewDetails?.(user);
+                    }}
+                  />
+                  <MenuItem
+                    icon={LuSquarePen}
+                    label="Edit Details"
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowEditModal(true);
+                    }}
+                  />
+                  <div className="h-px bg-muted my-1" />
+                  <MenuItem
+                    icon={LuShieldCheck}
+                    label="Manage Role"
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowRestrict(true);
+                    }}
+                    color="text-blue-600"
+                  />
+                  {user.isAccountActive ? (
+                    <MenuItem
+                      icon={LuShieldAlert}
+                      label="Suspend"
+                      onClick={() => {
+                        setShowMenu(false);
+                        handleSuspend();
+                      }}
+                      color="text-amber-600"
+                    />
+                  ) : (
+                    <MenuItem
+                      icon={LuCircleCheck}
+                      label="Restore"
+                      onClick={() => {
+                        setShowMenu(false);
+                        handleRestore();
+                      }}
+                      color="text-emerald-600"
+                    />
+                  )}
+                  <MenuItem
+                    icon={LuBan}
+                    label="Ban Account"
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowRestrict(true);
+                    }}
+                    color="text-rose-500"
+                  />
+                  <div className="h-px bg-muted my-1" />
+                  <MenuItem
+                    icon={LuTrash2}
+                    label="Delete"
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowDeleteModal(true);
+                    }}
+                    color="text-rose-600"
+                  />
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </td>
       </motion.tr>
-
-      {/* Dropdown menu in Portal — renders at body level, never clipped */}
-      <Portal>
-        <AnimatePresence>
-          {showMenu && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[40]"
-                onClick={() => setShowMenu(false)}
-              />
-              <DropdownMenu
-                user={user}
-                onClose={() => setShowMenu(false)}
-                onViewDetails={onViewDetails}
-                onEdit={() => setShowEditModal(true)}
-                onRestrict={() => setShowRestrict(true)}
-                onDelete={() => setShowDeleteModal(true)}
-                onSuspend={handleSuspend}
-                onRestore={handleRestore}
-              />
-            </>
-          )}
-        </AnimatePresence>
-      </Portal>
 
       <Portal>
         <AdminUserEditModal
@@ -536,7 +490,6 @@ const AdminUserRow: React.FC<RowProps> = ({
           user={user}
         />
       </Portal>
-
       <Portal>
         <AdminUserRestrictModal
           isOpen={showRestrict}
@@ -548,7 +501,6 @@ const AdminUserRow: React.FC<RowProps> = ({
           user={user}
         />
       </Portal>
-
       <Portal>
         <AdminUserDeleteModal
           isOpen={showDeleteModal}
@@ -557,113 +509,13 @@ const AdminUserRow: React.FC<RowProps> = ({
             setShowDeleteModal(false);
             onMutation?.();
           }}
-          userName={user.fullName}
+          userName={resolveAdminFullName(user.fullName as never)}
           userEmail={user.email}
         />
       </Portal>
     </>
   );
 };
-
-// ── Dropdown rendered in Portal — positioned fixed relative to viewport ───────
-
-const DropdownMenu: React.FC<{
-  user: AdminUser;
-  onClose: () => void;
-  onViewDetails?: (user: AdminUser) => void;
-  onEdit: () => void;
-  onRestrict: () => void;
-  onDelete: () => void;
-  onSuspend: () => void;
-  onRestore: () => void;
-}> = ({
-  user,
-  onClose,
-  onViewDetails,
-  onEdit,
-  onRestrict,
-  onDelete,
-  onSuspend,
-  onRestore,
-}) => (
-  // fixed + right-8 + specific top keeps it near the row regardless of scroll
-  // z-[50] ensures it's above the backdrop (z-[40]) and table content
-  <motion.div
-    initial={{ opacity: 0, scale: 0.95, y: -10 }}
-    animate={{ opacity: 1, scale: 1, y: 0 }}
-    exit={{ opacity: 0, scale: 0.95, y: -10 }}
-    transition={{ type: "spring", stiffness: 300, damping: 25 }}
-    className="fixed right-8 w-52 bg-background border border-border rounded-2xl shadow-2xl z-[50] p-2"
-    style={{ top: "auto" }} // position controlled by parent context; Portal handles body-level render
-  >
-    <MenuItem
-      icon={LuEye}
-      label="View Profile"
-      onClick={() => {
-        onClose();
-        onViewDetails?.(user);
-      }}
-    />
-    <MenuItem
-      icon={LuSquarePen}
-      label="Edit Details"
-      onClick={() => {
-        onClose();
-        onEdit();
-      }}
-    />
-    <div className="h-px bg-muted my-1" />
-    <MenuItem
-      icon={LuShieldCheck}
-      label="Manage Role"
-      onClick={() => {
-        onClose();
-        onRestrict();
-      }}
-      color="text-blue-600"
-    />
-    {user.isAccountActive ? (
-      <MenuItem
-        icon={LuShieldAlert}
-        label="Suspend User"
-        onClick={() => {
-          onClose();
-          onSuspend();
-        }}
-        color="text-amber-600"
-      />
-    ) : (
-      <MenuItem
-        icon={LuCircleCheck}
-        label="Restore Account"
-        onClick={() => {
-          onClose();
-          onRestore();
-        }}
-        color="text-emerald-600"
-      />
-    )}
-    <MenuItem
-      icon={LuBan}
-      label="Ban Account"
-      onClick={() => {
-        onClose();
-        onRestrict();
-      }}
-      color="text-rose-500"
-    />
-    <div className="h-px bg-muted my-1" />
-    <MenuItem
-      icon={LuTrash2}
-      label="Delete Permanently"
-      onClick={() => {
-        onClose();
-        onDelete();
-      }}
-      color="text-rose-600"
-    />
-  </motion.div>
-);
 
 const MenuItem: React.FC<{
   icon: React.ElementType;
@@ -674,23 +526,12 @@ const MenuItem: React.FC<{
   <button
     onClick={onClick}
     className={cn(
-      "w-full",
-      "flex",
-      "items-center",
-      "gap-3",
-      "px-3",
-      "py-2.5",
-      "rounded-xl",
-      "hover:bg-muted",
-      "transition-colors",
-      "cursor-pointer",
+      "w-full flex items-center gap-2.5 px-2.5 md:px-3 py-2 md:py-2.5 rounded-xl hover:bg-muted transition-colors cursor-pointer",
       color,
     )}
   >
-    <Icon className={cn("w-4", "h-4")} />
-    <span
-      className={cn("text-[10px]", "font-black", "uppercase", "tracking-tight")}
-    >
+    <Icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-tight">
       {label}
     </span>
   </button>

@@ -20,6 +20,7 @@ import { useAdmin } from "@/context/AdminContext";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
 import type { AdminUser } from "@/context/AdminContext";
+import { resolveAdminFullName } from "@/utils/adminFullName";
 
 interface Props {
   isOpen: boolean;
@@ -198,7 +199,7 @@ export const AdminUserEditModal: React.FC<Props> = ({
                   />
                   <input
                     disabled
-                    value={user.fullName}
+                    value={resolveAdminFullName(user.fullName as never)}
                     className={cn(
                       "w-full",
                       "bg-muted/50",

@@ -72,7 +72,7 @@ export default function UsersManagementPage() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.7 }}
-      className="max-w-[1600px] w-full mt-20 p-3 mx-auto space-y-8"
+      className="space-y-6 w-full mt-20 p-6"
     >
       <AdminUsersHeader
         totalUsers={usersPagination?.total ?? users.length}
@@ -96,7 +96,7 @@ export default function UsersManagementPage() {
           }}
         />
       ) : (
-        <div className="space-y-6">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
           <AdminUsersTable
             users={users}
             onViewDetails={handleViewUser}

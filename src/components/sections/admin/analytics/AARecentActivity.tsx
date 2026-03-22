@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { LuZap, LuUserPlus, LuClock, LuChevronRight } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import type { Analytics } from "@/context/AdminContext";
+import { resolveAdminFullName } from "@/utils/adminFullName";
 
 interface Props {
   analytics: Analytics | null;
@@ -156,7 +157,7 @@ export const AdminAnalyticsRecentActivitySection = ({ analytics }: Props) => {
                         "tracking-tight",
                       )}
                     >
-                      {user.fullName}
+                      {resolveAdminFullName(user.fullName as never)}
                     </span>
                     <p
                       className={cn(
