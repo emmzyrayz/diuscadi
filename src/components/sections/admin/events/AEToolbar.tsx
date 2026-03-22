@@ -5,27 +5,34 @@ import {
   LuFilter,
   LuChevronDown,
   LuTrash2,
-  LuArchive,
   LuArrowUpDown,
   LuMapPin,
 } from "react-icons/lu";
 import { cn } from "../../../../lib/utils";
 
-// 1. TypeScript Interfaces for Filter State
-interface FilterState {
-  search: string;
-  status: "all" | "upcoming" | "completed" | "cancelled" | "draft";
-  type: "all" | "physical" | "virtual" | "hybrid";
-  sort: "newest" | "oldest" | "capacity";
+interface Props {
+  onSearchChange?: (v: string) => void;
+  onStatusChange?: (v: string) => void;
 }
 
-export const AdminEventsToolbar: React.FC = () => {
-  const [filters, setFilters] = useState<FilterState>({
-    search: "",
-    status: "all",
-    type: "all",
-    sort: "newest",
-  });
+export const AdminEventsToolbar: React.FC<Props> = ({
+  onSearchChange,
+  onStatusChange,
+}) => {
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [type, setType] = useState("all");
+  const [sort, setSort] = useState("newest");
+
+  const handleSearch = (v: string) => {
+    setSearch(v);
+    onSearchChange?.(v);
+  };
+
+  const handleStatus = (v: string) => {
+    setStatus(v);
+    onStatusChange?.(v === "all" ? "" : v);
+  };
 
   return (
     <div
@@ -48,7 +55,7 @@ export const AdminEventsToolbar: React.FC = () => {
           "gap-4",
         )}
       >
-        {/* 1. Universal Search Input */}
+        {/* Search */}
         <div className={cn("relative", "w-full", "xl:w-96")}>
           <LuSearch
             className={cn(
@@ -63,7 +70,7 @@ export const AdminEventsToolbar: React.FC = () => {
           />
           <input
             type="text"
-            placeholder="Search by event title or ID..."
+            placeholder="Search by event title..."
             className={cn(
               "w-full",
               "bg-muted",
@@ -82,12 +89,12 @@ export const AdminEventsToolbar: React.FC = () => {
               "focus:border-primary",
               "transition-all",
             )}
-            value={filters.search}
-            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
           />
         </div>
 
-        {/* 2. Filter Group */}
+        {/* Filters */}
         <div
           className={cn(
             "flex",
@@ -101,25 +108,25 @@ export const AdminEventsToolbar: React.FC = () => {
           <ToolbarDropdown
             label="Status"
             icon={LuFilter}
-            value={filters.status}
-            options={["All", "Upcoming", "Completed", "Cancelled", "Draft"]}
+            value={status}
+            options={["all", "published", "draft", "cancelled"]}
+            onChange={handleStatus}
           />
-
           <ToolbarDropdown
             label="Venue"
             icon={LuMapPin}
-            value={filters.type}
-            options={["All", "Physical", "Virtual", "Hybrid"]}
+            value={type}
+            options={["all", "physical", "virtual", "hybrid"]}
+            onChange={setType}
           />
-
           <ToolbarDropdown
             label="Sort"
             icon={LuArrowUpDown}
-            value={filters.sort}
-            options={["Newest", "Oldest", "Capacity"]}
+            value={sort}
+            options={["newest", "oldest", "capacity"]}
+            onChange={setSort}
           />
 
-          {/* 3. Bulk Actions (Optional/Contextual) */}
           <div
             className={cn(
               "h-8",
@@ -146,7 +153,6 @@ export const AdminEventsToolbar: React.FC = () => {
               "hover:bg-rose-600",
               "hover:text-background",
               "transition-all",
-              "group",
             )}
           >
             <LuTrash2 className={cn("w-4", "h-4")} />
@@ -169,12 +175,12 @@ export const AdminEventsToolbar: React.FC = () => {
   );
 };
 
-/* --- Internal Helper: Toolbar Dropdown --- */
 interface DropdownProps {
   label: string;
   icon: React.ElementType;
   value: string;
   options: string[];
+  onChange: (v: string) => void;
 }
 
 const ToolbarDropdown: React.FC<DropdownProps> = ({
@@ -182,6 +188,7 @@ const ToolbarDropdown: React.FC<DropdownProps> = ({
   icon: Icon,
   value,
   options,
+  onChange,
 }) => (
   <div className={cn("relative", "group")}>
     <button
@@ -230,8 +237,6 @@ const ToolbarDropdown: React.FC<DropdownProps> = ({
         className={cn("w-3.5", "h-3.5", "text-slate-300", "ml-1")}
       />
     </button>
-
-    {/* Dropdown Menu - Simplified for now */}
     <div
       className={cn(
         "absolute",
@@ -248,15 +253,12 @@ const ToolbarDropdown: React.FC<DropdownProps> = ({
         "hidden",
         "group-hover:block",
         "z-30",
-        "animate-in",
-        "fade-in",
-        "zoom-in-95",
-        "duration-200",
       )}
     >
       {options.map((opt) => (
         <button
           key={opt}
+          onClick={() => onChange(opt)}
           className={cn(
             "w-full",
             "text-left",
@@ -270,6 +272,7 @@ const ToolbarDropdown: React.FC<DropdownProps> = ({
             "hover:bg-muted",
             "hover:text-primary",
             "transition-colors",
+            value === opt && "text-primary bg-primary/5",
           )}
         >
           {opt}

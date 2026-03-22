@@ -1,8 +1,11 @@
 "use client";
-import Image from "next/image";
+// AUTable.tsx
+// Uses AdminUser from AdminContext — no MOCK_USERS, no fake avatars.
+// Row actions call AdminContext.changeStatus / changeRole directly.
+// Modals for view/edit/delete/restrict are opened via Portal.
+
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { IconType } from "react-icons";
 import {
   LuMail,
   LuCopy,
@@ -13,95 +16,51 @@ import {
   LuBan,
   LuEye,
   LuSquarePen,
+  LuTrash2,
+  LuShieldCheck,
 } from "react-icons/lu";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { useAdmin } from "@/context/AdminContext";
+import { useAuth } from "@/context/AuthContext";
+import { Portal } from "@/components/ui/Portal";
+import { AdminUserDeleteModal } from "./modal/AUDeleteModal";
+import { AdminUserEditModal } from "./modal/AUEditModal";
+import { AdminUserRestrictModal } from "./modal/AURestrictModal";
+import type { AdminUser } from "@/context/AdminContext";
 
-// 1. TypeScript Interfaces
-export interface UserRowData {
-  id: string;
-  name: string;
-  avatar: string;
-  email: string;
-  type: "Student" | "Graduate" | "Professional";
-  isVerified: boolean;
-  accountStatus: "Active" | "Suspended" | "Banned";
-  ticketsCount: number;
-  lastActive: string;
+// Re-export so page and detail modal can import from here
+export type { AdminUser as UserRowData };
+
+interface TableProps {
+  users: AdminUser[];
+  onViewDetails?: (user: AdminUser) => void;
+  onMutation?: () => void;
 }
 
-interface AdminUsersTableProps {
-  onViewDetails?: (user: UserRowData) => void;
-}
-
-interface UserRowProps {
-  user: UserRowData;
-  isSelected: boolean;
-  onToggle: () => void;
-  onViewDetails?: (user: UserRowData) => void;
-  delay?: number;
-}
-
-interface DropdownItemProps {
-  icon: IconType;
-  label: string;
-  color?: string;
-  onClick?: () => void;
-}
-
-const MOCK_USERS: UserRowData[] = [
-  {
-    id: "USR-8921",
-    name: "Sarah Olanrewaju",
-    avatar: "https://i.pravatar.cc/150?u=sarah",
-    email: "sarah.o@example.com",
-    type: "Professional",
-    isVerified: true,
-    accountStatus: "Active",
-    ticketsCount: 3,
-    lastActive: "2 hours ago",
-  },
-  {
-    id: "USR-4432",
-    name: "David Chen",
-    avatar: "https://i.pravatar.cc/150?u=david",
-    email: "david.c@student.edu",
-    type: "Student",
-    isVerified: false,
-    accountStatus: "Active",
-    ticketsCount: 1,
-    lastActive: "1 day ago",
-  },
-  {
-    id: "USR-9910",
-    name: "Marcus Johnson",
-    avatar: "https://i.pravatar.cc/150?u=marcus",
-    email: "mjohnson@spam.com",
-    type: "Graduate",
-    isVerified: false,
-    accountStatus: "Banned",
-    ticketsCount: 0,
-    lastActive: "2 weeks ago",
-  },
-];
-
-export const AdminUsersTable: React.FC<AdminUsersTableProps> = ({
+export const AdminUsersTable: React.FC<TableProps> = ({
+  users,
   onViewDetails,
+  onMutation,
 }) => {
-  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const toggleSelectAll = () => {
-    if (selectedUsers.size === MOCK_USERS.length) {
-      setSelectedUsers(new Set());
-    } else {
-      setSelectedUsers(new Set(MOCK_USERS.map((u) => u.id)));
-    }
+  const toggleAll = () => {
+    setSelectedIds(
+      selectedIds.size === users.length
+        ? new Set()
+        : new Set(users.map((u) => u.id)),
+    );
   };
 
-  const toggleUser = (id: string) => {
-    const newSet = new Set(selectedUsers);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setSelectedUsers(newSet);
+  const toggleOne = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
   };
 
   return (
@@ -110,7 +69,8 @@ export const AdminUsersTable: React.FC<AdminUsersTableProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className={cn(
-        "w-full p-2",
+        "w-full",
+        "p-2",
         "bg-background",
         "border-2",
         "border-border",
@@ -128,114 +88,61 @@ export const AdminUsersTable: React.FC<AdminUsersTableProps> = ({
             "min-w-[1000px]",
           )}
         >
-          {/* Table Header */}
           <thead>
-            <motion.tr
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className={cn("bg-muted/50", "border-b", "border-border")}
-            >
+            <tr className={cn("bg-muted/50", "border-b", "border-border")}>
               <th className={cn("pl-8", "pr-4", "py-5", "w-10")}>
-                <motion.div
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                <input
+                  type="checkbox"
+                  checked={
+                    selectedIds.size === users.length && users.length > 0
+                  }
+                  onChange={toggleAll}
+                  className={cn(
+                    "w-4",
+                    "h-4",
+                    "rounded",
+                    "border-slate-300",
+                    "text-primary",
+                    "focus:ring-primary",
+                    "cursor-pointer",
+                  )}
+                />
+              </th>
+              {[
+                "Identity & Profile",
+                "Contact",
+                "Status & Role",
+                "Activity",
+                "Actions",
+              ].map((h, i) => (
+                <th
+                  key={h}
+                  className={cn(
+                    "px-6",
+                    "py-5",
+                    "text-[10px]",
+                    "font-black",
+                    "text-muted-foreground",
+                    "uppercase",
+                    "tracking-[0.2em]",
+                    i === 4 && "text-right px-8",
+                  )}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedUsers.size === MOCK_USERS.length}
-                    onChange={toggleSelectAll}
-                    className={cn(
-                      "w-4",
-                      "h-4",
-                      "rounded",
-                      "border-slate-300",
-                      "text-primary",
-                      "focus:ring-primary",
-                      "cursor-pointer",
-                    )}
-                  />
-                </motion.div>
-              </th>
-              <th
-                className={cn(
-                  "px-6",
-                  "py-5",
-                  "text-[10px]",
-                  "font-black",
-                  "text-muted-foreground",
-                  "uppercase",
-                  "tracking-[0.2em]",
-                )}
-              >
-                Identity & Profile
-              </th>
-              <th
-                className={cn(
-                  "px-6",
-                  "py-5",
-                  "text-[10px]",
-                  "font-black",
-                  "text-muted-foreground",
-                  "uppercase",
-                  "tracking-[0.2em]",
-                )}
-              >
-                Contact
-              </th>
-              <th
-                className={cn(
-                  "px-6",
-                  "py-5",
-                  "text-[10px]",
-                  "font-black",
-                  "text-muted-foreground",
-                  "uppercase",
-                  "tracking-[0.2em]",
-                )}
-              >
-                Status & Role
-              </th>
-              <th
-                className={cn(
-                  "px-6",
-                  "py-5",
-                  "text-[10px]",
-                  "font-black",
-                  "text-muted-foreground",
-                  "uppercase",
-                  "tracking-[0.2em]",
-                )}
-              >
-                Activity
-              </th>
-              <th
-                className={cn(
-                  "px-8",
-                  "py-5",
-                  "text-[10px]",
-                  "font-black",
-                  "text-muted-foreground",
-                  "uppercase",
-                  "tracking-[0.2em]",
-                  "text-right",
-                )}
-              >
-                Actions
-              </th>
-            </motion.tr>
+                  {h}
+                </th>
+              ))}
+            </tr>
           </thead>
-
-          {/* Table Body */}
           <tbody className={cn("divide-y", "divide-slate-50")}>
-            {MOCK_USERS.map((user, index) => (
+            {users.map((user, index) => (
               <AdminUserRow
                 key={user.id}
                 user={user}
-                isSelected={selectedUsers.has(user.id)}
-                onToggle={() => toggleUser(user.id)}
+                isSelected={selectedIds.has(user.id)}
+                onToggle={() => toggleOne(user.id)}
                 onViewDetails={onViewDetails}
-                delay={0.3 + index * 0.1}
+                onMutation={onMutation}
+                delay={0.1 + index * 0.05}
               />
             ))}
           </tbody>
@@ -245,16 +152,38 @@ export const AdminUsersTable: React.FC<AdminUsersTableProps> = ({
   );
 };
 
-/* --- Internal Component: AdminUserRow --- */
-const AdminUserRow: React.FC<UserRowProps> = ({
+// ── Row ───────────────────────────────────────────────────────────────────────
+
+interface RowProps {
+  user: AdminUser;
+  isSelected: boolean;
+  onToggle: () => void;
+  onViewDetails?: (user: AdminUser) => void;
+  onMutation?: () => void;
+  delay?: number;
+}
+
+const AdminUserRow: React.FC<RowProps> = ({
   user,
   isSelected,
   onToggle,
   onViewDetails,
+  onMutation,
   delay = 0,
 }) => {
+  const { token } = useAuth();
+  const { changeStatus } = useAdmin();
+
   const [copied, setCopied] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showRestrict, setShowRestrict] = useState(false);
+
+  const isBanned =
+    user.isAccountActive === false && user.membershipStatus === "banned";
+  const isSuspended =
+    user.isAccountActive === false && user.membershipStatus !== "banned";
 
   const copyEmail = () => {
     navigator.clipboard.writeText(user.email);
@@ -262,45 +191,60 @@ const AdminUserRow: React.FC<UserRowProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const isBanned = user.accountStatus === "Banned";
-
-  const handleAction = (action: string) => {
-    console.log(`Action: ${action} for user ${user.id}`);
-    setShowDropdown(false);
-    if (action === "view" && onViewDetails) {
-      onViewDetails(user);
-    }
+  const handleSuspend = async () => {
+    if (!token) return;
+    await changeStatus(user.id, false, "Suspended by admin", token);
+    setShowMenu(false);
+    onMutation?.();
   };
 
+  const handleRestore = async () => {
+    if (!token) return;
+    await changeStatus(user.id, true, undefined, token);
+    setShowMenu(false);
+    onMutation?.();
+  };
+
+  const STATUS_LABEL = isBanned
+    ? "Banned"
+    : isSuspended
+      ? "Suspended"
+      : "Active";
+  const STATUS_STYLE = isBanned
+    ? "bg-rose-50 text-rose-600 border-rose-100"
+    : isSuspended
+      ? "bg-amber-50 text-amber-600 border-amber-100"
+      : "bg-emerald-50 text-emerald-600 border-emerald-100";
+
+  const avatarSrc = user.avatar ?? null;
+
   return (
-    <motion.tr
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, delay }}
-      className={cn(
-        "group",
-        "transition-all",
-        isSelected ? "bg-primary/5" : "hover:bg-muted/50",
-        isBanned && "opacity-75 grayscale",
-      )}
-    >
-      {/* Checkbox */}
-      <td className={cn("pl-8", "pr-4", "py-5", "relative")}>
-        {isBanned && (
-          <motion.div
-            initial={{ scaleY: 0 }}
-            animate={{ scaleY: 1 }}
-            className={cn(
-              "absolute",
-              "left-0",
-              "top-0",
-              "bottom-0",
-              "w-1",
-              "bg-rose-500",
-            )}
-          />
+    <>
+      <motion.tr
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.4, delay }}
+        className={cn(
+          "group",
+          "transition-all",
+          isSelected ? "bg-primary/5" : "hover:bg-muted/50",
+          !user.isAccountActive && "opacity-75",
         )}
-        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+      >
+        {/* Checkbox */}
+        <td className={cn("pl-8", "pr-4", "py-5", "relative")}>
+          {!user.isAccountActive && (
+            <div
+              className={cn(
+                "absolute",
+                "left-0",
+                "top-0",
+                "bottom-0",
+                "w-1",
+                isBanned ? "bg-rose-500" : "bg-amber-500",
+              )}
+            />
+          )}
           <input
             type="checkbox"
             checked={isSelected}
@@ -315,42 +259,44 @@ const AdminUserRow: React.FC<UserRowProps> = ({
               "cursor-pointer",
             )}
           />
-        </motion.div>
-      </td>
+        </td>
 
-      {/* Identity */}
-      <td className={cn("px-6", "py-5")}>
-        <div className={cn("flex", "items-center", "gap-4")}>
-          <div className={cn("relative")}>
-            <motion.div
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className={cn(
-                "w-10",
-                "h-10",
-                "rounded-full",
-                "bg-slate-200",
-                "overflow-hidden",
-                "border",
-                "border-border",
-                "shrink-0",
-              )}
-            >
-              <Image
-                height={300}
-                width={500}
-                src={user.avatar}
-                alt={user.name}
-                className={cn("w-full", "h-full", "object-cover")}
-              />
-            </motion.div>
-            <AnimatePresence>
-              {user.isVerified && (
-                <motion.div
-                  initial={{ scale: 0, rotate: -180 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  exit={{ scale: 0, rotate: 180 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 15 }}
+        {/* Identity */}
+        <td className={cn("px-6", "py-5")}>
+          <div className={cn("flex", "items-center", "gap-4")}>
+            <div className="relative">
+              <div
+                className={cn(
+                  "w-10",
+                  "h-10",
+                  "rounded-full",
+                  "bg-muted",
+                  "overflow-hidden",
+                  "border",
+                  "border-border",
+                  "shrink-0",
+                  "flex",
+                  "items-center",
+                  "justify-center",
+                  "text-sm",
+                  "font-black",
+                  "text-muted-foreground",
+                )}
+              >
+                {avatarSrc ? (
+                  <Image
+                    src={avatarSrc}
+                    alt={user.fullName}
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{user.fullName.charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+              {user.isEmailVerified && (
+                <div
                   className={cn(
                     "absolute",
                     "-bottom-1",
@@ -362,280 +308,339 @@ const AdminUserRow: React.FC<UserRowProps> = ({
                   )}
                 >
                   <LuCircleCheck
-                    className={cn("w-4", "h-4", "text-emerald-500")}
+                    className={cn("w-3.5", "h-3.5", "text-emerald-500")}
                   />
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
+            </div>
+            <div className={cn("flex", "flex-col")}>
+              <span
+                className={cn(
+                  "text-sm",
+                  "font-black",
+                  "tracking-tight",
+                  "transition-colors",
+                  !user.isAccountActive
+                    ? "text-muted-foreground line-through"
+                    : "text-foreground group-hover:text-primary",
+                )}
+              >
+                {user.fullName}
+              </span>
+              <span
+                className={cn(
+                  "text-[9px]",
+                  "font-bold",
+                  "text-muted-foreground",
+                  "uppercase",
+                  "tracking-widest",
+                  "mt-0.5",
+                )}
+              >
+                {user.vaultId.slice(-8).toUpperCase()}
+              </span>
+            </div>
           </div>
-          <div className={cn("flex", "flex-col")}>
+        </td>
+
+        {/* Contact */}
+        <td className={cn("px-6", "py-5")}>
+          <div
+            className={cn("flex", "items-center", "gap-2", "text-slate-600")}
+          >
+            <LuMail className={cn("w-3.5", "h-3.5", "text-muted-foreground")} />
             <span
               className={cn(
-                "text-sm",
-                "font-black",
-                "tracking-tight",
-                "transition-colors",
-                isBanned
-                  ? "text-muted-foreground line-through"
-                  : "text-foreground group-hover:text-primary",
+                "text-[11px]",
+                "font-bold",
+                "truncate",
+                "max-w-[180px]",
               )}
             >
-              {user.name}
+              {user.email}
+            </span>
+            <button
+              onClick={copyEmail}
+              className={cn(
+                "p-1.5",
+                "hover:bg-slate-200",
+                "rounded-md",
+                "text-muted-foreground",
+                "hover:text-foreground",
+                "transition-colors",
+              )}
+            >
+              <AnimatePresence mode="wait">
+                {copied ? (
+                  <motion.div
+                    key="c"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                  >
+                    <LuCircleCheck
+                      className={cn("w-3.5", "h-3.5", "text-emerald-500")}
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="u"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                  >
+                    <LuCopy className={cn("w-3.5", "h-3.5")} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </button>
+          </div>
+        </td>
+
+        {/* Status & Role */}
+        <td className={cn("px-6", "py-5")}>
+          <div className={cn("flex", "flex-col", "gap-2")}>
+            <span
+              className={cn(
+                "w-fit",
+                "px-2",
+                "py-0.5",
+                "rounded",
+                "border",
+                "text-[8px]",
+                "font-black",
+                "uppercase",
+                "tracking-widest",
+                STATUS_STYLE,
+              )}
+            >
+              {STATUS_LABEL}
             </span>
             <span
               className={cn(
                 "text-[9px]",
-                "font-bold",
+                "font-black",
                 "text-muted-foreground",
                 "uppercase",
-                "tracking-widest",
-                "mt-0.5",
+                "tracking-[0.15em]",
               )}
             >
-              ID: {user.id}
+              {user.role} · {user.eduStatus}
             </span>
           </div>
-        </div>
-      </td>
+        </td>
 
-      {/* Contact */}
-      <td className={cn("px-6", "py-5")}>
-        <div className={cn("flex", "items-center", "gap-2", "text-slate-600")}>
-          <LuMail className={cn("w-3.5", "h-3.5", "text-muted-foreground")} />
-          <span className={cn("text-[11px]", "font-bold")}>{user.email}</span>
-          <motion.button
-            onClick={copyEmail}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className={cn(
-              "p-1.5",
-              "hover:bg-slate-200",
-              "rounded-md",
-              "text-muted-foreground",
-              "hover:text-foreground",
-              "transition-colors",
-            )}
-            title="Copy Email"
-          >
-            <AnimatePresence mode="wait">
-              {copied ? (
-                <motion.div
-                  key="check"
-                  initial={{ scale: 0, rotate: -180 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  exit={{ scale: 0, rotate: 180 }}
-                >
-                  <LuCircleCheck
-                    className={cn("w-3.5", "h-3.5", "text-emerald-500")}
-                  />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="copy"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                >
-                  <LuCopy className={cn("w-3.5", "h-3.5")} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.button>
-        </div>
-      </td>
-
-      {/* Status & Role */}
-      <td className={cn("px-6", "py-5")}>
-        <div className={cn("flex", "flex-col", "gap-2")}>
-          <motion.span
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            whileHover={{ scale: 1.05 }}
-            className={cn(
-              "w-fit",
-              "px-2",
-              "py-0.5",
-              "rounded",
-              "border",
-              "text-[8px]",
-              "font-black",
-              "uppercase",
-              "tracking-widest",
-              user.accountStatus === "Active"
-                ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                : user.accountStatus === "Suspended"
-                  ? "bg-amber-50 text-amber-600 border-amber-100"
-                  : "bg-rose-50 text-rose-600 border-rose-100",
-            )}
-          >
-            {user.accountStatus}
-          </motion.span>
-          <span
-            className={cn(
-              "text-[9px]",
-              "font-black",
-              "text-muted-foreground",
-              "uppercase",
-              "tracking-[0.15em]",
-            )}
-          >
-            {user.type}
-          </span>
-        </div>
-      </td>
-
-      {/* Activity / Tickets */}
-      <td className={cn("px-6", "py-5")}>
-        <div className={cn("flex", "flex-col", "gap-1.5")}>
-          <div className={cn("flex", "items-center", "gap-1.5")}>
-            <motion.div
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              className={cn(
-                "flex",
-                "items-center",
-                "justify-center",
-                "w-5",
-                "h-5",
-                "rounded-md",
-                user.ticketsCount > 0
-                  ? "bg-primary/20 text-foreground"
-                  : "text-muted text-muted-foreground",
-              )}
-            >
-              <LuTicket className={cn("w-3", "h-3")} />
-            </motion.div>
-            <span
-              className={cn(
-                "text-[10px]",
-                "font-black",
-                "uppercase",
-                "tracking-widest",
-                "text-foreground",
-              )}
-            >
-              {user.ticketsCount}{" "}
-              <span className={cn("text-muted-foreground", "font-bold")}>
-                Tickets
-              </span>
-            </span>
-          </div>
-          <span
-            className={cn("text-[9px]", "font-medium", "text-muted-foreground")}
-          >
-            Last active: {user.lastActive}
-          </span>
-        </div>
-      </td>
-
-      {/* Actions */}
-      <td className={cn("px-8", "py-5", "text-right", "relative")}>
-        <motion.button
-          onClick={() => setShowDropdown(!showDropdown)}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          className={cn(
-            "p-2",
-            "hover:bg-background",
-            "border",
-            "border-transparent",
-            "hover:border-border",
-            "rounded-lg",
-            "text-muted-foreground",
-            "hover:text-foreground",
-            "transition-all",
-          )}
-        >
-          <motion.div
-            animate={showDropdown ? { rotate: 90 } : { rotate: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <LuEllipsis className={cn("w-5", "h-5")} />
-          </motion.div>
-        </motion.button>
-
-        {/* Dropdown Menu */}
-        <AnimatePresence>
-          {showDropdown && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className={cn("fixed", "inset-0", "z-10")}
-                onClick={() => setShowDropdown(false)}
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        {/* Activity */}
+        <td className={cn("px-6", "py-5")}>
+          <div className={cn("flex", "flex-col", "gap-1.5")}>
+            <div className={cn("flex", "items-center", "gap-1.5")}>
+              <div
                 className={cn(
-                  "absolute",
-                  "right-8",
-                  "top-12",
-                  "w-48",
-                  "bg-background",
-                  "border",
-                  "border-border",
-                  "rounded-2xl",
-                  "shadow-2xl",
-                  "z-20",
-                  "p-2",
+                  "flex",
+                  "items-center",
+                  "justify-center",
+                  "w-5",
+                  "h-5",
+                  "rounded-md",
+                  user.analytics.eventsRegistered > 0
+                    ? "bg-primary/20 text-foreground"
+                    : "bg-muted text-muted-foreground",
                 )}
               >
-                <DropdownItem
-                  icon={LuEye}
-                  label="View Profile"
-                  onClick={() => handleAction("view")}
+                <LuTicket className={cn("w-3", "h-3")} />
+              </div>
+              <span
+                className={cn(
+                  "text-[10px]",
+                  "font-black",
+                  "uppercase",
+                  "tracking-widest",
+                  "text-foreground",
+                )}
+              >
+                {user.analytics.eventsRegistered}{" "}
+                <span className={cn("text-muted-foreground", "font-bold")}>
+                  Events
+                </span>
+              </span>
+            </div>
+            <span
+              className={cn(
+                "text-[9px]",
+                "font-medium",
+                "text-muted-foreground",
+              )}
+            >
+              Attended: {user.analytics.eventsAttended}
+            </span>
+          </div>
+        </td>
+
+        {/* Actions */}
+        <td className={cn("px-8", "py-5", "text-right", "relative")}>
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className={cn(
+              "p-2",
+              "hover:bg-background",
+              "border",
+              "border-transparent",
+              "hover:border-border",
+              "rounded-lg",
+              "text-muted-foreground",
+              "hover:text-foreground",
+              "transition-all",
+              "cursor-pointer",
+            )}
+          >
+            <LuEllipsis className={cn("w-5", "h-5")} />
+          </button>
+
+          <AnimatePresence>
+            {showMenu && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className={cn("fixed", "inset-0", "z-10")}
+                  onClick={() => setShowMenu(false)}
                 />
-                <DropdownItem
-                  icon={LuSquarePen}
-                  label="Edit Details"
-                  onClick={() => handleAction("edit")}
-                />
-                <div className={cn("h-px", "bg-muted", "my-1")} />
-                {!isBanned ? (
-                  <>
-                    <DropdownItem
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  className={cn(
+                    "absolute",
+                    "right-8",
+                    "top-12",
+                    "w-52",
+                    "bg-background",
+                    "border",
+                    "border-border",
+                    "rounded-2xl",
+                    "shadow-2xl",
+                    "z-20",
+                    "p-2",
+                  )}
+                >
+                  <MenuItem
+                    icon={LuEye}
+                    label="View Profile"
+                    onClick={() => {
+                      setShowMenu(false);
+                      onViewDetails?.(user);
+                    }}
+                  />
+                  <MenuItem
+                    icon={LuSquarePen}
+                    label="Edit Details"
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowEditModal(true);
+                    }}
+                  />
+                  <div className={cn("h-px", "bg-muted", "my-1")} />
+                  <MenuItem
+                    icon={LuShieldCheck}
+                    label="Manage Role"
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowRestrict(true);
+                    }}
+                    color="text-blue-600"
+                  />
+                  {user.isAccountActive ? (
+                    <MenuItem
                       icon={LuShieldAlert}
                       label="Suspend User"
+                      onClick={() => handleSuspend()}
                       color="text-amber-600"
-                      onClick={() => handleAction("suspend")}
                     />
-                    <DropdownItem
-                      icon={LuBan}
-                      label="Ban Account"
-                      color="text-rose-600"
-                      onClick={() => handleAction("ban")}
+                  ) : (
+                    <MenuItem
+                      icon={LuCircleCheck}
+                      label="Restore Account"
+                      onClick={() => handleRestore()}
+                      color="text-emerald-600"
                     />
-                  </>
-                ) : (
-                  <DropdownItem
-                    icon={LuCircleCheck}
-                    label="Restore Account"
-                    color="text-emerald-600"
-                    onClick={() => handleAction("restore")}
+                  )}
+                  <MenuItem
+                    icon={LuBan}
+                    label="Ban Account"
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowRestrict(true);
+                    }}
+                    color="text-rose-500"
                   />
-                )}
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-      </td>
-    </motion.tr>
+                  <div className={cn("h-px", "bg-muted", "my-1")} />
+                  <MenuItem
+                    icon={LuTrash2}
+                    label="Delete Permanently"
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowDeleteModal(true);
+                    }}
+                    color="text-rose-600"
+                  />
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </td>
+      </motion.tr>
+
+      {/* Modals via Portal */}
+      <Portal>
+        <AdminUserEditModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSave={() => {
+            setShowEditModal(false);
+            onMutation?.();
+          }}
+          user={user}
+        />
+      </Portal>
+
+      <Portal>
+        <AdminUserRestrictModal
+          isOpen={showRestrict}
+          onClose={() => setShowRestrict(false)}
+          onSuccess={() => {
+            setShowRestrict(false);
+            onMutation?.();
+          }}
+          user={user}
+        />
+      </Portal>
+
+      <Portal>
+        <AdminUserDeleteModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={() => {
+            setShowDeleteModal(false);
+            onMutation?.();
+          }}
+          userName={user.fullName}
+          userEmail={user.email}
+        />
+      </Portal>
+    </>
   );
 };
 
-/* --- Internal Helper --- */
-const DropdownItem: React.FC<DropdownItemProps> = ({
-  icon: Icon,
-  label,
-  color = "text-slate-600",
-  onClick,
-}) => (
-  <motion.button
+const MenuItem: React.FC<{
+  icon: React.ElementType;
+  label: string;
+  color?: string;
+  onClick: () => void;
+}> = ({ icon: Icon, label, color = "text-slate-600", onClick }) => (
+  <button
     onClick={onClick}
-    whileHover={{ scale: 1.02, x: 2 }}
-    whileTap={{ scale: 0.98 }}
     className={cn(
       "w-full",
       "flex",
@@ -646,6 +651,7 @@ const DropdownItem: React.FC<DropdownItemProps> = ({
       "rounded-xl",
       "hover:bg-muted",
       "transition-colors",
+      "cursor-pointer",
       color,
     )}
   >
@@ -655,8 +661,5 @@ const DropdownItem: React.FC<DropdownItemProps> = ({
     >
       {label}
     </span>
-  </motion.button>
+  </button>
 );
-
-// Export types
-export type { AdminUsersTableProps, UserRowProps, DropdownItemProps };

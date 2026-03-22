@@ -1,11 +1,22 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { LuCalendarPlus, LuPlus, LuInfo } from "react-icons/lu";
 import { AdminEventModal } from "./modals/AEEditModal";
 import { cn } from "../../../../lib/utils";
 
-export const AdminEventsHeader: React.FC = () => {
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+interface Props {
+  onMutation?: () => void;
+}
+
+export const AdminEventsHeader: React.FC<Props> = ({ onMutation }) => {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Allow empty state CTA to open the modal via custom event
+  useEffect(() => {
+    const handler = () => setIsCreateModalOpen(true);
+    window.addEventListener("open-create-event", handler);
+    return () => window.removeEventListener("open-create-event", handler);
+  }, []);
 
   return (
     <>
@@ -20,7 +31,6 @@ export const AdminEventsHeader: React.FC = () => {
           "mb-10",
         )}
       >
-        {/* 1. Context & Identity */}
         <div className="space-y-2">
           <div className={cn("flex", "items-center", "gap-3")}>
             <div
@@ -74,7 +84,6 @@ export const AdminEventsHeader: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. Primary CTA */}
         <button
           onClick={() => setIsCreateModalOpen(true)}
           className={cn(
@@ -107,7 +116,6 @@ export const AdminEventsHeader: React.FC = () => {
               "duration-300",
             )}
           />
-
           <LuPlus
             className={cn(
               "relative",
@@ -135,10 +143,13 @@ export const AdminEventsHeader: React.FC = () => {
         </button>
       </div>
 
-      {/* 3. The Modal Triggered by Header */}
       <AdminEventModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={() => {
+          setIsCreateModalOpen(false);
+          onMutation?.();
+        }}
       />
     </>
   );

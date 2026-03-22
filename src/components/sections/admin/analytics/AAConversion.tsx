@@ -1,4 +1,19 @@
 "use client";
+// AAConversion.tsx
+//
+// IMPORTANT: All numeric values in this component are PLACEHOLDER data.
+// Funnel metrics (page views, click-through rate, form completion time)
+// require client-side event tracking that is not yet implemented.
+//
+// What's needed to make this real:
+//   - Page view counts  → partially available via HealthContext.analysis.slowestPages[].visits
+//   - Click-to-register → needs analytics event on the Register button
+//   - Form completion   → needs form start/submit timestamps
+//   - Drop-off rates    → needs funnel step tracking
+//
+// Until then, this section shows illustrative UI with "—" values.
+// Wire to real data when event tracking is integrated.
+
 import React from "react";
 import { IconType } from "react-icons";
 import {
@@ -8,9 +23,9 @@ import {
   LuCircleAlert,
   LuArrowDownRight,
   LuTarget,
+  LuInfo,
 } from "react-icons/lu";
-
-// --- Interfaces ---
+import { cn } from "@/lib/utils";
 
 interface FunnelStepProps {
   label: string;
@@ -18,13 +33,11 @@ interface FunnelStepProps {
   percent: number;
   color: string;
 }
-
 interface DropoffItemProps {
   stage: string;
   rate: string;
   desc: string;
 }
-
 interface ConversionStatProps {
   icon: IconType;
   label: string;
@@ -32,141 +45,126 @@ interface ConversionStatProps {
   status: string;
 }
 
-// --- Main Component ---
-
-export const AdminAnalyticsConversionSection: React.FC = () => {
-  return (
-    <div className="space-y-8 mb-16">
-      {/* 1. Section Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-primary/10 text-foreground rounded-xl border border-primary/20">
-            <LuTarget className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-xl font-black text-foreground uppercase tracking-tighter">
-              Growth Optimization
-            </h2>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-              Funnel performance & conversion bottlenecks
-            </p>
-          </div>
-        </div>
+export const AdminAnalyticsConversionSection: React.FC = () => (
+  <div className={cn('space-y-8', 'mb-16')}>
+    <div className={cn('flex', 'items-center', 'gap-3')}>
+      <div className={cn('p-2.5', 'bg-primary/10', 'text-foreground', 'rounded-xl', 'border', 'border-primary/20')}>
+        <LuTarget className={cn('w-5', 'h-5')} />
       </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* 2. RegistrationConversionChart (The Funnel) */}
-        <div className="xl:col-span-2 bg-background border border-border rounded-[2.5rem] p-10 shadow-sm relative overflow-hidden">
-          <div className="relative z-10 space-y-1 mb-10">
-            <h3 className="text-sm font-black text-foreground uppercase tracking-tight">
-              Acquisition Funnel
-            </h3>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-              Visitor to Registered User conversion
-            </p>
-          </div>
-
-          <div className="space-y-4 relative z-10">
-            <FunnelStep
-              label="Event Page Views"
-              value="12,400"
-              percent={100}
-              color="bg-foreground"
-            />
-            <div className="flex justify-center my-1 text-slate-300">
-              <LuArrowDownRight className="w-4 h-4" />{" "}
-              <span className="text-[8px] font-black ml-2">42% Drop-off</span>
-            </div>
-
-            <FunnelStep
-              label="Clicked Register"
-              value="7,200"
-              percent={58}
-              color="bg-slate-700"
-            />
-            <div className="flex justify-center my-1 text-slate-300">
-              <LuArrowDownRight className="w-4 h-4" />{" "}
-              <span className="text-[8px] font-black ml-2">15% Drop-off</span>
-            </div>
-
-            <FunnelStep
-              label="Completed Ticket"
-              value="6,120"
-              percent={49}
-              color="bg-primary"
-            />
-          </div>
-
-          <div
-            className="absolute inset-0 opacity-[0.03] pointer-events-none"
-            style={{
-              backgroundImage: "radial-gradient(#000 1px, transparent 1px)",
-              backgroundSize: "20px 20px",
-            }}
-          />
-        </div>
-
-        {/* 3. DropoffAnalysisChart */}
-        <div className="bg-rose-50 border border-rose-100 rounded-[2.5rem] p-10 flex flex-col">
-          <div className="space-y-1 mb-8">
-            <h3 className="text-sm font-black text-rose-900 uppercase tracking-tight flex items-center gap-2">
-              <LuCircleAlert className="w-4 h-4" /> Critical Drop-offs
-            </h3>
-            <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">
-              Where users are leaving
-            </p>
-          </div>
-
-          <div className="flex-1 space-y-6">
-            <DropoffItem
-              stage="Email Verification"
-              rate="18%"
-              desc="Users failing to click the magic link in their inbox."
-            />
-            <DropoffItem
-              stage="Invite Code Validation"
-              rate="12%"
-              desc="Users entering expired or invalid codes at checkout."
-            />
-            <DropoffItem
-              stage="Profile Completion"
-              rate="5%"
-              desc="Drop-off during mandatory department/school selection."
-            />
-          </div>
-
-          <button className="mt-8 w-full py-4 bg-background border border-rose-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-rose-600 hover:bg-rose-600 hover:text-background transition-all">
-            Optimize Registration Flow
-          </button>
-        </div>
-      </div>
-
-      {/* 4. Conversion Rate Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <ConversionStat
-          icon={LuMousePointerClick}
-          label="Click-Through Rate (CTR)"
-          value="8.4%"
-          status="Above Average"
-        />
-        <ConversionStat
-          icon={LuUserCheck}
-          label="Total Conv. Rate"
-          value="49.3%"
-          status="Healthy"
-        />
-        <ConversionStat
-          icon={LuFilter}
-          label="Form Completion Time"
-          value="1m 12s"
-          status="Optimal"
-        />
+      <div>
+        <h2 className={cn('text-xl', 'font-black', 'text-foreground', 'uppercase', 'tracking-tighter')}>
+          Growth Optimization
+        </h2>
+        <p className={cn('text-[10px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
+          Funnel performance & conversion bottlenecks
+        </p>
       </div>
     </div>
-  );
-};
 
-// --- Helper Components ---
+    {/* Honest TODO banner */}
+    <div className={cn('flex', 'items-start', 'gap-3', 'p-4', 'bg-amber-50', 'border', 'border-amber-100', 'rounded-2xl')}>
+      <LuInfo className={cn('w-4', 'h-4', 'text-amber-600', 'shrink-0', 'mt-0.5')} />
+      <p className={cn('text-[11px]', 'font-bold', 'text-amber-700', 'leading-relaxed')}>
+        All values below are illustrative placeholders — funnel tracking (page
+        views, click events, form timing) is not yet implemented. Wire to a real
+        analytics event pipeline before presenting this data.
+        {/* TODO: POST /api/analytics/event { type, eventId, metadata } and build aggregation */}
+      </p>
+    </div>
+
+    <div className={cn('grid', 'grid-cols-1', 'xl:grid-cols-3', 'gap-8')}>
+      <div className={cn('xl:col-span-2', 'bg-background', 'border', 'border-border', 'rounded-[2.5rem]', 'p-10', 'shadow-sm')}>
+        <h3 className={cn('text-sm', 'font-black', 'text-foreground', 'uppercase', 'tracking-tight', 'mb-2')}>
+          Acquisition Funnel
+        </h3>
+        <p className={cn('text-[10px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'mb-8')}>
+          Illustrative — not real data
+        </p>
+        <div className="space-y-4">
+          <FunnelStep
+            label="Event Page Views"
+            value="—"
+            percent={100}
+            color="bg-foreground"
+          />
+          <div className={cn('flex', 'justify-center', 'my-1', 'text-slate-300')}>
+            <LuArrowDownRight className={cn('w-4', 'h-4')} />
+            <span className={cn('text-[8px]', 'font-black', 'ml-2')}>
+              Drop-off (not tracked)
+            </span>
+          </div>
+          <FunnelStep
+            label="Clicked Register"
+            value="—"
+            percent={58}
+            color="bg-slate-700"
+          />
+          <div className={cn('flex', 'justify-center', 'my-1', 'text-slate-300')}>
+            <LuArrowDownRight className={cn('w-4', 'h-4')} />
+            <span className={cn('text-[8px]', 'font-black', 'ml-2')}>
+              Drop-off (not tracked)
+            </span>
+          </div>
+          <FunnelStep
+            label="Completed Ticket"
+            value="—"
+            percent={49}
+            color="bg-primary"
+          />
+        </div>
+      </div>
+
+      <div className={cn('bg-rose-50', 'border', 'border-rose-100', 'rounded-[2.5rem]', 'p-10', 'flex', 'flex-col')}>
+        <div className={cn('space-y-1', 'mb-8')}>
+          <h3 className={cn('text-sm', 'font-black', 'text-rose-900', 'uppercase', 'tracking-tight', 'flex', 'items-center', 'gap-2')}>
+            <LuCircleAlert className={cn('w-4', 'h-4')} /> Critical Drop-offs
+          </h3>
+          <p className={cn('text-[10px]', 'font-bold', 'text-rose-400', 'uppercase', 'tracking-widest')}>
+            Illustrative only
+          </p>
+        </div>
+        <div className={cn('flex-1', 'space-y-6')}>
+          <DropoffItem
+            stage="Email Verification"
+            rate="—"
+            desc="Requires tracking data"
+          />
+          <DropoffItem
+            stage="Invite Code Validation"
+            rate="—"
+            desc="Requires tracking data"
+          />
+          <DropoffItem
+            stage="Profile Completion"
+            rate="—"
+            desc="Requires tracking data"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div className={cn('grid', 'grid-cols-1', 'md:grid-cols-3', 'gap-6')}>
+      <ConversionStat
+        icon={LuMousePointerClick}
+        label="Click-Through Rate"
+        value="—"
+        status="No data"
+      />
+      <ConversionStat
+        icon={LuUserCheck}
+        label="Conv. Rate"
+        value="—"
+        status="No data"
+      />
+      <ConversionStat
+        icon={LuFilter}
+        label="Form Completion"
+        value="—"
+        status="No data"
+      />
+    </div>
+  </div>
+);
 
 const FunnelStep: React.FC<FunnelStepProps> = ({
   label,
@@ -174,23 +172,16 @@ const FunnelStep: React.FC<FunnelStepProps> = ({
   percent,
   color,
 }) => (
-  <div className="group">
-    <div className="flex justify-between items-end mb-2">
-      <span className="text-[11px] font-black text-foreground uppercase tracking-tight">
+  <div>
+    <div className={cn('flex', 'justify-between', 'items-end', 'mb-2')}>
+      <span className={cn('text-[11px]', 'font-black', 'text-foreground', 'uppercase', 'tracking-tight')}>
         {label}
       </span>
-      <div className="text-right">
-        <p className="text-xs font-black text-foreground leading-none">
-          {value}
-        </p>
-        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
-          {percent}% of Total
-        </p>
-      </div>
+      <p className={cn('text-xs', 'font-black', 'text-muted-foreground')}>{value}</p>
     </div>
-    <div className="h-10 w-full bg-muted rounded-2xl overflow-hidden border border-border">
+    <div className={cn('h-10', 'w-full', 'bg-muted', 'rounded-2xl', 'overflow-hidden', 'border', 'border-border')}>
       <div
-        className={`h-full ${color} transition-all duration-1000 ease-out`}
+        className={`h-full ${color} opacity-30 transition-all duration-1000`}
         style={{ width: `${percent}%` }}
       />
     </div>
@@ -199,13 +190,13 @@ const FunnelStep: React.FC<FunnelStepProps> = ({
 
 const DropoffItem: React.FC<DropoffItemProps> = ({ stage, rate, desc }) => (
   <div className="space-y-1">
-    <div className="flex justify-between items-center">
-      <span className="text-[10px] font-black text-rose-900 uppercase tracking-tight">
+    <div className={cn('flex', 'justify-between', 'items-center')}>
+      <span className={cn('text-[10px]', 'font-black', 'text-rose-900', 'uppercase', 'tracking-tight')}>
         {stage}
       </span>
-      <span className="text-xs font-black text-rose-600">{rate}</span>
+      <span className={cn('text-xs', 'font-black', 'text-rose-400')}>{rate}</span>
     </div>
-    <p className="text-[9px] font-bold text-rose-400 uppercase leading-tight">
+    <p className={cn('text-[9px]', 'font-bold', 'text-rose-400', 'uppercase', 'leading-tight')}>
       {desc}
     </p>
   </div>
@@ -217,19 +208,19 @@ const ConversionStat: React.FC<ConversionStatProps> = ({
   value,
   status,
 }) => (
-  <div className="bg-background border border-border p-8 rounded-[2.5rem] shadow-sm flex items-center justify-between">
+  <div className={cn('bg-background', 'border', 'border-border', 'p-8', 'rounded-[2.5rem]', 'shadow-sm', 'flex', 'items-center', 'justify-between')}>
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Icon className="w-4 h-4 text-muted-foreground" />
-        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">
+      <div className={cn('flex', 'items-center', 'gap-2')}>
+        <Icon className={cn('w-4', 'h-4', 'text-muted-foreground')} />
+        <span className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-[0.2em]')}>
           {label}
         </span>
       </div>
-      <h4 className="text-3xl font-black text-foreground tracking-tighter">
+      <h4 className={cn('text-3xl', 'font-black', 'text-muted-foreground', 'tracking-tighter')}>
         {value}
       </h4>
     </div>
-    <span className="text-[8px] font-black uppercase tracking-widest bg-muted px-3 py-1.5 rounded-full border border-border text-muted-foreground">
+    <span className={cn('text-[8px]', 'font-black', 'uppercase', 'tracking-widest', 'bg-muted', 'px-3', 'py-1.5', 'rounded-full', 'border', 'border-border', 'text-muted-foreground')}>
       {status}
     </span>
   </div>

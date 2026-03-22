@@ -12,47 +12,32 @@ import {
 import { cn } from "@/lib/utils";
 import { IconType } from "react-icons";
 
-// 1. TypeScript Interfaces
-interface UserFilters {
-  search: string;
-  verification: "All" | "Verified" | "Unverified" | "Incomplete";
-  account: "All" | "Active" | "Suspended" | "Banned";
-  type: "All" | "Student" | "Graduate" | "Professional";
-  sort: "Recent" | "Name" | "ID";
+interface Props {
+  onSearchChange?: (v: string) => void;
+  onRoleChange?: (v: string) => void;
+  onStatusChange?: (v: string) => void;
 }
 
-interface UserFilterDropdownProps {
-  label: string;
-  icon: IconType;
-  current: string;
-  options: string[];
-  onChange: (value: string) => void;
-  delay?: number;
-}
+export const AdminUsersToolbar: React.FC<Props> = ({
+  onSearchChange,
+  onRoleChange,
+  onStatusChange,
+}) => {
+  const [search, setSearch] = useState("");
+  const [verification, setVerification] = useState("All");
+  const [account, setAccount] = useState("All");
+  const [type, setType] = useState("All");
+  const [sort, setSort] = useState("Recent");
 
-export const AdminUsersToolbar: React.FC = () => {
-  const [filters, setFilters] = useState<UserFilters>({
-    search: "",
-    verification: "All",
-    account: "All",
-    type: "All",
-    sort: "Recent",
-  });
-
-  const resetFilters = () =>
-    setFilters({
-      search: "",
-      verification: "All",
-      account: "All",
-      type: "All",
-      sort: "Recent",
-    });
-
-  const updateFilter = <K extends keyof UserFilters>(
-    key: K,
-    value: UserFilters[K],
-  ) => {
-    setFilters({ ...filters, [key]: value });
+  const reset = () => {
+    setSearch("");
+    setVerification("All");
+    setAccount("All");
+    setType("All");
+    setSort("Recent");
+    onSearchChange?.("");
+    onRoleChange?.("");
+    onStatusChange?.("");
   };
 
   return (
@@ -79,30 +64,18 @@ export const AdminUsersToolbar: React.FC = () => {
           "gap-5",
         )}
       >
-        {/* 1. Global Identity Search */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-          className={cn("relative", "w-full", "2xl:w-[450px]")}
-        >
-          <motion.div
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              repeatDelay: 3,
-            }}
+        <div className={cn("relative", "w-full", "2xl:w-[450px]")}>
+          <LuSearch
             className={cn(
               "absolute",
               "left-5",
               "top-1/2",
               "-translate-y-1/2",
               "text-muted-foreground",
+              "w-4",
+              "h-4",
             )}
-          >
-            <LuSearch className={cn("w-4", "h-4")} />
-          </motion.div>
+          />
           <input
             type="text"
             placeholder="Search by Name, Email, or Invite Code..."
@@ -127,12 +100,13 @@ export const AdminUsersToolbar: React.FC = () => {
               "uppercase",
               "tracking-tight",
             )}
-            value={filters.search}
-            onChange={(e) => updateFilter("search", e.target.value)}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              onSearchChange?.(e.target.value);
+            }}
           />
-        </motion.div>
-
-        {/* 2. Filter Matrix */}
+        </div>
         <div
           className={cn(
             "flex",
@@ -143,70 +117,55 @@ export const AdminUsersToolbar: React.FC = () => {
             "2xl:w-auto",
           )}
         >
-          <UserFilterDropdown
+          <Dropdown
             label="Verification"
             icon={LuShieldCheck}
-            current={filters.verification}
+            current={verification}
             options={["All", "Verified", "Unverified", "Incomplete"]}
-            onChange={(value) =>
-              updateFilter("verification", value as UserFilters["verification"])
-            }
-            delay={0.2}
+            onChange={(v) => {
+              setVerification(v);
+              onStatusChange?.(v === "All" ? "" : v.toLowerCase());
+            }}
           />
-
-          <UserFilterDropdown
+          <Dropdown
             label="Account"
             icon={LuCircleUser}
-            current={filters.account}
+            current={account}
             options={["All", "Active", "Suspended", "Banned"]}
-            onChange={(value) =>
-              updateFilter("account", value as UserFilters["account"])
-            }
-            delay={0.25}
+            onChange={(v) => {
+              setAccount(v);
+              onStatusChange?.(v === "All" ? "" : v.toLowerCase());
+            }}
           />
-
-          <UserFilterDropdown
+          <Dropdown
             label="Reg. Type"
             icon={LuGraduationCap}
-            current={filters.type}
-            options={["All", "Student", "Graduate", "Professional"]}
-            onChange={(value) =>
-              updateFilter("type", value as UserFilters["type"])
-            }
-            delay={0.3}
+            current={type}
+            options={["All", "student", "alumni", "professional"]}
+            onChange={(v) => {
+              setType(v);
+              onRoleChange?.(v === "All" ? "" : v.toLowerCase());
+            }}
           />
-
-          <UserFilterDropdown
+          <Dropdown
             label="Sort By"
             icon={LuArrowUpDown}
-            current={filters.sort}
+            current={sort}
             options={["Recent", "Name", "ID"]}
-            onChange={(value) =>
-              updateFilter("sort", value as UserFilters["sort"])
-            }
-            delay={0.35}
+            onChange={setSort}
           />
-
-          {/* 3. Utilities */}
-          <motion.div
-            initial={{ opacity: 0, scaleY: 0 }}
-            animate={{ opacity: 1, scaleY: 1 }}
-            transition={{ delay: 0.4 }}
+          <div
             className={cn(
               "h-10",
               "w-px",
-              "text-muted",
+              "bg-muted",
               "mx-2",
               "hidden",
               "xl:block",
             )}
           />
-
           <motion.button
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.4 }}
-            onClick={resetFilters}
+            onClick={reset}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className={cn(
@@ -221,15 +180,9 @@ export const AdminUsersToolbar: React.FC = () => {
               "hover:bg-foreground",
               "hover:text-background",
               "transition-all",
-              "group",
             )}
           >
-            <motion.div
-              whileHover={{ rotate: -90 }}
-              transition={{ duration: 0.5 }}
-            >
-              <LuRotateCcw className={cn("w-4", "h-4")} />
-            </motion.div>
+            <LuRotateCcw className={cn("w-4", "h-4")} />
             <span
               className={cn(
                 "text-[10px]",
@@ -247,34 +200,21 @@ export const AdminUsersToolbar: React.FC = () => {
   );
 };
 
-/* --- Internal Helper: UserFilterDropdown --- */
-const UserFilterDropdown: React.FC<UserFilterDropdownProps> = ({
-  label,
-  icon: Icon,
-  current,
-  options,
-  onChange,
-  delay = 0,
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const handleSelect = (option: string) => {
-    onChange(option);
-    setIsOpen(false);
-  };
-
+const Dropdown: React.FC<{
+  label: string;
+  icon: IconType;
+  current: string;
+  options: string[];
+  onChange: (v: string) => void;
+}> = ({ label, icon: Icon, current, options, onChange }) => {
+  const [open, setOpen] = useState(false);
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
-      className={cn("relative", "group", "min-w-[140px]")}
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+    <div
+      className={cn("relative", "min-w-[140px]")}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
     >
-      <motion.button
-        whileHover={{ scale: 1.02, borderColor: "rgb(15 23 42)" }}
-        whileTap={{ scale: 0.98 }}
+      <button
         className={cn(
           "w-full",
           "flex",
@@ -291,20 +231,7 @@ const UserFilterDropdown: React.FC<UserFilterDropdownProps> = ({
         )}
       >
         <div className={cn("flex", "items-center", "gap-3", "text-left")}>
-          <motion.div
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          >
-            <Icon
-              className={cn(
-                "w-4",
-                "h-4",
-                "text-muted-foreground",
-                "group-hover:text-primary",
-                "transition-colors",
-              )}
-            />
-          </motion.div>
+          <Icon className={cn("w-4", "h-4", "text-muted-foreground")} />
           <div>
             <p
               className={cn(
@@ -331,11 +258,9 @@ const UserFilterDropdown: React.FC<UserFilterDropdownProps> = ({
             </p>
           </div>
         </div>
-      </motion.button>
-
-      {/* Animated Dropdown Menu */}
+      </button>
       <AnimatePresence>
-        {isOpen && (
+        {open && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -357,15 +282,16 @@ const UserFilterDropdown: React.FC<UserFilterDropdownProps> = ({
               "z-40",
             )}
           >
-            {options.map((opt, index) => (
+            {options.map((opt, i) => (
               <motion.button
                 key={opt}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                onClick={() => handleSelect(opt)}
-                whileHover={{ scale: 1.02, x: 2 }}
-                whileTap={{ scale: 0.98 }}
+                transition={{ delay: i * 0.05 }}
+                onClick={() => {
+                  onChange(opt);
+                  setOpen(false);
+                }}
                 className={cn(
                   "w-full",
                   "text-left",
@@ -386,34 +312,21 @@ const UserFilterDropdown: React.FC<UserFilterDropdownProps> = ({
                 )}
               >
                 {opt}
-                <AnimatePresence>
-                  {current === opt && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      exit={{ scale: 0 }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 500,
-                        damping: 25,
-                      }}
-                      className={cn(
-                        "w-1.5",
-                        "h-1.5",
-                        "rounded-full",
-                        "bg-primary",
-                      )}
-                    />
-                  )}
-                </AnimatePresence>
+                {current === opt && (
+                  <div
+                    className={cn(
+                      "w-1.5",
+                      "h-1.5",
+                      "rounded-full",
+                      "bg-primary",
+                    )}
+                  />
+                )}
               </motion.button>
             ))}
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 };
-
-// Export types
-export type { UserFilters, UserFilterDropdownProps };

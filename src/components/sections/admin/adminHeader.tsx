@@ -1,15 +1,38 @@
 "use client";
 import React from "react";
 import {
-  LuLayoutDashboard,
-  LuShieldCheck,
   LuChevronRight,
   LuBell,
   LuSearch,
+  LuShieldCheck,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
+import type { UserProfile } from "@/context/UserContext";
 
-export const AdminHeader = () => {
+interface AdminHeaderProps {
+  profile: UserProfile | null;
+}
+
+export const AdminHeader = ({ profile }: AdminHeaderProps) => {
+  // Build initials from real profile data
+  const initials = profile
+    ? `${profile.fullName.firstname[0] ?? ""}${profile.fullName.lastname[0] ?? ""}`.toUpperCase()
+    : "AD";
+
+  const displayName = profile
+    ? [profile.fullName.firstname, profile.fullName.lastname]
+        .filter(Boolean)
+        .join(" ")
+    : "Admin";
+
+  const roleLabel: Record<string, string> = {
+    admin: "Platform Admin",
+    webmaster: "Webmaster",
+    moderator: "Moderator",
+  };
+
+  const role = roleLabel[profile?.role ?? "admin"] ?? "Admin";
+
   return (
     <header
       className={cn(
@@ -34,7 +57,7 @@ export const AdminHeader = () => {
         )}
       >
         <div className={cn("flex", "items-center", "justify-between", "gap-8")}>
-          {/* 1. Brand & Breadcrumb */}
+          {/* Brand + search */}
           <div className={cn("flex", "items-center", "gap-6")}>
             <div className={cn("hidden", "md:flex", "flex-col")}>
               <div
@@ -64,8 +87,6 @@ export const AdminHeader = () => {
                 Admin <span className="text-muted-foreground">Console</span>
               </h1>
             </div>
-
-            {/* Global Admin Search - High Efficiency */}
             <div className={cn("relative", "hidden", "xl:block")}>
               <LuSearch
                 className={cn(
@@ -102,9 +123,8 @@ export const AdminHeader = () => {
             </div>
           </div>
 
-          {/* 2. Admin Identity & Actions */}
+          {/* Identity */}
           <div className={cn("flex", "items-center", "gap-4")}>
-            {/* System Notifications */}
             <button
               className={cn(
                 "relative",
@@ -138,7 +158,6 @@ export const AdminHeader = () => {
                 )}
               />
             </button>
-
             <div
               className={cn(
                 "h-8",
@@ -149,8 +168,6 @@ export const AdminHeader = () => {
                 "sm:block",
               )}
             />
-
-            {/* Admin Profile & Badge */}
             <div
               className={cn(
                 "flex",
@@ -169,7 +186,7 @@ export const AdminHeader = () => {
                     "leading-none",
                   )}
                 >
-                  Super Admin
+                  {displayName}
                 </p>
                 <div
                   className={cn(
@@ -191,7 +208,7 @@ export const AdminHeader = () => {
                   )}
                 >
                   <LuShieldCheck className={cn("w-2.5", "h-2.5")} />
-                  Webmaster
+                  {role}
                 </div>
               </div>
               <div
@@ -203,7 +220,7 @@ export const AdminHeader = () => {
                   "flex",
                   "items-center",
                   "justify-center",
-                  "text-muted-foreground",
+                  "text-background",
                   "font-black",
                   "shadow-lg",
                   "shadow-primary/20",
@@ -211,7 +228,7 @@ export const AdminHeader = () => {
                   "ring-background/10",
                 )}
               >
-                AD
+                {initials}
               </div>
             </div>
           </div>

@@ -9,58 +9,50 @@ import {
   LuCommand,
   LuZap,
 } from "react-icons/lu";
-import { cn } from "../../../lib/utils";
+import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 import { IconType } from "react-icons";
 
-// Define proper TypeScript types
 interface ActionButtonProps {
   icon: IconType;
   label: string;
   shortcut: string;
   primary?: boolean;
   delay?: number;
-  onClick?: () => void;
-}
-
-interface QuickAction {
-  id: string;
-  icon: IconType;
-  label: string;
-  shortcut: string;
-  primary?: boolean;
-  action: () => void;
+  onClick: () => void;
 }
 
 export const AdminQuickActions = () => {
-  const quickActions: QuickAction[] = [
+  const router = useRouter();
+
+  const quickActions = [
     {
-      id: "create-event",
       icon: LuPlus,
       label: "Create Event",
       shortcut: "N",
       primary: true,
-      action: () => console.log("Creating event..."),
+      onClick: () => router.push("/admin/events?action=create"),
     },
     {
-      id: "view-users",
       icon: LuUsers,
       label: "View User Base",
       shortcut: "U",
-      action: () => console.log("Viewing users..."),
+      primary: false,
+      onClick: () => router.push("/admin/users"),
     },
     {
-      id: "manage-tickets",
       icon: LuTicket,
       label: "Manage Tickets",
       shortcut: "T",
-      action: () => console.log("Managing tickets..."),
+      primary: false,
+      onClick: () => router.push("/admin/tickets"),
     },
     {
-      id: "export-manifest",
       icon: LuDownload,
       label: "Export Manifest",
       shortcut: "E",
-      action: () => console.log("Exporting manifest..."),
+      primary: false,
+      onClick: () => router.push("/admin/analytics"),
     },
   ];
 
@@ -80,17 +72,9 @@ export const AdminQuickActions = () => {
         "group",
       )}
     >
-      {/* Background Glow Effect */}
       <motion.div
-        animate={{
-          scale: [1, 1.1, 1],
-          opacity: [0.5, 0.7, 0.5],
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
+        animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.7, 0.5] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         className={cn(
           "absolute",
           "top-0",
@@ -102,23 +86,12 @@ export const AdminQuickActions = () => {
           "blur-[100px]",
           "-mr-48",
           "-mt-48",
-          "transition-opacity",
-          "group-hover:opacity-100",
         )}
       />
-
       <div className={cn("relative", "z-10")}>
-        {/* 1. Header */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-          className={cn("flex", "items-center", "justify-between", "mb-8")}
-        >
+        <div className={cn("flex", "items-center", "justify-between", "mb-8")}>
           <div className={cn("flex", "items-center", "gap-3")}>
-            <motion.div
-              whileHover={{ rotate: 90, scale: 1.1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            <div
               className={cn(
                 "w-8",
                 "h-8",
@@ -131,7 +104,7 @@ export const AdminQuickActions = () => {
               )}
             >
               <LuCommand className={cn("w-4", "h-4")} />
-            </motion.div>
+            </div>
             <h3
               className={cn(
                 "text-sm",
@@ -144,10 +117,7 @@ export const AdminQuickActions = () => {
               Command Center
             </h3>
           </div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3 }}
+          <div
             className={cn(
               "hidden",
               "md:flex",
@@ -161,19 +131,7 @@ export const AdminQuickActions = () => {
               "border-background/5",
             )}
           >
-            <motion.div
-              animate={{
-                scale: [1, 1.2, 1],
-                opacity: [0.7, 1, 0.7],
-              }}
-              transition={{
-                duration: 1.5,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            >
-              <LuZap className={cn("w-3", "h-3", "text-primary")} />
-            </motion.div>
+            <LuZap className={cn("w-3", "h-3", "text-primary")} />
             <span
               className={cn(
                 "text-[8px]",
@@ -183,30 +141,23 @@ export const AdminQuickActions = () => {
                 "text-muted-foreground",
               )}
             >
-              Fast Actions Active
+              Fast Actions
             </span>
-          </motion.div>
-        </motion.div>
-
-        {/* 2. Action Grid - Fixed responsive grid */}
+          </div>
+        </div>
         <div
           className={cn(
             "grid",
             "grid-cols-1",
             "sm:grid-cols-2",
-            "lg:grid-cols-2",
             "xl:grid-cols-4",
             "gap-4",
           )}
         >
           {quickActions.map((action, index) => (
             <ActionButton
-              key={action.id}
-              icon={action.icon}
-              label={action.label}
-              shortcut={action.shortcut}
-              primary={action.primary}
-              onClick={action.action}
+              key={action.label}
+              {...action}
               delay={0.4 + index * 0.1}
             />
           ))}
@@ -216,7 +167,6 @@ export const AdminQuickActions = () => {
   );
 };
 
-/* --- Internal Helper: Quick Action Button --- */
 const ActionButton = ({
   icon: Icon,
   label,
@@ -224,107 +174,77 @@ const ActionButton = ({
   primary = false,
   delay = 0,
   onClick,
-}: ActionButtonProps) => {
-  const [isHovered, setIsHovered] = React.useState(false);
-
-  return (
-    <motion.button
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay }}
-      whileHover={{ scale: primary ? 1.02 : 1.01, y: -2 }}
-      whileTap={{ scale: primary ? 0.98 : 0.99 }}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
-      onClick={onClick}
-      className={cn(
-        "group",
-        "flex",
-        "items-center",
-        "justify-between",
-        "px-6",
-        "py-5",
-        "rounded-2xl",
-        "transition-all",
-        "duration-300",
-        "relative",
-        "overflow-hidden",
-        primary
-          ? "bg-secondary text-foreground shadow-xl shadow-primary/20"
-          : "bg-background/5 text-background border border-background/5 hover:bg-background/10 hover:border-background/10",
-      )}
-    >
-      {/* Shimmer effect on hover - Fixed gradient class */}
-      {isHovered && (
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-background/10 to-transparent"
-          initial={{ x: "-100%" }}
-          animate={{ x: "100%" }}
-          transition={{ duration: 0.6 }}
-        />
-      )}
-
-      <div className={cn("flex", "items-center", "gap-4", "relative", "z-10")}>
-        <motion.div
-          animate={isHovered ? { rotate: primary ? 180 : 360 } : { rotate: 0 }}
-          transition={{ duration: 0.6, type: "spring", stiffness: 200 }}
-          className={cn(
-            "w-10",
-            "h-10",
-            "rounded-xl",
-            "flex",
-            "items-center",
-            "justify-center",
-            "transition-colors",
-            "duration-300",
-            primary
-              ? "bg-foreground/10"
-              : "bg-background/5 group-hover:bg-primary/20 group-hover:text-primary",
-          )}
-        >
-          <Icon className={cn("w-5", "h-5")} />
-        </motion.div>
-        <span
-          className={cn(
-            "text-[11px]",
-            "font-black",
-            "uppercase",
-            "tracking-wider",
-          )}
-        >
-          {label}
-        </span>
-      </div>
-
-      {/* The Shortcut Badge (Premium Detail) */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.5 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: delay + 0.2 }}
-        whileHover={{ scale: 1.1 }}
+}: ActionButtonProps) => (
+  <motion.button
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.4, delay }}
+    whileHover={{ scale: primary ? 1.02 : 1.01, y: -2 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick}
+    className={cn(
+      "group",
+      "flex",
+      "items-center",
+      "justify-between",
+      "px-6",
+      "py-5",
+      "rounded-2xl",
+      "transition-all",
+      "duration-300",
+      "cursor-pointer",
+      primary
+        ? "bg-secondary text-foreground shadow-xl shadow-primary/20"
+        : "bg-background/5 text-background border border-background/5 hover:bg-background/10",
+    )}
+  >
+    <div className={cn("flex", "items-center", "gap-4")}>
+      <div
         className={cn(
-          "hidden",
-          "xl:flex",
-          "w-6",
-          "h-6",
+          "w-10",
+          "h-10",
+          "rounded-xl",
+          "flex",
           "items-center",
           "justify-center",
-          "rounded-md",
-          "border",
-          "text-[9px]",
-          "font-black",
-          "relative",
-          "z-10",
+          "transition-colors",
+          "duration-300",
           primary
-            ? "border-foreground/20 text-foreground/40"
-            : "border-background/10 text-slate-600",
+            ? "bg-foreground/10"
+            : "bg-background/5 group-hover:bg-primary/20 group-hover:text-primary",
         )}
       >
-        {shortcut}
-      </motion.div>
-    </motion.button>
-  );
-};
-
-// Export types for reuse
-export type { ActionButtonProps, QuickAction };
+        <Icon className={cn("w-5", "h-5")} />
+      </div>
+      <span
+        className={cn(
+          "text-[11px]",
+          "font-black",
+          "uppercase",
+          "tracking-wider",
+        )}
+      >
+        {label}
+      </span>
+    </div>
+    <div
+      className={cn(
+        "hidden",
+        "xl:flex",
+        "w-6",
+        "h-6",
+        "items-center",
+        "justify-center",
+        "rounded-md",
+        "border",
+        "text-[9px]",
+        "font-black",
+        primary
+          ? "border-foreground/20 text-foreground/40"
+          : "border-background/10 text-slate-600",
+      )}
+    >
+      {shortcut}
+    </div>
+  </motion.button>
+);

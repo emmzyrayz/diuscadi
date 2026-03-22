@@ -1,4 +1,9 @@
 "use client";
+// modals/AEEditModal.tsx
+// The 5-step event creation wizard.
+// On submit calls AdminContext.createEvent() which hits POST /api/admin/events.
+// The banner upload uses ImageUploader → Cloudinary pipeline (TODO: wire step 1 upload).
+
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -19,14 +24,18 @@ import {
   LuTicket,
   LuTimer,
   LuCalendar,
+  LuLoader,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { IconType } from "react-icons";
+import { useAdmin } from "@/context/AdminContext";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "react-hot-toast";
 
-// 1. Types & Interfaces
 interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
   initialData?: Partial<EventFormData>;
 }
 
@@ -34,7 +43,6 @@ interface EventFormData {
   title: string;
   category: string;
   description: string;
-  banner: File | null;
   date: string;
   startTime: string;
   duration: number;
@@ -45,21 +53,7 @@ interface EventFormData {
   ticketPrice: number;
   enableWaitlist: boolean;
   registrationDeadline: string;
-  speakers: Speaker[];
-  sponsors: Sponsor[];
   visibility: "Public" | "Invite-Only";
-}
-
-interface Speaker {
-  id: string;
-  name: string;
-  avatar?: string;
-}
-
-interface Sponsor {
-  id: string;
-  logo: string;
-  name: string;
 }
 
 type WizardStep = 1 | 2 | 3 | 4 | 5;
@@ -69,15 +63,9 @@ interface StepConfig {
   label: string;
   icon: IconType;
 }
-
-interface InputGroupProps {
-  label: string;
-  icon: IconType;
-  dark?: boolean;
-  type?: string;
-  placeholder?: string;
-  value?: string | number;
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+interface StepProps {
+  formData: EventFormData;
+  setFormData: React.Dispatch<React.SetStateAction<EventFormData>>;
 }
 
 const STEPS: StepConfig[] = [
@@ -88,41 +76,108 @@ const STEPS: StepConfig[] = [
   { id: 5, label: "Review", icon: LuShield },
 ];
 
+const DEFAULT_FORM: EventFormData = {
+  title: "",
+  category: "Technology",
+  description: "",
+  date: "",
+  startTime: "",
+  duration: 2,
+  type: "Physical",
+  venueName: "",
+  coordinates: { lat: "", lng: "" },
+  maxCapacity: 100,
+  ticketPrice: 0,
+  enableWaitlist: false,
+  registrationDeadline: "",
+  visibility: "Public",
+};
+
 export const AdminEventModal: React.FC<EventModalProps> = ({
   isOpen,
   onClose,
+  onSuccess,
   initialData,
 }) => {
+  const { token } = useAuth();
+  const { createEvent } = useAdmin();
+
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState<EventFormData>({
-    title: initialData?.title || "",
-    category: initialData?.category || "Technology",
-    description: initialData?.description || "",
-    banner: initialData?.banner || null,
-    date: initialData?.date || "",
-    startTime: initialData?.startTime || "",
-    duration: initialData?.duration || 2,
-    type: initialData?.type || "Physical",
-    venueName: initialData?.venueName || "",
-    coordinates: initialData?.coordinates || { lat: "", lng: "" },
-    maxCapacity: initialData?.maxCapacity || 100,
-    ticketPrice: initialData?.ticketPrice || 0,
-    enableWaitlist: initialData?.enableWaitlist || false,
-    registrationDeadline: initialData?.registrationDeadline || "",
-    speakers: initialData?.speakers || [],
-    sponsors: initialData?.sponsors || [],
-    visibility: initialData?.visibility || "Public",
+    ...DEFAULT_FORM,
+    ...initialData,
   });
 
   if (!isOpen) return null;
 
   const nextStep = () =>
-    setCurrentStep((prev) => Math.min(prev + 1, 5) as WizardStep);
+    setCurrentStep((p) => Math.min(p + 1, 5) as WizardStep);
   const prevStep = () =>
-    setCurrentStep((prev) => Math.max(prev - 1, 1) as WizardStep);
+    setCurrentStep((p) => Math.max(p - 1, 1) as WizardStep);
 
-  const handleSubmit = () => {
-    console.log("Event created:", formData);
+  const handleSubmit = async () => {
+    if (!token) return;
+    if (
+      !formData.title.trim() ||
+      !formData.date ||
+      !formData.registrationDeadline
+    ) {
+      toast.error("Title, date and registration deadline are required");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Build ISO datetime from date + startTime
+      const eventDateIso = formData.startTime
+        ? new Date(`${formData.date}T${formData.startTime}`).toISOString()
+        : new Date(formData.date).toISOString();
+
+      await createEvent(
+        {
+          title: formData.title.trim(),
+          slug: formData.title
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, "-")
+            .replace(/[^a-z0-9-]/g, ""),
+          overview: formData.description,
+          category: formData.category,
+          format: formData.type.toLowerCase() as
+            | "physical"
+            | "virtual"
+            | "hybrid",
+          eventDate: eventDateIso,
+          registrationDeadline: new Date(
+            formData.registrationDeadline,
+          ).toISOString(),
+          capacity: formData.maxCapacity,
+          locationScope: formData.type === "Virtual" ? "online" : "local",
+          location: formData.venueName
+            ? { venue: formData.venueName }
+            : undefined,
+          status: formData.visibility === "Public" ? "published" : "draft",
+        },
+        token,
+      );
+
+      toast.success("Event created successfully!");
+      setFormData(DEFAULT_FORM);
+      setCurrentStep(1);
+      onSuccess?.();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create event",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    setFormData(DEFAULT_FORM);
+    setCurrentStep(1);
     onClose();
   };
 
@@ -133,19 +188,18 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
           className={cn(
             "fixed",
             "inset-0",
-            "z-100",
+            "z-[100]",
             "flex",
             "items-center",
             "justify-center",
             "p-4",
           )}
         >
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={handleClose}
             className={cn(
               "absolute",
               "inset-0",
@@ -154,12 +208,12 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
             )}
           />
 
-          {/* Modal Container */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            onClick={(e) => e.stopPropagation()}
             className={cn(
               "relative",
               "w-full",
@@ -172,13 +226,9 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
               "flex-col",
               "max-h-[90vh]",
             )}
-            onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
+            <div
               className={cn(
                 "px-10",
                 "py-8",
@@ -218,10 +268,8 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                   Step {currentStep} of 5 — {STEPS[currentStep - 1].label}
                 </p>
               </div>
-              <motion.button
-                whileHover={{ scale: 1.1, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={onClose}
+              <button
+                onClick={handleClose}
                 className={cn(
                   "p-3",
                   "hover:bg-muted",
@@ -231,10 +279,10 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                 )}
               >
                 <LuX className={cn("w-6", "h-6")} />
-              </motion.button>
-            </motion.div>
+              </button>
+            </div>
 
-            {/* Step Indicator */}
+            {/* Step indicator */}
             <div
               className={cn(
                 "px-10",
@@ -249,23 +297,8 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
             >
               {STEPS.map((step, index) => (
                 <React.Fragment key={step.id}>
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.2 + index * 0.05 }}
-                    className={cn("flex", "items-center", "gap-3")}
-                  >
-                    <motion.div
-                      animate={
-                        currentStep === step.id
-                          ? {
-                              scale: [1, 1.1, 1],
-                            }
-                          : {}
-                      }
-                      transition={{
-                        duration: 0.3,
-                      }}
+                  <div className={cn("flex", "items-center", "gap-3")}>
+                    <div
                       className={cn(
                         "w-8",
                         "h-8",
@@ -282,32 +315,12 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                           : "bg-slate-200 text-muted-foreground",
                       )}
                     >
-                      <AnimatePresence mode="wait">
-                        {currentStep > step.id ? (
-                          <motion.div
-                            key="check"
-                            initial={{ scale: 0, rotate: -180 }}
-                            animate={{ scale: 1, rotate: 0 }}
-                            exit={{ scale: 0, rotate: 180 }}
-                            transition={{
-                              type: "spring",
-                              stiffness: 300,
-                              damping: 15,
-                            }}
-                          >
-                            <LuCheck className={cn("w-4", "h-4")} />
-                          </motion.div>
-                        ) : (
-                          <motion.div
-                            key="number"
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                          >
-                            {step.id}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
+                      {currentStep > step.id ? (
+                        <LuCheck className={cn("w-4", "h-4")} />
+                      ) : (
+                        step.id
+                      )}
+                    </div>
                     <span
                       className={cn(
                         "text-[9px]",
@@ -324,22 +337,16 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                     >
                       {step.label}
                     </span>
-                  </motion.div>
+                  </div>
                   {step.id !== 5 && (
-                    <motion.div
-                      initial={{ scaleX: 0 }}
-                      animate={{
-                        scaleX: currentStep > step.id ? 1 : 0.3,
-                      }}
-                      transition={{ duration: 0.3 }}
+                    <div
                       className={cn(
                         "h-[2px]",
                         "w-8",
                         "mx-2",
                         "hidden",
                         "lg:block",
-                        "origin-left",
-                        currentStep > step.id ? "bg-primary" : "text-muted",
+                        currentStep > step.id ? "bg-primary" : "bg-muted",
                       )}
                     />
                   )}
@@ -347,7 +354,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
               ))}
             </div>
 
-            {/* Form Content (Scrollable) */}
+            {/* Content */}
             <div className={cn("flex-1", "overflow-y-auto", "p-10")}>
               <AnimatePresence mode="wait">
                 <motion.div
@@ -392,10 +399,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
             </div>
 
             {/* Footer */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+            <div
               className={cn(
                 "px-10",
                 "py-8",
@@ -410,11 +414,9 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                 "z-10",
               )}
             >
-              <motion.button
+              <button
                 onClick={prevStep}
                 disabled={currentStep === 1}
-                whileHover={currentStep !== 1 ? { scale: 1.05, x: -2 } : {}}
-                whileTap={currentStep !== 1 ? { scale: 0.95 } : {}}
                 className={cn(
                   "flex",
                   "items-center",
@@ -433,13 +435,11 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                 )}
               >
                 <LuChevronLeft className={cn("w-4", "h-4")} /> Previous
-              </motion.button>
+              </button>
 
               <div className={cn("flex", "items-center", "gap-4")}>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={onClose}
+                <button
+                  onClick={handleClose}
                   className={cn(
                     "text-[10px]",
                     "font-black",
@@ -450,12 +450,10 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                   )}
                 >
                   Cancel
-                </motion.button>
+                </button>
                 {currentStep < 5 ? (
-                  <motion.button
+                  <button
                     onClick={nextStep}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
                     className={cn(
                       "flex",
                       "items-center",
@@ -477,12 +475,11 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                     )}
                   >
                     Continue <LuChevronRight className={cn("w-4", "h-4")} />
-                  </motion.button>
+                  </button>
                 ) : (
-                  <motion.button
+                  <button
                     onClick={handleSubmit}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    disabled={submitting}
                     className={cn(
                       "flex",
                       "items-center",
@@ -499,13 +496,19 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                       "transition-all",
                       "shadow-xl",
                       "shadow-primary/20",
+                      "disabled:opacity-60",
                     )}
                   >
-                    Deploy Event <LuCheck className={cn("w-4", "h-4")} />
-                  </motion.button>
+                    {submitting ? (
+                      <LuLoader className={cn("w-4", "h-4", "animate-spin")} />
+                    ) : (
+                      <LuCheck className={cn("w-4", "h-4")} />
+                    )}
+                    {submitting ? "Creating…" : "Deploy Event"}
+                  </button>
                 )}
               </div>
-            </motion.div>
+            </div>
           </motion.div>
         </div>
       )}
@@ -513,742 +516,17 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
   );
 };
 
-// Step Components with proper props
-interface StepProps {
-  formData: EventFormData;
-  setFormData: React.Dispatch<React.SetStateAction<EventFormData>>;
+// ── Step components (unchanged UI, just typed properly) ───────────────────────
+
+interface InputGroupProps {
+  label: string;
+  icon: IconType;
+  dark?: boolean;
+  type?: string;
+  placeholder?: string;
+  value?: string | number;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
-
-const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
-  <div className={cn("space-y-6")}>
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.1 }}
-      className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-6")}
-    >
-      <InputGroup
-        label="Event Title"
-        placeholder="e.g. DIUSCADI Annual Summit"
-        icon={LuInfo}
-        value={formData.title}
-        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-      />
-      <div className="space-y-2">
-        <label
-          className={cn(
-            "text-[10px]",
-            "font-black",
-            "uppercase",
-            "tracking-widest",
-            "text-muted-foreground",
-            "flex",
-            "items-center",
-            "gap-2",
-          )}
-        >
-          Category <span className="text-primary">*</span>
-        </label>
-        <select
-          value={formData.category}
-          onChange={(e) =>
-            setFormData({ ...formData, category: e.target.value })
-          }
-          className={cn(
-            "w-full",
-            "bg-muted",
-            "border",
-            "border-border",
-            "p-4",
-            "rounded-2xl",
-            "text-xs",
-            "font-bold",
-            "outline-none",
-            "focus:border-primary",
-            "transition-all",
-            "appearance-none",
-          )}
-        >
-          <option>Technology</option>
-          <option>Business</option>
-          <option>Governance</option>
-        </select>
-      </div>
-    </motion.div>
-
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
-      className="space-y-2"
-    >
-      <label
-        className={cn(
-          "text-[10px]",
-          "font-black",
-          "uppercase",
-          "tracking-widest",
-          "text-muted-foreground",
-        )}
-      >
-        Description
-      </label>
-      <textarea
-        value={formData.description}
-        onChange={(e) =>
-          setFormData({ ...formData, description: e.target.value })
-        }
-        placeholder="What is this event about?"
-        className={cn(
-          "w-full",
-          "bg-muted",
-          "border",
-          "border-border",
-          "p-4",
-          "rounded-2xl",
-          "text-xs",
-          "font-medium",
-          "h-32",
-          "outline-none",
-          "focus:border-primary",
-          "transition-all",
-          "resize-none",
-        )}
-      />
-    </motion.div>
-
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.3 }}
-      whileHover={{ scale: 1.01 }}
-      className={cn(
-        "p-10",
-        "border-2",
-        "border-dashed",
-        "border-border",
-        "rounded-[2.5rem]",
-        "bg-muted/50",
-        "flex",
-        "flex-col",
-        "items-center",
-        "justify-center",
-        "text-center",
-        "group",
-        "hover:border-primary/50",
-        "transition-colors",
-        "cursor-pointer",
-      )}
-    >
-      <motion.div
-        whileHover={{ scale: 1.1, rotate: 5 }}
-        className={cn(
-          "w-12",
-          "h-12",
-          "bg-background",
-          "rounded-xl",
-          "flex",
-          "items-center",
-          "justify-center",
-          "shadow-sm",
-          "mb-4",
-          "transition-transform",
-        )}
-      >
-        <LuImage
-          className={cn(
-            "w-6",
-            "h-6",
-            "text-muted-foreground",
-            "group-hover:text-primary",
-          )}
-        />
-      </motion.div>
-      <p
-        className={cn(
-          "text-[10px]",
-          "font-black",
-          "uppercase",
-          "tracking-[0.2em]",
-          "text-foreground",
-        )}
-      >
-        Upload Event Banner
-      </p>
-      <p
-        className={cn(
-          "text-[9px]",
-          "font-bold",
-          "text-muted-foreground",
-          "uppercase",
-          "mt-1",
-        )}
-      >
-        PNG, JPG or WebP (Max 5MB)
-      </p>
-    </motion.div>
-  </div>
-);
-
-const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
-  <div className={cn("space-y-8")}>
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.1 }}
-      className={cn("grid", "grid-cols-1", "md:grid-cols-3", "gap-6")}
-    >
-      <InputGroup
-        label="Date"
-        type="date"
-        icon={LuCalendar}
-        value={formData.date}
-        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-      />
-      <InputGroup
-        label="Start Time"
-        type="time"
-        icon={LuClock}
-        value={formData.startTime}
-        onChange={(e) =>
-          setFormData({ ...formData, startTime: e.target.value })
-        }
-      />
-      <InputGroup
-        label="Duration (Hrs)"
-        placeholder="2"
-        type="number"
-        icon={LuTimer}
-        value={formData.duration}
-        onChange={(e) =>
-          setFormData({ ...formData, duration: Number(e.target.value) })
-        }
-      />
-    </motion.div>
-
-    <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className={cn(
-          "flex",
-          "items-center",
-          "gap-4",
-          "p-2",
-          "text-muted",
-          "rounded-2xl",
-          "w-fit",
-        )}
-      >
-        {(["Physical", "Virtual", "Hybrid"] as const).map((type) => (
-          <motion.button
-            key={type}
-            onClick={() => setFormData({ ...formData, type })}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className={cn(
-              "px-6",
-              "py-2",
-              "rounded-xl",
-              "text-[10px]",
-              "font-black",
-              "uppercase",
-              "tracking-widest",
-              "transition-all",
-              formData.type === type
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground",
-            )}
-          >
-            {type}
-          </motion.button>
-        ))}
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className={cn(
-          "grid",
-          "grid-cols-1",
-          "md:grid-cols-2",
-          "gap-6",
-          "p-8",
-          "bg-foreground",
-          "rounded-[2.5rem]",
-          "text-background",
-          "overflow-hidden",
-          "relative",
-        )}
-      >
-        <div className={cn("space-y-4", "relative", "z-10")}>
-          <InputGroup
-            label="Venue Name"
-            placeholder="e.g. Eko Convention Center"
-            icon={LuMapPin}
-            dark
-            value={formData.venueName}
-            onChange={(e) =>
-              setFormData({ ...formData, venueName: e.target.value })
-            }
-          />
-          <div className={cn("grid", "grid-cols-2", "gap-4")}>
-            <input
-              placeholder="Lat: 6.5244"
-              value={formData.coordinates.lat}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  coordinates: { ...formData.coordinates, lat: e.target.value },
-                })
-              }
-              className={cn(
-                "bg-background/5",
-                "border",
-                "border-background/10",
-                "p-4",
-                "rounded-xl",
-                "text-xs",
-                "font-mono",
-                "text-primary",
-                "outline-none",
-              )}
-            />
-            <input
-              placeholder="Lng: 3.3792"
-              value={formData.coordinates.lng}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  coordinates: { ...formData.coordinates, lng: e.target.value },
-                })
-              }
-              className={cn(
-                "bg-background/5",
-                "border",
-                "border-background/10",
-                "p-4",
-                "rounded-xl",
-                "text-xs",
-                "font-mono",
-                "text-primary",
-                "outline-none",
-              )}
-            />
-          </div>
-        </div>
-        <div
-          className={cn(
-            "h-full",
-            "min-h-[150px]",
-            "bg-slate-800",
-            "rounded-2xl",
-            "flex",
-            "items-center",
-            "justify-center",
-            "border",
-            "border-background/5",
-          )}
-        >
-          <p
-            className={cn(
-              "text-[8px]",
-              "font-black",
-              "uppercase",
-              "tracking-[0.3em]",
-              "text-muted-foreground",
-              "text-center",
-              "px-6",
-            )}
-          >
-            Interactive 3D Preview Generated via Coordinates
-          </p>
-        </div>
-      </motion.div>
-    </div>
-  </div>
-);
-
-const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
-  <div className={cn("space-y-8")}>
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.1 }}
-      className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-8")}
-    >
-      <InputGroup
-        label="Max Capacity"
-        type="number"
-        placeholder="500"
-        icon={LuUsers}
-        value={formData.maxCapacity}
-        onChange={(e) =>
-          setFormData({ ...formData, maxCapacity: Number(e.target.value) })
-        }
-      />
-      <InputGroup
-        label="Ticket Price (₦)"
-        type="number"
-        placeholder="0.00"
-        icon={LuTicket}
-        value={formData.ticketPrice}
-        onChange={(e) =>
-          setFormData({ ...formData, ticketPrice: Number(e.target.value) })
-        }
-      />
-    </motion.div>
-
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
-      whileHover={{ scale: 1.01 }}
-      className={cn(
-        "p-8",
-        "border-2",
-        "border-border",
-        "rounded-[2.5rem]",
-        "flex",
-        "items-center",
-        "justify-between",
-        "group",
-      )}
-    >
-      <div className="space-y-1">
-        <h4
-          className={cn(
-            "text-[11px]",
-            "font-black",
-            "uppercase",
-            "tracking-widest",
-            "text-foreground",
-          )}
-        >
-          Enable Waitlist
-        </h4>
-        <p
-          className={cn(
-            "text-[9px]",
-            "font-bold",
-            "text-muted-foreground",
-            "uppercase",
-          )}
-        >
-          Allow users to join queue once capacity is reached
-        </p>
-      </div>
-      <motion.button
-        onClick={() =>
-          setFormData({
-            ...formData,
-            enableWaitlist: !formData.enableWaitlist,
-          })
-        }
-        whileTap={{ scale: 0.95 }}
-        className={cn(
-          "w-14",
-          "h-8",
-          "rounded-full",
-          "p-1",
-          "cursor-pointer",
-          "transition-colors",
-          formData.enableWaitlist ? "bg-primary" : "text-muted",
-        )}
-      >
-        <motion.div
-          animate={{
-            x: formData.enableWaitlist ? 24 : 0,
-          }}
-          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-          className={cn(
-            "w-6",
-            "h-6",
-            "bg-background",
-            "rounded-full",
-            "shadow-md",
-          )}
-        />
-      </motion.button>
-    </motion.div>
-
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.3 }}
-    >
-      <InputGroup
-        label="Registration Deadline"
-        type="datetime-local"
-        icon={LuClock}
-        value={formData.registrationDeadline}
-        onChange={(e) =>
-          setFormData({
-            ...formData,
-            registrationDeadline: e.target.value,
-          })
-        }
-      />
-    </motion.div>
-  </div>
-);
-
-const PartnersStep: React.FC<StepProps> = ({ formData, setFormData }) => (
-  <div className={cn("space-y-8")}>
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.1 }}
-      className="space-y-4"
-    >
-      <div className={cn("flex", "items-center", "justify-between", "text-muted-foreground")}>
-        <h4
-          className={cn(
-            "text-[10px]",
-            "font-black",
-            "uppercase",
-            "tracking-[0.2em]",
-            "text-slate-400",
-          )}
-        >
-          Featured Speakers
-        </h4>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className={cn(
-            "text-[9px]",
-            "font-black",
-            "text-primary",
-            "uppercase",
-            "bg-primary/10",
-            "px-3",
-            "py-1.5",
-            "rounded-lg",
-          )}
-        >
-          + Add Speaker
-        </motion.button>
-      </div>
-      <div className={cn("grid", "grid-cols-2", "gap-4")}>
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          whileHover={{ scale: 1.02 }}
-          className={cn(
-            "p-4",
-            "bg-muted",
-            "border",
-            "border-border",
-            "rounded-2xl",
-            "flex",
-            "items-center",
-            "gap-3",
-          )}
-        >
-          <div className={cn("w-10", "h-10", "bg-slate-200", "rounded-full")} />
-          <span className={cn("text-[10px]", "font-black", "uppercase")}>
-            Dr. Adeyemi Tobi
-          </span>
-        </motion.div>
-      </div>
-    </motion.div>
-
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
-      className={cn("space-y-4", "pt-4", "border-t", "border-slate-50")}
-    >
-      <div className={cn("flex", "items-center", "justify-between", "text-muted-foreground")}>
-        <h4
-          className={cn(
-            "text-[10px]",
-            "font-black",
-            "uppercase",
-            "tracking-[0.2em]",
-            "text-slate-400",
-          )}
-        >
-          Sponsors / Partners
-        </h4>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className={cn(
-            "text-[9px]",
-            "font-black",
-            "text-primary",
-            "uppercase",
-            "bg-primary/10",
-            "px-3",
-            "py-1.5",
-            "rounded-lg",
-          )}
-        >
-          + Add Partner
-        </motion.button>
-      </div>
-      <div className={cn("flex", "gap-4")}>
-        <motion.div
-          whileHover={{ scale: 1.05, rotate: 5 }}
-          className={cn(
-            "w-16",
-            "h-16",
-            "bg-muted",
-            "border-2",
-            "border-dashed",
-            "border-border",
-            "rounded-2xl",
-            "flex",
-            "items-center",
-            "justify-center",
-            "cursor-pointer",
-          )}
-        >
-          <LuPlus className={cn("w-4", "h-4", "text-slate-300")} />
-        </motion.div>
-      </div>
-    </motion.div>
-  </div>
-);
-
-const PublishStep: React.FC<StepProps> = ({ formData, setFormData }) => (
-  <div className={cn("space-y-8")}>
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: "spring", stiffness: 300, damping: 25 }}
-      className={cn(
-        "bg-primary/10",
-        "p-8",
-        "rounded-[2.5rem]",
-        "border",
-        "border-primary/20",
-        "text-center",
-      )}
-    >
-      <motion.div
-        animate={{
-          scale: [1, 1.1, 1],
-          rotate: [0, 5, -5, 0],
-        }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          repeatDelay: 1,
-        }}
-        className={cn(
-          "w-16",
-          "h-16",
-          "bg-primary",
-          "rounded-2xl",
-          "flex",
-          "items-center",
-          "justify-center",
-          "mx-auto",
-          "mb-6",
-          "shadow-xl",
-          "shadow-primary/20",
-        )}
-      >
-        <LuCircleCheck className={cn("w-8", "h-8", "text-foreground")} />
-      </motion.div>
-      <h3
-        className={cn(
-          "text-xl",
-          "font-black",
-          "text-foreground",
-          "uppercase",
-          "tracking-tighter",
-        )}
-      >
-        Ready for Deployment
-      </h3>
-      <p
-        className={cn(
-          "text-[10px]",
-          "font-bold",
-          "text-muted-foreground",
-          "uppercase",
-          "mt-2",
-          "tracking-widest",
-          "max-w-[300px]",
-          "mx-auto",
-          "leading-relaxed",
-        )}
-      >
-        Review your configurations. Once published, notifications will be sent
-        to subscribed members.
-      </p>
-    </motion.div>
-
-    <div className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-4")}>
-      {(["Public", "Invite-Only"] as const).map((visibility, index) => (
-        <motion.button
-          key={visibility}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 + index * 0.1 }}
-          onClick={() => setFormData({ ...formData, visibility })}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className={cn(
-            "p-6",
-            "rounded-2xl",
-            "border-2",
-            "flex",
-            "items-center",
-            "justify-between",
-            "transition-all",
-            formData.visibility === visibility
-              ? "bg-muted border-foreground"
-              : "bg-background border-border opacity-50",
-          )}
-        >
-          <span
-            className={cn(
-              "texttext-muted-foreground",
-              "font-black",
-              "uppercase",
-              "tracking-widest",
-              formData.visibility === visibility
-                ? "text-foreground"
-                : "text-slate-400",
-            )}
-          >
-            {visibility}
-          </span>
-          {visibility === "Public" ? (
-            <LuEye
-              className={cn(
-                "w-4",
-                "h-4",
-                "text-muted-foreground",
-                formData.visibility === visibility
-                  ? "text-foreground"
-                  : "text-slate-400",
-              )}
-            />
-          ) : (
-            <LuShield
-              className={cn(
-                "w-4",
-                "h-4",
-                "text-muted-foreground",
-                formData.visibility === visibility
-                  ? "text-foreground"
-                  : "text-slate-400",
-              )}
-            />
-          )}
-        </motion.button>
-      ))}
-    </div>
-  </div>
-);
 
 const InputGroup: React.FC<InputGroupProps> = ({
   label,
@@ -1265,7 +543,6 @@ const InputGroup: React.FC<InputGroupProps> = ({
         "text-[10px]",
         "font-black",
         "uppercase",
-        "text-muted-foreground",
         "tracking-widest",
         dark ? "text-slate-400" : "text-slate-400",
       )}
@@ -1275,7 +552,7 @@ const InputGroup: React.FC<InputGroupProps> = ({
     <div className="relative">
       <Icon
         className={cn(
-          "absolute", "text-muted-foreground",
+          "absolute",
           "left-4",
           "top-1/2",
           "-translate-y-1/2",
@@ -1308,14 +585,441 @@ const InputGroup: React.FC<InputGroupProps> = ({
   </div>
 );
 
-// Export types
-export type {
-  EventModalProps,
-  EventFormData,
-  Speaker,
-  Sponsor,
-  WizardStep,
-  StepConfig,
-  InputGroupProps,
-  StepProps,
-};
+const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
+  <div className={cn("space-y-6")}>
+    <div className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-6")}>
+      <InputGroup
+        label="Event Title"
+        placeholder="e.g. DIUSCADI Annual Summit"
+        icon={LuInfo}
+        value={formData.title}
+        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+      />
+      <div className="space-y-2">
+        <label
+          className={cn(
+            "text-[10px]",
+            "font-black",
+            "uppercase",
+            "tracking-widest",
+            "text-slate-400",
+          )}
+        >
+          Category
+        </label>
+        <select
+          value={formData.category}
+          onChange={(e) =>
+            setFormData({ ...formData, category: e.target.value })
+          }
+          className={cn(
+            "w-full",
+            "bg-muted",
+            "border",
+            "border-border",
+            "p-4",
+            "rounded-2xl",
+            "text-xs",
+            "font-bold",
+            "outline-none",
+            "focus:border-primary",
+            "transition-all",
+            "appearance-none",
+          )}
+        >
+          {["Technology", "Business", "Governance", "Career", "Networking"].map(
+            (c) => (
+              <option key={c}>{c}</option>
+            ),
+          )}
+        </select>
+      </div>
+    </div>
+    <div className="space-y-2">
+      <label
+        className={cn(
+          "text-[10px]",
+          "font-black",
+          "uppercase",
+          "tracking-widest",
+          "text-slate-400",
+        )}
+      >
+        Description
+      </label>
+      <textarea
+        value={formData.description}
+        onChange={(e) =>
+          setFormData({ ...formData, description: e.target.value })
+        }
+        placeholder="What is this event about?"
+        rows={3}
+        className={cn(
+          "w-full",
+          "bg-muted",
+          "border",
+          "border-border",
+          "p-4",
+          "rounded-2xl",
+          "text-xs",
+          "font-medium",
+          "outline-none",
+          "focus:border-primary",
+          "transition-all",
+          "resize-none",
+        )}
+      />
+    </div>
+    {/* Banner upload — TODO: wire to ImageUploader when event image upload is implemented */}
+    <div
+      className={cn(
+        "p-10",
+        "border-2",
+        "border-dashed",
+        "border-border",
+        "rounded-[2.5rem]",
+        "bg-muted/50",
+        "flex",
+        "flex-col",
+        "items-center",
+        "justify-center",
+        "text-center",
+        "cursor-pointer",
+        "hover:border-primary/50",
+        "transition-colors",
+      )}
+    >
+      <LuImage className={cn("w-8", "h-8", "text-muted-foreground", "mb-3")} />
+      <p
+        className={cn(
+          "text-[10px]",
+          "font-black",
+          "uppercase",
+          "tracking-[0.2em]",
+          "text-foreground",
+        )}
+      >
+        Upload Event Banner
+      </p>
+      <p
+        className={cn(
+          "text-[9px]",
+          "font-bold",
+          "text-muted-foreground",
+          "uppercase",
+          "mt-1",
+        )}
+      >
+        PNG, JPG or WebP · Max 5MB
+      </p>
+      <p className={cn("text-[9px]", "font-bold", "text-amber-600", "mt-2")}>
+        TODO: wire to Cloudinary ImageUploader
+      </p>
+    </div>
+  </div>
+);
+
+const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
+  <div className={cn("space-y-8")}>
+    <div className={cn("grid", "grid-cols-1", "md:grid-cols-3", "gap-6")}>
+      <InputGroup
+        label="Date"
+        type="date"
+        icon={LuCalendar}
+        value={formData.date}
+        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+      />
+      <InputGroup
+        label="Start Time"
+        type="time"
+        icon={LuClock}
+        value={formData.startTime}
+        onChange={(e) =>
+          setFormData({ ...formData, startTime: e.target.value })
+        }
+      />
+      <InputGroup
+        label="Duration (Hrs)"
+        type="number"
+        icon={LuTimer}
+        value={formData.duration}
+        onChange={(e) =>
+          setFormData({ ...formData, duration: Number(e.target.value) })
+        }
+      />
+    </div>
+    <div
+      className={cn(
+        "flex",
+        "items-center",
+        "gap-4",
+        "p-2",
+        "text-muted",
+        "rounded-2xl",
+        "w-fit",
+      )}
+    >
+      {(["Physical", "Virtual", "Hybrid"] as const).map((type) => (
+        <button
+          key={type}
+          onClick={() => setFormData({ ...formData, type })}
+          className={cn(
+            "px-6",
+            "py-2",
+            "rounded-xl",
+            "text-[10px]",
+            "font-black",
+            "uppercase",
+            "tracking-widest",
+            "transition-all",
+            formData.type === type
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground",
+          )}
+        >
+          {type}
+        </button>
+      ))}
+    </div>
+    <InputGroup
+      label="Venue Name"
+      placeholder="e.g. Eko Convention Center"
+      icon={LuMapPin}
+      value={formData.venueName}
+      onChange={(e) => setFormData({ ...formData, venueName: e.target.value })}
+    />
+  </div>
+);
+
+const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
+  <div className={cn("space-y-8")}>
+    <div className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-8")}>
+      <InputGroup
+        label="Max Capacity"
+        type="number"
+        placeholder="500"
+        icon={LuUsers}
+        value={formData.maxCapacity}
+        onChange={(e) =>
+          setFormData({ ...formData, maxCapacity: Number(e.target.value) })
+        }
+      />
+      <InputGroup
+        label="Ticket Price (₦)"
+        type="number"
+        placeholder="0.00"
+        icon={LuTicket}
+        value={formData.ticketPrice}
+        onChange={(e) =>
+          setFormData({ ...formData, ticketPrice: Number(e.target.value) })
+        }
+      />
+    </div>
+    <div
+      className={cn(
+        "p-8",
+        "border-2",
+        "border-border",
+        "rounded-[2.5rem]",
+        "flex",
+        "items-center",
+        "justify-between",
+      )}
+    >
+      <div>
+        <h4
+          className={cn(
+            "text-[11px]",
+            "font-black",
+            "uppercase",
+            "tracking-widest",
+            "text-foreground",
+          )}
+        >
+          Enable Waitlist
+        </h4>
+        <p
+          className={cn(
+            "text-[9px]",
+            "font-bold",
+            "text-muted-foreground",
+            "uppercase",
+          )}
+        >
+          Allow queue once capacity is reached
+        </p>
+      </div>
+      <button
+        onClick={() =>
+          setFormData({ ...formData, enableWaitlist: !formData.enableWaitlist })
+        }
+        className={cn(
+          "w-14",
+          "h-8",
+          "rounded-full",
+          "p-1",
+          "cursor-pointer",
+          "transition-colors",
+          formData.enableWaitlist ? "bg-primary" : "bg-muted",
+        )}
+      >
+        <motion.div
+          animate={{ x: formData.enableWaitlist ? 24 : 0 }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+          className={cn(
+            "w-6",
+            "h-6",
+            "bg-background",
+            "rounded-full",
+            "shadow-md",
+          )}
+        />
+      </button>
+    </div>
+    <InputGroup
+      label="Registration Deadline"
+      type="datetime-local"
+      icon={LuClock}
+      value={formData.registrationDeadline}
+      onChange={(e) =>
+        setFormData({ ...formData, registrationDeadline: e.target.value })
+      }
+    />
+  </div>
+);
+
+const PartnersStep: React.FC<StepProps> = () => (
+  <div className={cn("space-y-8")}>
+    <div className={cn("flex", "items-center", "justify-between")}>
+      <h4
+        className={cn(
+          "text-[10px]",
+          "font-black",
+          "uppercase",
+          "tracking-[0.2em]",
+          "text-slate-400",
+        )}
+      >
+        Featured Speakers
+      </h4>
+      <button
+        className={cn(
+          "text-[9px]",
+          "font-black",
+          "text-primary",
+          "uppercase",
+          "bg-primary/10",
+          "px-3",
+          "py-1.5",
+          "rounded-lg",
+        )}
+      >
+        + Add Speaker
+      </button>
+    </div>
+    <p className={cn("text-xs", "font-bold", "text-muted-foreground")}>
+      Speaker management coming soon — add via event edit after creation.
+    </p>
+  </div>
+);
+
+const PublishStep: React.FC<StepProps> = ({ formData, setFormData }) => (
+  <div className={cn("space-y-8")}>
+    <div
+      className={cn(
+        "bg-primary/10",
+        "p-8",
+        "rounded-[2.5rem]",
+        "border",
+        "border-primary/20",
+        "text-center",
+      )}
+    >
+      <div
+        className={cn(
+          "w-16",
+          "h-16",
+          "bg-primary",
+          "rounded-2xl",
+          "flex",
+          "items-center",
+          "justify-center",
+          "mx-auto",
+          "mb-6",
+          "shadow-xl",
+          "shadow-primary/20",
+        )}
+      >
+        <LuCircleCheck className={cn("w-8", "h-8", "text-foreground")} />
+      </div>
+      <h3
+        className={cn(
+          "text-xl",
+          "font-black",
+          "text-foreground",
+          "uppercase",
+          "tracking-tighter",
+        )}
+      >
+        Ready for Deployment
+      </h3>
+      <p
+        className={cn(
+          "text-[10px]",
+          "font-bold",
+          "text-muted-foreground",
+          "uppercase",
+          "mt-2",
+          "tracking-widest",
+          "max-w-[300px]",
+          "mx-auto",
+          "leading-relaxed",
+        )}
+      >
+        Review your configurations. Once published, notifications will be sent
+        to subscribed members.
+      </p>
+    </div>
+    <div className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-4")}>
+      {(["Public", "Invite-Only"] as const).map((visibility) => (
+        <button
+          key={visibility}
+          onClick={() => setFormData({ ...formData, visibility })}
+          className={cn(
+            "p-6",
+            "rounded-2xl",
+            "border-2",
+            "flex",
+            "items-center",
+            "justify-between",
+            "transition-all",
+            formData.visibility === visibility
+              ? "bg-muted border-foreground"
+              : "bg-background border-border opacity-50",
+          )}
+        >
+          <span
+            className={cn(
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              "text-sm",
+              formData.visibility === visibility
+                ? "text-foreground"
+                : "text-slate-400",
+            )}
+          >
+            {visibility}
+          </span>
+          {visibility === "Public" ? (
+            <LuEye className={cn("w-4", "h-4", "text-muted-foreground")} />
+          ) : (
+            <LuShield className={cn("w-4", "h-4", "text-muted-foreground")} />
+          )}
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
+export type { EventModalProps, EventFormData };

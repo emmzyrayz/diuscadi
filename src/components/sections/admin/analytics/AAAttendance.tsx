@@ -1,165 +1,116 @@
 "use client";
 import React from "react";
-import { IconType } from "react-icons";
-import {
-  LuUsers,
-  LuClock,
-  LuFlame,
-  LuUserMinus,
-  LuChevronRight,
-  LuActivity,
-} from "react-icons/lu";
+import { LuUsers, LuCircleCheck, LuActivity, LuInfo } from "react-icons/lu";
+import type { Analytics } from "@/context/AdminContext";
+import { CheckInHeatmapChart } from "@/components/sections/admin/analytics/charts/CheckinHeatmapChart";
+import { cn } from "../../../../lib/utils";
 
-interface MetricCardProps {
-  icon: IconType;
-  label: string;
-  value: string;
-  sub: string;
-  color: string;
+interface Props {
+  analytics: Analytics | null;
 }
 
-export const AdminAnalyticsAttendanceSection: React.FC = () => {
+export const AdminAnalyticsAttendanceSection = ({ analytics }: Props) => {
+  const a = analytics;
+
+  const totalRegistrations = a?.registrations.total ?? 0;
+  const checkedIn = a?.registrations.checkedIn ?? 0;
+  const noShowCount = totalRegistrations - checkedIn;
+  const noShowRate =
+    totalRegistrations > 0
+      ? ((noShowCount / totalRegistrations) * 100).toFixed(1)
+      : "0.0";
+  const attendanceRate = a?.registrations.attendanceRate ?? 0;
+
+  // Heatmap: no real hourly breakdown in Analytics — show flat TODO data
+  // TODO: add hourly check-in breakdown to GET /api/admin/analytics response
+  const heatmapData = Array.from({ length: 24 }, (_, hour) => ({
+    hour,
+    volume: 0, // real data not available yet
+  }));
+
   return (
-    <div className="space-y-8 mb-16">
-      {/* 1. Section Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl border border-blue-100">
-            <LuActivity className="w-5 h-5" />
-          </div>
+    <div className={cn('space-y-8', 'mb-16')}>
+      <div className={cn('flex', 'items-center', 'gap-3')}>
+        <div className={cn('p-2.5', 'bg-blue-50', 'text-blue-600', 'rounded-xl', 'border', 'border-blue-100')}>
+          <LuActivity className={cn('w-5', 'h-5')} />
+        </div>
+        <div>
+          <h2 className={cn('text-xl', 'font-black', 'text-foreground', 'uppercase', 'tracking-tighter')}>
+            Attendance Insights
+          </h2>
+          <p className={cn('text-[10px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
+            Check-in rates & entry flow
+          </p>
+        </div>
+      </div>
+
+      {/* Chart — shows zeros until hourly data is available */}
+      <div className={cn('bg-background', 'border', 'border-border', 'rounded-[2.5rem]', 'p-10', 'shadow-sm')}>
+        <div className={cn('flex', 'items-center', 'justify-between', 'mb-4')}>
           <div>
-            <h2 className="text-xl font-black text-foreground uppercase tracking-tighter">
-              Attendance Insights
-            </h2>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-              Physical venue flow & entry behavior
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Attendance Chart Row */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* CheckInHeatmapChart (Time vs Volume) */}
-        <div className="xl:col-span-2 bg-background border border-border rounded-[2.5rem] p-10 shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <div className="space-y-1">
-              <h3 className="text-sm font-black text-foreground uppercase tracking-tight">
-                Entry Velocity Heatmap
-              </h3>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                Arrival volume across the event day
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full text-muted" />
-              <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">
-                Low
-              </span>
-              <div className="w-12 h-2 bg-linear-to-r from-blue-100 to-blue-600 rounded-full" />
-              <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">
-                High
-              </span>
-            </div>
-          </div>
-
-          {/* Visualizing the Heatmap Grid */}
-          <div className="grid grid-cols-12 gap-2 h-48">
-            {[...Array(24)].map((_, i) => {
-              // Mocking peak hours around 9 AM - 11 AM
-              const intensity =
-                i >= 8 && i <= 11
-                  ? "bg-blue-600"
-                  : i >= 12 && i <= 14
-                    ? "bg-blue-300"
-                    : "bg-blue-50";
-              return (
-                <div key={i} className="flex flex-col gap-1 items-center">
-                  <div
-                    className={`w-full h-full rounded-lg ${intensity} opacity-80 hover:opacity-100 transition-all cursor-pointer`}
-                  />
-                  <span className="text-[8px] font-bold text-slate-300">
-                    {i}:00
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* PeakEntryTimeChart (Quick Look) */}
-        <div className="bg-foreground rounded-[2.5rem] p-10 text-background flex flex-col justify-between">
-          <div className="space-y-4">
-            <div className="w-12 h-12 bg-background/10 rounded-2xl flex items-center justify-center">
-              <LuFlame className="w-6 h-6 text-primary" />
-            </div>
-            <h3 className="text-2xl font-black uppercase tracking-tighter leading-tight">
-              Rush Hour Peak: <span className="text-primary">09:15 AM</span>
+            <h3 className={cn('text-sm', 'font-black', 'text-foreground', 'uppercase', 'tracking-tight')}>
+              Entry Velocity Heatmap
             </h3>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-relaxed">
-              42% of total attendees arrived within this 30-minute window.
-              Recommend doubling gate staff for future events.
+            <p className={cn('text-[10px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
+              Arrival volume by hour
             </p>
           </div>
-
-          <div className="pt-8 border-t border-background/10">
-            <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary hover:gap-4 transition-all">
-              View Staffing Suggestions <LuChevronRight className="w-4 h-4" />
-            </button>
-          </div>
         </div>
+        <div className={cn('flex', 'items-start', 'gap-3', 'mb-4', 'p-3', 'bg-amber-50', 'border', 'border-amber-100', 'rounded-2xl')}>
+          <LuInfo className={cn('w-3.5', 'h-3.5', 'text-amber-600', 'shrink-0', 'mt-0.5')} />
+          <p className={cn('text-[10px]', 'font-bold', 'text-amber-700')}>
+            Hourly check-in breakdown is not yet in the analytics API.
+            {/* TODO: add hourly_checkins[] to GET /api/admin/analytics */}
+          </p>
+        </div>
+        <CheckInHeatmapChart data={heatmapData} />
       </div>
 
-      {/* 3. Attendance Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <MetricCard
-          icon={LuUsers}
-          label="Actual Attendance"
-          value="1,420"
-          sub="of 1,850 registered"
-          color="text-blue-600"
-        />
-        <MetricCard
-          icon={LuUserMinus}
-          label="No-Show Rate"
-          value="23.2%"
-          sub="Expected < 15%"
-          color="text-rose-500"
-        />
-        <MetricCard
-          icon={LuClock}
-          label="Avg. Check-in Time"
-          value="18s"
-          sub="Gate efficiency"
-          color="text-emerald-500"
-        />
+      {/* Real stats */}
+      <div className={cn('grid', 'grid-cols-1', 'md:grid-cols-3', 'gap-6')}>
+        <div className={cn('bg-background', 'border', 'border-border', 'p-8', 'rounded-[2.5rem]', 'shadow-sm')}>
+          <div className={cn('flex', 'items-center', 'gap-3', 'mb-4')}>
+            <LuUsers className={cn('w-4', 'h-4', 'text-blue-600')} />
+            <span className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-[0.2em]')}>
+              Checked In
+            </span>
+          </div>
+          <h4 className={cn('text-3xl', 'font-black', 'text-foreground', 'tracking-tighter')}>
+            {checkedIn.toLocaleString()}
+          </h4>
+          <p className={cn('text-[10px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'mt-1')}>
+            of {totalRegistrations.toLocaleString()} registered
+          </p>
+        </div>
+        <div className={cn('bg-background', 'border', 'border-border', 'p-8', 'rounded-[2.5rem]', 'shadow-sm')}>
+          <div className={cn('flex', 'items-center', 'gap-3', 'mb-4')}>
+            <LuUsers className={cn('w-4', 'h-4', 'text-rose-500')} />
+            <span className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-[0.2em]')}>
+              No-Show Rate
+            </span>
+          </div>
+          <h4 className={cn('text-3xl', 'font-black', 'text-foreground', 'tracking-tighter')}>
+            {noShowRate}%
+          </h4>
+          <p className={cn('text-[10px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'mt-1')}>
+            {noShowCount.toLocaleString()} did not attend
+          </p>
+        </div>
+        <div className={cn('bg-background', 'border', 'border-border', 'p-8', 'rounded-[2.5rem]', 'shadow-sm')}>
+          <div className={cn('flex', 'items-center', 'gap-3', 'mb-4')}>
+            <LuCircleCheck className={cn('w-4', 'h-4', 'text-emerald-500')} />
+            <span className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-[0.2em]')}>
+              Attendance Rate
+            </span>
+          </div>
+          <h4 className={cn('text-3xl', 'font-black', 'text-foreground', 'tracking-tighter')}>
+            {attendanceRate}%
+          </h4>
+          <p className={cn('text-[10px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'mt-1')}>
+            Overall check-in rate
+          </p>
+        </div>
       </div>
     </div>
   );
 };
-
-/* --- Internal Metric Card --- */
-const MetricCard = ({
-  icon: Icon,
-  label,
-  value,
-  sub,
-  color,
-}: MetricCardProps) => (
-  <div className="bg-background border border-border p-8 rounded-[2.5rem] shadow-sm">
-    <div className="flex items-center gap-3 mb-4">
-      <Icon className={`w-4 h-4 ${color}`} />
-      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">
-        {label}
-      </span>
-    </div>
-    <div className="flex items-baseline gap-3">
-      <h4 className="text-3xl font-black text-foreground tracking-tighter">
-        {value}
-      </h4>
-      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-        {sub}
-      </span>
-    </div>
-  </div>
-);

@@ -1,15 +1,7 @@
 // hooks/useHealthReporter.ts
-// Drop this into any layout or page that needs RUM tracking.
-// It fires once after mount, collects all available metrics,
-// and silently POSTs to /api/health/report.
-//
-// Usage:
-//   "use client";
-//   import { useHealthReporter } from "@/hooks/useHealthReporter";
-//   export default function Layout({ children }) {
-//     useHealthReporter();
-//     return <>{children}</>;
-//   }
+// Fires once per navigation, collects RUM metrics, and silently POSTs
+// to /api/health/report. Skips silently if no auth token is present
+// (avoids 401 during initial page load before auth hydrates).
 
 "use client";
 
@@ -79,7 +71,6 @@ interface NetworkInformation {
   effectiveType?: string;
   type?: string;
 }
-
 interface NavigatorWithConnection extends Navigator {
   connection?: NetworkInformation;
   mozConnection?: NetworkInformation;
@@ -97,7 +88,6 @@ export function useHealthReporter() {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Collect JS errors during this page session
     const jsErrors: Array<{
       message: string;
       source?: string;
@@ -125,8 +115,23 @@ export function useHealthReporter() {
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onUnhandledRejection);
 
-    // Wait for page to fully load before collecting metrics
     const send = () => {
+      // ── Guard: skip entirely if not authenticated ──────────────────────────
+      // Reading here (not at hook call time) because localStorage hydrates
+      // asynchronously after the initial render. If no token exists yet,
+      // silently bail — the next navigation will catch it once auth settles.
+      const token =
+        typeof window !== "undefined"
+          ? (localStorage.getItem("diuscadi_token") ?? "")
+          : "";
+
+      if (!token) {
+        // Not authenticated yet — skip this report silently
+        window.removeEventListener("error", onError);
+        window.removeEventListener("unhandledrejection", onUnhandledRejection);
+        return;
+      }
+
       const nav = performance.getEntriesByType("navigation")[0] as
         | PerformanceNavigationTiming
         | undefined;
@@ -148,14 +153,31 @@ export function useHealthReporter() {
         jsErrors,
       };
 
-      // Collect paint timings (FCP)
+      // FCP
       const paintEntries = performance.getEntriesByType("paint");
       const fcp = paintEntries.find((e) => e.name === "first-contentful-paint");
       if (fcp) payload.fcp = Math.round(fcp.startTime);
 
-      // LCP via PerformanceObserver
-      let lcpValue: number | undefined;
+      const doSend = (extraPayload: Record<string, unknown> = {}) => {
+        fetch("/api/health/report", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ...payload, ...extraPayload }),
+          keepalive: true,
+        }).catch(() => {
+          /* silently ignore — never break the UI */
+        });
+
+        window.removeEventListener("error", onError);
+        window.removeEventListener("unhandledrejection", onUnhandledRejection);
+      };
+
+      // LCP via PerformanceObserver — give it 1s then send
       try {
+        let lcpValue: number | undefined;
         const lcpObs = new PerformanceObserver((list) => {
           const entries = list.getEntries();
           if (entries.length > 0) {
@@ -163,49 +185,17 @@ export function useHealthReporter() {
           }
         });
         lcpObs.observe({ type: "largest-contentful-paint", buffered: true });
-        // Give LCP observer a moment then send
         setTimeout(() => {
-          if (lcpValue !== undefined) payload.lcp = lcpValue;
           lcpObs.disconnect();
-
-          const token =
-            typeof window !== "undefined"
-              ? (localStorage.getItem("diuscadi_token") ?? "")
-              : "";
-
-          fetch("/api/health/report", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(payload),
-            // Use keepalive so the request survives page unload
-            keepalive: true,
-          }).catch(() => {
-            /* silently ignore — never break the UI */
-          });
+          doSend(lcpValue !== undefined ? { lcp: lcpValue } : {});
         }, 1000);
       } catch {
         // Browser doesn't support PerformanceObserver — send without LCP
-        const token = localStorage.getItem("diuscadi_token") ?? "";
-        fetch("/api/health/report", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-          keepalive: true,
-        }).catch(() => {});
+        doSend();
       }
-
-      window.removeEventListener("error", onError);
-      window.removeEventListener("unhandledrejection", onUnhandledRejection);
     };
 
     if (document.readyState === "complete") {
-      // Already loaded
       setTimeout(send, 100);
     } else {
       window.addEventListener("load", send, { once: true });

@@ -1,79 +1,59 @@
 "use client";
+// modal/AUDetailModal.tsx
+// Read-only user profile viewer.
+// Accepts AdminUser from AdminContext — no fake data.
+// Tickets/Events tabs are honest TODOs until user-specific ticket API exists.
+
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LuX,
   LuCircleCheck,
   LuHash,
-  LuPhone,
   LuMail,
   LuGraduationCap,
-  // LuBuilding2,
   LuCalendarDays,
   LuTicket,
   LuCalendar,
   LuActivity,
+  LuShieldCheck,
+  LuInfo,
 } from "react-icons/lu";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
+import type { AdminUser } from "@/context/AdminContext";
 import { IconType } from "react-icons";
-import { UserRowData } from "@/components/sections/admin/users/AUTable";
+import Image from "next/image";
 
-// 1. TypeScript Interfaces
 type TabType = "info" | "tickets" | "events" | "activity";
 
-interface UserDetailsProps {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
-  user: UserRowData;
+  user: AdminUser;
+  onMutation?: () => void;
 }
 
-interface WithUser {
-  user: UserRowData;
-}
-
-interface TabButtonProps {
-  active: boolean;
-  onClick: () => void;
-  icon: IconType;
-  label: string;
-}
-
-interface TicketCardProps {
-  eventName: string;
-  status: "Valid" | "Used" | "Expired";
-  code: string;
-  date: string;
-  delay?: number;
-}
-
-interface EventCardProps {
-  name: string;
-  type: "Physical" | "Virtual";
-  role: string;
-  delay?: number;
-}
-
-interface InfoRowProps {
-  icon: IconType;
-  label: string;
-  value: string;
-  delay?: number;
-}
-
-interface InfoBlockProps {
-  icon: IconType;
-  label: string;
-  value: string;
-  delay?: number;
-}
-
-export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
+export const AdminUserDetailsModal: React.FC<Props> = ({
   isOpen,
   onClose,
   user,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>("info");
+
+  const avatarSrc = user.avatar ?? null;
+  const isActive = user.isAccountActive;
+  const statusLabel =
+    !isActive && user.membershipStatus === "banned"
+      ? "Banned"
+      : !isActive
+        ? "Suspended"
+        : "Active";
+  const statusStyle =
+    !isActive && user.membershipStatus === "banned"
+      ? "bg-rose-50 text-rose-600 border-rose-100"
+      : !isActive
+        ? "bg-amber-50 text-amber-600 border-amber-100"
+        : "bg-emerald-50 text-emerald-600 border-emerald-100";
 
   return (
     <AnimatePresence>
@@ -82,14 +62,13 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
           className={cn(
             "fixed",
             "inset-0",
-            "z-100",
+            "z-[100]",
             "flex",
             "items-center",
             "justify-center",
             "p-4",
           )}
         >
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -103,7 +82,6 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
             )}
           />
 
-          {/* Modal Container */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -123,13 +101,7 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
               "max-h-[90vh]",
             )}
           >
-            {/* Header / Close Button */}
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              whileHover={{ scale: 1.1, rotate: 90 }}
-              whileTap={{ scale: 0.9 }}
+            <button
               onClick={onClose}
               className={cn(
                 "absolute",
@@ -137,16 +109,16 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
                 "right-6",
                 "p-3",
                 "bg-muted",
-                "hover:text-muted",
                 "rounded-full",
                 "text-muted-foreground",
                 "hover:text-foreground",
                 "transition-colors",
                 "z-10",
+                "cursor-pointer",
               )}
             >
               <LuX className={cn("w-5", "h-5")} />
-            </motion.button>
+            </button>
 
             <div
               className={cn(
@@ -157,11 +129,8 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
                 "overflow-hidden",
               )}
             >
-              {/* LEFT COLUMN: Identity & Core Info */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
+              {/* Left sidebar */}
+              <div
                 className={cn(
                   "w-full",
                   "lg:w-1/3",
@@ -172,16 +141,167 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
                   "overflow-y-auto",
                 )}
               >
-                <UserProfileHeader user={user} />
-
+                {/* Avatar */}
                 <div
-                  className={cn("mt-8", "pt-8", "border-t", "border-border/60")}
+                  className={cn(
+                    "flex",
+                    "flex-col",
+                    "items-center",
+                    "text-center",
+                    "space-y-4",
+                  )}
                 >
-                  <UserInfoSection user={user} />
+                  <div className="relative">
+                    <div
+                      className={cn(
+                        "w-28",
+                        "h-28",
+                        "rounded-[2rem]",
+                        "bg-slate-200",
+                        "overflow-hidden",
+                        "border-4",
+                        "border-background",
+                        "shadow-lg",
+                        "flex",
+                        "items-center",
+                        "justify-center",
+                        "text-4xl",
+                        "font-black",
+                        "text-muted-foreground",
+                      )}
+                    >
+                      {avatarSrc ? (
+                        <Image
+                        height={300}
+                        width={500}
+                          src={avatarSrc}
+                          alt={user.fullName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span>{user.fullName.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                    {user.isEmailVerified && (
+                      <div
+                        className={cn(
+                          "absolute",
+                          "-bottom-2",
+                          "-right-2",
+                          "bg-emerald-500",
+                          "text-background",
+                          "p-1.5",
+                          "rounded-xl",
+                          "border-4",
+                          "border-muted",
+                          "shadow-sm",
+                        )}
+                      >
+                        <LuCircleCheck className={cn("w-4", "h-4")} />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h2
+                      className={cn(
+                        "text-2xl",
+                        "font-black",
+                        "text-foreground",
+                        "tracking-tight",
+                      )}
+                    >
+                      {user.fullName}
+                    </h2>
+                    <div
+                      className={cn(
+                        "flex",
+                        "items-center",
+                        "justify-center",
+                        "gap-2",
+                        "mt-2",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "px-3",
+                          "py-1",
+                          "bg-primary/10",
+                          "text-primary",
+                          "rounded-lg",
+                          "text-[10px]",
+                          "font-black",
+                          "uppercase",
+                          "tracking-widest",
+                          "flex",
+                          "items-center",
+                          "gap-1",
+                        )}
+                      >
+                        <LuHash className={cn("w-3", "h-3")} />{" "}
+                        {user.vaultId.slice(-8).toUpperCase()}
+                      </span>
+                      <span
+                        className={cn(
+                          "px-3",
+                          "py-1",
+                          "rounded-full",
+                          "border",
+                          "text-[8px]",
+                          "font-black",
+                          "uppercase",
+                          "tracking-widest",
+                          statusStyle,
+                        )}
+                      >
+                        {statusLabel}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </motion.div>
 
-              {/* RIGHT COLUMN: Dynamic Tabs (Tickets, Events, Activity) */}
+                {/* Quick info */}
+                <div
+                  className={cn(
+                    "mt-8",
+                    "pt-8",
+                    "border-t",
+                    "border-border/60",
+                    "space-y-6",
+                  )}
+                >
+                  <InfoRow icon={LuMail} label="Email" value={user.email} />
+                  <InfoRow
+                    icon={LuShieldCheck}
+                    label="Role"
+                    value={user.role}
+                  />
+                  <InfoRow
+                    icon={LuGraduationCap}
+                    label="Edu Status"
+                    value={user.eduStatus}
+                  />
+                  <InfoRow
+                    icon={LuCalendarDays}
+                    label="Member Since"
+                    value={new Date(user.createdAt).toLocaleDateString(
+                      "en-US",
+                      { month: "short", day: "numeric", year: "numeric" },
+                    )}
+                  />
+                  {user.lastLoginAt && (
+                    <InfoRow
+                      icon={LuActivity}
+                      label="Last Login"
+                      value={new Date(user.lastLoginAt).toLocaleDateString(
+                        "en-US",
+                        { month: "short", day: "numeric", year: "numeric" },
+                      )}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Right tabs */}
               <div
                 className={cn(
                   "w-full",
@@ -191,61 +311,297 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
                   "bg-background",
                 )}
               >
-                {/* Tab Navigation */}
-                <motion.div
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
+                <div
                   className={cn(
                     "flex",
                     "items-center",
-                    "gap-8",
+                    "gap-6",
                     "px-10",
                     "pt-10",
                     "border-b",
                     "border-border",
+                    "overflow-x-auto",
                   )}
                 >
-                  <TabButton
-                    active={activeTab === "info"}
-                    onClick={() => setActiveTab("info")}
-                    icon={LuGraduationCap}
-                    label="User Details"
-                  />
-                  <TabButton
-                    active={activeTab === "tickets"}
-                    onClick={() => setActiveTab("tickets")}
-                    icon={LuTicket}
-                    label={`Tickets (${user.ticketsCount})`}
-                  />
-                  <TabButton
-                    active={activeTab === "events"}
-                    onClick={() => setActiveTab("events")}
-                    icon={LuCalendar}
-                    label="Events (5)"
-                  />
-                  <TabButton
-                    active={activeTab === "activity"}
-                    onClick={() => setActiveTab("activity")}
-                    icon={LuActivity}
-                    label="Activity Log"
-                  />
-                </motion.div>
+                  {(
+                    [
+                      {
+                        id: "info",
+                        label: "Account Info",
+                        icon: LuGraduationCap,
+                      },
+                      {
+                        id: "tickets",
+                        label: `Tickets (${user.analytics.eventsRegistered})`,
+                        icon: LuTicket,
+                      },
+                      {
+                        id: "events",
+                        label: `Events (${user.analytics.eventsAttended})`,
+                        icon: LuCalendar,
+                      },
+                      {
+                        id: "activity",
+                        label: "Activity Log",
+                        icon: LuActivity,
+                      },
+                    ] as { id: TabType; label: string; icon: IconType }[]
+                  ).map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={cn(
+                        "flex",
+                        "items-center",
+                        "gap-2",
+                        "pb-4",
+                        "border-b-2",
+                        "transition-colors",
+                        "whitespace-nowrap",
+                        "cursor-pointer",
+                        activeTab === tab.id
+                          ? "border-primary text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-slate-600",
+                      )}
+                    >
+                      <tab.icon className={cn("w-4", "h-4")} />
+                      <span
+                        className={cn(
+                          "text-[11px]",
+                          "font-black",
+                          "uppercase",
+                          "tracking-widest",
+                        )}
+                      >
+                        {tab.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
 
-                {/* Tab Content Area */}
                 <div className={cn("flex-1", "overflow-y-auto", "p-10")}>
                   <AnimatePresence mode="wait">
                     {activeTab === "info" && (
-                      <ExtendedUserInfo user={user} key="info" />
+                      <motion.div
+                        key="info"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.2 }}
+                        className={cn("space-y-8")}
+                      >
+                        <h3
+                          className={cn(
+                            "text-[11px]",
+                            "font-black",
+                            "uppercase",
+                            "tracking-[0.2em]",
+                            "text-muted-foreground",
+                            "border-b",
+                            "border-border",
+                            "pb-4",
+                          )}
+                        >
+                          Account Information
+                        </h3>
+                        <div className={cn("grid", "grid-cols-2", "gap-8")}>
+                          <InfoBlock
+                            icon={LuHash}
+                            label="Vault ID"
+                            value={user.vaultId}
+                          />
+                          <InfoBlock
+                            icon={LuShieldCheck}
+                            label="Platform Role"
+                            value={user.role}
+                          />
+                          <InfoBlock
+                            icon={LuGraduationCap}
+                            label="Education"
+                            value={user.eduStatus}
+                          />
+                          <InfoBlock
+                            icon={LuTicket}
+                            label="Events Registered"
+                            value={String(user.analytics.eventsRegistered)}
+                          />
+                          <InfoBlock
+                            icon={LuActivity}
+                            label="Events Attended"
+                            value={String(user.analytics.eventsAttended)}
+                          />
+                          <InfoBlock
+                            icon={LuCircleCheck}
+                            label="Email Verified"
+                            value={user.isEmailVerified ? "Yes" : "No"}
+                          />
+                          {user.committee && (
+                            <InfoBlock
+                              icon={LuShieldCheck}
+                              label="Committee"
+                              value={user.committee}
+                            />
+                          )}
+                          {user.skills?.length > 0 && (
+                            <div className={cn("col-span-2", "space-y-2")}>
+                              <p
+                                className={cn(
+                                  "text-[9px]",
+                                  "font-black",
+                                  "text-muted-foreground",
+                                  "uppercase",
+                                  "tracking-widest",
+                                )}
+                              >
+                                Skills
+                              </p>
+                              <div className={cn("flex", "flex-wrap", "gap-2")}>
+                                {user.skills.map((s) => (
+                                  <span
+                                    key={s}
+                                    className={cn(
+                                      "px-2",
+                                      "py-1",
+                                      "bg-primary/10",
+                                      "text-primary",
+                                      "rounded-lg",
+                                      "text-[9px]",
+                                      "font-black",
+                                      "uppercase",
+                                    )}
+                                  >
+                                    {s}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
                     )}
+
                     {activeTab === "tickets" && (
-                      <UserTicketsSection key="tickets" />
+                      <motion.div
+                        key="tickets"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.2 }}
+                        className={cn(
+                          "flex",
+                          "flex-col",
+                          "items-center",
+                          "justify-center",
+                          "h-48",
+                          "text-center",
+                          "gap-3",
+                        )}
+                      >
+                        <LuInfo
+                          className={cn("w-8", "h-8", "text-slate-300")}
+                        />
+                        <p
+                          className={cn(
+                            "text-[11px]",
+                            "font-black",
+                            "text-muted-foreground",
+                            "uppercase",
+                            "tracking-widest",
+                          )}
+                        >
+                          Ticket details coming soon
+                        </p>
+                        <p
+                          className={cn(
+                            "text-[9px]",
+                            "font-bold",
+                            "text-muted-foreground",
+                          )}
+                        >
+                          {/* TODO: GET /api/admin/users/{id}/tickets */}
+                          User has {user.analytics.eventsRegistered}{" "}
+                          registrations total
+                        </p>
+                      </motion.div>
                     )}
+
                     {activeTab === "events" && (
-                      <UserEventsSection key="events" />
+                      <motion.div
+                        key="events"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.2 }}
+                        className={cn(
+                          "flex",
+                          "flex-col",
+                          "items-center",
+                          "justify-center",
+                          "h-48",
+                          "text-center",
+                          "gap-3",
+                        )}
+                      >
+                        <LuInfo
+                          className={cn("w-8", "h-8", "text-slate-300")}
+                        />
+                        <p
+                          className={cn(
+                            "text-[11px]",
+                            "font-black",
+                            "text-muted-foreground",
+                            "uppercase",
+                            "tracking-widest",
+                          )}
+                        >
+                          Event history coming soon
+                        </p>
+                        <p
+                          className={cn(
+                            "text-[9px]",
+                            "font-bold",
+                            "text-muted-foreground",
+                          )}
+                        >
+                          {/* TODO: GET /api/admin/users/{id}/events */}
+                          User attended {user.analytics.eventsAttended} events
+                        </p>
+                      </motion.div>
                     )}
+
                     {activeTab === "activity" && (
-                      <UserActivitySection key="activity" />
+                      <motion.div
+                        key="activity"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.2 }}
+                        className={cn(
+                          "flex",
+                          "flex-col",
+                          "items-center",
+                          "justify-center",
+                          "h-48",
+                          "text-center",
+                          "gap-3",
+                        )}
+                      >
+                        <LuActivity
+                          className={cn("w-8", "h-8", "text-slate-300")}
+                        />
+                        <p
+                          className={cn(
+                            "text-[11px]",
+                            "font-black",
+                            "text-muted-foreground",
+                            "uppercase",
+                            "tracking-widest",
+                          )}
+                        >
+                          Activity log coming soon
+                        </p>
+                        {/* TODO: GET /api/admin/users/{id}/activity */}
+                      </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
@@ -258,484 +614,13 @@ export const AdminUserDetailsModal: React.FC<UserDetailsProps> = ({
   );
 };
 
-/* --- 1. UserProfileHeader --- */
-const UserProfileHeader: React.FC<WithUser> = ({ user }) => (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ delay: 0.2 }}
-    className={cn(
-      "flex",
-      "flex-col",
-      "items-center",
-      "text-center",
-      "space-y-4",
-    )}
-  >
-    <div className={cn("relative")}>
-      <motion.div
-        whileHover={{ scale: 1.05, rotate: 5 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        className={cn(
-          "w-28",
-          "h-28",
-          "rounded-[2rem]",
-          "bg-slate-200",
-          "overflow-hidden",
-          "border-4",
-          "border-background",
-          "shadow-lg",
-        )}
-      >
-        <Image
-          height={300}
-          width={500}
-          src={user.avatar}
-          alt={user.name}
-          className={cn("w-full", "h-full", "object-cover")}
-        />
-      </motion.div>
-      <AnimatePresence>
-        {user.isVerified && (
-          <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            exit={{ scale: 0, rotate: 180 }}
-            transition={{ type: "spring", stiffness: 300, damping: 15 }}
-            className={cn(
-              "absolute",
-              "-bottom-2",
-              "-right-2",
-              "bg-emerald-500",
-              "text-background",
-              "p-1.5",
-              "rounded-xl",
-              "border-4",
-              "border-slate-50",
-              "shadow-sm",
-            )}
-          >
-            <LuCircleCheck className={cn("w-5", "h-5")} />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-
-    <div>
-      <h2
-        className={cn(
-          "text-2xl",
-          "font-black",
-          "text-foreground",
-          "tracking-tight",
-        )}
-      >
-        {user.name}
-      </h2>
-      <div
-        className={cn(
-          "flex",
-          "items-center",
-          "justify-center",
-          "gap-2",
-          "mt-2",
-        )}
-      >
-        <motion.span
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
-          whileHover={{ scale: 1.05 }}
-          className={cn(
-            "px-3",
-            "py-1",
-            "bg-primary/10",
-            "text-primary",
-            "rounded-lg",
-            "text-[10px]",
-            "font-black",
-            "uppercase",
-            "tracking-widest",
-            "flex",
-            "items-center",
-            "gap-1",
-          )}
-        >
-          <LuHash className={cn("w-3", "h-3")} /> {user.id}
-        </motion.span>
-        <motion.span
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.35 }}
-          whileHover={{ scale: 1.05 }}
-          className={cn(
-            "px-3",
-            "py-1",
-            "bg-slate-200",
-            "text-slate-600",
-            "rounded-lg",
-            "text-[10px]",
-            "font-black",
-            "uppercase",
-            "tracking-widest",
-          )}
-        >
-          {user.type}
-        </motion.span>
-      </div>
-    </div>
-  </motion.div>
-);
-
-/* --- 2. UserInfoSection (Sidebar Quick Details) --- */
-const UserInfoSection: React.FC<WithUser> = ({ user }) => (
-  <div className={cn("space-y-6")}>
-    <InfoRow
-      icon={LuMail}
-      label="Email Address"
-      value={user.email}
-      delay={0.4}
-    />
-    <InfoRow
-      icon={LuPhone}
-      label="Phone Number"
-      value="Not Available"
-      delay={0.45}
-    />
-    <InfoRow
-      icon={LuCalendarDays}
-      label="Last Active"
-      value={user.lastActive}
-      delay={0.5}
-    />
-  </div>
-);
-
-/* --- Extended Info (Main Panel) --- */
-const ExtendedUserInfo: React.FC<WithUser> = ({ user }) => (
-  <motion.div
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -20 }}
-    transition={{ duration: 0.3 }}
-    className={cn("space-y-8")}
-  >
-    <h3
-      className={cn(
-        "text-[11px]",
-        "font-black",
-        "uppercase",
-        "tracking-[0.2em]",
-        "text-muted-foreground",
-        "border-b",
-        "border-border",
-        "pb-4",
-      )}
-    >
-      Account Information
-    </h3>
-    <div className={cn("grid", "grid-cols-2", "gap-8")}>
-      <InfoBlock icon={LuHash} label="User ID" value={user.id} delay={0.1} />
-      <InfoBlock
-        icon={LuGraduationCap}
-        label="Account Type"
-        value={user.type}
-        delay={0.15}
-      />
-      <InfoBlock
-        icon={LuTicket}
-        label="Total Tickets"
-        value={user.ticketsCount.toString()}
-        delay={0.2}
-      />
-      <InfoBlock
-        icon={LuActivity}
-        label="Account Status"
-        value={user.accountStatus}
-        delay={0.25}
-      />
-    </div>
-  </motion.div>
-);
-
-/* --- 3. UserTicketsSection --- */
-const UserTicketsSection: React.FC = () => (
-  <motion.div
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -20 }}
-    transition={{ duration: 0.3 }}
-    className={cn("space-y-4")}
-  >
-    <TicketCard
-      eventName="DIUSCADI Tech Summit 2026"
-      status="Valid"
-      code="TCK-992-ABC"
-      date="Nov 15, 2026"
-      delay={0.1}
-    />
-    <TicketCard
-      eventName="Web3 Developers Masterclass"
-      status="Used"
-      code="TCK-104-XYZ"
-      date="Jan 10, 2026"
-      delay={0.15}
-    />
-  </motion.div>
-);
-
-const TicketCard: React.FC<TicketCardProps> = ({
-  eventName,
-  status,
-  code,
-  date,
-  delay = 0,
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay }}
-    whileHover={{ scale: 1.01, borderColor: "rgb(251 146 60)" }}
-    className={cn(
-      "flex",
-      "items-center",
-      "justify-between",
-      "p-6",
-      "bg-muted",
-      "border",
-      "border-border",
-      "rounded-3xl",
-      "relative",
-      "overflow-hidden",
-      "group",
-      "transition-colors",
-    )}
-  >
-    {/* Decorative Ticket Stub edge */}
-    <div
-      className={cn(
-        "absolute",
-        "left-0",
-        "top-1/2",
-        "-translate-y-1/2",
-        "w-3",
-        "h-6",
-        "bg-background",
-        "border-r",
-        "border-border",
-        "rounded-r-full",
-      )}
-    />
-    <div
-      className={cn(
-        "absolute",
-        "right-0",
-        "top-1/2",
-        "-translate-y-1/2",
-        "w-3",
-        "h-6",
-        "bg-background",
-        "border-l",
-        "border-border",
-        "rounded-l-full",
-      )}
-    />
-
-    <div className={cn("pl-4", "space-y-1")}>
-      <h4 className={cn("text-sm", "font-black", "text-foreground")}>
-        {eventName}
-      </h4>
-      <div
-        className={cn(
-          "flex",
-          "items-center",
-          "gap-3",
-          "text-[10px]",
-          "font-bold",
-          "text-muted-foreground",
-          "uppercase",
-          "tracking-widest",
-        )}
-      >
-        <span>{date}</span> •{" "}
-        <span className={cn("text-primary", "font-mono")}>{code}</span>
-      </div>
-    </div>
-
-    <div className={cn("pr-4")}>
-      <span
-        className={cn(
-          "px-3",
-          "py-1.5",
-          "rounded-lg",
-          "text-[9px]",
-          "font-black",
-          "uppercase",
-          "tracking-widest",
-          status === "Valid"
-            ? "bg-emerald-100 text-emerald-700"
-            : "bg-slate-200 text-muted-foreground",
-        )}
-      >
-        {status}
-      </span>
-    </div>
-  </motion.div>
-);
-
-/* --- 4. UserEventsSection --- */
-const UserEventsSection: React.FC = () => (
-  <motion.div
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -20 }}
-    transition={{ duration: 0.3 }}
-    className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-4")}
-  >
-    <EventCard
-      name="DIUSCADI Tech Summit 2026"
-      type="Physical"
-      role="Attendee"
-      delay={0.1}
-    />
-    <EventCard
-      name="Future of AI Panel"
-      type="Virtual"
-      role="Waitlisted"
-      delay={0.15}
-    />
-  </motion.div>
-);
-
-const EventCard: React.FC<EventCardProps> = ({
-  name,
-  type,
-  role,
-  delay = 0,
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay }}
-    whileHover={{ scale: 1.02, boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}
-    className={cn(
-      "p-5",
-      "border",
-      "border-border",
-      "rounded-2xl",
-      "transition-all",
-      "space-y-3",
-    )}
-  >
-    <motion.div
-      whileHover={{ scale: 1.1, rotate: 5 }}
-      className={cn(
-        "w-10",
-        "h-10",
-        "text-muted",
-        "rounded-xl",
-        "flex",
-        "items-center",
-        "justify-center",
-      )}
-    >
-      <LuCalendar className={cn("w-5", "h-5", "text-muted-foreground")} />
-    </motion.div>
-    <div>
-      <h4
-        className={cn(
-          "text-xs",
-          "font-black",
-          "text-foreground",
-          "leading-tight",
-        )}
-      >
-        {name}
-      </h4>
-      <p
-        className={cn(
-          "text-[10px]",
-          "font-bold",
-          "text-muted-foreground",
-          "uppercase",
-          "tracking-widest",
-          "mt-1",
-        )}
-      >
-        {type}
-      </p>
-    </div>
-    <div className={cn("pt-3", "border-t", "border-slate-50")}>
-      <span
-        className={cn(
-          "text-[9px]",
-          "font-black",
-          "bg-muted",
-          "text-slate-600",
-          "px-2",
-          "py-1",
-          "rounded",
-          "uppercase",
-          "tracking-widest",
-        )}
-      >
-        {role}
-      </span>
-    </div>
-  </motion.div>
-);
-
-/* --- 5. UserActivitySection (Stub) --- */
-const UserActivitySection: React.FC = () => (
-  <motion.div
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -20 }}
-    transition={{ duration: 0.3 }}
-    className={cn(
-      "flex",
-      "flex-col",
-      "items-center",
-      "justify-center",
-      "h-48",
-      "text-center",
-    )}
-  >
-    <motion.div
-      animate={{ rotate: [0, 360] }}
-      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-    >
-      <LuActivity className={cn("w-8", "h-8", "text-slate-300", "mb-3")} />
-    </motion.div>
-    <p
-      className={cn(
-        "text-[11px]",
-        "font-black",
-        "text-muted-foreground",
-        "uppercase",
-        "tracking-widest",
-      )}
-    >
-      System activity logs will appear here.
-    </p>
-  </motion.div>
-);
-
-/* --- Generic Helpers --- */
-const InfoRow: React.FC<InfoRowProps> = ({
+const InfoRow: React.FC<{ icon: IconType; label: string; value: string }> = ({
   icon: Icon,
   label,
   value,
-  delay = 0,
 }) => (
-  <motion.div
-    initial={{ opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0 }}
-    transition={{ delay }}
-    className={cn("flex", "items-center", "gap-4")}
-  >
-    <motion.div
-      whileHover={{ scale: 1.1, rotate: 5 }}
+  <div className={cn("flex", "items-center", "gap-4")}>
+    <div
       className={cn(
         "w-10",
         "h-10",
@@ -750,9 +635,9 @@ const InfoRow: React.FC<InfoRowProps> = ({
       )}
     >
       <Icon className={cn("w-4", "h-4", "text-muted-foreground")} />
-    </motion.div>
-    <div className={cn("flex", "flex-col")}>
-      <span
+    </div>
+    <div>
+      <p
         className={cn(
           "text-[9px]",
           "font-black",
@@ -762,8 +647,8 @@ const InfoRow: React.FC<InfoRowProps> = ({
         )}
       >
         {label}
-      </span>
-      <span
+      </p>
+      <p
         className={cn(
           "text-xs",
           "font-bold",
@@ -772,24 +657,18 @@ const InfoRow: React.FC<InfoRowProps> = ({
           "max-w-[200px]",
         )}
       >
-        {value}
-      </span>
+        {value || "—"}
+      </p>
     </div>
-  </motion.div>
+  </div>
 );
 
-const InfoBlock: React.FC<InfoBlockProps> = ({
+const InfoBlock: React.FC<{ icon: IconType; label: string; value: string }> = ({
   icon: Icon,
   label,
   value,
-  delay = 0,
 }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay }}
-    className={cn("space-y-2")}
-  >
+  <div className={cn("space-y-2")}>
     <div
       className={cn("flex", "items-center", "gap-2", "text-muted-foreground")}
     >
@@ -805,55 +684,8 @@ const InfoBlock: React.FC<InfoBlockProps> = ({
         {label}
       </span>
     </div>
-    <p className={cn("text-sm", "font-bold", "text-foreground")}>
-      {value || "N/A"}
+    <p className={cn("text-sm", "font-bold", "text-foreground", "capitalize")}>
+      {value || "—"}
     </p>
-  </motion.div>
+  </div>
 );
-
-const TabButton: React.FC<TabButtonProps> = ({
-  active,
-  onClick,
-  icon: Icon,
-  label,
-}) => (
-  <motion.button
-    onClick={onClick}
-    whileHover={{ scale: 1.05 }}
-    whileTap={{ scale: 0.95 }}
-    className={cn(
-      "flex",
-      "items-center",
-      "gap-2",
-      "pb-4",
-      "border-b-2",
-      "transition-colors",
-      active
-        ? "border-primary text-foreground"
-        : "border-transparent text-muted-foreground hover:text-slate-600",
-    )}
-  >
-    <Icon className={cn("w-4", "h-4")} />
-    <span
-      className={cn(
-        "text-[11px]",
-        "font-black",
-        "uppercase",
-        "tracking-widest",
-      )}
-    >
-      {label}
-    </span>
-  </motion.button>
-);
-
-// Export types
-export type {
-  UserDetailsProps,
-  TabType,
-  TabButtonProps,
-  TicketCardProps,
-  EventCardProps,
-  InfoRowProps,
-  InfoBlockProps,
-};

@@ -1,74 +1,64 @@
 "use client";
+// modal/AUEditModal.tsx
+// Edits a user's name and role via AdminContext.changeRole.
+// Email is read-only (auth concern). Phone not in AdminUser schema yet.
+// Avatar change goes through the existing Cloudinary pipeline — TODO.
+
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LuX,
   LuUser,
   LuMail,
-  LuPhone,
-  LuCamera,
   LuShieldCheck,
   LuSave,
-  LuUserCheck,
   LuUserPlus,
+  LuLoader,
 } from "react-icons/lu";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { IconType } from "react-icons";
+import { useAdmin } from "@/context/AdminContext";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "react-hot-toast";
+import type { AdminUser } from "@/context/AdminContext";
 
-// Define proper TypeScript types
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  avatar: string;
-  registrationType: "Student" | "Graduate" | "Professional";
-  verificationStatus: "Verified" | "Unverified" | "Incomplete";
-}
-
-interface UserFormData {
-  name: string;
-  email: string;
-  phone: string;
-  type: "Student" | "Graduate" | "Professional";
-  isVerified: boolean;
-}
-
-interface EditModalProps {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (updatedData: UserFormData) => void;
-  user: UserData | null;
+  onSave?: () => void;
+  user: AdminUser | null;
 }
 
-interface EditInputProps {
-  label: string;
-  icon: IconType;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  type?: string;
-  delay?: number;
-}
+const ROLES = ["member", "moderator", "admin", "webmaster"] as const;
 
-export const AdminUserEditModal: React.FC<EditModalProps> = ({
+export const AdminUserEditModal: React.FC<Props> = ({
   isOpen,
   onClose,
   onSave,
   user,
 }) => {
-  // Local state initialized with current user data
-  const [formData, setFormData] = useState<UserFormData>({
-    name: user?.name || "",
-    email: user?.email || "",
-    phone: user?.phone || "",
-    type: user?.registrationType || "Student",
-    isVerified: user?.verificationStatus === "Verified",
-  });
+  const { token } = useAuth();
+  const { changeRole } = useAdmin();
 
-  const handleSave = () => {
-    onSave(formData);
-    onClose();
+  const [role, setRole] = useState(user?.role ?? "member");
+  const [loading, setLoading] = useState(false);
+
+  if (!user) return null;
+
+  const handleSave = async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      if (role !== user.role) {
+        await changeRole(user.id, role, token);
+        toast.success(`Role updated to ${role}`);
+      }
+      onSave?.();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -78,14 +68,13 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
           className={cn(
             "fixed",
             "inset-0",
-            "z-110",
+            "z-[110]",
             "flex",
             "items-center",
             "justify-center",
             "p-4",
           )}
         >
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -99,7 +88,6 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
             )}
           />
 
-          {/* Modal Container */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -109,20 +97,15 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
             className={cn(
               "relative",
               "w-full",
-              "max-w-2xl",
+              "max-w-lg",
               "bg-background",
               "rounded-[3rem]",
               "shadow-2xl",
               "overflow-hidden",
-              "flex",
-              "flex-col",
             )}
           >
             {/* Header */}
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
+            <div
               className={cn(
                 "p-8",
                 "border-b",
@@ -134,9 +117,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
               )}
             >
               <div className={cn("flex", "items-center", "gap-4")}>
-                <motion.div
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                <div
                   className={cn(
                     "w-10",
                     "h-10",
@@ -149,7 +130,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                   )}
                 >
                   <LuUserPlus className={cn("w-5", "h-5")} />
-                </motion.div>
+                </div>
                 <div>
                   <h3
                     className={cn(
@@ -160,7 +141,7 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                       "tracking-tighter",
                     )}
                   >
-                    Edit Identity
+                    Edit User
                   </h3>
                   <p
                     className={cn(
@@ -171,355 +152,176 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                       "tracking-widest",
                     )}
                   >
-                    User Ref: {user?.id}
+                    {user.vaultId.slice(-8).toUpperCase()}
                   </p>
                 </div>
               </div>
-              <motion.button
-                whileHover={{ scale: 1.1, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
+              <button
                 onClick={onClose}
                 className={cn(
                   "p-2",
                   "hover:bg-slate-200",
                   "rounded-full",
                   "transition-colors",
+                  "cursor-pointer",
                 )}
               >
                 <LuX className={cn("w-5", "h-5", "text-muted-foreground")} />
-              </motion.button>
-            </motion.div>
+              </button>
+            </div>
 
-            <div
-              className={cn(
-                "p-10",
-                "space-y-8",
-                "overflow-y-auto",
-                "max-h-[70vh]",
-              )}
-            >
-              {/* 1. EditUserAvatarUpload */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-                className={cn("flex", "justify-center")}
-              >
-                <div className={cn("relative", "group")}>
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    className={cn(
-                      "w-24",
-                      "h-24",
-                      "rounded-[2rem]",
-                      "text-muted",
-                      "border-2",
-                      "border-border",
-                      "overflow-hidden",
-                    )}
-                  >
-                    <Image
-                      height={300}
-                      width={500}
-                      src={user?.avatar || "/default-avatar.png"}
-                      alt="Profile"
-                      className={cn(
-                        "w-full",
-                        "h-full",
-                        "object-cover",
-                        "opacity-60",
-                        "group-hover:opacity-40",
-                        "transition-opacity",
-                      )}
-                    />
-                  </motion.div>
-                  <motion.button
-                    initial={{ opacity: 0 }}
-                    whileHover={{ opacity: 1 }}
+            <div className={cn("p-8", "space-y-6")}>
+              {/* Read-only name */}
+              <div className={cn("space-y-2")}>
+                <label
+                  className={cn(
+                    "text-[10px]",
+                    "font-black",
+                    "uppercase",
+                    "tracking-widest",
+                    "text-muted-foreground",
+                  )}
+                >
+                  Full Name (read-only)
+                </label>
+                <div className={cn("relative")}>
+                  <LuUser
                     className={cn(
                       "absolute",
-                      "inset-0",
-                      "flex",
-                      "flex-col",
-                      "items-center",
-                      "justify-center",
-                      "transition-opacity",
+                      "left-4",
+                      "top-1/2",
+                      "-translate-y-1/2",
+                      "w-4",
+                      "h-4",
+                      "text-slate-300",
                     )}
-                  >
-                    <motion.div
-                      whileHover={{ scale: 1.2 }}
-                      transition={{ type: "spring", stiffness: 400 }}
-                    >
-                      <LuCamera
-                        className={cn("w-6", "h-6", "text-foreground")}
-                      />
-                    </motion.div>
-                    <span
-                      className={cn(
-                        "text-[8px]",
-                        "font-black",
-                        "uppercase",
-                        "mt-1",
-                      )}
-                    >
-                      Change
-                    </span>
-                  </motion.button>
-                </div>
-              </motion.div>
-
-              <div
-                className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-6")}
-              >
-                {/* 2. EditUserNameInput */}
-                <EditInput
-                  label="Full Name"
-                  icon={LuUser}
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  delay={0.3}
-                />
-
-                {/* 3. EditUserEmailInput */}
-                <EditInput
-                  label="Email Address"
-                  icon={LuMail}
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  delay={0.35}
-                />
-
-                {/* 4. EditUserPhoneInput */}
-                <EditInput
-                  label="Phone Number"
-                  icon={LuPhone}
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                  delay={0.4}
-                />
-
-                {/* 5. EditUserTypeSelect */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.45 }}
-                  className={cn("space-y-2")}
-                >
-                  <label
+                  />
+                  <input
+                    disabled
+                    value={user.fullName}
                     className={cn(
-                      "text-[10px]",
-                      "font-black",
-                      "uppercase",
-                      "tracking-[0.2em]",
+                      "w-full",
+                      "bg-muted/50",
+                      "border",
+                      "border-border",
+                      "p-4",
+                      "pl-12",
+                      "rounded-2xl",
+                      "text-[11px]",
+                      "font-bold",
                       "text-muted-foreground",
+                      "outline-none",
+                      "cursor-not-allowed",
                     )}
-                  >
-                    Registration Type
-                  </label>
-                  <div className={cn("relative")}>
-                    <select
-                      value={formData.type}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          type: e.target.value as UserFormData["type"],
-                        })
-                      }
-                      className={cn(
-                        "w-full",
-                        "bg-muted",
-                        "border",
-                        "border-border",
-                        "p-4",
-                        "rounded-2xl",
-                        "text-[11px]",
-                        "font-black",
-                        "uppercase",
-                        "outline-none",
-                        "focus:border-primary",
-                        "appearance-none",
-                        "cursor-pointer",
-                        "transition-all",
-                      )}
-                    >
-                      <option value="Student">Student</option>
-                      <option value="Graduate">Graduate</option>
-                      <option value="Professional">Professional</option>
-                    </select>
-                    <div
-                      className={cn(
-                        "absolute",
-                        "right-4",
-                        "top-1/2",
-                        "-translate-y-1/2",
-                        "pointer-events-none",
-                      )}
-                    >
-                      <LuUserCheck
-                        className={cn("w-4", "h-4", "text-muted-foreground")}
-                      />
-                    </div>
-                  </div>
-                </motion.div>
+                  />
+                </div>
               </div>
 
-              {/* 6. EditVerificationToggle */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                whileHover={{ scale: 1.01 }}
-                className={cn(
-                  "p-6",
-                  "bg-muted",
-                  "border",
-                  "border-border",
-                  "rounded-3xl",
-                  "flex",
-                  "items-center",
-                  "justify-between",
-                  "group",
-                )}
-              >
-                <div className={cn("flex", "items-center", "gap-4")}>
-                  <motion.div
-                    animate={
-                      formData.isVerified
-                        ? {
-                            scale: [1, 1.1, 1],
-                            rotate: [0, 5, -5, 0],
-                          }
-                        : {}
-                    }
-                    transition={{
-                      duration: 0.5,
-                    }}
+              {/* Read-only email */}
+              <div className={cn("space-y-2")}>
+                <label
+                  className={cn(
+                    "text-[10px]",
+                    "font-black",
+                    "uppercase",
+                    "tracking-widest",
+                    "text-muted-foreground",
+                  )}
+                >
+                  Email (read-only)
+                </label>
+                <div className={cn("relative")}>
+                  <LuMail
                     className={cn(
-                      "w-10",
-                      "h-10",
-                      "rounded-xl",
-                      "flex",
-                      "items-center",
-                      "justify-center",
-                      "transition-all",
-                      "duration-300",
-                      formData.isVerified
-                        ? "bg-emerald-100 text-emerald-600"
-                        : "bg-slate-200 text-muted-foreground",
+                      "absolute",
+                      "left-4",
+                      "top-1/2",
+                      "-translate-y-1/2",
+                      "w-4",
+                      "h-4",
+                      "text-slate-300",
                     )}
-                  >
-                    <LuShieldCheck className={cn("w-5", "h-5")} />
-                  </motion.div>
-                  <div>
-                    <p
+                  />
+                  <input
+                    disabled
+                    value={user.email}
+                    className={cn(
+                      "w-full",
+                      "bg-muted/50",
+                      "border",
+                      "border-border",
+                      "p-4",
+                      "pl-12",
+                      "rounded-2xl",
+                      "text-[11px]",
+                      "font-bold",
+                      "text-muted-foreground",
+                      "outline-none",
+                      "cursor-not-allowed",
+                    )}
+                  />
+                </div>
+                <p
+                  className={cn(
+                    "text-[9px]",
+                    "font-bold",
+                    "text-muted-foreground",
+                  )}
+                >
+                  Email changes must be done by the user via account settings.
+                </p>
+              </div>
+
+              {/* Editable role */}
+              <div className={cn("space-y-3")}>
+                <label
+                  className={cn(
+                    "text-[10px]",
+                    "font-black",
+                    "uppercase",
+                    "tracking-widest",
+                    "text-muted-foreground",
+                    "flex",
+                    "items-center",
+                    "gap-2",
+                  )}
+                >
+                  <LuShieldCheck className={cn("w-3.5", "h-3.5")} /> Platform
+                  Role
+                </label>
+                <div className={cn("grid", "grid-cols-2", "gap-2")}>
+                  {ROLES.map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => setRole(r)}
                       className={cn(
-                        "text-[11px]",
+                        "px-4",
+                        "py-3",
+                        "rounded-xl",
+                        "border-2",
+                        "text-[10px]",
                         "font-black",
                         "uppercase",
                         "tracking-widest",
-                        "text-foreground",
+                        "transition-all",
+                        "cursor-pointer",
+                        role === r
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:border-slate-300",
                       )}
                     >
-                      Manual Verification
-                    </p>
-                    <p
-                      className={cn(
-                        "text-[9px]",
-                        "font-bold",
-                        "text-muted-foreground",
-                        "uppercase",
-                        "tracking-tighter",
-                      )}
-                    >
-                      Bypass normal verification flow
-                    </p>
-                  </div>
+                      {r}
+                    </button>
+                  ))}
                 </div>
-                <motion.button
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      isVerified: !formData.isVerified,
-                    })
-                  }
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className={cn(
-                    "w-12",
-                    "h-6",
-                    "rounded-full",
-                    "transition-colors",
-                    "relative",
-                    "focus:ring-2",
-                    "focus:ring-primary/20",
-                    "focus:ring-offset-2",
-                    "outline-none",
-                    formData.isVerified ? "bg-emerald-500" : "bg-slate-300",
-                  )}
-                >
-                  <motion.div
-                    animate={{
-                      x: formData.isVerified ? 24 : 4,
-                    }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    className={cn(
-                      "absolute",
-                      "top-1",
-                      "w-4",
-                      "h-4",
-                      "bg-background",
-                      "rounded-full",
-                      "shadow-sm",
-                    )}
-                  >
-                    {/* Indicator dot when verified */}
-                    <AnimatePresence>
-                      {formData.isVerified && (
-                        <motion.div
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="absolute inset-0 flex items-center justify-center"
-                        >
-                          <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-
-                  {/* Ripple effect on toggle */}
-                  <AnimatePresence>
-                    {formData.isVerified && (
-                      <motion.div
-                        initial={{ scale: 0.8, opacity: 0.5 }}
-                        animate={{ scale: 1.5, opacity: 0 }}
-                        exit={{ scale: 0.8, opacity: 0 }}
-                        transition={{ duration: 0.6 }}
-                        className="absolute inset-0 bg-emerald-500 rounded-full"
-                      />
-                    )}
-                  </AnimatePresence>
-                </motion.button>
-              </motion.div>
+              </div>
             </div>
 
-            {/* 7. Footer / SaveButton */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
+            {/* Footer */}
+            <div
               className={cn(
                 "p-8",
-                "bg-muted",
+                "bg-muted/50",
                 "border-t",
                 "border-border",
                 "flex",
@@ -527,10 +329,9 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                 "gap-4",
               )}
             >
-              <motion.button
+              <button
                 onClick={onClose}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                disabled={loading}
                 className={cn(
                   "flex-1",
                   "px-6",
@@ -541,19 +342,23 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                   "uppercase",
                   "tracking-widest",
                   "text-muted-foreground",
-                  "hover:text-muted",
+                  "hover:bg-muted",
                   "transition-all",
+                  "cursor-pointer",
                 )}
               >
-                Discard Changes
-              </motion.button>
-              <motion.button
+                Discard
+              </button>
+              <button
                 onClick={handleSave}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                disabled={loading}
                 className={cn(
-                  "flex-3",
-                  "px-10",
+                  "flex-1",
+                  "flex",
+                  "items-center",
+                  "justify-center",
+                  "gap-2",
+                  "px-8",
                   "py-4",
                   "bg-foreground",
                   "text-background",
@@ -566,85 +371,24 @@ export const AdminUserEditModal: React.FC<EditModalProps> = ({
                   "hover:text-foreground",
                   "transition-all",
                   "shadow-xl",
-                  "shadow-foreground/10",
-                  "flex",
-                  "items-center",
-                  "justify-center",
-                  "gap-2",
+                  "cursor-pointer",
+                  "disabled:opacity-70",
                 )}
               >
-                <LuSave className={cn("w-4", "h-4")} />
-                Update Profile
-              </motion.button>
-            </motion.div>
+                {loading ? (
+                  <>
+                    <LuLoader className="w-4 h-4 animate-spin" /> Saving…
+                  </>
+                ) : (
+                  <>
+                    <LuSave className={cn("w-4", "h-4")} /> Save Changes
+                  </>
+                )}
+              </button>
+            </div>
           </motion.div>
         </div>
       )}
     </AnimatePresence>
   );
 };
-
-/* --- Helper Component --- */
-const EditInput: React.FC<EditInputProps> = ({
-  label,
-  icon: Icon,
-  value,
-  onChange,
-  type = "text",
-  delay = 0,
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay }}
-    className={cn("space-y-2")}
-  >
-    <label
-      className={cn(
-        "text-[10px]",
-        "font-black",
-        "uppercase",
-        "tracking-[0.2em]",
-        "text-muted-foreground",
-      )}
-    >
-      {label}
-    </label>
-    <div className={cn("relative")}>
-      <Icon
-        className={cn(
-          "absolute",
-          "left-4",
-          "top-1/2",
-          "-translate-y-1/2",
-          "w-4",
-          "h-4",
-          "text-slate-300",
-        )}
-      />
-      <input
-        type={type}
-        value={value}
-        onChange={onChange}
-        className={cn(
-          "w-full",
-          "bg-muted",
-          "border",
-          "border-border",
-          "p-4",
-          "pl-12",
-          "rounded-2xl",
-          "text-[11px]",
-          "font-bold",
-          "text-foreground",
-          "outline-none",
-          "focus:border-primary",
-          "transition-all",
-        )}
-      />
-    </div>
-  </motion.div>
-);
-
-// Export types
-export type { EditModalProps, UserData, UserFormData, EditInputProps };

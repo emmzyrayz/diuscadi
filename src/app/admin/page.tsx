@@ -1,16 +1,35 @@
 "use client";
-import React, { useState } from "react";
+// app/admin/page.tsx
+import React, { useEffect, useState } from "react";
+import { useAdmin } from "@/context/AdminContext";
+import { useAuth } from "@/context/AuthContext";
+import { useUser } from "@/context/UserContext";
 import { AdminHeader } from "@/components/sections/admin/adminHeader";
 import { AdminSidebar } from "@/components/sections/admin/AdminSidebar";
 import { AdminStatsOverview } from "@/components/sections/admin/AdminStatsOverview";
 import { AdminQuickActions } from "@/components/sections/admin/AdminQuickActions";
 import { AdminRecentActivity } from "@/components/sections/admin/AdminRecentActivity";
 import { AdminUpcomingEventsPreview } from "@/components/sections/admin/AUEventsPreview";
-import { LuMenu, LuX } from "react-icons/lu";
-import { cn } from "../../lib/utils";
+import { LuMenu, LuX, LuLoader } from "react-icons/lu";
+import { cn } from "@/lib/utils";
 
 export default function AdminDashboard() {
+  const { token } = useAuth();
+  const { profile } = useUser();
+  const {
+    analytics,
+    loadingAnalytics,
+    loadAnalytics,
+    loadAdminEvents,
+    adminEvents,
+  } = useAdmin();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    loadAnalytics(token);
+    loadAdminEvents({ status: "published", page: 1 }, token);
+  }, [token, loadAnalytics, loadAdminEvents]);
 
   return (
     <div
@@ -21,18 +40,12 @@ export default function AdminDashboard() {
         "overflow-hidden",
       )}
     >
-      {/* 1. Admin Sidebar (Desktop: Persistent, Mobile: Overlay) */}
+      {/* Sidebar */}
       <div
-        className={`
-        fixed inset-y-0 left-0 z-50 transform lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out
-        ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        lg:col-span-3
-      `}
+        className={`fixed inset-y-0 left-0 z-50 transform lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:col-span-3`}
       >
         <AdminSidebar />
       </div>
-
-      {/* Mobile Sidebar Backdrop */}
       {isSidebarOpen && (
         <div
           className={cn(
@@ -47,7 +60,6 @@ export default function AdminDashboard() {
         />
       )}
 
-      {/* 2. Main Body Container */}
       <div
         className={cn(
           "flex-1",
@@ -57,7 +69,7 @@ export default function AdminDashboard() {
           "overflow-y-auto",
         )}
       >
-        {/* Mobile Header Toggle */}
+        {/* Mobile header toggle */}
         <div
           className={cn(
             "lg:hidden",
@@ -91,9 +103,8 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        <AdminHeader />
+        <AdminHeader profile={profile} />
 
-        {/* 3. Dashboard Content Grid */}
         <main
           className={cn(
             "p-4",
@@ -105,69 +116,38 @@ export default function AdminDashboard() {
             "w-full",
           )}
         >
-          {/* Row 1: Stats Overview (Full Width) */}
-          <section
-            className={cn(
-              "animate-in",
-              "fade-in",
-              "slide-in-from-top-4",
-              "duration-500",
-            )}
-          >
-            <AdminStatsOverview />
-          </section>
-
-          {/* Row 2: Quick Actions (Full Width) */}
-          <section
-            className={cn(
-              "animate-in",
-              "fade-in",
-              "slide-in-from-top-4",
-              "duration-700",
-              "delay-100",
-            )}
-          >
-            <AdminQuickActions />
-          </section>
-
-          {/* Row 3: Split Operations Grid */}
-          <div
-            className={cn(
-              "grid",
-              "grid-cols-1",
-              "lg:grid-cols-12",
-              "gap-8",
-              "items-start",
-            )}
-          >
-            {/* Recent Activity (col-span-7) */}
+          {loadingAnalytics && !analytics ? (
             <div
-              className={cn(
-                "lg:col-span-7",
-                "animate-in",
-                "fade-in",
-                "slide-in-from-left-4",
-                "duration-700",
-                "delay-200",
-              )}
+              className={cn("flex", "items-center", "justify-center", "py-20")}
             >
-              <AdminRecentActivity />
+              <LuLoader
+                className={cn("w-8", "h-8", "text-primary", "animate-spin")}
+              />
             </div>
-
-            {/* Upcoming Events Preview (col-span-5) */}
-            <div
-              className={cn(
-                "lg:col-span-5",
-                "animate-in",
-                "fade-in",
-                "slide-in-from-right-4",
-                "duration-700",
-                "delay-200",
-              )}
-            >
-              <AdminUpcomingEventsPreview />
-            </div>
-          </div>
+          ) : (
+            <>
+              <AdminStatsOverview analytics={analytics} />
+              <AdminQuickActions />
+              <div
+                className={cn(
+                  "grid",
+                  "grid-cols-1",
+                  "lg:grid-cols-12",
+                  "gap-8",
+                  "items-start",
+                )}
+              >
+                <div className={cn("lg:col-span-7")}>
+                  <AdminRecentActivity
+                    recentSignups={analytics?.recentSignups ?? []}
+                  />
+                </div>
+                <div className={cn("lg:col-span-5")}>
+                  <AdminUpcomingEventsPreview events={adminEvents} />
+                </div>
+              </div>
+            </>
+          )}
         </main>
       </div>
     </div>

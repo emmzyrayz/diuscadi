@@ -1,52 +1,46 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
-import {
-  LuUserPlus,
-  LuBriefcase,
-  LuMapPin,
-  LuGraduationCap,
-} from "react-icons/lu";
+import { LuUserPlus, LuBriefcase } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import { IconType } from "react-icons";
+import type { Analytics } from "@/context/AdminContext";
+import { UserGrowthChart } from "@/components/sections/admin/analytics/charts/UserGrowthChart";
 
-// TypeScript Interfaces
-interface InsightChartContainerProps {
-  title: string;
-  subtitle: string;
-  children: React.ReactNode;
-  delay?: number;
+interface Props {
+  analytics: Analytics | null;
 }
 
-interface DonutDataItem {
-  label: string;
-  val: number;
-  color: string;
-}
+export const AdminAnalyticsUserInsightsSection = ({ analytics }: Props) => {
+  const a = analytics;
+  const byRole = a?.users.byRole ?? {};
+  const byEduStatus = a?.users.byEduStatus ?? {};
 
-interface DonutBreakdownProps {
-  title: string;
-  icon: IconType;
-  data: DonutDataItem[];
-  delay?: number;
-}
+  // Build UserGrowthChart data from weekly/monthly counts
+  const growthData = [
+    {
+      month: "This Week",
+      newUsers: a?.users.newThisWeek ?? 0,
+      returning: Math.max(
+        0,
+        (a?.users.total ?? 0) - (a?.users.newThisWeek ?? 0),
+      ),
+    },
+    {
+      month: "This Month",
+      newUsers: a?.users.newThisMonth ?? 0,
+      returning: Math.max(
+        0,
+        (a?.users.total ?? 0) - (a?.users.newThisMonth ?? 0),
+      ),
+    },
+  ];
 
-interface AcademicItem {
-  name: string;
-  count: string;
-  percent: number;
-}
+  const roleEntries = Object.entries(byRole);
+  const eduEntries = Object.entries(byEduStatus);
+  const totalUsers = a?.users.total ?? 1; // avoid div/0
 
-interface AcademicRankingCardProps {
-  title: string;
-  items: AcademicItem[];
-  delay?: number;
-}
-
-export const AdminAnalyticsUserInsightsSection: React.FC = () => {
   return (
     <div className={cn("space-y-8", "mb-16")}>
-      {/* 1. Section Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -54,9 +48,7 @@ export const AdminAnalyticsUserInsightsSection: React.FC = () => {
         className={cn("flex", "items-center", "justify-between")}
       >
         <div className={cn("flex", "items-center", "gap-3")}>
-          <motion.div
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          <div
             className={cn(
               "p-2.5",
               "bg-rose-50",
@@ -67,7 +59,7 @@ export const AdminAnalyticsUserInsightsSection: React.FC = () => {
             )}
           >
             <LuUserPlus className={cn("w-5", "h-5")} />
-          </motion.div>
+          </div>
           <div>
             <h2
               className={cn(
@@ -95,377 +87,191 @@ export const AdminAnalyticsUserInsightsSection: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* 2. User Growth Row */}
-      <div className={cn("grid", "grid-cols-1", "xl:grid-cols-2", "gap-8")}>
-        <InsightChartContainer
-          title="User Acquisition"
-          subtitle="New signups vs. active sessions"
-          delay={0.1}
+      {/* Growth chart */}
+      <div
+        className={cn(
+          "bg-background",
+          "border",
+          "border-border",
+          "rounded-[2.5rem]",
+          "p-10",
+          "shadow-sm",
+        )}
+      >
+        <h3
+          className={cn(
+            "text-sm",
+            "font-black",
+            "text-foreground",
+            "uppercase",
+            "tracking-tight",
+          )}
         >
-          <div className={cn("h-64", "flex", "items-end", "gap-2", "mt-6")}>
-            {/* Stacked Bar Chart Mockup */}
-            {[30, 45, 60, 40, 70, 85, 95, 80, 100].map((h, i) => (
-              <motion.div
-                key={i}
-                initial={{ height: 0 }}
-                animate={{ height: "100%" }}
-                transition={{
-                  duration: 0.8,
-                  delay: 0.3 + i * 0.05,
-                  ease: "easeOut",
-                }}
-                className={cn(
-                  "flex-1",
-                  "flex",
-                  "flex-col",
-                  "justify-end",
-                  "gap-1",
-                )}
-              >
-                <motion.div
-                  initial={{ scaleY: 0 }}
-                  animate={{ scaleY: 1 }}
-                  transition={{
-                    duration: 0.6,
-                    delay: 0.4 + i * 0.05,
-                    ease: "easeOut",
-                  }}
-                  whileHover={{ scale: 1.05 }}
-                  className={cn(
-                    "w-full",
-                    "bg-foreground",
-                    "rounded-sm",
-                    "origin-bottom",
-                  )}
-                  style={{ height: `${h * 0.7}%` }}
-                />
-                <motion.div
-                  initial={{ scaleY: 0 }}
-                  animate={{ scaleY: 1 }}
-                  transition={{
-                    duration: 0.6,
-                    delay: 0.5 + i * 0.05,
-                    ease: "easeOut",
-                  }}
-                  whileHover={{ scale: 1.05 }}
-                  className={cn(
-                    "w-full",
-                    "bg-primary",
-                    "rounded-sm",
-                    "origin-bottom",
-                  )}
-                  style={{ height: `${h * 0.3}%` }}
-                />
-              </motion.div>
-            ))}
-          </div>
-          <div
-            className={cn(
-              "flex",
-              "justify-between",
-              "mt-4",
-              "text-[8px]",
-              "font-black",
-              "text-muted-foreground",
-              "uppercase",
-              "tracking-widest",
-            )}
-          >
-            <div className={cn("flex", "items-center", "gap-2")}>
-              <div
-                className={cn("w-2", "h-2", "bg-foreground", "rounded-full")}
-              />{" "}
-              Returning
-            </div>
-            <div className={cn("flex", "items-center", "gap-2")}>
-              <div className={cn("w-2", "h-2", "bg-primary", "rounded-full")} />{" "}
-              New Users
-            </div>
-          </div>
-        </InsightChartContainer>
-
-        {/* 3. Role & Engagement Breakdown */}
-        <div className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-6")}>
-          <DonutBreakdown
-            title="User Roles"
-            icon={LuBriefcase}
-            data={[
-              { label: "Students", val: 65, color: "bg-foreground" },
-              { label: "Alumni", val: 20, color: "bg-primary" },
-              { label: "Faculty", val: 15, color: "bg-slate-200" },
-            ]}
-            delay={0.15}
-          />
-          <DonutBreakdown
-            title="Top Locations"
-            icon={LuMapPin}
-            data={[
-              { label: "Main Campus", val: 55, color: "bg-foreground" },
-              { label: "Remote", val: 30, color: "bg-primary" },
-              { label: "International", val: 15, color: "bg-slate-200" },
-            ]}
-            delay={0.2}
-          />
-        </div>
+          User Growth
+        </h3>
+        <p
+          className={cn(
+            "text-[10px]",
+            "font-bold",
+            "text-muted-foreground",
+            "uppercase",
+            "tracking-widest",
+          )}
+        >
+          New vs returning users
+        </p>
+        <UserGrowthChart data={growthData} />
       </div>
 
-      {/* 4. DIUSCADI Specifics (Academic Insights) */}
-      <div className={cn("grid", "grid-cols-1", "lg:grid-cols-2", "gap-8")}>
-        <AcademicRankingCard
-          title="Engagement by School"
-          items={[
-            { name: "School of Engineering", count: "842", percent: 90 },
-            { name: "Business & Economics", count: "520", percent: 65 },
-            { name: "Arts & Humanities", count: "310", percent: 35 },
-            { name: "Science & Tech", count: "290", percent: 30 },
-          ]}
-          delay={0.25}
-        />
-        <AcademicRankingCard
-          title="Active Departments"
-          items={[
-            { name: "Computer Science", count: "412", percent: 95 },
-            { name: "Architecture", count: "210", percent: 45 },
-            { name: "Marketing", count: "180", percent: 40 },
-            { name: "Mechanical Eng.", count: "155", percent: 35 },
-          ]}
-          delay={0.3}
-        />
+      {/* Role breakdown */}
+      <div className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-6")}>
+        <div
+          className={cn(
+            "bg-background",
+            "border",
+            "border-border",
+            "rounded-[2.5rem]",
+            "p-8",
+            "shadow-sm",
+          )}
+        >
+          <div className={cn("flex", "items-center", "gap-2", "mb-6")}>
+            <LuBriefcase
+              className={cn("w-4", "h-4", "text-muted-foreground")}
+            />
+            <h4
+              className={cn(
+                "text-[10px]",
+                "font-black",
+                "text-foreground",
+                "uppercase",
+                "tracking-widest",
+              )}
+            >
+              User Roles
+            </h4>
+          </div>
+          {roleEntries.length === 0 ? (
+            <p className={cn("text-xs", "font-bold", "text-muted-foreground")}>
+              No data yet
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {roleEntries.map(([role, count]) => {
+                const pct = Math.round((count / totalUsers) * 100);
+                return (
+                  <div key={role}>
+                    <div
+                      className={cn(
+                        "flex",
+                        "justify-between",
+                        "text-[10px]",
+                        "font-black",
+                        "uppercase",
+                        "mb-1.5",
+                      )}
+                    >
+                      <span className={cn("text-muted-foreground")}>
+                        {role}
+                      </span>
+                      <span className={cn("text-foreground")}>{pct}%</span>
+                    </div>
+                    <div
+                      className={cn(
+                        "h-1.5",
+                        "w-full",
+                        "bg-muted",
+                        "rounded-full",
+                        "overflow-hidden",
+                      )}
+                    >
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                        className={cn("h-full", "bg-foreground")}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* EduStatus breakdown */}
+        <div
+          className={cn(
+            "bg-background",
+            "border",
+            "border-border",
+            "rounded-[2.5rem]",
+            "p-8",
+            "shadow-sm",
+          )}
+        >
+          <div className={cn("flex", "items-center", "gap-2", "mb-6")}>
+            <LuUserPlus className={cn("w-4", "h-4", "text-muted-foreground")} />
+            <h4
+              className={cn(
+                "text-[10px]",
+                "font-black",
+                "text-foreground",
+                "uppercase",
+                "tracking-widest",
+              )}
+            >
+              Education Status
+            </h4>
+          </div>
+          {eduEntries.length === 0 ? (
+            <p className={cn("text-xs", "font-bold", "text-muted-foreground")}>
+              No data yet
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {eduEntries.map(([status, count]) => {
+                const pct = Math.round((count / totalUsers) * 100);
+                return (
+                  <div key={status}>
+                    <div
+                      className={cn(
+                        "flex",
+                        "justify-between",
+                        "text-[10px]",
+                        "font-black",
+                        "uppercase",
+                        "mb-1.5",
+                      )}
+                    >
+                      <span className={cn("text-muted-foreground")}>
+                        {status}
+                      </span>
+                      <span className={cn("text-foreground")}>{pct}%</span>
+                    </div>
+                    <div
+                      className={cn(
+                        "h-1.5",
+                        "w-full",
+                        "bg-muted",
+                        "rounded-full",
+                        "overflow-hidden",
+                      )}
+                    >
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                        className={cn("h-full", "bg-primary")}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
-};
-
-/* --- Helpers --- */
-const InsightChartContainer: React.FC<InsightChartContainerProps> = ({
-  title,
-  subtitle,
-  children,
-  delay = 0,
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5, delay }}
-    whileHover={{ scale: 1.01 }}
-    className={cn(
-      "bg-background",
-      "border",
-      "border-border",
-      "rounded-[2.5rem]",
-      "p-10",
-      "shadow-sm",
-    )}
-  >
-    <div className={cn("space-y-1")}>
-      <h3
-        className={cn(
-          "text-sm",
-          "font-black",
-          "text-foreground",
-          "uppercase",
-          "tracking-tight",
-        )}
-      >
-        {title}
-      </h3>
-      <p
-        className={cn(
-          "text-[10px]",
-          "font-bold",
-          "text-muted-foreground",
-          "uppercase",
-          "tracking-widest",
-        )}
-      >
-        {subtitle}
-      </p>
-    </div>
-    {children}
-  </motion.div>
-);
-
-const DonutBreakdown: React.FC<DonutBreakdownProps> = ({
-  title,
-  data,
-  icon: Icon,
-  delay = 0,
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5, delay }}
-    whileHover={{ scale: 1.02, boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}
-    className={cn(
-      "bg-background",
-      "border",
-      "border-border",
-      "rounded-[2.5rem]",
-      "p-8",
-      "shadow-sm",
-    )}
-  >
-    <div className={cn("flex", "items-center", "gap-2", "mb-6")}>
-      <motion.div
-        whileHover={{ scale: 1.1, rotate: 5 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      >
-        <Icon className={cn("w-4", "h-4", "text-muted-foreground")} />
-      </motion.div>
-      <h4
-        className={cn(
-          "text-[10px]",
-          "font-black",
-          "text-foreground",
-          "uppercase",
-          "tracking-widest",
-        )}
-      >
-        {title}
-      </h4>
-    </div>
-    <div className={cn("space-y-4")}>
-      {data.map((item, index) => (
-        <motion.div
-          key={item.label}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: delay + 0.1 + index * 0.05 }}
-        >
-          <div
-            className={cn(
-              "flex",
-              "justify-between",
-              "text-[10px]",
-              "font-black",
-              "uppercase",
-              "mb-1.5",
-            )}
-          >
-            <span className={cn("text-muted-foreground")}>{item.label}</span>
-            <span className={cn("text-foreground")}>{item.val}%</span>
-          </div>
-          <div
-            className={cn(
-              "h-1.5",
-              "w-full",
-              "bg-muted",
-              "rounded-full",
-              "overflow-hidden",
-            )}
-          >
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${item.val}%` }}
-              transition={{
-                duration: 1,
-                delay: delay + 0.2 + index * 0.05,
-                ease: "easeOut",
-              }}
-              className={cn("h-full", item.color)}
-            />
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  </motion.div>
-);
-
-const AcademicRankingCard: React.FC<AcademicRankingCardProps> = ({
-  title,
-  items,
-  delay = 0,
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5, delay }}
-    whileHover={{ scale: 1.01 }}
-    className={cn(
-      "bg-muted",
-      "border",
-      "border-border",
-      "rounded-[2.5rem]",
-      "p-10",
-    )}
-  >
-    <h4
-      className={cn(
-        "text-xs",
-        "font-black",
-        "text-foreground",
-        "uppercase",
-        "tracking-[0.2em]",
-        "mb-8",
-      )}
-    >
-      {title}
-    </h4>
-    <div className={cn("space-y-6")}>
-      {items.map((item, index) => (
-        <motion.div
-          key={item.name}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: delay + 0.1 + index * 0.05 }}
-          whileHover={{ x: 5 }}
-          className={cn("flex", "items-center", "gap-6")}
-        >
-          <div className={cn("flex-1")}>
-            <div className={cn("flex", "justify-between", "mb-2")}>
-              <span
-                className={cn(
-                  "text-[11px]",
-                  "font-black",
-                  "text-slate-800",
-                  "uppercase",
-                  "tracking-tight",
-                )}
-              >
-                {item.name}
-              </span>
-              <span
-                className={cn(
-                  "text-[10px]",
-                  "font-bold",
-                  "text-muted-foreground",
-                )}
-              >
-                {item.count} Users
-              </span>
-            </div>
-            <div
-              className={cn(
-                "h-1",
-                "w-full",
-                "bg-background",
-                "rounded-full",
-                "overflow-hidden",
-              )}
-            >
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${item.percent}%` }}
-                transition={{
-                  duration: 1,
-                  delay: delay + 0.2 + index * 0.05,
-                  ease: "easeOut",
-                }}
-                className={cn("h-full", "bg-foreground", "rounded-full")}
-              />
-            </div>
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  </motion.div>
-);
-
-// Export types
-export type {
-  InsightChartContainerProps,
-  DonutDataItem,
-  DonutBreakdownProps,
-  AcademicItem,
-  AcademicRankingCardProps,
 };
