@@ -11,49 +11,20 @@ import {
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 
-// TypeScript Interfaces
-interface TicketFilters {
-  search: string;
-  event: string;
-  status: string;
-  date: string;
-  sort: string;
+interface Props {
+  onSearchChange?: (v: string) => void;
+  onStatusChange?: (v: string) => void;
 }
 
-interface AdminTicketsToolbarProps {
-  onSearchChange?: (searchValue: string) => void;
-}
-
-interface TicketDropdownProps {
-  label: string;
-  icon: IconType;
-  current: string;
-  options: string[];
-  onChange?: (value: string) => void;
-  delay?: number;
-}
-
-export const AdminTicketsToolbar: React.FC<AdminTicketsToolbarProps> = ({
+export const AdminTicketsToolbar: React.FC<Props> = ({
   onSearchChange,
+  onStatusChange,
 }) => {
-  const [filters, setFilters] = useState<TicketFilters>({
-    search: "",
-    event: "All Events",
-    status: "Upcoming",
-    date: "All Time",
-    sort: "Newest",
-  });
-
-  const handleSearchChange = (value: string) => {
-    setFilters({ ...filters, search: value });
-    if (onSearchChange) {
-      onSearchChange(value);
-    }
-  };
-
-  const updateFilter = (key: keyof TicketFilters, value: string) => {
-    setFilters({ ...filters, [key]: value });
-  };
+  const [search, setSearch] = useState("");
+  const [event, setEvent] = useState("All Events");
+  const [status, setStatus] = useState("All");
+  const [date, setDate] = useState("All Time");
+  const [sort, setSort] = useState("Newest");
 
   return (
     <motion.div
@@ -79,30 +50,18 @@ export const AdminTicketsToolbar: React.FC<AdminTicketsToolbarProps> = ({
           "gap-6",
         )}
       >
-        {/* 1. Universal Ticket Search */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-          className={cn("relative", "w-full", "2xl:w-[480px]")}
-        >
-          <motion.div
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              repeatDelay: 3,
-            }}
+        <div className={cn("relative", "w-full", "2xl:w-[480px]")}>
+          <LuSearch
             className={cn(
               "absolute",
               "left-6",
               "top-1/2",
               "-translate-y-1/2",
               "text-muted-foreground",
+              "w-5",
+              "h-5",
             )}
-          >
-            <LuSearch className={cn("w-5", "h-5")} />
-          </motion.div>
+          />
           <input
             type="text"
             placeholder="Search Name, Email, or Ticket Code..."
@@ -127,12 +86,13 @@ export const AdminTicketsToolbar: React.FC<AdminTicketsToolbarProps> = ({
               "uppercase",
               "tracking-tighter",
             )}
-            value={filters.search}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              onSearchChange?.(e.target.value);
+            }}
           />
-        </motion.div>
-
-        {/* 2. Filter Matrix */}
+        </div>
         <div
           className={cn(
             "flex",
@@ -146,37 +106,33 @@ export const AdminTicketsToolbar: React.FC<AdminTicketsToolbarProps> = ({
           <TicketDropdown
             label="Event"
             icon={LuLayoutGrid}
-            current={filters.event}
+            current={event}
             options={["All Events", "Summit 2026", "AI Workshop", "Grad Gala"]}
-            onChange={(value) => updateFilter("event", value)}
-            delay={0.2}
+            onChange={setEvent}
           />
-
           <TicketDropdown
             label="Status"
             icon={LuActivity}
-            current={filters.status}
-            options={["Upcoming", "Used", "Cancelled", "Expired"]}
-            onChange={(value) => updateFilter("status", value)}
-            delay={0.25}
+            current={status}
+            options={["All", "upcoming", "used", "cancelled", "expired"]}
+            onChange={(v) => {
+              setStatus(v);
+              onStatusChange?.(v === "All" ? "" : v);
+            }}
           />
-
           <TicketDropdown
             label="Timeframe"
             icon={LuCalendar}
-            current={filters.date}
+            current={date}
             options={["All Time", "Today", "This Week", "Next Week"]}
-            onChange={(value) => updateFilter("date", value)}
-            delay={0.3}
+            onChange={setDate}
           />
-
           <TicketDropdown
             label="Sort"
             icon={LuArrowUpDown}
-            current={filters.sort}
-            options={["Newest", "Oldest", "Owner Name", "Tier"]}
-            onChange={(value) => updateFilter("sort", value)}
-            delay={0.35}
+            current={sort}
+            options={["Newest", "Oldest", "Owner Name"]}
+            onChange={setSort}
           />
         </div>
       </div>
@@ -184,42 +140,21 @@ export const AdminTicketsToolbar: React.FC<AdminTicketsToolbarProps> = ({
   );
 };
 
-/* --- Internal Component: TicketDropdown --- */
-const TicketDropdown: React.FC<TicketDropdownProps> = ({
-  label,
-  icon: Icon,
-  current,
-  options,
-  onChange,
-  delay = 0,
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const handleSelect = (option: string) => {
-    if (onChange) {
-      onChange(option);
-    }
-    setIsOpen(false);
-  };
-
+const TicketDropdown: React.FC<{
+  label: string;
+  icon: IconType;
+  current: string;
+  options: string[];
+  onChange: (v: string) => void;
+}> = ({ label, icon: Icon, current, options, onChange }) => {
+  const [open, setOpen] = useState(false);
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
-      className={cn(
-        "relative",
-        "group",
-        "flex-1",
-        "min-w-[150px]",
-        "lg:flex-none",
-      )}
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+    <div
+      className={cn("relative", "flex-1", "min-w-[150px]", "lg:flex-none")}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
     >
-      <motion.button
-        whileHover={{ scale: 1.02, borderColor: "rgb(15 23 42)" }}
-        whileTap={{ scale: 0.98 }}
+      <button
         className={cn(
           "w-full",
           "flex",
@@ -233,24 +168,10 @@ const TicketDropdown: React.FC<TicketDropdownProps> = ({
           "border-border",
           "rounded-2xl",
           "transition-all",
-          "group",
         )}
       >
         <div className={cn("flex", "items-center", "gap-3", "text-left")}>
-          <motion.div
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          >
-            <Icon
-              className={cn(
-                "w-4",
-                "h-4",
-                "text-muted-foreground",
-                "group-hover:text-primary",
-                "transition-colors",
-              )}
-            />
-          </motion.div>
+          <Icon className={cn("w-4", "h-4", "text-muted-foreground")} />
           <div>
             <p
               className={cn(
@@ -280,11 +201,9 @@ const TicketDropdown: React.FC<TicketDropdownProps> = ({
             </p>
           </div>
         </div>
-      </motion.button>
-
-      {/* Dropdown Content */}
+      </button>
       <AnimatePresence>
-        {isOpen && (
+        {open && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -306,15 +225,16 @@ const TicketDropdown: React.FC<TicketDropdownProps> = ({
               "z-50",
             )}
           >
-            {options.map((opt, index) => (
+            {options.map((opt, i) => (
               <motion.button
                 key={opt}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                onClick={() => handleSelect(opt)}
-                whileHover={{ scale: 1.02, x: 2 }}
-                whileTap={{ scale: 0.98 }}
+                transition={{ delay: i * 0.04 }}
+                onClick={() => {
+                  onChange(opt);
+                  setOpen(false);
+                }}
                 className={cn(
                   "w-full",
                   "text-left",
@@ -335,34 +255,21 @@ const TicketDropdown: React.FC<TicketDropdownProps> = ({
                 )}
               >
                 {opt}
-                <AnimatePresence>
-                  {current === opt && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      exit={{ scale: 0 }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 500,
-                        damping: 25,
-                      }}
-                      className={cn(
-                        "w-1.5",
-                        "h-1.5",
-                        "rounded-full",
-                        "bg-primary",
-                      )}
-                    />
-                  )}
-                </AnimatePresence>
+                {current === opt && (
+                  <div
+                    className={cn(
+                      "w-1.5",
+                      "h-1.5",
+                      "rounded-full",
+                      "bg-primary",
+                    )}
+                  />
+                )}
               </motion.button>
             ))}
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 };
-
-// Export types
-export type { AdminTicketsToolbarProps, TicketFilters, TicketDropdownProps };

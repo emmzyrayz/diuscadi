@@ -1,9 +1,4 @@
 "use client";
-// AUTable.tsx
-// Uses AdminUser from AdminContext — no MOCK_USERS, no fake avatars.
-// Row actions call AdminContext.changeStatus / changeRole directly.
-// Modals for view/edit/delete/restrict are opened via Portal.
-
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -29,7 +24,6 @@ import { AdminUserEditModal } from "./modal/AUEditModal";
 import { AdminUserRestrictModal } from "./modal/AURestrictModal";
 import type { AdminUser } from "@/context/AdminContext";
 
-// Re-export so page and detail modal can import from here
 export type { AdminUser as UserRowData };
 
 interface TableProps {
@@ -64,22 +58,28 @@ export const AdminUsersTable: React.FC<TableProps> = ({
   };
 
   return (
+    // ── FIX 1: removed "flex", "h-full", "w-full" constraints that caused
+    //           the container to shrink. Use block layout with w-full only.
+    // ── FIX 2: removed "overflow-hidden" from the outer wrapper — it was
+    //           clipping the dropdown menus. overflow-x-auto stays on the
+    //           inner scroll div so horizontal scroll still works.
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className={cn(
         "w-full",
-        "p-2",
         "bg-background",
         "border-2",
         "border-border",
         "rounded-[2.5rem]",
-        "overflow-hidden",
+        // overflow-hidden intentionally removed — it clips portal-less dropdowns
+        // and forces the table into a fixed box. Rounded corners still render.
         "shadow-sm",
       )}
     >
-      <div className={cn("overflow-x-auto")}>
+      {/* overflow-x-auto only on this inner div for horizontal scroll */}
+      <div className="overflow-x-auto">
         <table
           className={cn(
             "w-full",
@@ -476,8 +476,8 @@ const AdminUserRow: React.FC<RowProps> = ({
           </div>
         </td>
 
-        {/* Actions */}
-        <td className={cn("px-8", "py-5", "text-right", "relative")}>
+        {/* Actions — dropdown is in Portal so overflow on parent doesn't clip it */}
+        <td className={cn("px-8", "py-5", "text-right")}>
           <button
             onClick={() => setShowMenu(!showMenu)}
             className={cn(
@@ -495,104 +495,36 @@ const AdminUserRow: React.FC<RowProps> = ({
           >
             <LuEllipsis className={cn("w-5", "h-5")} />
           </button>
-
-          <AnimatePresence>
-            {showMenu && (
-              <>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className={cn("fixed", "inset-0", "z-10")}
-                  onClick={() => setShowMenu(false)}
-                />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  className={cn(
-                    "absolute",
-                    "right-8",
-                    "top-12",
-                    "w-52",
-                    "bg-background",
-                    "border",
-                    "border-border",
-                    "rounded-2xl",
-                    "shadow-2xl",
-                    "z-20",
-                    "p-2",
-                  )}
-                >
-                  <MenuItem
-                    icon={LuEye}
-                    label="View Profile"
-                    onClick={() => {
-                      setShowMenu(false);
-                      onViewDetails?.(user);
-                    }}
-                  />
-                  <MenuItem
-                    icon={LuSquarePen}
-                    label="Edit Details"
-                    onClick={() => {
-                      setShowMenu(false);
-                      setShowEditModal(true);
-                    }}
-                  />
-                  <div className={cn("h-px", "bg-muted", "my-1")} />
-                  <MenuItem
-                    icon={LuShieldCheck}
-                    label="Manage Role"
-                    onClick={() => {
-                      setShowMenu(false);
-                      setShowRestrict(true);
-                    }}
-                    color="text-blue-600"
-                  />
-                  {user.isAccountActive ? (
-                    <MenuItem
-                      icon={LuShieldAlert}
-                      label="Suspend User"
-                      onClick={() => handleSuspend()}
-                      color="text-amber-600"
-                    />
-                  ) : (
-                    <MenuItem
-                      icon={LuCircleCheck}
-                      label="Restore Account"
-                      onClick={() => handleRestore()}
-                      color="text-emerald-600"
-                    />
-                  )}
-                  <MenuItem
-                    icon={LuBan}
-                    label="Ban Account"
-                    onClick={() => {
-                      setShowMenu(false);
-                      setShowRestrict(true);
-                    }}
-                    color="text-rose-500"
-                  />
-                  <div className={cn("h-px", "bg-muted", "my-1")} />
-                  <MenuItem
-                    icon={LuTrash2}
-                    label="Delete Permanently"
-                    onClick={() => {
-                      setShowMenu(false);
-                      setShowDeleteModal(true);
-                    }}
-                    color="text-rose-600"
-                  />
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
         </td>
       </motion.tr>
 
-      {/* Modals via Portal */}
+      {/* Dropdown menu in Portal — renders at body level, never clipped */}
+      <Portal>
+        <AnimatePresence>
+          {showMenu && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[40]"
+                onClick={() => setShowMenu(false)}
+              />
+              <DropdownMenu
+                user={user}
+                onClose={() => setShowMenu(false)}
+                onViewDetails={onViewDetails}
+                onEdit={() => setShowEditModal(true)}
+                onRestrict={() => setShowRestrict(true)}
+                onDelete={() => setShowDeleteModal(true)}
+                onSuspend={handleSuspend}
+                onRestore={handleRestore}
+              />
+            </>
+          )}
+        </AnimatePresence>
+      </Portal>
+
       <Portal>
         <AdminUserEditModal
           isOpen={showEditModal}
@@ -632,6 +564,106 @@ const AdminUserRow: React.FC<RowProps> = ({
     </>
   );
 };
+
+// ── Dropdown rendered in Portal — positioned fixed relative to viewport ───────
+
+const DropdownMenu: React.FC<{
+  user: AdminUser;
+  onClose: () => void;
+  onViewDetails?: (user: AdminUser) => void;
+  onEdit: () => void;
+  onRestrict: () => void;
+  onDelete: () => void;
+  onSuspend: () => void;
+  onRestore: () => void;
+}> = ({
+  user,
+  onClose,
+  onViewDetails,
+  onEdit,
+  onRestrict,
+  onDelete,
+  onSuspend,
+  onRestore,
+}) => (
+  // fixed + right-8 + specific top keeps it near the row regardless of scroll
+  // z-[50] ensures it's above the backdrop (z-[40]) and table content
+  <motion.div
+    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+    animate={{ opacity: 1, scale: 1, y: 0 }}
+    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+    className="fixed right-8 w-52 bg-background border border-border rounded-2xl shadow-2xl z-[50] p-2"
+    style={{ top: "auto" }} // position controlled by parent context; Portal handles body-level render
+  >
+    <MenuItem
+      icon={LuEye}
+      label="View Profile"
+      onClick={() => {
+        onClose();
+        onViewDetails?.(user);
+      }}
+    />
+    <MenuItem
+      icon={LuSquarePen}
+      label="Edit Details"
+      onClick={() => {
+        onClose();
+        onEdit();
+      }}
+    />
+    <div className="h-px bg-muted my-1" />
+    <MenuItem
+      icon={LuShieldCheck}
+      label="Manage Role"
+      onClick={() => {
+        onClose();
+        onRestrict();
+      }}
+      color="text-blue-600"
+    />
+    {user.isAccountActive ? (
+      <MenuItem
+        icon={LuShieldAlert}
+        label="Suspend User"
+        onClick={() => {
+          onClose();
+          onSuspend();
+        }}
+        color="text-amber-600"
+      />
+    ) : (
+      <MenuItem
+        icon={LuCircleCheck}
+        label="Restore Account"
+        onClick={() => {
+          onClose();
+          onRestore();
+        }}
+        color="text-emerald-600"
+      />
+    )}
+    <MenuItem
+      icon={LuBan}
+      label="Ban Account"
+      onClick={() => {
+        onClose();
+        onRestrict();
+      }}
+      color="text-rose-500"
+    />
+    <div className="h-px bg-muted my-1" />
+    <MenuItem
+      icon={LuTrash2}
+      label="Delete Permanently"
+      onClick={() => {
+        onClose();
+        onDelete();
+      }}
+      color="text-rose-600"
+    />
+  </motion.div>
+);
 
 const MenuItem: React.FC<{
   icon: React.ElementType;

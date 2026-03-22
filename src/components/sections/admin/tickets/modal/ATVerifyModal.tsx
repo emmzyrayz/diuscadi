@@ -1,4 +1,10 @@
 "use client";
+// modal/ATVerifyModal.tsx
+// Standalone manual verification modal used by event staff.
+// Calls POST /api/events/check-in with the entered invite code.
+// Used separately from TicketScannerModal — this one shows a richer
+// result card with check-in time from the API response.
+
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -9,26 +15,29 @@ import {
   LuUserCheck,
   LuHistory,
   LuSearch,
+  LuLoader,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 import { IconType } from "react-icons";
 
-// TypeScript Types
-type VerificationStatus = "Idle" | "Valid" | "Used" | "Cancelled" | "Invalid";
+type VerificationStatus =
+  | "Idle"
+  | "Valid"
+  | "Used"
+  | "Cancelled"
+  | "Invalid"
+  | "Error";
 
 interface AdminTicketVerifyModalProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-interface ResultCardProps {
-  type: VerificationStatus;
-  onReset: () => void;
+  onSuccess?: () => void;
 }
 
 interface ResultConfig {
   bg: string;
-  icon: IconType;
+  Icon: IconType; // capitalised so it can be used as JSX
   title: string;
   desc: string;
   btn: string;
@@ -37,36 +46,107 @@ interface ResultConfig {
 export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
   isOpen,
   onClose,
+  onSuccess,
 }) => {
+  const { token } = useAuth();
   const [ticketCode, setTicketCode] = useState("");
   const [status, setStatus] = useState<VerificationStatus>("Idle");
   const [isVerifying, setIsVerifying] = useState(false);
+  const [checkedInTime, setCheckedInTime] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  // Reset state on close
   const handleClose = () => {
     setStatus("Idle");
     setTicketCode("");
+    setCheckedInTime(null);
+    setErrorMsg("");
     onClose();
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
+    if (!ticketCode.trim() || !token) return;
     setIsVerifying(true);
-    // Simulate verification
-    setTimeout(() => {
-      // Mock logic - in real app, this would call an API
-      if (ticketCode.includes("VALID")) {
+    try {
+      const res = await fetch("/api/events/check-in", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ inviteCode: ticketCode.trim().toUpperCase() }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
         setStatus("Valid");
-      } else if (ticketCode.includes("USED")) {
+        onSuccess?.();
+      } else if (res.status === 409) {
+        // Already checked in — API may return checkedInAt
         setStatus("Used");
-      } else if (ticketCode.includes("CANCEL")) {
-        setStatus("Cancelled");
-      } else if (ticketCode) {
+        if (data.checkedInAt) {
+          setCheckedInTime(
+            new Date(data.checkedInAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          );
+        }
+      } else if (res.status === 400 || res.status === 404) {
         setStatus("Invalid");
+        setErrorMsg(data.error ?? "Code not found in manifest");
+      } else if (res.status === 403) {
+        setStatus("Cancelled");
+        setErrorMsg(data.error ?? "Ticket has been revoked");
       } else {
-        setStatus("Valid"); // Default for demo
+        setStatus("Error");
+        setErrorMsg(data.error ?? "Verification failed");
       }
+    } catch {
+      setStatus("Error");
+      setErrorMsg("Network error — check connection");
+    } finally {
       setIsVerifying(false);
-    }, 1000);
+    }
+  };
+
+  const CONFIGS: Record<Exclude<VerificationStatus, "Idle">, ResultConfig> = {
+    Valid: {
+      bg: "bg-emerald-500",
+      Icon: LuUserCheck,
+      title: "Valid Ticket",
+      desc: "Identity Confirmed. Access Granted.",
+      btn: "Complete Check-in",
+    },
+    Used: {
+      bg: "bg-amber-500",
+      Icon: LuHistory,
+      title: "Already Used",
+      desc: checkedInTime
+        ? `Ticket was scanned at ${checkedInTime}.`
+        : "Ticket was already scanned.",
+      btn: "Try Different Code",
+    },
+    Cancelled: {
+      bg: "bg-rose-600",
+      Icon: LuTriangleAlert,
+      title: "Cancelled Ticket",
+      desc: errorMsg || "Revoked. Check Admin Audit Logs.",
+      btn: "Deny Entry",
+    },
+    Invalid: {
+      bg: "bg-foreground",
+      Icon: LuTicket,
+      title: "Invalid Ticket",
+      desc: errorMsg || "Code not found in manifest.",
+      btn: "Retry Input",
+    },
+    Error: {
+      bg: "bg-rose-600",
+      Icon: LuTriangleAlert,
+      title: "Error",
+      desc: errorMsg || "Verification failed.",
+      btn: "Retry",
+    },
   };
 
   return (
@@ -76,7 +156,7 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
           className={cn(
             "fixed",
             "inset-0",
-            "z-250",
+            "z-[250]",
             "flex",
             "items-center",
             "justify-center",
@@ -114,10 +194,7 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
             )}
           >
             {/* Header */}
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
+            <div
               className={cn(
                 "p-8",
                 "pb-4",
@@ -134,16 +211,7 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                   "text-muted-foreground",
                 )}
               >
-                <motion.div
-                  animate={{ rotate: [0, 5, -5, 0] }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    repeatDelay: 3,
-                  }}
-                >
-                  <LuShieldCheck className={cn("w-4", "h-4")} />
-                </motion.div>
+                <LuShieldCheck className={cn("w-4", "h-4")} />
                 <span
                   className={cn(
                     "text-[10px]",
@@ -159,16 +227,20 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                 onClick={handleClose}
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
-                className={cn("p-2", "hover:text-muted", "rounded-full")}
+                className={cn(
+                  "p-2",
+                  "hover:bg-muted",
+                  "rounded-full",
+                  "cursor-pointer",
+                )}
               >
                 <LuX className={cn("w-5", "h-5")} />
               </motion.button>
-            </motion.div>
+            </div>
 
             <div className={cn("p-8", "pt-0", "space-y-6")}>
               <AnimatePresence mode="wait">
                 {status === "Idle" ? (
-                  /* --- 1. TicketCodeInput Section --- */
                   <motion.div
                     key="input"
                     initial={{ opacity: 0, x: 20 }}
@@ -177,12 +249,7 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                     transition={{ duration: 0.3 }}
                     className={cn("space-y-6")}
                   >
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      className={cn("text-center")}
-                    >
+                    <div className={cn("text-center")}>
                       <h2
                         className={cn(
                           "text-3xl",
@@ -205,38 +272,22 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                       >
                         Enter Invite Code or Ticket Reference
                       </p>
-                    </motion.div>
+                    </div>
 
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 }}
-                      className={cn("relative", "group")}
-                    >
-                      <motion.div
-                        animate={{ scale: [1, 1.1, 1] }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          repeatDelay: 2,
-                        }}
+                    <div className={cn("relative", "group")}>
+                      <LuSearch
                         className={cn(
                           "absolute",
                           "left-5",
                           "top-1/2",
                           "-translate-y-1/2",
+                          "w-5",
+                          "h-5",
+                          "text-slate-300",
+                          "group-focus-within:text-primary",
+                          "transition-colors",
                         )}
-                      >
-                        <LuSearch
-                          className={cn(
-                            "w-5",
-                            "h-5",
-                            "text-slate-300",
-                            "group-focus-within:text-primary",
-                            "transition-colors",
-                          )}
-                        />
-                      </motion.div>
+                      />
                       <input
                         autoFocus
                         type="text"
@@ -245,9 +296,7 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                           setTicketCode(e.target.value.toUpperCase())
                         }
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" && ticketCode) {
-                            handleVerify();
-                          }
+                          if (e.key === "Enter" && ticketCode) handleVerify();
                         }}
                         placeholder="E.G. DIU-882-XY"
                         className={cn(
@@ -267,12 +316,9 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                           "transition-all",
                         )}
                       />
-                    </motion.div>
+                    </div>
 
                     <motion.button
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
                       onClick={handleVerify}
                       disabled={isVerifying || !ticketCode}
                       whileHover={
@@ -302,21 +348,15 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                         "gap-3",
                         "disabled:opacity-50",
                         "disabled:cursor-not-allowed",
+                        "cursor-pointer",
                       )}
                     >
                       {isVerifying ? (
                         <>
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{
-                              duration: 1,
-                              repeat: Infinity,
-                              ease: "linear",
-                            }}
-                          >
-                            <LuShieldCheck className={cn("w-4", "h-4")} />
-                          </motion.div>
-                          Verifying...
+                          <LuLoader
+                            className={cn("w-4", "h-4", "animate-spin")}
+                          />{" "}
+                          Verifying…
                         </>
                       ) : (
                         "Confirm Entry Credentials"
@@ -324,7 +364,6 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                     </motion.button>
                   </motion.div>
                 ) : (
-                  /* --- 2. ResultCard Section --- */
                   <motion.div
                     key="result"
                     initial={{ opacity: 0, scale: 0.9 }}
@@ -334,10 +373,13 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                     className={cn("space-y-6")}
                   >
                     <ResultCard
-                      type={status}
+                      config={CONFIGS[status]}
+                      status={status}
                       onReset={() => {
                         setStatus("Idle");
                         setTicketCode("");
+                        setCheckedInTime(null);
+                        setErrorMsg("");
                       }}
                     />
                   </motion.div>
@@ -351,41 +393,14 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
   );
 };
 
-/* --- Result Card Sub-Component --- */
-const ResultCard: React.FC<ResultCardProps> = ({ type, onReset }) => {
-  const configs: Record<Exclude<VerificationStatus, "Idle">, ResultConfig> = {
-    Valid: {
-      bg: "bg-emerald-500",
-      icon: LuUserCheck,
-      title: "Valid Ticket",
-      desc: "Identity Confirmed. Access Granted.",
-      btn: "Complete Check-in",
-    },
-    Used: {
-      bg: "bg-amber-500",
-      icon: LuHistory,
-      title: "Already Used",
-      desc: "Ticket was scanned at 09:41 AM.",
-      btn: "Try Different Code",
-    },
-    Cancelled: {
-      bg: "bg-rose-600",
-      icon: LuTriangleAlert,
-      title: "Cancelled Ticket",
-      desc: "Revoked. Check Admin Audit Logs.",
-      btn: "Deny Entry",
-    },
-    Invalid: {
-      bg: "bg-foreground",
-      icon: LuTicket,
-      title: "Invalid Ticket",
-      desc: "Code not found in manifest.",
-      btn: "Retry Input",
-    },
-  };
-
-  const config = configs[type as Exclude<VerificationStatus, "Idle">];
-  const Icon = config.icon;
+// ResultCard receives the resolved config — no need to index inside JSX
+const ResultCard: React.FC<{
+  config: ResultConfig;
+  status: VerificationStatus;
+  onReset: () => void;
+}> = ({ config, status, onReset }) => {
+  // Icon is already capitalised in ResultConfig — safe to use as JSX
+  const { Icon } = config;
 
   return (
     <div className={cn("space-y-6")}>
@@ -425,16 +440,13 @@ const ResultCard: React.FC<ResultCardProps> = ({ type, onReset }) => {
         >
           <motion.div
             animate={
-              type === "Valid"
-                ? {
-                    scale: [1, 1.2, 1],
-                    rotate: [0, 5, -5, 0],
-                  }
+              status === "Valid"
+                ? { scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] }
                 : {}
             }
             transition={{
               duration: 0.5,
-              repeat: type === "Valid" ? Infinity : 0,
+              repeat: status === "Valid" ? Infinity : 0,
               repeatDelay: 1,
             }}
           >
@@ -472,16 +484,15 @@ const ResultCard: React.FC<ResultCardProps> = ({ type, onReset }) => {
       </motion.div>
 
       <motion.button
+        onClick={onReset}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        onClick={onReset}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         className={cn(
           "w-full",
           "py-5",
-          "text-muted",
           "text-foreground",
           "rounded-2xl",
           "text-[10px]",
@@ -490,6 +501,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ type, onReset }) => {
           "tracking-widest",
           "hover:bg-slate-200",
           "transition-colors",
+          "cursor-pointer",
         )}
       >
         {config.btn}
@@ -498,10 +510,4 @@ const ResultCard: React.FC<ResultCardProps> = ({ type, onReset }) => {
   );
 };
 
-// Export types
-export type {
-  AdminTicketVerifyModalProps,
-  VerificationStatus,
-  ResultCardProps,
-  ResultConfig,
-};
+export type { AdminTicketVerifyModalProps, VerificationStatus, ResultConfig };

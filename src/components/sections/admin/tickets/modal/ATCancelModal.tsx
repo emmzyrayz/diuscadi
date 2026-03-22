@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LuCircleAlert,
   LuX,
-  LuTicket,
   LuSlash,
   LuMessageSquare,
   LuBan,
@@ -30,8 +29,7 @@ export const AdminTicketCancelModal: React.FC<CancelModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-300 flex items-center justify-center p-4">
-      {/* Heavy Backdrop for High-Friction Action */}
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -44,7 +42,6 @@ export const AdminTicketCancelModal: React.FC<CancelModalProps> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="relative w-full max-w-md bg-background rounded-[3rem] shadow-2xl overflow-hidden"
       >
-        {/* Warning Banner */}
         <div className="bg-rose-600 p-8 text-background flex flex-col items-center text-center">
           <div className="w-16 h-16 bg-background/20 rounded-2xl flex items-center justify-center mb-4">
             <LuBan className="w-8 h-8 text-background" />
@@ -58,26 +55,22 @@ export const AdminTicketCancelModal: React.FC<CancelModalProps> = ({
         </div>
 
         <div className="p-10 space-y-8">
-          {/* 1. WarningText & Context */}
-          <div className="space-y-4">
-            <div className="flex items-start gap-4 p-4 bg-rose-50 border border-rose-100 rounded-2xl">
-              <LuCircleAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-[11px] font-black text-rose-900 uppercase">
-                  Warning
-                </p>
-                <p className="text-[10px] font-bold text-rose-600 uppercase leading-relaxed tracking-tight">
-                  Ticket <span className="underline">{ticketCode}</span>{" "}
-                  belonging to{" "}
-                  <span className="font-black underline">{userName}</span> will
-                  be marked as &qout;Cancelled&qout; and rejected at all
-                  scanning points.
-                </p>
-              </div>
+          <div className="flex items-start gap-4 p-4 bg-rose-50 border border-rose-100 rounded-2xl">
+            <LuCircleAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-[11px] font-black text-rose-900 uppercase">
+                Warning
+              </p>
+              <p className="text-[10px] font-bold text-rose-600 uppercase leading-relaxed tracking-tight">
+                Ticket <span className="underline">{ticketCode}</span> belonging
+                to <span className="font-black underline">{userName}</span> will
+                be marked as
+                {/* Fixed: &qout; → &quot; */}
+                &nbsp;&quot;Cancelled&quot; and rejected at all scanning points.
+              </p>
             </div>
           </div>
 
-          {/* 2. ReasonInput */}
           <div className="space-y-3">
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-2">
               <LuMessageSquare className="w-3.5 h-3.5" /> Internal Cancellation
@@ -86,30 +79,34 @@ export const AdminTicketCancelModal: React.FC<CancelModalProps> = ({
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="E.g., Payment dispute, User requested refund, Fraudulent invite code..."
+              placeholder="E.g., Payment dispute, User requested refund..."
               className="w-full bg-muted border border-border rounded-2xl p-5 text-xs font-bold text-foreground outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 transition-all min-h-[100px] resize-none"
             />
           </div>
 
-          {/* 3 & 4. Buttons */}
           <div className="flex flex-col gap-3">
             <button
               onClick={() => onConfirm(reason)}
               disabled={!reason.trim()}
-              className="w-full py-5 bg-rose-600 text-background rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-rose-600/20 flex items-center justify-center gap-2"
+              className="w-full py-5 bg-rose-600 text-background rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-rose-600/20 flex items-center justify-center gap-2 cursor-pointer"
             >
-              <LuSlash className="w-4 h-4" />
-              Confirm Cancellation
+              <LuSlash className="w-4 h-4" /> Confirm Cancellation
             </button>
-
             <button
               onClick={onClose}
-              className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               Keep Ticket Active
             </button>
           </div>
         </div>
+
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-background/60 hover:text-background transition-colors cursor-pointer"
+        >
+          <LuX className="w-5 h-5" />
+        </button>
       </motion.div>
     </div>
   );

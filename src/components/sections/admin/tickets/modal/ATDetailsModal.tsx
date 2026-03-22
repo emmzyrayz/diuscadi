@@ -1,67 +1,31 @@
 "use client";
+// modal/ATDetailsModal.tsx
+// Read-only ticket detail view using AdminTicket.
+// Download is a TODO — PDF generation not yet implemented.
+
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LuX,
   LuCopy,
   LuDownload,
-  LuQrCode,
   LuUser,
   LuCalendar,
-  LuMapPin,
-  LuHistory,
-  LuShieldCheck,
-  LuActivity,
+  LuQrCode,
   LuCircleCheck,
+  LuInfo,
 } from "react-icons/lu";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import type { AdminTicket } from "@/app/admin/tickets/page";
 
-// TypeScript Interfaces
-interface TicketData {
-  ticketCode: string;
-  status: "Upcoming" | "Used" | "Cancelled";
-  ticketType: string;
-  issuedDate: string;
-  checkInTime?: string;
-  ownerName: string;
-  ownerAvatar: string;
-  ownerEmail: string;
-  eventName: string;
-  eventLocation: string;
-  activities: ActivityLog[];
-}
-
-interface ActivityLog {
-  id: string;
-  time: string;
-  action: string;
-  actor: string;
-  success?: boolean;
-}
-
-interface TicketDetailsProps {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
-  ticket: TicketData;
+  ticket: AdminTicket;
 }
 
-interface StatBlockProps {
-  label: string;
-  value: string;
-  highlight?: boolean;
-  delay?: number;
-}
-
-interface ActivityRowProps {
-  time: string;
-  action: string;
-  actor: string;
-  success?: boolean;
-  delay?: number;
-}
-
-export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
+export const AdminTicketDetailsModal: React.FC<Props> = ({
   isOpen,
   onClose,
   ticket,
@@ -69,13 +33,16 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(ticket.ticketCode);
+    navigator.clipboard.writeText(ticket.inviteCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownload = () => {
-    console.log("Downloading ticket:", ticket.ticketCode);
+  const STATUS_STYLE: Record<string, string> = {
+    upcoming: "bg-blue-50 text-blue-600",
+    used: "bg-emerald-50 text-emerald-600",
+    cancelled: "bg-rose-50 text-rose-600",
+    expired: "bg-muted text-muted-foreground",
   };
 
   return (
@@ -85,14 +52,13 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
           className={cn(
             "fixed",
             "inset-0",
-            "z-200",
+            "z-[200]",
             "flex",
             "items-center",
             "justify-center",
             "p-4",
           )}
         >
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -115,492 +81,387 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
             className={cn(
               "relative",
               "w-full",
-              "max-w-4xl",
+              "max-w-2xl",
               "bg-background",
               "rounded-[3.5rem]",
               "shadow-2xl",
               "overflow-hidden",
               "flex",
               "flex-col",
-              "md:flex-row",
               "max-h-[90vh]",
             )}
           >
-            {/* 1. TicketQRCodeSection (Left Sidebar) */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
+            {/* Header */}
+            <div
               className={cn(
-                "w-full",
-                "md:w-[320px]",
-                "bg-muted",
-                "p-10",
-                "border-r",
+                "px-8",
+                "py-6",
+                "border-b",
                 "border-border",
                 "flex",
-                "flex-col",
                 "items-center",
+                "justify-between",
               )}
             >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-                whileHover={{ scale: 1.02 }}
+              <div>
+                <h3
+                  className={cn(
+                    "text-xl",
+                    "font-black",
+                    "text-foreground",
+                    "uppercase",
+                    "tracking-tighter",
+                  )}
+                >
+                  Ticket Dossier
+                </h3>
+                <p
+                  className={cn(
+                    "text-[10px]",
+                    "font-bold",
+                    "text-muted-foreground",
+                    "uppercase",
+                    "tracking-widest",
+                    "mt-0.5",
+                  )}
+                >
+                  Admin View
+                </p>
+              </div>
+              <button
+                onClick={onClose}
                 className={cn(
-                  "w-full",
-                  "aspect-square",
-                  "bg-background",
-                  "rounded-3xl",
+                  "p-2",
+                  "hover:bg-muted",
+                  "rounded-2xl",
+                  "text-muted-foreground",
+                  "transition-colors",
+                  "cursor-pointer",
+                )}
+              >
+                <LuX className={cn("w-5", "h-5")} />
+              </button>
+            </div>
+
+            <div
+              className={cn("flex-1", "overflow-y-auto", "p-8", "space-y-8")}
+            >
+              {/* QR + code */}
+              <div
+                className={cn(
+                  "flex",
+                  "flex-col",
+                  "sm:flex-row",
+                  "items-center",
+                  "gap-6",
                   "p-6",
-                  "shadow-sm",
-                  "border",
-                  "border-border",
-                  "mb-6",
-                  "group",
-                  "relative",
+                  "bg-muted",
+                  "rounded-3xl",
                 )}
               >
                 <div
                   className={cn(
-                    "w-full",
-                    "h-full",
-                    "text-muted",
-                    "rounded-xl",
+                    "w-24",
+                    "h-24",
+                    "bg-background",
+                    "rounded-2xl",
+                    "border",
+                    "border-border",
                     "flex",
                     "items-center",
                     "justify-center",
-                    "overflow-hidden",
+                    "shrink-0",
                   )}
                 >
-                  <motion.div
-                    animate={{ rotate: [0, 5, -5, 0] }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      repeatDelay: 3,
-                    }}
-                  >
-                    <LuQrCode
-                      className={cn("w-32", "h-32", "text-foreground")}
-                    />
-                  </motion.div>
+                  <LuQrCode className={cn("w-12", "h-12", "text-foreground")} />
                 </div>
-              </motion.div>
-
-              <div className={cn("text-center", "space-y-4", "w-full")}>
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <p
-                    className={cn(
-                      "text-[10px]",
-                      "font-black",
-                      "text-muted-foreground",
-                      "uppercase",
-                      "tracking-widest",
-                      "mb-1",
-                    )}
-                  >
-                    Pass Identity
-                  </p>
-                  <h4
-                    className={cn(
-                      "text-lg",
-                      "font-black",
-                      "text-foreground",
-                      "font-mono",
-                      "tracking-tighter",
-                      "uppercase",
-                    )}
-                  >
-                    {ticket.ticketCode}
-                  </h4>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className={cn("flex", "gap-2")}
-                >
-                  <motion.button
-                    onClick={handleCopy}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={cn(
-                      "flex-1",
-                      "flex",
-                      "items-center",
-                      "justify-center",
-                      "gap-2",
-                      "py-3",
-                      "bg-background",
-                      "border",
-                      "border-border",
-                      "rounded-xl",
-                      "text-[10px]",
-                      "font-black",
-                      "uppercase",
-                      "tracking-tight",
-                      "hover:border-foreground",
-                      "transition-all",
-                    )}
-                  >
-                    <AnimatePresence mode="wait">
-                      {copied ? (
-                        <motion.div
-                          key="check"
-                          initial={{ scale: 0, rotate: -180 }}
-                          animate={{ scale: 1, rotate: 0 }}
-                          exit={{ scale: 0, rotate: 180 }}
-                          className={cn("flex", "items-center", "gap-2")}
-                        >
-                          <LuCircleCheck
-                            className={cn("w-3.5", "h-3.5", "text-emerald-500")}
-                          />
-                          Copied
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          key="copy"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className={cn("flex", "items-center", "gap-2")}
-                        >
-                          <LuCopy className={cn("w-3.5", "h-3.5")} /> Copy
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.button>
-                  <motion.button
-                    onClick={handleDownload}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={cn(
-                      "flex-1",
-                      "flex",
-                      "items-center",
-                      "justify-center",
-                      "gap-2",
-                      "py-3",
-                      "bg-foreground",
-                      "text-background",
-                      "rounded-xl",
-                      "text-[10px]",
-                      "font-black",
-                      "uppercase",
-                      "tracking-tight",
-                      "hover:bg-primary",
-                      "hover:text-foreground",
-                      "transition-all",
-                    )}
-                  >
-                    <LuDownload className={cn("w-3.5", "h-3.5")} /> Save
-                  </motion.button>
-                </motion.div>
-              </div>
-            </motion.div>
-
-            {/* Right Content Area */}
-            <div className={cn("flex-1", "overflow-y-auto")}>
-              <div className={cn("p-10", "space-y-10")}>
-                {/* Header */}
-                <motion.div
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className={cn("flex", "justify-between", "items-start")}
-                >
-                  <div className={cn("space-y-1")}>
-                    <h3
-                      className={cn(
-                        "text-2xl",
-                        "font-black",
-                        "text-foreground",
-                        "uppercase",
-                        "tracking-tighter",
-                      )}
-                    >
-                      Ticket Dossier
-                    </h3>
+                <div className="flex-1 space-y-3">
+                  <div>
                     <p
                       className={cn(
-                        "text-xs",
-                        "font-bold",
+                        "text-[9px]",
+                        "font-black",
                         "text-muted-foreground",
                         "uppercase",
                         "tracking-widest",
+                        "mb-1",
                       )}
                     >
-                      Administrative Audit View
+                      Ticket Code
+                    </p>
+                    <p
+                      className={cn(
+                        "text-lg",
+                        "font-black",
+                        "text-foreground",
+                        "font-mono",
+                        "tracking-tighter",
+                      )}
+                    >
+                      {ticket.inviteCode}
                     </p>
                   </div>
-                  <motion.button
-                    onClick={onClose}
-                    whileHover={{ scale: 1.1, rotate: 90 }}
-                    whileTap={{ scale: 0.9 }}
-                    className={cn(
-                      "p-2",
-                      "hover:text-muted",
-                      "rounded-full",
-                      "transition-colors",
-                    )}
-                  >
-                    <LuX className={cn("w-6", "h-6", "text-slate-300")} />
-                  </motion.button>
-                </motion.div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCopy}
+                      className={cn(
+                        "flex",
+                        "items-center",
+                        "gap-2",
+                        "px-4",
+                        "py-2",
+                        "bg-background",
+                        "border",
+                        "border-border",
+                        "rounded-xl",
+                        "text-[10px]",
+                        "font-black",
+                        "uppercase",
+                        "tracking-tight",
+                        "hover:border-foreground",
+                        "transition-all",
+                        "cursor-pointer",
+                      )}
+                    >
+                      <AnimatePresence mode="wait">
+                        {copied ? (
+                          <motion.div
+                            key="c"
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0 }}
+                            className="flex items-center gap-1.5"
+                          >
+                            <LuCircleCheck className="w-3.5 h-3.5 text-emerald-500" />{" "}
+                            Copied
+                          </motion.div>
+                        ) : (
+                          <motion.div
+                            key="u"
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0 }}
+                            className="flex items-center gap-1.5"
+                          >
+                            <LuCopy className="w-3.5 h-3.5" /> Copy
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </button>
+                    <button
+                      className={cn(
+                        "flex",
+                        "items-center",
+                        "gap-2",
+                        "px-4",
+                        "py-2",
+                        "bg-muted/50",
+                        "border",
+                        "border-border",
+                        "rounded-xl",
+                        "text-[10px]",
+                        "font-black",
+                        "uppercase",
+                        "tracking-tight",
+                        "text-muted-foreground",
+                        "cursor-not-allowed",
+                      )}
+                      title="PDF download not yet implemented"
+                    >
+                      <LuDownload className="w-3.5 h-3.5" /> Save PDF
+                      {/* TODO: implement PDF ticket generation */}
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-                {/* 2. TicketInfoSection */}
-                <motion.section
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
+              {/* Status row */}
+              <div
+                className={cn("grid", "grid-cols-2", "sm:grid-cols-3", "gap-4")}
+              >
+                <StatBlock label="Status" value={ticket.status} highlight />
+                <StatBlock
+                  label="Issued"
+                  value={new Date(ticket.createdAt).toLocaleDateString(
+                    "en-US",
+                    { month: "short", day: "numeric", year: "numeric" },
+                  )}
+                />
+                <StatBlock
+                  label="Check-in"
+                  value={
+                    ticket.checkedInAt
+                      ? new Date(ticket.checkedInAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "—"
+                  }
+                />
+              </div>
+
+              {/* Owner */}
+              <div className="space-y-3">
+                <p
                   className={cn(
-                    "grid",
-                    "grid-cols-2",
-                    "lg:grid-cols-4",
+                    "text-[10px]",
+                    "font-black",
+                    "text-muted-foreground",
+                    "uppercase",
+                    "tracking-[0.2em]",
+                    "flex",
+                    "items-center",
+                    "gap-2",
+                  )}
+                >
+                  <LuUser className="w-3 h-3" /> Owner
+                </p>
+                <div
+                  className={cn(
+                    "p-5",
+                    "bg-muted",
+                    "rounded-2xl",
+                    "border",
+                    "border-border",
+                    "flex",
+                    "items-center",
                     "gap-4",
                   )}
                 >
-                  <StatBlock
-                    label="Status"
-                    value={ticket.status}
-                    highlight
-                    delay={0.1}
-                  />
-                  <StatBlock
-                    label="Tier"
-                    value={ticket.ticketType}
-                    delay={0.15}
-                  />
-                  <StatBlock
-                    label="Issued On"
-                    value={ticket.issuedDate}
-                    delay={0.2}
-                  />
-                  <StatBlock
-                    label="Check-in"
-                    value={ticket.checkInTime || "—"}
-                    delay={0.25}
-                  />
-                </motion.section>
-
-                <div
-                  className={cn(
-                    "grid",
-                    "grid-cols-1",
-                    "lg:grid-cols-2",
-                    "gap-8",
-                  )}
-                >
-                  {/* 3. UserInfoSection */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className={cn("space-y-4")}
-                  >
-                    <h4
-                      className={cn(
-                        "text-[10px]",
-                        "font-black",
-                        "text-muted-foreground",
-                        "uppercase",
-                        "tracking-[0.2em]",
-                        "flex",
-                        "items-center",
-                        "gap-2",
-                      )}
-                    >
-                      <LuUser className={cn("w-3", "h-3")} /> Owner Details
-                    </h4>
-                    <motion.div
-                      whileHover={{ scale: 1.01 }}
-                      className={cn(
-                        "p-6",
-                        "bg-muted",
-                        "rounded-[2rem]",
-                        "border",
-                        "border-border",
-                        "flex",
-                        "items-center",
-                        "gap-4",
-                      )}
-                    >
-                      <motion.div
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                        className={cn(
-                          "w-12",
-                          "h-12",
-                          "rounded-full",
-                          "bg-slate-200",
-                          "border-2",
-                          "border-background",
-                          "shadow-sm",
-                          "overflow-hidden",
-                        )}
-                      >
-                        <Image
-                          height={300}
-                          width={500}
-                          src={ticket.ownerAvatar}
-                          alt={ticket.ownerName}
-                          className={cn("w-full", "h-full", "object-cover")}
-                        />
-                      </motion.div>
-                      <div>
-                        <p
-                          className={cn(
-                            "text-sm",
-                            "font-black",
-                            "text-foreground",
-                          )}
-                        >
-                          {ticket.ownerName}
-                        </p>
-                        <p
-                          className={cn(
-                            "text-[10px]",
-                            "font-bold",
-                            "text-muted-foreground",
-                            "lowercase",
-                          )}
-                        >
-                          {ticket.ownerEmail}
-                        </p>
-                      </div>
-                    </motion.div>
-                  </motion.div>
-
-                  {/* 4. EventInfoSection */}
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.45 }}
-                    className={cn("space-y-4")}
-                  >
-                    <h4
-                      className={cn(
-                        "text-[10px]",
-                        "font-black",
-                        "text-muted-foreground",
-                        "uppercase",
-                        "tracking-[0.2em]",
-                        "flex",
-                        "items-center",
-                        "gap-2",
-                      )}
-                    >
-                      <LuActivity className={cn("w-3", "h-3")} /> Targeted Event
-                    </h4>
-                    <motion.div
-                      whileHover={{ scale: 1.01 }}
-                      className={cn(
-                        "p-6",
-                        "bg-muted",
-                        "rounded-[2rem]",
-                        "border",
-                        "border-border",
-                        "flex",
-                        "items-center",
-                        "gap-4",
-                      )}
-                    >
-                      <motion.div
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                        className={cn(
-                          "w-12",
-                          "h-12",
-                          "rounded-xl",
-                          "bg-foreground",
-                          "flex",
-                          "items-center",
-                          "justify-center",
-                          "text-primary",
-                        )}
-                      >
-                        <LuCalendar className={cn("w-6", "h-6")} />
-                      </motion.div>
-                      <div>
-                        <p
-                          className={cn(
-                            "text-sm",
-                            "font-black",
-                            "text-foreground",
-                          )}
-                        >
-                          {ticket.eventName}
-                        </p>
-                        <p
-                          className={cn(
-                            "text-[10px]",
-                            "font-bold",
-                            "text-muted-foreground",
-                            "uppercase",
-                            "tracking-widest",
-                            "flex",
-                            "items-center",
-                            "gap-1",
-                          )}
-                        >
-                          <LuMapPin className={cn("w-3", "h-3")} />{" "}
-                          {ticket.eventLocation}
-                        </p>
-                      </div>
-                    </motion.div>
-                  </motion.div>
-                </div>
-
-                {/* 5. TicketActivitySection */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className={cn("space-y-4")}
-                >
-                  <h4
-                    className={cn(
-                      "text-[10px]",
-                      "font-black",
-                      "text-muted-foreground",
-                      "uppercase",
-                      "tracking-[0.2em]",
-                      "flex",
-                      "items-center",
-                      "gap-2",
-                    )}
-                  >
-                    <LuHistory className={cn("w-3", "h-3")} /> Verification
-                    Ledger
-                  </h4>
                   <div
                     className={cn(
-                      "border",
-                      "border-border",
-                      "rounded-3xl",
+                      "w-12",
+                      "h-12",
+                      "rounded-full",
+                      "bg-slate-200",
+                      "border-2",
+                      "border-background",
+                      "shadow-sm",
                       "overflow-hidden",
-                      "text-[10px]",
-                      "font-bold",
-                      "uppercase",
-                      "tracking-widest",
+                      "flex",
+                      "items-center",
+                      "justify-center",
+                      "font-black",
+                      "text-muted-foreground",
                     )}
                   >
-                    {ticket.activities.map((activity, index) => (
-                      <ActivityRow
-                        key={activity.id}
-                        time={activity.time}
-                        action={activity.action}
-                        actor={activity.actor}
-                        success={activity.success}
-                        delay={0.55 + index * 0.05}
+                    {ticket.userAvatar ? (
+                      <Image
+                        src={ticket.userAvatar}
+                        alt={ticket.userName}
+                        width={48}
+                        height={48}
+                        className="w-full h-full object-cover"
                       />
-                    ))}
+                    ) : (
+                      <span>{ticket.userName.charAt(0).toUpperCase()}</span>
+                    )}
                   </div>
-                </motion.div>
+                  <div>
+                    <p
+                      className={cn("text-sm", "font-black", "text-foreground")}
+                    >
+                      {ticket.userName}
+                    </p>
+                    <p
+                      className={cn(
+                        "text-[10px]",
+                        "font-bold",
+                        "text-muted-foreground",
+                      )}
+                    >
+                      {ticket.userEmail}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Event */}
+              <div className="space-y-3">
+                <p
+                  className={cn(
+                    "text-[10px]",
+                    "font-black",
+                    "text-muted-foreground",
+                    "uppercase",
+                    "tracking-[0.2em]",
+                    "flex",
+                    "items-center",
+                    "gap-2",
+                  )}
+                >
+                  <LuCalendar className="w-3 h-3" /> Event
+                </p>
+                <div
+                  className={cn(
+                    "p-5",
+                    "bg-muted",
+                    "rounded-2xl",
+                    "border",
+                    "border-border",
+                    "flex",
+                    "items-center",
+                    "gap-4",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "w-12",
+                      "h-12",
+                      "rounded-xl",
+                      "bg-foreground",
+                      "flex",
+                      "items-center",
+                      "justify-center",
+                      "text-primary",
+                      "shrink-0",
+                    )}
+                  >
+                    <LuCalendar className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p
+                      className={cn("text-sm", "font-black", "text-foreground")}
+                    >
+                      {ticket.eventTitle}
+                    </p>
+                    <p
+                      className={cn(
+                        "text-[10px]",
+                        "font-bold",
+                        "text-muted-foreground",
+                        "uppercase",
+                      )}
+                    >
+                      {new Date(ticket.eventDate).toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Activity TODO banner */}
+              <div
+                className={cn(
+                  "flex",
+                  "items-start",
+                  "gap-3",
+                  "p-4",
+                  "bg-amber-50",
+                  "border",
+                  "border-amber-100",
+                  "rounded-2xl",
+                )}
+              >
+                <LuInfo className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className={cn("text-[11px]", "font-bold", "text-amber-700")}>
+                  Verification ledger coming soon.
+                  {/* TODO: GET /api/admin/tickets/{id}/activity */}
+                </p>
               </div>
             </div>
           </motion.div>
@@ -610,20 +471,13 @@ export const AdminTicketDetailsModal: React.FC<TicketDetailsProps> = ({
   );
 };
 
-/* --- Helpers --- */
-const StatBlock: React.FC<StatBlockProps> = ({
-  label,
-  value,
-  highlight = false,
-  delay = 0,
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay }}
-    className={cn("flex", "flex-col", "gap-1")}
-  >
-    <span
+const StatBlock: React.FC<{
+  label: string;
+  value: string;
+  highlight?: boolean;
+}> = ({ label, value, highlight }) => (
+  <div className="space-y-1">
+    <p
       className={cn(
         "text-[8px]",
         "font-black",
@@ -633,8 +487,8 @@ const StatBlock: React.FC<StatBlockProps> = ({
       )}
     >
       {label}
-    </span>
-    <span
+    </p>
+    <p
       className={cn(
         "text-[11px]",
         "font-black",
@@ -644,58 +498,6 @@ const StatBlock: React.FC<StatBlockProps> = ({
       )}
     >
       {value}
-    </span>
-  </motion.div>
+    </p>
+  </div>
 );
-
-const ActivityRow: React.FC<ActivityRowProps> = ({
-  time,
-  action,
-  actor,
-  success = false,
-  delay = 0,
-}) => (
-  <motion.div
-    initial={{ opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0 }}
-    transition={{ delay }}
-    whileHover={{ backgroundColor: "rgb(248 250 252)" }}
-    className={cn(
-      "flex",
-      "items-center",
-      "justify-between",
-      "p-4",
-      "bg-background",
-      "border-b",
-      "border-slate-50",
-      "last:border-0",
-    )}
-  >
-    <div className={cn("flex", "items-center", "gap-4")}>
-      <span className={cn("text-slate-300", "w-24")}>{time}</span>
-      <span className={success ? "text-emerald-600" : "text-slate-600"}>
-        {action}
-      </span>
-    </div>
-    <span
-      className={cn(
-        "text-muted-foreground",
-        "bg-muted",
-        "px-2",
-        "py-1",
-        "rounded-md",
-      )}
-    >
-      {actor}
-    </span>
-  </motion.div>
-);
-
-// Export types
-export type {
-  TicketDetailsProps,
-  TicketData,
-  ActivityLog,
-  StatBlockProps,
-  ActivityRowProps,
-};

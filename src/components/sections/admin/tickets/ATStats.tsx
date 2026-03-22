@@ -1,13 +1,63 @@
 "use client";
 import React from "react";
 import { IconType } from "react-icons";
-import {
-  LuTicket,
-  LuCircleCheck,
-  LuCircleX,
-  LuClock,
-  LuUsers,
-} from "react-icons/lu";
+import { LuTicket, LuCircleCheck, LuCircleX, LuClock } from "react-icons/lu";
+
+interface TicketStats {
+  total: number;
+  active: number;
+  checkedIn: number;
+  invalidated: number;
+}
+
+interface Props {
+  stats: TicketStats | null;
+}
+
+export const AdminTicketsStats: React.FC<Props> = ({ stats }) => {
+  const attendanceRate =
+    stats && stats.total > 0
+      ? Math.round((stats.checkedIn / stats.total) * 100)
+      : 0;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
+      <StatCard
+        label="Total Issued"
+        value={stats ? stats.total.toLocaleString() : "—"}
+        icon={LuTicket}
+        color="text-foreground"
+        bg="bg-muted"
+        description="Total tickets generated across all events"
+      />
+      <StatCard
+        label="Active / Unused"
+        value={stats ? stats.active.toLocaleString() : "—"}
+        icon={LuClock}
+        color="text-blue-600"
+        bg="bg-blue-50"
+        description="Valid passes awaiting check-in"
+      />
+      <StatCard
+        label="Checked-In"
+        value={stats ? stats.checkedIn.toLocaleString() : "—"}
+        icon={LuCircleCheck}
+        color="text-emerald-600"
+        bg="bg-emerald-50"
+        description={`${attendanceRate}% attendance rate`}
+        showProgress={attendanceRate}
+      />
+      <StatCard
+        label="Invalidated"
+        value={stats ? stats.invalidated.toLocaleString() : "—"}
+        icon={LuCircleX}
+        color="text-rose-600"
+        bg="bg-rose-50"
+        description="Revoked or cancelled credentials"
+      />
+    </div>
+  );
+};
 
 interface StatCardProps {
   label: string;
@@ -19,54 +69,6 @@ interface StatCardProps {
   showProgress?: number;
 }
 
-export const AdminTicketsStats: React.FC = () => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
-      {/* 1. TotalTicketsCard */}
-      <StatCard
-        label="Total Issued"
-        value="2,500"
-        icon={LuTicket}
-        color="text-foreground"
-        bg="bg-muted"
-        description="Total tickets generated across all events"
-      />
-
-      {/* 2. ActiveTicketsCard (Valid but not yet used) */}
-      <StatCard
-        label="Active / Unused"
-        value="1,120"
-        icon={LuClock}
-        color="text-blue-600"
-        bg="bg-blue-50"
-        description="Valid passes awaiting check-in"
-      />
-
-      {/* 3. UsedTicketsCard (Checked-in) */}
-      <StatCard
-        label="Checked-In"
-        value="1,280"
-        icon={LuCircleCheck}
-        color="text-emerald-600"
-        bg="bg-emerald-50"
-        description="51% Attendance rate achieved"
-        showProgress={51}
-      />
-
-      {/* 4. CancelledTicketsCard */}
-      <StatCard
-        label="Invalidated"
-        value="100"
-        icon={LuCircleX}
-        color="text-rose-600"
-        bg="bg-rose-50"
-        description="Revoked or cancelled credentials"
-      />
-    </div>
-  );
-};
-
-/* --- Internal StatCard Component --- */
 const StatCard = ({
   label,
   value,
@@ -76,21 +78,19 @@ const StatCard = ({
   description,
   showProgress,
 }: StatCardProps) => (
-  <div
-    className={`p-8 rounded-[2.5rem] border border-border bg-background shadow-sm hover:shadow-md transition-all group`}
-  >
+  <div className="p-8 rounded-[2.5rem] border border-border bg-background shadow-sm hover:shadow-md transition-all group">
     <div className="flex justify-between items-start mb-6">
       <div
-        className={`w-14 h-14 rounded-2xl ${bg} ${color} flex items-center justify-center transition-transform group-hover:scale-110 duration-300`}
+        className={`w-14 h-14 rounded-2xl ${bg} ${color} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
       >
         <Icon className="w-7 h-7" />
       </div>
-      {showProgress && (
+      {showProgress !== undefined && showProgress > 0 && (
         <div className="flex flex-col items-end">
           <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
             {showProgress}%
           </span>
-          <div className="w-16 h-1 text-muted rounded-full mt-1 overflow-hidden">
+          <div className="w-16 h-1 bg-muted rounded-full mt-1 overflow-hidden">
             <div
               className="h-full bg-emerald-500"
               style={{ width: `${showProgress}%` }}
@@ -99,7 +99,6 @@ const StatCard = ({
         </div>
       )}
     </div>
-
     <div>
       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">
         {label}
