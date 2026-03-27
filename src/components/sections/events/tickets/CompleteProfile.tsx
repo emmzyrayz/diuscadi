@@ -51,7 +51,7 @@ export const CompleteProfilePrompt = () => (
         account before registering.
       </p>
       <Link
-        href="/home/settings"
+        href="/settings"
         className={cn(
           "inline-flex",
           "items-center",

@@ -1,5 +1,5 @@
 "use client";
-// app/home/settings/page.tsx
+// app/settings/page.tsx
 import React, { useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 import { useUser } from "@/context/UserContext";

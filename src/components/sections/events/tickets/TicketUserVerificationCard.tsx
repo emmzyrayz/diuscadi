@@ -221,7 +221,7 @@ export const TicketUserVerificationCard = ({
             </button>
           </div>
           <button
-            onClick={() => router.push("/home/settings")}
+            onClick={() => router.push("/settings")}
             className={cn(
               "flex",
               "items-center",
