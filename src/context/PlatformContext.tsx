@@ -452,10 +452,10 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
         },
       );
       await handleResponse(res);
-      setState((s) => ({
-        ...s,
-        facultyMap: { ...s.facultyMap, [institutionId]: undefined },
-      }));
+      setState((s) => {
+        const { [institutionId]: _, ...rest } = s.facultyMap;
+        return { ...s, facultyMap: rest };
+      });
     },
     [],
   );
@@ -525,11 +525,10 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
         },
       );
       await handleResponse(res);
-      setState((s) => ({
-        ...s,
-        departmentMap: { ...s.departmentMap, [facultyId]: undefined },
-        facultyMap: {},
-      }));
+      setState((s) => {
+        const { [facultyId]: _, ...rest } = s.departmentMap;
+        return { ...s, departmentMap: rest, facultyMap: {} };
+      });
     },
     [],
   );
