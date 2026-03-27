@@ -145,11 +145,11 @@ async function fetchRegisterData(
 export default async function RegisterPage({
   params,
 }: {
-  params: Promise<{ eventId: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { eventId } = await params;
+  const { slug } = await params;
 
-  const event = await fetchRegisterData(eventId);
+  const event = await fetchRegisterData(slug);
   if (!event) notFound();
   if (event.slotsRemaining === 0) notFound();
 
