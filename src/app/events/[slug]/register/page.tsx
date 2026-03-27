@@ -238,7 +238,7 @@ export default async function RegisterPage({
   );
 
   return (
-    <main className={cn("min-h-screen", "bg-muted/50", "pb-20", "pt-[72px]")}>
+    <main className={cn("min-h-screen w-full", "bg-muted/50", "pb-20", "pt-[122px]")}>
       {isUnauthenticated && (
         <>
           {Breadcrumb}
