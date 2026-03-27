@@ -11,6 +11,8 @@ import {
   LuSettings,
   LuCircleArrowLeft,
   LuGlobe,
+  LuMailOpen,
+  LuClipboardList,
 } from "react-icons/lu";
 import { cn } from "../../../lib/utils";
 
@@ -24,6 +26,18 @@ const NAV_ITEMS = [
   { id: "events", label: "Events", icon: LuCalendar, path: "/admin/events" },
   { id: "users", label: "User Base", icon: LuUsers, path: "/admin/users" },
   { id: "tickets", label: "Tickets", icon: LuTicket, path: "/admin/tickets" },
+  {
+    id: "invites",
+    label: "Invite Codes",
+    icon: LuMailOpen,
+    path: "/admin/invites",
+  },
+  {
+    id: "applications",
+    label: "Applications",
+    icon: LuClipboardList,
+    path: "/admin/applications",
+  },
   {
     id: "analytics",
     label: "Analytics",
@@ -41,6 +55,10 @@ const NAV_ITEMS = [
 export const AdminSidebar = () => {
   const pathname = usePathname();
 
+  // Active check — /admin/events matches /admin/events/* but not /admin alone
+  const isActive = (path: string) =>
+    path === "/admin" ? pathname === "/admin" : pathname.startsWith(path);
+
   return (
     <aside
       className={cn(
@@ -52,15 +70,20 @@ export const AdminSidebar = () => {
         "flex",
         "flex-col",
         "sticky",
-        "top-0 z-99 lg:rounded-2xl",
+        "top-0",
+        "z-[99]",
+        "lg:rounded-2xl",
       )}
     >
-      {/* 1. Admin Brand Area */}
+      {/* Brand */}
       <div className={cn("p-8", "pb-10")}>
         <div
           className={cn(
-            "flex w-full h-auto",
-            "items-center justify-center",
+            "flex",
+            "w-full",
+            "h-auto",
+            "items-center",
+            "justify-center",
             "gap-3",
           )}
         >
@@ -108,8 +131,8 @@ export const AdminSidebar = () => {
         </div>
       </div>
 
-      {/* 2. Main Navigation */}
-      <nav className={cn("flex-1", "px-4", "space-y-2 z-60")}>
+      {/* Nav */}
+      <nav className={cn("flex-1", "px-4", "space-y-2")}>
         <p
           className={cn(
             "px-4",
@@ -125,24 +148,34 @@ export const AdminSidebar = () => {
         </p>
 
         {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.path;
+          const active = isActive(item.path);
           const Icon = item.icon;
-
           return (
             <Link
               key={item.id}
               href={item.path}
-              className={`
-                flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all group
-                ${
-                  isActive
-                    ? "bg-primary text-foreground shadow-xl shadow-primary/10"
-                    : "text-muted-foreground hover:text-background hover:bg-background/5"
-                }
-              `}
+              className={cn(
+                "flex",
+                "items-center",
+                "gap-4",
+                "px-4",
+                "py-3.5",
+                "rounded-2xl",
+                "transition-all",
+                "group",
+                active
+                  ? "bg-primary text-foreground shadow-xl shadow-primary/10"
+                  : "text-muted-foreground hover:text-background hover:bg-background/5",
+              )}
             >
               <Icon
-                className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? "text-foreground" : "text-muted-foreground"}`}
+                className={cn(
+                  "w-5",
+                  "h-5",
+                  "transition-transform",
+                  "group-hover:scale-110",
+                  active ? "text-foreground" : "text-muted-foreground",
+                )}
               />
               <span
                 className={cn(
@@ -159,7 +192,7 @@ export const AdminSidebar = () => {
         })}
       </nav>
 
-      {/* 3. Sidebar Footer */}
+      {/* Footer */}
       <div className={cn("p-6", "mt-auto")}>
         <div
           className={cn(

@@ -1,4 +1,8 @@
 "use client";
+// modal/TicketScannerModal.tsx
+// Uses TicketContext.checkIn() instead of calling /api/events/check-in directly.
+// checkIn() handles auth headers, error parsing, and local state updates.
+
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -12,7 +16,7 @@ import {
   LuInfo,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/context/AuthContext";
+import { useTickets } from "@/context/TicketContext";
 
 type VerifyResult = "idle" | "valid" | "already_used" | "invalid" | "error";
 
@@ -38,10 +42,10 @@ export const TicketScannerModal: React.FC<Props> = ({
   onClose,
   onSuccess,
 }) => {
-  const { token } = useAuth();
+  const { checkIn, checkInLoading } = useTickets();
+
   const [code, setCode] = useState("");
   const [result, setResult] = useState<VerifyResult>("idle");
-  const [loading, setLoading] = useState(false);
   const [resultMsg, setResultMsg] = useState("");
 
   const handleClose = () => {
@@ -52,40 +56,37 @@ export const TicketScannerModal: React.FC<Props> = ({
   };
 
   const handleVerify = async () => {
-    if (!code.trim() || !token) return;
-    setLoading(true);
-    try {
-      const res = await fetch("/api/events/check-in", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ inviteCode: code.trim().toUpperCase() }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setResult("valid");
-        setResultMsg(data.message ?? "Entry confirmed");
-        onSuccess?.();
-      } else if (res.status === 409) {
+    if (!code.trim()) return;
+    const res = await checkIn(code.trim().toUpperCase());
+    if (res.success) {
+      setResult("valid");
+      setResultMsg(
+        res.checkedInAt
+          ? `Checked in at ${new Date(res.checkedInAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+          : "Entry confirmed",
+      );
+      onSuccess?.();
+    } else {
+      const msg = res.error ?? "";
+      if (
+        msg.toLowerCase().includes("already") ||
+        msg.toLowerCase().includes("checked")
+      ) {
         setResult("already_used");
-        setResultMsg(data.error ?? "Ticket already used");
-      } else {
+      } else if (
+        msg.toLowerCase().includes("not found") ||
+        msg.toLowerCase().includes("invalid")
+      ) {
         setResult("invalid");
-        setResultMsg(data.error ?? "Ticket not found");
+      } else {
+        setResult("error");
       }
-    } catch {
-      setResult("error");
-      setResultMsg("Network error — check connection");
-    } finally {
-      setLoading(false);
+      setResultMsg(msg || "Verification failed");
     }
   };
 
   if (!isOpen) return null;
 
-  // Resolve icon to a capitalized variable so it can be used as JSX
   const resultCfg = result !== "idle" ? RESULT_CONFIG[result] : null;
 
   return (
@@ -111,8 +112,8 @@ export const TicketScannerModal: React.FC<Props> = ({
             </p>
           </div>
           <p className="text-[9px] font-bold text-amber-600 mb-6">
-            {/* TODO: install @zxing/browser for real QR scanning */}
-            Camera scanning requires @zxing/browser — use manual input below
+            {/* TODO: install @zxing/browser for QR camera scanning */}
+            Use manual input below
           </p>
 
           {/* Result banner */}
@@ -134,7 +135,6 @@ export const TicketScannerModal: React.FC<Props> = ({
                   resultCfg.bg,
                 )}
               >
-                {/* Assign icon to capitalized variable before using as JSX */}
                 <resultCfg.Icon className="w-5 h-5 shrink-0" />
                 <div className="text-left">
                   <p className="text-[11px] font-black uppercase tracking-widest">
@@ -176,10 +176,10 @@ export const TicketScannerModal: React.FC<Props> = ({
 
             <button
               onClick={handleVerify}
-              disabled={loading || !code.trim()}
+              disabled={checkInLoading || !code.trim()}
               className="w-full py-5 bg-foreground text-background rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-primary hover:text-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              {loading ? (
+              {checkInLoading ? (
                 <>
                   <LuLoader className="w-5 h-5 animate-spin" /> Verifying…
                 </>

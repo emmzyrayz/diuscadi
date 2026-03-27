@@ -1,9 +1,6 @@
 "use client";
 // modal/ATVerifyModal.tsx
-// Standalone manual verification modal used by event staff.
-// Calls POST /api/events/check-in with the entered invite code.
-// Used separately from TicketScannerModal — this one shows a richer
-// result card with check-in time from the API response.
+// Uses TicketContext.checkIn() — no direct fetch, no useAuth token needed.
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,18 +15,12 @@ import {
   LuLoader,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/context/AuthContext";
+import { useTickets } from "@/context/TicketContext";
 import { IconType } from "react-icons";
 
-type VerificationStatus =
-  | "Idle"
-  | "Valid"
-  | "Used"
-  | "Cancelled"
-  | "Invalid"
-  | "Error";
+type VerificationStatus = "Idle" | "Valid" | "Used" | "Invalid" | "Error";
 
-interface AdminTicketVerifyModalProps {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
@@ -37,21 +28,21 @@ interface AdminTicketVerifyModalProps {
 
 interface ResultConfig {
   bg: string;
-  Icon: IconType; // capitalised so it can be used as JSX
+  Icon: IconType;
   title: string;
   desc: string;
   btn: string;
 }
 
-export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
+export const AdminTicketVerifyModal: React.FC<Props> = ({
   isOpen,
   onClose,
   onSuccess,
 }) => {
-  const { token } = useAuth();
+  const { checkIn, checkInLoading } = useTickets();
+
   const [ticketCode, setTicketCode] = useState("");
   const [status, setStatus] = useState<VerificationStatus>("Idle");
-  const [isVerifying, setIsVerifying] = useState(false);
   const [checkedInTime, setCheckedInTime] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -64,48 +55,38 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
   };
 
   const handleVerify = async () => {
-    if (!ticketCode.trim() || !token) return;
-    setIsVerifying(true);
-    try {
-      const res = await fetch("/api/events/check-in", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ inviteCode: ticketCode.trim().toUpperCase() }),
-      });
-      const data = await res.json();
+    if (!ticketCode.trim()) return;
 
-      if (res.ok) {
-        setStatus("Valid");
-        onSuccess?.();
-      } else if (res.status === 409) {
-        // Already checked in — API may return checkedInAt
+    const res = await checkIn(ticketCode.trim().toUpperCase());
+
+    if (res.success) {
+      setStatus("Valid");
+      if (res.checkedInAt) {
+        setCheckedInTime(
+          new Date(res.checkedInAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        );
+      }
+      onSuccess?.();
+    } else {
+      const msg = res.error ?? "";
+      if (
+        msg.toLowerCase().includes("already") ||
+        msg.toLowerCase().includes("checked")
+      ) {
         setStatus("Used");
-        if (data.checkedInAt) {
-          setCheckedInTime(
-            new Date(data.checkedInAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          );
-        }
-      } else if (res.status === 400 || res.status === 404) {
+      } else if (
+        msg.toLowerCase().includes("not found") ||
+        msg.toLowerCase().includes("invalid") ||
+        msg.toLowerCase().includes("cancelled")
+      ) {
         setStatus("Invalid");
-        setErrorMsg(data.error ?? "Code not found in manifest");
-      } else if (res.status === 403) {
-        setStatus("Cancelled");
-        setErrorMsg(data.error ?? "Ticket has been revoked");
       } else {
         setStatus("Error");
-        setErrorMsg(data.error ?? "Verification failed");
       }
-    } catch {
-      setStatus("Error");
-      setErrorMsg("Network error — check connection");
-    } finally {
-      setIsVerifying(false);
+      setErrorMsg(msg);
     }
   };
 
@@ -122,22 +103,15 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
       Icon: LuHistory,
       title: "Already Used",
       desc: checkedInTime
-        ? `Ticket was scanned at ${checkedInTime}.`
-        : "Ticket was already scanned.",
+        ? `Scanned at ${checkedInTime}.`
+        : "Ticket already checked in.",
       btn: "Try Different Code",
-    },
-    Cancelled: {
-      bg: "bg-rose-600",
-      Icon: LuTriangleAlert,
-      title: "Cancelled Ticket",
-      desc: errorMsg || "Revoked. Check Admin Audit Logs.",
-      btn: "Deny Entry",
     },
     Invalid: {
       bg: "bg-foreground",
       Icon: LuTicket,
       title: "Invalid Ticket",
-      desc: errorMsg || "Code not found in manifest.",
+      desc: errorMsg || "Code not found or ticket cancelled.",
       btn: "Retry Input",
     },
     Error: {
@@ -193,7 +167,6 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
               "overflow-hidden",
             )}
           >
-            {/* Header */}
             <div
               className={cn(
                 "p-8",
@@ -320,12 +293,12 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
 
                     <motion.button
                       onClick={handleVerify}
-                      disabled={isVerifying || !ticketCode}
+                      disabled={checkInLoading || !ticketCode}
                       whileHover={
-                        !isVerifying && ticketCode ? { scale: 1.02 } : {}
+                        !checkInLoading && ticketCode ? { scale: 1.02 } : {}
                       }
                       whileTap={
-                        !isVerifying && ticketCode ? { scale: 0.98 } : {}
+                        !checkInLoading && ticketCode ? { scale: 0.98 } : {}
                       }
                       className={cn(
                         "w-full",
@@ -351,7 +324,7 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
                         "cursor-pointer",
                       )}
                     >
-                      {isVerifying ? (
+                      {checkInLoading ? (
                         <>
                           <LuLoader
                             className={cn("w-4", "h-4", "animate-spin")}
@@ -393,15 +366,12 @@ export const AdminTicketVerifyModal: React.FC<AdminTicketVerifyModalProps> = ({
   );
 };
 
-// ResultCard receives the resolved config — no need to index inside JSX
 const ResultCard: React.FC<{
   config: ResultConfig;
   status: VerificationStatus;
   onReset: () => void;
 }> = ({ config, status, onReset }) => {
-  // Icon is already capitalised in ResultConfig — safe to use as JSX
   const { Icon } = config;
-
   return (
     <div className={cn("space-y-6")}>
       <motion.div
@@ -510,4 +480,8 @@ const ResultCard: React.FC<{
   );
 };
 
-export type { AdminTicketVerifyModalProps, VerificationStatus, ResultConfig };
+export type {
+  Props as AdminTicketVerifyModalProps,
+  VerificationStatus,
+  ResultConfig,
+};

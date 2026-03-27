@@ -156,7 +156,7 @@ export const AdminRecentActivity = ({ recentSignups }: Props) => {
                   )}
                 >
                   <span className={cn("font-black", "text-foreground")}>
-                    {resolveAdminFullName(user.fullName as never)}
+                    {resolveAdminFullName(user.fullName)}
                   </span>{" "}
                   joined as{" "}
                   <span className={cn("font-bold", "text-primary")}>

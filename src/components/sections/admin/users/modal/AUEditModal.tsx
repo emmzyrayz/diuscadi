@@ -199,7 +199,7 @@ export const AdminUserEditModal: React.FC<Props> = ({
                   />
                   <input
                     disabled
-                    value={resolveAdminFullName(user.fullName as never)}
+                    value={resolveAdminFullName(user.fullName)}
                     className={cn(
                       "w-full",
                       "bg-muted/50",

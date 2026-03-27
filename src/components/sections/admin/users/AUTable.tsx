@@ -66,12 +66,28 @@ export const AdminUsersTable: React.FC<TableProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="w-full bg-background px-4 py-2 border-2 border-border rounded-[2.5rem] shadow-sm"
+      className={cn(
+        "w-full",
+        "bg-background",
+        "px-4",
+        "py-2",
+        "border-2",
+        "border-border",
+        "rounded-[2.5rem]",
+        "shadow-sm",
+      )}
     >
       <div className="w-full">
-        <table className="w-full text-left border-collapse min-w-[360px]">
+        <table
+          className={cn(
+            "w-full",
+            "text-left",
+            "border-collapse",
+            "min-w-[360px]",
+          )}
+        >
           <thead>
-            <tr className="bg-muted/50 border-b border-border">
+            <tr className={cn("bg-muted/50", "border-b", "border-border")}>
               {/* Checkbox */}
               {/* Checkbox — hidden on mobile, visible md+ */}
               <th
@@ -106,32 +122,111 @@ export const AdminUsersTable: React.FC<TableProps> = ({
               </th>
 
               {/* Identity — always visible */}
-              <th className="px-3 md:px-4 lg:px-6 py-3 lg:py-5 text-[8px] md:text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em] md:tracking-[0.15em] lg:tracking-[0.2em]">
+              <th
+                className={cn(
+                  "px-3",
+                  "md:px-4",
+                  "lg:px-6",
+                  "py-3",
+                  "lg:py-5",
+                  "text-[8px]",
+                  "md:text-[9px]",
+                  "lg:text-[10px]",
+                  "font-black",
+                  "text-muted-foreground",
+                  "uppercase",
+                  "tracking-[0.1em]",
+                  "md:tracking-[0.15em]",
+                  "lg:tracking-[0.2em]",
+                )}
+              >
                 Identity
               </th>
 
               {/* Contact — lg+ only */}
-              <th className="hidden lg:table-cell px-4 lg:px-6 py-3 lg:py-5 text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] lg:tracking-[0.2em]">
+              <th
+                className={cn(
+                  "hidden",
+                  "lg:table-cell",
+                  "px-4",
+                  "lg:px-6",
+                  "py-3",
+                  "lg:py-5",
+                  "text-[9px]",
+                  "lg:text-[10px]",
+                  "font-black",
+                  "text-muted-foreground",
+                  "uppercase",
+                  "tracking-[0.15em]",
+                  "lg:tracking-[0.2em]",
+                )}
+              >
                 Contact
               </th>
 
               {/* Status */}
-              <th className="px-2 md:px-4 lg:px-6 py-3 lg:py-5 text-[8px] md:text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em] md:tracking-[0.15em] lg:tracking-[0.2em]">
+              <th
+                className={cn(
+                  "px-2",
+                  "md:px-4",
+                  "lg:px-6",
+                  "py-3",
+                  "lg:py-5",
+                  "text-[8px]",
+                  "md:text-[9px]",
+                  "lg:text-[10px]",
+                  "font-black",
+                  "text-muted-foreground",
+                  "uppercase",
+                  "tracking-[0.1em]",
+                  "md:tracking-[0.15em]",
+                  "lg:tracking-[0.2em]",
+                )}
+              >
                 Status
               </th>
 
               {/* Activity — xl+ only */}
-              <th className="hidden xl:table-cell px-6 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">
+              <th
+                className={cn(
+                  "hidden",
+                  "xl:table-cell",
+                  "px-6",
+                  "py-5",
+                  "text-[10px]",
+                  "font-black",
+                  "text-muted-foreground",
+                  "uppercase",
+                  "tracking-[0.2em]",
+                )}
+              >
                 Activity
               </th>
 
               {/* Actions */}
-              <th className="pr-3 md:pr-5 lg:pr-8 pl-2 py-3 lg:py-5 text-[8px] md:text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em] text-right">
+              <th
+                className={cn(
+                  "pr-3",
+                  "md:pr-5",
+                  "lg:pr-8",
+                  "pl-2",
+                  "py-3",
+                  "lg:py-5",
+                  "text-[8px]",
+                  "md:text-[9px]",
+                  "lg:text-[10px]",
+                  "font-black",
+                  "text-muted-foreground",
+                  "uppercase",
+                  "tracking-[0.1em]",
+                  "text-right",
+                )}
+              >
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody className={cn("divide-y", "divide-slate-50")}>
             {users.map((user, index) => (
               <AdminUserRow
                 key={user.id}
@@ -227,7 +322,19 @@ const AdminUserRow: React.FC<RowProps> = ({
         )}
       >
         {/* Checkbox — md+ */}
-        <td className="hidden md:table-cell pl-4 lg:pl-8 pr-2 lg:pr-4 py-3 lg:py-5 relative">
+        <td
+          className={cn(
+            "hidden",
+            "md:table-cell",
+            "pl-4",
+            "lg:pl-8",
+            "pr-2",
+            "lg:pr-4",
+            "py-3",
+            "lg:py-5",
+            "relative",
+          )}
+        >
           {!user.isAccountActive && (
             <div
               className={cn(
@@ -240,15 +347,42 @@ const AdminUserRow: React.FC<RowProps> = ({
             type="checkbox"
             checked={isSelected}
             onChange={onToggle}
-            className="w-3.5 h-3.5 lg:w-4 lg:h-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+            className={cn(
+              "w-3.5",
+              "h-3.5",
+              "lg:w-4",
+              "lg:h-4",
+              "rounded",
+              "border-slate-300",
+              "text-primary",
+              "focus:ring-primary",
+              "cursor-pointer",
+            )}
           />
         </td>
 
         {/* ── Identity ──────────────────────────────────────────────────── */}
-        <td className="px-3 md:px-4 lg:px-6 py-2.5 md:py-3 lg:py-5">
-          <div className="flex items-center gap-2 md:gap-3 lg:gap-4">
+        <td
+          className={cn(
+            "px-3",
+            "md:px-4",
+            "lg:px-6",
+            "py-2.5",
+            "md:py-3",
+            "lg:py-5",
+          )}
+        >
+          <div
+            className={cn(
+              "flex",
+              "items-center",
+              "gap-2",
+              "md:gap-3",
+              "lg:gap-4",
+            )}
+          >
             {/* Avatar */}
-            <div className="relative shrink-0">
+            <div className={cn("relative", "shrink-0")}>
               <div
                 className={cn(
                   "rounded-full bg-muted overflow-hidden border border-border",
@@ -261,24 +395,44 @@ const AdminUserRow: React.FC<RowProps> = ({
                 {avatarSrc ? (
                   <Image
                     src={avatarSrc}
-                    alt={resolveAdminFullName(user.fullName as never)}
+                    alt={resolveAdminFullName(user.fullName)}
                     width={40}
                     height={40}
-                    className="w-full h-full object-cover"
+                    className={cn("w-full", "h-full", "object-cover")}
                   />
                 ) : (
                   <span>{resolveAdminInitial(user.fullName as never)}</span>
                 )}
               </div>
               {user.isEmailVerified && (
-                <div className="absolute -bottom-0.5 -right-0.5 bg-background rounded-full p-0.5 shadow-sm">
-                  <LuCircleCheck className="w-2.5 h-2.5 md:w-3 md:h-3 lg:w-3.5 lg:h-3.5 text-emerald-500" />
+                <div
+                  className={cn(
+                    "absolute",
+                    "-bottom-0.5",
+                    "-right-0.5",
+                    "bg-background",
+                    "rounded-full",
+                    "p-0.5",
+                    "shadow-sm",
+                  )}
+                >
+                  <LuCircleCheck
+                    className={cn(
+                      "w-2.5",
+                      "h-2.5",
+                      "md:w-3",
+                      "md:h-3",
+                      "lg:w-3.5",
+                      "lg:h-3.5",
+                      "text-emerald-500",
+                    )}
+                  />
                 </div>
               )}
             </div>
 
             {/* Name + ID */}
-            <div className="flex flex-col min-w-0">
+            <div className={cn("flex", "flex-col", "min-w-0")}>
               <span
                 className={cn(
                   "font-bold tracking-tight transition-colors truncate",
@@ -292,7 +446,21 @@ const AdminUserRow: React.FC<RowProps> = ({
                 {resolveAdminFullName(user.fullName as never)}
               </span>
               {/* Vault ID — hide on smallest screens to save space */}
-              <span className="hidden sm:block text-[8px] md:text-[9px] font-medium md:font-bold text-muted-foreground uppercase tracking-widest mt-0.5 truncate">
+              <span
+                className={cn(
+                  "hidden",
+                  "sm:block",
+                  "text-[8px]",
+                  "md:text-[9px]",
+                  "font-medium",
+                  "md:font-bold",
+                  "text-muted-foreground",
+                  "uppercase",
+                  "tracking-widest",
+                  "mt-0.5",
+                  "truncate",
+                )}
+              >
                 {user.vaultId.slice(-8).toUpperCase()}
               </span>
             </div>
@@ -300,15 +468,60 @@ const AdminUserRow: React.FC<RowProps> = ({
         </td>
 
         {/* ── Contact — lg+ ─────────────────────────────────────────────── */}
-        <td className="hidden lg:table-cell px-4 lg:px-6 py-3 lg:py-5">
-          <div className="flex items-center gap-1.5 lg:gap-2 text-slate-600">
-            <LuMail className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-muted-foreground shrink-0" />
-            <span className="text-[10px] lg:text-[11px] font-medium lg:font-bold truncate max-w-[130px] xl:max-w-[180px]">
+        <td
+          className={cn(
+            "hidden",
+            "lg:table-cell",
+            "px-4",
+            "lg:px-6",
+            "py-3",
+            "lg:py-5",
+          )}
+        >
+          <div
+            className={cn(
+              "flex",
+              "items-center",
+              "gap-1.5",
+              "lg:gap-2",
+              "text-slate-600",
+            )}
+          >
+            <LuMail
+              className={cn(
+                "w-3",
+                "h-3",
+                "lg:w-3.5",
+                "lg:h-3.5",
+                "text-muted-foreground",
+                "shrink-0",
+              )}
+            />
+            <span
+              className={cn(
+                "text-[10px]",
+                "lg:text-[11px]",
+                "font-medium",
+                "lg:font-bold",
+                "truncate",
+                "max-w-[130px]",
+                "xl:max-w-[180px]",
+              )}
+            >
               {user.email}
             </span>
             <button
               onClick={copyEmail}
-              className="p-1 lg:p-1.5 hover:bg-slate-200 rounded-md text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              className={cn(
+                "p-1",
+                "lg:p-1.5",
+                "hover:bg-slate-200",
+                "rounded-md",
+                "text-muted-foreground",
+                "hover:text-foreground",
+                "transition-colors",
+                "shrink-0",
+              )}
             >
               <AnimatePresence mode="wait">
                 {copied ? (
@@ -318,7 +531,15 @@ const AdminUserRow: React.FC<RowProps> = ({
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
                   >
-                    <LuCircleCheck className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-emerald-500" />
+                    <LuCircleCheck
+                      className={cn(
+                        "w-3",
+                        "h-3",
+                        "lg:w-3.5",
+                        "lg:h-3.5",
+                        "text-emerald-500",
+                      )}
+                    />
                   </motion.div>
                 ) : (
                   <motion.div
@@ -327,7 +548,9 @@ const AdminUserRow: React.FC<RowProps> = ({
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
                   >
-                    <LuCopy className="w-3 h-3 lg:w-3.5 lg:h-3.5" />
+                    <LuCopy
+                      className={cn("w-3", "h-3", "lg:w-3.5", "lg:h-3.5")}
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -336,8 +559,25 @@ const AdminUserRow: React.FC<RowProps> = ({
         </td>
 
         {/* ── Status & Role ─────────────────────────────────────────────── */}
-        <td className="px-2 md:px-4 lg:px-6 py-2.5 md:py-3 lg:py-5">
-          <div className="flex flex-col gap-1 md:gap-1.5 lg:gap-2">
+        <td
+          className={cn(
+            "px-2",
+            "md:px-4",
+            "lg:px-6",
+            "py-2.5",
+            "md:py-3",
+            "lg:py-5",
+          )}
+        >
+          <div
+            className={cn(
+              "flex",
+              "flex-col",
+              "gap-1",
+              "md:gap-1.5",
+              "lg:gap-2",
+            )}
+          >
             <span
               className={cn(
                 "w-fit rounded border font-black uppercase",
@@ -349,16 +589,29 @@ const AdminUserRow: React.FC<RowProps> = ({
               {STATUS_LABEL}
             </span>
             {/* Role — hide on smallest, show sm+ */}
-            <span className="hidden sm:block text-[8px] md:text-[9px] font-medium md:font-black text-muted-foreground uppercase tracking-[0.1em] md:tracking-[0.15em]">
+            <span
+              className={cn(
+                "hidden",
+                "sm:block",
+                "text-[8px]",
+                "md:text-[9px]",
+                "font-medium",
+                "md:font-black",
+                "text-muted-foreground",
+                "uppercase",
+                "tracking-[0.1em]",
+                "md:tracking-[0.15em]",
+              )}
+            >
               {user.role}
             </span>
           </div>
         </td>
 
         {/* ── Activity — xl+ ────────────────────────────────────────────── */}
-        <td className="hidden xl:table-cell px-6 py-5">
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-1.5">
+        <td className={cn("hidden", "xl:table-cell", "px-6", "py-5")}>
+          <div className={cn("flex", "flex-col", "gap-1.5")}>
+            <div className={cn("flex", "items-center", "gap-1.5")}>
               <div
                 className={cn(
                   "flex items-center justify-center w-5 h-5 rounded-md",
@@ -367,26 +620,67 @@ const AdminUserRow: React.FC<RowProps> = ({
                     : "bg-muted text-muted-foreground",
                 )}
               >
-                <LuTicket className="w-3 h-3" />
+                <LuTicket className={cn("w-3", "h-3")} />
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-foreground">
+              <span
+                className={cn(
+                  "text-[10px]",
+                  "font-black",
+                  "uppercase",
+                  "tracking-widest",
+                  "text-foreground",
+                )}
+              >
                 {user.analytics.eventsRegistered}{" "}
-                <span className="text-muted-foreground font-bold">Events</span>
+                <span className={cn("text-muted-foreground", "font-bold")}>
+                  Events
+                </span>
               </span>
             </div>
-            <span className="text-[9px] font-medium text-muted-foreground">
+            <span
+              className={cn(
+                "text-[9px]",
+                "font-medium",
+                "text-muted-foreground",
+              )}
+            >
               Attended: {user.analytics.eventsAttended}
             </span>
           </div>
         </td>
 
         {/* ── Actions ───────────────────────────────────────────────────── */}
-        <td className="pr-2 md:pr-5 lg:pr-8 pl-1 md:pl-2 py-2.5 md:py-3 lg:py-5 text-right relative">
+        <td
+          className={cn(
+            "pr-2",
+            "md:pr-5",
+            "lg:pr-8",
+            "pl-1",
+            "md:pl-2",
+            "py-2.5",
+            "md:py-3",
+            "lg:py-5",
+            "text-right",
+            "relative",
+          )}
+        >
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="p-1.5 md:p-2 hover:bg-background border border-transparent hover:border-border rounded-lg text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+            className={cn(
+              "p-1.5",
+              "md:p-2",
+              "hover:bg-background",
+              "border",
+              "border-transparent",
+              "hover:border-border",
+              "rounded-lg",
+              "text-muted-foreground",
+              "hover:text-foreground",
+              "transition-all",
+              "cursor-pointer",
+            )}
           >
-            <LuEllipsis className="w-4 h-4 md:w-5 md:h-5" />
+            <LuEllipsis className={cn("w-4", "h-4", "md:w-5", "md:h-5")} />
           </button>
 
           <AnimatePresence>
@@ -396,7 +690,7 @@ const AdminUserRow: React.FC<RowProps> = ({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-10"
+                  className={cn("fixed", "inset-0", "z-10")}
                   onClick={() => setShowMenu(false)}
                 />
                 <motion.div
@@ -404,7 +698,25 @@ const AdminUserRow: React.FC<RowProps> = ({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -10 }}
                   transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  className="absolute right-1 md:right-5 lg:right-8 top-10 md:top-12 w-44 md:w-48 lg:w-52 bg-background border border-border rounded-2xl shadow-2xl z-20 p-1.5 md:p-2"
+                  className={cn(
+                    "absolute",
+                    "right-1",
+                    "md:right-5",
+                    "lg:right-8",
+                    "top-10",
+                    "md:top-12",
+                    "w-44",
+                    "md:w-48",
+                    "lg:w-52",
+                    "bg-background",
+                    "border",
+                    "border-border",
+                    "rounded-2xl",
+                    "shadow-2xl",
+                    "z-20",
+                    "p-1.5",
+                    "md:p-2",
+                  )}
                 >
                   <MenuItem
                     icon={LuEye}
@@ -422,7 +734,7 @@ const AdminUserRow: React.FC<RowProps> = ({
                       setShowEditModal(true);
                     }}
                   />
-                  <div className="h-px bg-muted my-1" />
+                  <div className={cn("h-px", "bg-muted", "my-1")} />
                   <MenuItem
                     icon={LuShieldCheck}
                     label="Manage Role"
@@ -462,7 +774,7 @@ const AdminUserRow: React.FC<RowProps> = ({
                     }}
                     color="text-rose-500"
                   />
-                  <div className="h-px bg-muted my-1" />
+                  <div className={cn("h-px", "bg-muted", "my-1")} />
                   <MenuItem
                     icon={LuTrash2}
                     label="Delete"
@@ -530,8 +842,16 @@ const MenuItem: React.FC<{
       color,
     )}
   >
-    <Icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
-    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-tight">
+    <Icon className={cn("w-3.5", "h-3.5", "md:w-4", "md:h-4")} />
+    <span
+      className={cn(
+        "text-[9px]",
+        "md:text-[10px]",
+        "font-black",
+        "uppercase",
+        "tracking-tight",
+      )}
+    >
       {label}
     </span>
   </button>

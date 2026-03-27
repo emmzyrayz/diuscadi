@@ -454,7 +454,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       await handleResponse(res);
       setState((s) => ({
         ...s,
-        facultyMap: { ...s.facultyMap, [institutionId]: undefined as never },
+        facultyMap: { ...s.facultyMap, [institutionId]: undefined },
       }));
     },
     [],
@@ -527,7 +527,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       await handleResponse(res);
       setState((s) => ({
         ...s,
-        departmentMap: { ...s.departmentMap, [facultyId]: undefined as never },
+        departmentMap: { ...s.departmentMap, [facultyId]: undefined },
         facultyMap: {},
       }));
     },

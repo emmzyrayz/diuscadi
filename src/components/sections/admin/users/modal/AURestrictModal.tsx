@@ -15,7 +15,10 @@ import { useAdmin } from "@/context/AdminContext";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
 import type { AdminUser } from "@/context/AdminContext";
-import { resolveAdminFullName, resolveAdminInitial } from "@/utils/adminFullName";
+import {
+  resolveAdminFullName,
+  resolveAdminInitial,
+} from "@/utils/adminFullName";
 
 interface Props {
   isOpen: boolean;
@@ -57,17 +60,15 @@ export const AdminUserRestrictModal: React.FC<Props> = ({
           token,
         );
         toast.success(
-          `${resolveAdminFullName(user.fullName as never)} has been suspended`,
+          `${resolveAdminFullName(user.fullName)} has been suspended`,
         );
       } else if (activeAction === "ban") {
         await changeStatus(user.id, false, reason || "Banned by admin", token);
-        toast.success(
-          `${resolveAdminFullName(user.fullName as never)} has been banned`,
-        );
+        toast.success(`${resolveAdminFullName(user.fullName)} has been banned`);
       } else if (activeAction === "restore") {
         await changeStatus(user.id, true, undefined, token);
         toast.success(
-          `${resolveAdminFullName(user.fullName as never)}'s account has been restored`,
+          `${resolveAdminFullName(user.fullName)}'s account has been restored`,
         );
       } else if (activeAction === "role") {
         await changeRole(user.id, newRole, token);
@@ -169,11 +170,11 @@ export const AdminUserRestrictModal: React.FC<Props> = ({
                     "text-sm",
                   )}
                 >
-                  {resolveAdminInitial(user.fullName as never)}
+                  {resolveAdminInitial(user.fullName)}
                 </div>
                 <div>
                   <p className={cn("text-sm", "font-black", "text-foreground")}>
-                    {resolveAdminFullName(user.fullName as never)}
+                    {resolveAdminFullName(user.fullName)}
                   </p>
                   <p
                     className={cn(

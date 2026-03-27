@@ -26,6 +26,7 @@ import {
   resolveAdminInitial,
 } from "@/utils/adminFullName";
 import { IconType } from "react-icons";
+import Image from "next/image";
 
 type TabType = "info" | "tickets" | "events" | "activity";
 
@@ -174,15 +175,15 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                       )}
                     >
                       {avatarSrc ? (
-                        <img
+                        <Image
+                        height={300}
+                          width={500}
                           src={avatarSrc}
-                          alt={resolveAdminFullName(user.fullName as never)}
-                          className="w-full h-full object-cover"
+                          alt={resolveAdminFullName(user.fullName)}
+                          className={cn("w-full", "h-full", "object-cover")}
                         />
                       ) : (
-                        <span>
-                          {resolveAdminInitial(user.fullName as never)}
-                        </span>
+                        <span>{resolveAdminInitial(user.fullName)}</span>
                       )}
                     </div>
                     {user.isEmailVerified && (
@@ -213,7 +214,7 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                         "tracking-tight",
                       )}
                     >
-                      {resolveAdminFullName(user.fullName as never)}
+                      {resolveAdminFullName(user.fullName)}
                     </h2>
                     <div
                       className={cn(

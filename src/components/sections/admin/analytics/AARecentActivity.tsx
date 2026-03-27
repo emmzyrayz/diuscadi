@@ -157,7 +157,7 @@ export const AdminAnalyticsRecentActivitySection = ({ analytics }: Props) => {
                         "tracking-tight",
                       )}
                     >
-                      {resolveAdminFullName(user.fullName as never)}
+                      {resolveAdminFullName(user.fullName)}
                     </span>
                     <p
                       className={cn(
