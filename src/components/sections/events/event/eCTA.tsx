@@ -3,7 +3,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { LuTicket, LuArrowRight } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import type { EventDetail } from "@/app/events/[eventId]/page";
+import type { EventDetail } from "@/app/events/[slug]/page";
 
 export const FinalCTA = ({ event }: { event: EventDetail }) => {
   const isSoldOut = event.slotsRemaining === 0;

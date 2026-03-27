@@ -13,7 +13,7 @@ import Image from "next/image";
 import type {
   RegisterEventData,
   RegisterUserData,
-} from "@/app/events/[eventId]/register/page";
+} from "@/app/events/[slug]/register/page";
 
 interface TicketPreviewProps {
   user: RegisterUserData;

@@ -5,7 +5,7 @@ import { LuCalendar, LuMapPin, LuArrowRight } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import type { RelatedEventItem } from "@/app/events/[eventId]/page";
+import type { RelatedEventItem } from "@/app/events/[slug]/page";
 
 interface RelatedEventsProps {
   events: RelatedEventItem[];

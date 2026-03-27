@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import type { RegisterUserData } from "@/app/events/[eventId]/register/page";
+import type { RegisterUserData } from "@/app/events/[slug]/register/page";
 
 export const TicketUserVerificationCard = ({
   user,

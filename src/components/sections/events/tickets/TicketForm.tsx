@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import type {
   RegisterEventData,
   RegisterUserData,
-} from "@/app/events/[eventId]/register/page";
+} from "@/app/events/[slug]/register/page";
 
 interface TicketFormProps {
   user: RegisterUserData;

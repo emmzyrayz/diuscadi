@@ -20,7 +20,7 @@ import { TicketHelpSection } from "./TicketHelp";
 import type {
   RegisterEventData,
   RegisterUserData,
-} from "@/app/events/[eventId]/register/page";
+} from "@/app/events/[slug]/register/page";
 
 interface Props {
   event: RegisterEventData;

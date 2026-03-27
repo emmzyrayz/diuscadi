@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { LuTicket, LuClock } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import type { EventDetail } from "@/app/events/[eventId]/page";
+import type { EventDetail } from "@/app/events/[slug]/page";
 
 function useCountdown(deadline: string) {
   const target = new Date(deadline).getTime();

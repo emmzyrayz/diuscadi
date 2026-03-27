@@ -12,7 +12,7 @@ import {
   LuCalendar,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import type { EventDetail } from "@/app/events/[eventId]/page";
+import type { EventDetail } from "@/app/events/[slug]/page";
 
 const EDU_LABEL: Record<string, string> = {
   STUDENT: "Students",

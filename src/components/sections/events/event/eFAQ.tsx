@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LuCircleHelp, LuChevronDown } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import type { EventDetail } from "@/app/events/[eventId]/page";
+import type { EventDetail } from "@/app/events/[slug]/page";
 import type { EventFAQ } from "@/lib/models/Events";
 
 // Platform-level defaults shown when the event has no per-event FAQs.

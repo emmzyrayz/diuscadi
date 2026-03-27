@@ -11,14 +11,14 @@ import {
   LuNetwork,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import type { EventDetail } from "@/app/events/[eventId]/page";
+import type { EventDetail } from "@/app/events/[slug]/page";
 
 const TYPE_ICON: Record<string, React.ReactNode> = {
-  session: <LuCalendarClock className={cn('w-4', 'h-4')} />,
-  break: <LuCoffee className={cn('w-4', 'h-4')} />,
-  workshop: <LuWrench className={cn('w-4', 'h-4')} />,
-  keynote: <LuMic className={cn('w-4', 'h-4')} />,
-  networking: <LuNetwork className={cn('w-4', 'h-4')} />,
+  session: <LuCalendarClock className={cn("w-4", "h-4")} />,
+  break: <LuCoffee className={cn("w-4", "h-4")} />,
+  workshop: <LuWrench className={cn("w-4", "h-4")} />,
+  keynote: <LuMic className={cn("w-4", "h-4")} />,
+  networking: <LuNetwork className={cn("w-4", "h-4")} />,
 };
 
 const TYPE_COLOR: Record<string, string> = {
@@ -273,11 +273,11 @@ export const EventSchedule = ({ event }: { event: EventDetail }) => {
                 )}
               >
                 {TYPE_ICON[item.type] ?? (
-                  <LuCalendarClock className={cn('w-4', 'h-4')} />
+                  <LuCalendarClock className={cn("w-4", "h-4")} />
                 )}
               </div>
 
-              <div className={cn('flex-1', 'min-w-0')}>
+              <div className={cn("flex-1", "min-w-0")}>
                 <div className={cn("flex", "items-center", "gap-3", "mb-1")}>
                   <span
                     className={cn(

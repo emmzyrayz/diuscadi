@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { LuBuilding2 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import type { EventDetail } from "@/app/events/[eventId]/page";
+import type { EventDetail } from "@/app/events/[slug]/page";
 
 const TIER_ORDER = ["gold", "silver", "bronze", "partner"];
 

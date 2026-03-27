@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { LuMic, LuLock, LuExternalLink } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import type { EventDetail } from "@/app/events/[eventId]/page";
+import type { EventDetail } from "@/app/events/[slug]/page";
 
 export const SpeakersSection = ({ event }: { event: EventDetail }) => {
   const hasSpeakers = event.speakers.length > 0;
@@ -178,7 +178,7 @@ export const SpeakersSection = ({ event }: { event: EventDetail }) => {
                     alt={speaker.name}
                     width={80}
                     height={80}
-                    className={cn('w-full', 'h-full', 'object-cover')}
+                    className={cn("w-full", "h-full", "object-cover")}
                   />
                 ) : (
                   <div
@@ -196,7 +196,7 @@ export const SpeakersSection = ({ event }: { event: EventDetail }) => {
                   </div>
                 )}
               </div>
-              <div className={cn('text-center', 'space-y-1')}>
+              <div className={cn("text-center", "space-y-1")}>
                 <p className={cn("text-sm", "font-black", "text-foreground")}>
                   {speaker.name}
                 </p>
@@ -234,7 +234,7 @@ export const SpeakersSection = ({ event }: { event: EventDetail }) => {
                       "transition-colors",
                     )}
                   >
-                    Profile <LuExternalLink className={cn('w-2.5', 'h-2.5')} />
+                    Profile <LuExternalLink className={cn("w-2.5", "h-2.5")} />
                   </a>
                 )}
               </div>

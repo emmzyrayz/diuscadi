@@ -5,7 +5,7 @@ import { LuCalendar, LuMapPin, LuClock, LuTag } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import type { RegisterEventData } from "@/app/events/[eventId]/register/page";
+import type { RegisterEventData } from "@/app/events/[slug]/register/page";
 
 const FORMAT_LABEL: Record<string, string> = {
   physical: "In-Person",

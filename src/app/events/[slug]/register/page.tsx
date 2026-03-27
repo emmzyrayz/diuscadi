@@ -1,4 +1,4 @@
-// app/events/[eventId]/register/page.tsx — Server Component
+// app/events/[slug]/register/page.tsx — Server Component
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { notFound } from "next/navigation";
