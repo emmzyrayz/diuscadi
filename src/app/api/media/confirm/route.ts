@@ -92,6 +92,22 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       etag,
     } = body;
 
+    // Add this right after: const { uploadType, ownerId, ... etag } = body;
+    console.log("[confirm] received body keys:", Object.keys(body));
+    console.log("[confirm] missing fields check:", {
+      asset_id: !!asset_id,
+      public_id: !!public_id,
+      secure_url: !!secure_url,
+      signature: !!signature,
+      timestamp: !!timestamp,
+      format: !!format,
+      bytes: !!bytes,
+      width: !!width,
+      height: !!height,
+      created_at: !!created_at,
+      etag: !!etag,
+    });
+
     // ── Validate uploadType ───────────────────────────────────────────────────
     if (!isValidUploadType(uploadType)) {
       return NextResponse.json(
@@ -119,6 +135,11 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         { status: 400 },
       );
     }
+
+    // Optional — provide fallbacks so confirm never 400s on these
+    const safeSignature = signature ?? "";
+    const safeTimestamp = timestamp ?? Math.floor(Date.now() / 1000);
+    const safeEtag = etag ?? "";
 
     // Basic URL sanity check
     try {

@@ -230,7 +230,7 @@ export default async function EventDetailPage({
   const { detail, related } = result;
 
   return (
-    <main className={cn("min-h-screen", "w-full", "bg-background")}>
+    <main className={cn("min-h-screen", "w-full mt-[120px]", "bg-background")}>
       <EventHero event={detail} />
       <EventMetaBar event={detail} />
       <div className="space-y-0">

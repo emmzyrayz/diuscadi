@@ -103,8 +103,8 @@ const TRANSFORM_PRESETS: Record<UploadType, UploadPreset> = {
 // Pattern: {folder}/{ownerId}_{timestamp}
 
 function buildPublicId(type: UploadType, ownerId: string): string {
-  const { folder } = TRANSFORM_PRESETS[type];
-  return `${folder}/${ownerId}_${Date.now()}`;
+  // Don't include the folder — Cloudinary prepends it from the `folder` param
+  return `${ownerId}_${Date.now()}`;
 }
 
 // ─── Signature ────────────────────────────────────────────────────────────────

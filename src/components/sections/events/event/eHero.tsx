@@ -48,7 +48,7 @@ export const EventHero = ({ event }: { event: EventDetail }) => {
         "w-full",
         "min-h-[70vh]",
         "overflow-hidden",
-        "bg-slate-950",
+        "bg-slate-950 rounded-4xl mb-5",
       )}
     >
       {/* Background image */}
