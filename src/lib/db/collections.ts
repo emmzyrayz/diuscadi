@@ -17,6 +17,7 @@ import type {
   CommitteeDocument,
   SkillDocument,
   CommitteeRoleDocument,
+  PlatformConfigDocument,
 } from "@/lib/models/platformConfig";
 
 export const Collections = {
@@ -45,4 +46,7 @@ export const Collections = {
   skills: (db: Db) => db.collection<SkillDocument>("skills"),
   committeeRoles: (db: Db) =>
     db.collection<CommitteeRoleDocument>("committeeRoles"),
+  // ── NEW ───────────────────────────────────────────────────────────────────
+  platformConfig: (db: Db) =>
+    db.collection<PlatformConfigDocument>("platformConfig"),
 };

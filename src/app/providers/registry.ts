@@ -10,6 +10,7 @@ import { HealthProvider } from "@/context/HealthContext";
 import { AuthenticatedProviders } from "./AuthenticatedProviders";
 import { ProviderConfig } from "./types";
 import { DocProvider } from "@/context/DocContext";
+import { DebugProvider } from "@/context/DebugContext";
 
 /**
  * Provider Registry
@@ -32,6 +33,11 @@ export const providerRegistry: ProviderConfig[] = [
   {
     id: "auth",
     provider: { component: AuthProvider },
+    enabled: true,
+  },
+  {
+    id: "debug",
+    provider: { component: DebugProvider },
     enabled: true,
   },
   {

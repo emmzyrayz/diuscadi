@@ -181,7 +181,7 @@ export const GET = withAuth(
         },
       });
     } catch (err) {
-      console.error("[GET /api/events/[eventId]]", err);
+      console.error("[GET /api/events/[slug]]", err);
       return NextResponse.json(
         { error: "Internal server error" },
         { status: 500 },

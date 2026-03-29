@@ -202,7 +202,7 @@ export default function ProfilePage() {
                     Close
                   </button>
                 </div>
-                <div className={cn("flex", "justify-center")}>
+                <div className={cn("flex w-full h-full", "justify-center")}>
                   <ImageUploader
                     uploadType="avatar"
                     currentUrl={profile.avatar?.imageUrl ?? null}

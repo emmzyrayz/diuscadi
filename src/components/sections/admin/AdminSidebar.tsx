@@ -13,6 +13,7 @@ import {
   LuGlobe,
   LuMailOpen,
   LuClipboardList,
+  LuHeartPulse,
 } from "react-icons/lu";
 import { cn } from "../../../lib/utils";
 
@@ -44,6 +45,7 @@ const NAV_ITEMS = [
     icon: LuChartBar,
     path: "/admin/analytics",
   },
+  { id: "health", label: "Health", icon: LuHeartPulse, path: "/admin/health" },
   {
     id: "settings",
     label: "Console Config",

@@ -4,6 +4,10 @@
 // All three collections are webmaster-managed and publicly readable.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Key-value store for all platform-wide feature flags and config values.
+// One document per key. Read by GET /api/platform/config (public).
+// Written by PATCH /api/admin/settings (admin/webmaster only).
+
 import { ObjectId } from "mongodb";
 
 // ─── Committee ────────────────────────────────────────────────────────────────
@@ -110,3 +114,54 @@ export interface CommitteeRoleDocument {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export type PlatformConfigKey =
+  // ── Access control ─────────────────────────────────────────────────────
+  | "inviteMode" // "open" | "lockdown" | "referral"
+  | "registrationOpen" // boolean
+  | "eventsOpen" // boolean
+  | "applicationsOpen" // boolean
+  | "maintenanceMode" // boolean
+
+  // ── Registration fees + referral ───────────────────────────────────────
+  | "registrationFee" // number (NGN)
+  | "referralDiscountPercent" // number (0–100)
+  | "referralBonusPoints" // number
+
+  // ── UI toggles ─────────────────────────────────────────────────────────
+  | "showBanners" // boolean
+  | "showGallery" // boolean
+
+  // ── Debug mode ─────────────────────────────────────────────────────────
+  | "debugMode" // boolean
+  | "debugTargets"; // string[] — userIds or ["all"]
+
+export type PlatformConfigValue = string | number | boolean | string[] | null;
+
+export interface PlatformConfigDocument {
+  _id?: ObjectId;
+  key: PlatformConfigKey;
+  value: PlatformConfigValue;
+  updatedAt: Date;
+  updatedBy: ObjectId; // → Vault._id
+}
+
+// Default values — used when seeding or when a key is missing
+export const PLATFORM_CONFIG_DEFAULTS: Record<
+  PlatformConfigKey,
+  PlatformConfigValue
+> = {
+  inviteMode: "open",
+  registrationOpen: true,
+  eventsOpen: true,
+  applicationsOpen: true,
+  maintenanceMode: false,
+  registrationFee: 0,
+  referralDiscountPercent: 10,
+  referralBonusPoints: 50,
+  showBanners: true,
+  showGallery: true,
+  debugMode: false,
+  debugTargets: [],
+};
+ 

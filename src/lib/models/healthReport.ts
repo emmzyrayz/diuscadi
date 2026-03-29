@@ -1,42 +1,43 @@
-// lib/models/HealthReport.ts
-// Real User Monitoring (RUM) data collected from client browsers.
-// Posted by the client after page load via POST /api/health/report.
+// lib/models/HealthReport.ts — extended with debug report fields
+// Add these fields to the existing HealthReportDocument interface:
+
+// ── Debug report (user-triggered via BugReportButton) ────────────────────────
+// triggeredByUser?: boolean;   // true = user clicked the bug report button
+// screenshot?:      string;    // base64 PNG or Cloudinary URL
+// consoleLog?:      string[];  // last 50 intercepted console messages
+// debugDuration?:   number;    // ms of monitoring window (5000–10000)
+// networkLog?:      Array<{    // fetch/XHR calls captured during debug window
+//   url:    string;
+//   method: string;
+//   status: number | null;
+//   ms:     number;
+// }>;
+
+// Full updated interface — paste over existing:
 
 import { ObjectId } from "mongodb";
 
 export interface HealthReportDocument {
   _id?: ObjectId;
+  userId?: ObjectId;
+  sessionId?: string;
 
-  // Who reported (optional — null for public pages)
-  userId?: ObjectId; // → UserData._id
-  sessionId?: string; // JWT sessionId for cross-referencing
-
-  // Page context
-  page: string; // e.g. "/home", "/events/summit-2026"
+  page: string;
   referrer?: string;
 
-  // ── Performance timings (all in milliseconds) ─────────────────────────────
-  ttfb?: number; // Time to First Byte
-  fcp?: number; // First Contentful Paint
-  lcp?: number; // Largest Contentful Paint
-  domContentLoaded?: number; // DOMContentLoaded event
-  windowOnLoad?: number; // window.onload event
+  ttfb?: number;
+  fcp?: number;
+  lcp?: number;
+  domContentLoaded?: number;
+  windowOnLoad?: number;
 
-  // ── Browser + environment ─────────────────────────────────────────────────
-  browser: {
-    name: string; // "Chrome" | "Firefox" | "Safari" | "Edge" | ...
-    version: string; // "132.0.0"
-  };
-  os: {
-    name: string; // "Windows" | "Android" | "iOS" | "macOS" | ...
-    version: string;
-  };
+  browser: { name: string; version: string };
+  os: { name: string; version: string };
   device: "mobile" | "tablet" | "desktop";
   screenWidth: number;
   screenHeight: number;
-  networkType?: string; // "4g" | "3g" | "wifi" | "unknown"
+  networkType?: string;
 
-  // ── Errors ────────────────────────────────────────────────────────────────
   jsErrors: Array<{
     message: string;
     source?: string;
@@ -44,7 +45,18 @@ export interface HealthReportDocument {
     col?: number;
   }>;
 
-  // ── Meta ──────────────────────────────────────────────────────────────────
+  // ── Debug-mode fields (only present when triggeredByUser: true) ───────────
+  triggeredByUser?: boolean;
+  screenshot?: string; // Cloudinary URL after upload, or base64 fallback
+  consoleLog?: string[]; // last N console.log/warn/error messages
+  networkLog?: Array<{
+    url: string;
+    method: string;
+    status: number | null;
+    ms: number;
+  }>;
+  debugDuration?: number; // how long the debug window ran in ms
+
   ip?: string;
   userAgent: string;
   reportedAt: Date;

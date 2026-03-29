@@ -52,7 +52,7 @@ export default function NotFound() {
   }, []);
 
   return (
-    <div className="min-h-screen w-full bg-slate-950 flex items-center justify-center p-4 overflow-hidden relative font-sans">
+    <div className="min-h-screen min-w-screen bg-slate-950 flex items-center justify-center p-4 overflow-hidden relative font-sans">
       {/* Animated background grid */}
       <div className="absolute inset-0 opacity-10">
         <div
