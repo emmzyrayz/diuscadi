@@ -47,7 +47,7 @@ export default function RootLayout({
         <ProvidersWrapper>
           <RouteGuard>
             <LayoutWrapper navbar={<Navbar />} footer={<Footer />}>
-              {children}
+                {children}
             </LayoutWrapper>
           </RouteGuard>
         </ProvidersWrapper>

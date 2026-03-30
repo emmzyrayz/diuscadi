@@ -1,7 +1,6 @@
 // POST /api/events/check-in
-// Auth required. Role-gated: admin | moderator | committee members only.
+// Auth required. Role-gated: admin | moderator | webmaster.
 // Body: { inviteCode }
-// Marks the registration as checked-in and records the timestamp.
 
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
@@ -11,6 +10,9 @@ import { ObjectId } from "mongodb";
 import type { AccountRole } from "@/types/domain";
 
 const ALLOWED_ROLES: AccountRole[] = ["admin", "moderator", "webmaster"];
+
+// How many hours before event start to open check-in
+const CHECK_IN_OPENS_HOURS_BEFORE = 2;
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   try {
@@ -46,12 +48,14 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         { status: 404 },
       );
     }
+
     if (registration.status === "cancelled") {
       return NextResponse.json(
         { error: "This registration has been cancelled" },
         { status: 400 },
       );
     }
+
     if (registration.status === "checked-in") {
       return NextResponse.json(
         { error: "Attendee is already checked in" },
@@ -59,7 +63,6 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
-    // Confirm event day has arrived
     const event = await Collections.events(db).findOne({
       _id: registration.eventId,
     });
@@ -67,21 +70,49 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    const eventDay = new Date(event.eventDate);
-    const todayStart = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    );
-    const eventStart = new Date(
-      eventDay.getFullYear(),
-      eventDay.getMonth(),
-      eventDay.getDate(),
+    // Check-in opens CHECK_IN_OPENS_HOURS_BEFORE hours before the event
+    // and closes when the event ends (or same day if no endDate)
+    const eventStart = new Date(event.eventDate);
+    const checkInOpensAt = new Date(
+      eventStart.getTime() - CHECK_IN_OPENS_HOURS_BEFORE * 60 * 60 * 1000,
     );
 
-    if (eventStart > todayStart) {
+    const eventEnd = event.endDate
+      ? new Date(event.endDate)
+      : new Date(
+          eventStart.getFullYear(),
+          eventStart.getMonth(),
+          eventStart.getDate(),
+          23,
+          59,
+          59,
+        );
+
+    // Temporary debug — remove after confirming
+    console.log("[check-in] now:", now.toISOString());
+    console.log("[check-in] checkInOpensAt:", checkInOpensAt.toISOString());
+    console.log("[check-in] eventEnd:", eventEnd.toISOString());
+    console.log("[check-in] registration status:", registration.status);
+
+    if (now < checkInOpensAt) {
+      const minutesUntilOpen = Math.round(
+        (checkInOpensAt.getTime() - now.getTime()) / 60000,
+      );
+      const hoursUntilOpen = Math.round(minutesUntilOpen / 60);
       return NextResponse.json(
-        { error: "Check-in is not yet open. Event has not started." },
+        {
+          error:
+            minutesUntilOpen < 60
+              ? `Check-in opens in ${minutesUntilOpen} minute${minutesUntilOpen !== 1 ? "s" : ""}`
+              : `Check-in opens in ${hoursUntilOpen} hour${hoursUntilOpen !== 1 ? "s" : ""}`,
+        },
+        { status: 400 },
+      );
+    }
+
+    if (now > eventEnd) {
+      return NextResponse.json(
+        { error: "This event has already ended" },
         { status: 400 },
       );
     }
@@ -91,24 +122,38 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       { $set: { status: "checked-in", checkedInAt: now, updatedAt: now } },
     );
 
-    // Increment eventsAttended
     await Collections.userData(db).updateOne(
       { _id: registration.userId },
       { $inc: { "analytics.eventsAttended": 1 }, $set: { updatedAt: now } },
     );
 
-    // Return attendee info for the check-in screen
     const attendee = await Collections.userData(db).findOne(
       { _id: registration.userId },
-      { projection: { fullName: 1, email: 1, avatar: 1, membershipStatus: 1 } },
+      {
+        projection: {
+          fullName: 1,
+          email: 1,
+          "avatar.imageUrl": 1, // ← was just `avatar: 1`
+          membershipStatus: 1,
+        },
+      },
     );
+
+    const fullName = attendee?.fullName;
+    const name =
+      typeof fullName === "string"
+        ? fullName
+        : fullName
+          ? [fullName.firstname, fullName.lastname].filter(Boolean).join(" ")
+          : "Unknown";
 
     return NextResponse.json({
       message: "Check-in successful",
       attendee: {
-        name: attendee?.fullName ?? "Unknown",
+        name,
         email: attendee?.email ?? "",
-        avatar: attendee?.avatar ?? null,
+        avatar:
+          (attendee?.avatar as { imageUrl?: string } | null)?.imageUrl ?? null,
         membershipStatus: attendee?.membershipStatus ?? "pending",
       },
       registration: {

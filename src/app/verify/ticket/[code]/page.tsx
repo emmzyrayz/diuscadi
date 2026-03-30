@@ -115,6 +115,7 @@ export default function VerifyTicketPage() {
 
   const { token, isAuthenticated, sessionStatus } = useAuth();
   const { checkIn, checkInLoading } = useTickets();
+  const [checkInError, setCheckInError] = useState<string | null>(null);
 
   const [ticket, setTicket] = useState<VerifyTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,10 +157,79 @@ export default function VerifyTicketPage() {
       toast.success("Check-in successful");
       await fetchTicket();
     } else {
-      toast.error(result.error ?? "Check-in failed");
+      // Show modal for time-window errors, toast for everything else
+      setCheckInError(result.error ?? "Check-in failed");
     }
     setChecking(false);
   };
+
+  {
+    /* ── Check-in error modal ── */
+  }
+  <AnimatePresence>
+    {checkInError && (
+      <>
+        {/* Backdrop */}
+        <motion.div
+          key="checkin-error-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setCheckInError(null)}
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
+        />
+
+        {/* Modal */}
+        <motion.div
+          key="checkin-error-modal"
+          initial={{ opacity: 0, scale: 0.9, y: 24 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 24 }}
+          transition={{ type: "spring" as const, stiffness: 300, damping: 26 }}
+          className="fixed inset-x-4 bottom-8 z-50 mx-auto max-w-sm"
+        >
+          <div className="bg-background border-2 border-border rounded-[2rem] p-6 shadow-2xl space-y-4">
+            {/* Icon */}
+            <div className="flex items-center gap-4">
+              <div
+                className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+                  checkInError.toLowerCase().includes("ended")
+                    ? "bg-rose-50 border border-rose-100"
+                    : "bg-amber-50 border border-amber-100",
+                )}
+              >
+                <LuTriangleAlert
+                  className={cn(
+                    "w-6 h-6",
+                    checkInError.toLowerCase().includes("ended")
+                      ? "text-rose-500"
+                      : "text-amber-500",
+                  )}
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                  Check-in Unavailable
+                </p>
+                <p className="text-sm font-black text-foreground tracking-tight mt-0.5">
+                  {checkInError}
+                </p>
+              </div>
+            </div>
+
+            {/* Dismiss */}
+            <button
+              onClick={() => setCheckInError(null)}
+              className="w-full py-3 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity cursor-pointer"
+            >
+              Got it
+            </button>
+          </div>
+        </motion.div>
+      </>
+    )}
+  </AnimatePresence>;
 
   // ── Loading ──────────────────────────────────────────────────────────────
   // Fix 1 applied: sessionStatus === "pending" instead of "loading"
@@ -168,7 +238,7 @@ export default function VerifyTicketPage() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className={cn('min-h-screen', 'flex', 'items-center', 'justify-center', 'bg-background')}
+        className={cn('min-h-screen w-full', 'flex', 'items-center', 'justify-center', 'bg-background')}
       >
         <div className={cn('flex', 'flex-col', 'items-center', 'gap-4')}>
           <motion.div
@@ -197,7 +267,7 @@ export default function VerifyTicketPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 260, damping: 22 }}
-        className={cn('min-h-screen', 'flex', 'items-center', 'justify-center', 'bg-background', 'p-6')}
+        className={cn('min-h-screen w-full', 'flex', 'items-center', 'justify-center', 'bg-background', 'p-6')}
       >
         <div className={cn('w-full', 'max-w-sm', 'text-center', 'space-y-6')}>
           <motion.div
@@ -278,7 +348,7 @@ export default function VerifyTicketPage() {
   const statusCfg = STATUS_CONFIG[ticket.status];
 
   return (
-    <div className={cn('min-h-screen', 'bg-muted', 'flex', 'flex-col', 'items-center', 'justify-start', 'py-8', 'px-4')}>
+    <div className={cn('min-h-screen w-full mt-[90px]', 'bg-muted', 'flex', 'flex-col', 'items-center', 'justify-start', 'py-8', 'px-4')}>
       {/* Back button */}
       <motion.div
         initial={{ opacity: 0, x: -16 }}
@@ -446,6 +516,7 @@ export default function VerifyTicketPage() {
               src={ticket.event.image}
               alt={ticket.event.title}
               fill
+              priority
               className="object-cover"
             />
             <div className={cn('absolute', 'inset-0', 'bg-gradient-to-t', 'from-background/80', 'to-transparent')} />

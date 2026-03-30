@@ -36,13 +36,13 @@ export const providerRegistry: ProviderConfig[] = [
     enabled: true,
   },
   {
-    id: "debug",
-    provider: { component: DebugProvider },
+    id: "platform",
+    provider: { component: PlatformProvider },
     enabled: true,
   },
   {
-    id: "platform",
-    provider: { component: PlatformProvider },
+    id: "debug",
+    provider: { component: DebugProvider },
     enabled: true,
   },
   {
