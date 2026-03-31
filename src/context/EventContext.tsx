@@ -14,6 +14,8 @@ import React, {
 } from "react";
 import { useAuth } from "@/context/AuthContext";
 
+const IS_DEV = process.env.NODE_ENV === "development";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface TicketTypeSummary {
@@ -117,6 +119,34 @@ interface EventContextType {
   clearErrors: () => void;
 }
 
+
+// const DUMMY_EVENTS: EventSummary[] = [
+//   {
+//     id: "dummy-1",
+//     slug: "career-navigation-2026",
+//     title: "[DEMO] Career Navigation Summit",
+//     overview: "Practical roadmap for graduates.",
+//     category: "Career",
+//     tags: ["Future", "Jobs"],
+//     level: "Beginner",
+//     format: "In-Person",
+//     location: { venue: "Main Auditorium" },
+//     eventDate: new Date().toISOString(),
+//     endDate: null,
+//     registrationDeadline: new Date().toISOString(),
+//     capacity: 100,
+//     registeredCount: 50,
+//     slotsRemaining: 50,
+//     image: "/assets/img/downloads/networking-diuscadi.webp", // Ensure path is correct
+//     instructor: "Dr. Umeh",
+//     targetEduStatus: "Final Year",
+//     requiredSkills: ["None"],
+//     locationScope: "Internal",
+//     ticketTypes: [],
+//     duration: null
+//   },
+// ];
+
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 const EventContext = createContext<EventContextType | undefined>(undefined);
@@ -199,12 +229,13 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
       if (category) params.set("category", category);
       const res = await fetch(`/api/events/public?${params.toString()}`);
       const data = await res.json();
+
       if (!res.ok) throw new Error(data.error ?? "Failed to load events");
-      setPublicEvents(data.events);
+
+      // LOGIC: Fallback handling
+        setPublicEvents(data.events);
     } catch (err) {
-      setPublicEventsError(
-        err instanceof Error ? err.message : "Failed to load events",
-      );
+      setPublicEventsError(err instanceof Error ? err.message : "Failed to load events");
     } finally {
       setPublicEventsLoading(false);
     }

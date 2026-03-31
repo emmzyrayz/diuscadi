@@ -227,7 +227,7 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
         )}
       >
         <button
-          onClick={() => router.push(`/home/tickets/${ticket.id}`)}
+          onClick={() => router.push(`/tickets/${ticket.id}`)}
           className={cn(
             "w-full",
             "py-3",

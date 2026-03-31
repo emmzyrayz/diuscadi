@@ -31,9 +31,9 @@ export default function Footer() {
   const quickLinks = isAuthenticated
     ? [
         { name: "Home", href: "/home" },
-        { name: "Events", href: "/home/events" },
-        { name: "My Tickets", href: "/home/tickets" },
-        { name: "Profile", href: "/home/profile" },
+        { name: "Events", href: "/events" },
+        { name: "My Tickets", href: "/tickets" },
+        { name: "Profile", href: "/profile" },
         ...(role === "admin" || role === "webmaster" || role === "moderator"
           ? [{ name: "Admin Console", href: "/admin" }]
           : []),

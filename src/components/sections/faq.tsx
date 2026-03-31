@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus, HelpCircle, Mail, Phone } from "lucide-react";
+import { cn } from "../../lib/utils";
 
 const FAQ_DATA = [
   {
@@ -45,41 +46,41 @@ export const FAQSection = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section id="faqs" className="py-24 bg-background">
-      <div className="container mx-auto px-6">
-        <div className="flex flex-col lg:flex-row gap-16">
+    <section id="faqs" className={cn('w-full', 'py-24', 'bg-background')}>
+      <div className={cn('container', 'mx-auto', 'px-6')}>
+        <div className={cn('flex', 'flex-col', 'lg:flex-row', 'gap-16')}>
           {/* Left Side: Header */}
           <div className="lg:w-1/3">
-            <div className="lg:sticky lg:top-32">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/10 text-secondary text-sm font-bold mb-6">
-                <HelpCircle className="w-4 h-4" />
+            <div className={cn('lg:sticky', 'lg:top-32')}>
+              <div className={cn('inline-flex', 'items-center', 'gap-2', 'px-4', 'py-2', 'rounded-full', 'bg-secondary/10', 'text-secondary', 'text-sm', 'font-bold', 'mb-6')}>
+                <HelpCircle className={cn('w-4', 'h-4')} />
                 <span>Support Center</span>
               </div>
-              <h2 className="text-4xl md:text-5xl font-black text-foreground mb-6 tracking-tight">
+              <h2 className={cn('text-4xl', 'md:text-5xl', 'font-black', 'text-foreground', 'mb-6', 'tracking-tight')}>
                 Frequently Asked Questions
               </h2>
-              <p className="text-lg text-slate-600 mb-8 leading-relaxed">
+              <p className={cn('text-lg', 'text-slate-600', 'mb-8', 'leading-relaxed')}>
                 Everything you need to know about the seminar. Can&apos;t find
                 the answer you&apos;re looking for? Reach out to our team.
               </p>
 
               {/* Quick Contact Card */}
-              <div className="p-6 bg-muted rounded-3xl border border-border">
-                <p className="font-bold text-foreground mb-4">
+              <div className={cn('p-6', 'bg-muted', 'rounded-3xl', 'border', 'border-border')}>
+                <p className={cn('font-bold', 'text-foreground', 'mb-4')}>
                   Still have questions?
                 </p>
                 <div className="space-y-3">
                   <a
                     href="mailto:info@diuscadi.org.ng"
-                    className="flex items-center gap-3 text-sm text-slate-600 hover:text-primary transition-colors"
+                    className={cn('flex', 'items-center', 'gap-3', 'text-sm', 'text-slate-600', 'hover:text-primary', 'transition-colors')}
                   >
-                    <Mail className="w-4 h-4" /> info@diuscadi.org.ng
+                    <Mail className={cn('w-4', 'h-4')} /> info@diuscadi.org.ng
                   </a>
                   <a
                     href="tel:+2348035906416"
-                    className="flex items-center gap-3 text-sm text-slate-600 hover:text-primary transition-colors"
+                    className={cn('flex', 'items-center', 'gap-3', 'text-sm', 'text-slate-600', 'hover:text-primary', 'transition-colors')}
                   >
-                    <Phone className="w-4 h-4" /> +234 803 590 6416
+                    <Phone className={cn('w-4', 'h-4')} /> +234 803 590 6416
                   </a>
                 </div>
               </div>
@@ -87,7 +88,7 @@ export const FAQSection = () => {
           </div>
 
           {/* Right Side: Accordion */}
-          <div className="lg:w-2/3 space-y-4">
+          <div className={cn('lg:w-2/3', 'space-y-4')}>
             {FAQ_DATA.map((item, index) => (
               <div
                 key={index}
@@ -101,7 +102,7 @@ export const FAQSection = () => {
                   onClick={() =>
                     setOpenIndex(openIndex === index ? null : index)
                   }
-                  className="w-full flex items-center justify-between p-6 md:p-8 text-left"
+                  className={cn('w-full', 'flex', 'items-center', 'justify-between', 'p-6', 'md:p-8', 'text-left')}
                 >
                   <span
                     className={`text-lg md:text-xl font-bold transition-colors ${
@@ -118,9 +119,9 @@ export const FAQSection = () => {
                     }`}
                   >
                     {openIndex === index ? (
-                      <Minus className="w-5 h-5" />
+                      <Minus className={cn('w-5', 'h-5')} />
                     ) : (
-                      <Plus className="w-5 h-5" />
+                      <Plus className={cn('w-5', 'h-5')} />
                     )}
                   </div>
                 </button>
@@ -134,7 +135,7 @@ export const FAQSection = () => {
                       transition={{ duration: 0.3, ease: "easeInOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="px-6 md:px-8 pb-8 text-slate-600 leading-relaxed text-lg border-t border-border pt-4 mt-2">
+                      <div className={cn('px-6', 'md:px-8', 'pb-8', 'text-slate-600', 'leading-relaxed', 'text-lg', 'border-t', 'border-border', 'pt-4', 'mt-2')}>
                         {item.answer}
                       </div>
                     </motion.div>

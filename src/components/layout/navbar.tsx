@@ -33,9 +33,9 @@ const PUBLIC_LINKS = [
 
 const MEMBER_LINKS = [
   { name: "Home", href: "/home" },
-  { name: "Events", href: "/home/events" },
-  { name: "Tickets", href: "/home/tickets" },
-  { name: "Profile", href: "/home/profile" },
+  { name: "Events", href: "/events" },
+  { name: "Tickets", href: "/tickets" },
+  { name: "Profile", href: "/profile" },
 ];
 
 const MODERATOR_LINKS = [
@@ -73,7 +73,7 @@ function getNavLinks(role: string | null, isAuthenticated: boolean) {
 }
 
 // ── Pages where back button should NOT appear ─────────────────────────────────
-const ROOT_PAGES = ["/", "/home", "/home/events", "/admin"];
+const ROOT_PAGES = ["/", "/home", "/events", "/admin"];
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -239,19 +239,19 @@ export default function Navbar() {
                           <UserMenuItem
                             icon={LuUser}
                             label="Profile"
-                            href="/home/profile"
+                            href="/profile"
                             onClick={() => setUserMenuOpen(false)}
                           />
                           <UserMenuItem
                             icon={LuTicket}
                             label="My Tickets"
-                            href="/home/tickets"
+                            href="/tickets"
                             onClick={() => setUserMenuOpen(false)}
                           />
                           <UserMenuItem
                             icon={LuCalendar}
                             label="Events"
-                            href="/home/events"
+                            href="/events"
                             onClick={() => setUserMenuOpen(false)}
                           />
                           {(role === "admin" ||

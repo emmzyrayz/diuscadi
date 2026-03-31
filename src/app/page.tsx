@@ -43,11 +43,11 @@ export default function LandingPage() {
       className={cn(
         "flex",
         "flex-col",
-        "p-5",
+        "p-5 gap-5",
         "pt-[90px]",
         "items-center",
         "justify-center",
-        "w-full",
+        "w-screen",
         "min-h-screen",
       )}
     >

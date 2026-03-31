@@ -7,7 +7,7 @@ import mentor from "@/assets/img/downloads/Dr-Ikechukwu-Umeh-1440x1920.webp"
 
 export const AboutSection = () => {
   return (
-    <section className={cn("py-24", "bg-background", "overflow-hidden")}>
+    <section className={cn("w-full rounded-2xl py-24", "bg-background", "overflow-hidden")}>
       <div className={cn("container", "mx-auto", "px-6")}>
         <div
           className={cn(
@@ -23,7 +23,7 @@ export const AboutSection = () => {
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="relative hover:scale-102 lg:hover:scale-105 duration-700 ease-in-out transition-all"
+            className={cn('relative', 'hover:scale-102', 'lg:hover:scale-105', 'duration-700', 'ease-in-out', 'transition-all')}
           >
             <div
               className={cn(

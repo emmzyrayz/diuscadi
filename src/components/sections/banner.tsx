@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import banner1 from "@/assets/img/downloads/Diuscadi-2023-Testimonial-Thumbnail-1920x1272.webp"
 import banner2 from "@/assets/img/downloads/networking-diuscadi.webp"
+import Link from "next/link";
 
 // Sample data - replace with your actual data source
 const BANNERS = [
@@ -16,6 +17,7 @@ const BANNERS = [
     subtitle: "Registration closes in 5 days.",
     image: banner1, // Replace with banner1
     buttonText: "Register Now",
+    url: "/auth",
   },
   {
     id: 2,
@@ -23,6 +25,7 @@ const BANNERS = [
     subtitle: "Join us this Friday at 6 PM.",
     image: banner2,
     buttonText: "Learn More",
+    url: "",
   },
 ];
 
@@ -122,17 +125,19 @@ export const Banner = () => {
                 </p>
               </div>
 
-              <Button
-                variant="secondary"
-                className={cn(
-                  "font-semibold bg-background hover:bg-foreground hover:text-background cursor-pointer",
-                  "px-4 md:px-8",
-                  "hover:scale-105",
-                  "transition-transform",
-                )}
-              >
-                {activeBanner.buttonText}
-              </Button>
+              <Link href={activeBanner.url}>
+                <Button
+                  variant="secondary"
+                  className={cn(
+                    "font-semibold bg-background hover:bg-foreground hover:text-background cursor-pointer",
+                    "px-4 md:px-8",
+                    "hover:scale-105",
+                    "transition-transform",
+                  )}
+                >
+                  {activeBanner.buttonText}
+                </Button>
+              </Link>
             </div>
           </div>
         </motion.div>

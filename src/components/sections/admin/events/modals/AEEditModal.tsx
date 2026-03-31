@@ -19,7 +19,6 @@ import {
   LuInfo,
   LuEye,
   LuCircleCheck,
-  LuPlus,
   LuClock,
   LuTicket,
   LuTimer,
@@ -31,6 +30,8 @@ import { IconType } from "react-icons";
 import { useAdmin } from "@/context/AdminContext";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
+import { ImageUploader } from "@/components/ui/ImageUploader";
+import type { CloudinaryImage } from "@/types/cloudinary";
 
 interface EventModalProps {
   isOpen: boolean;
@@ -54,6 +55,8 @@ interface EventFormData {
   enableWaitlist: boolean;
   registrationDeadline: string;
   visibility: "Public" | "Invite-Only";
+  bannerBlob: Blob | null;
+  bannerPreviewUrl: string | null; // local object URL for preview only
 }
 
 type WizardStep = 1 | 2 | 3 | 4 | 5;
@@ -63,9 +66,11 @@ interface StepConfig {
   label: string;
   icon: IconType;
 }
+
 interface StepProps {
   formData: EventFormData;
   setFormData: React.Dispatch<React.SetStateAction<EventFormData>>;
+  ownerId?: string; // slug derived from title — used for banner upload signing
 }
 
 const STEPS: StepConfig[] = [
@@ -91,6 +96,8 @@ const DEFAULT_FORM: EventFormData = {
   enableWaitlist: false,
   registrationDeadline: "",
   visibility: "Public",
+  bannerBlob: null,
+  bannerPreviewUrl: null,
 };
 
 export const AdminEventModal: React.FC<EventModalProps> = ({
@@ -116,64 +123,133 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
   const prevStep = () =>
     setCurrentStep((p) => Math.max(p - 1, 1) as WizardStep);
 
-  const handleSubmit = async () => {
-    if (!token) return;
-    if (
-      !formData.title.trim() ||
-      !formData.date ||
-      !formData.registrationDeadline
-    ) {
-      toast.error("Title, date and registration deadline are required");
-      return;
-    }
+ const handleSubmit = async () => {
+   if (!token) return;
+   if (
+     !formData.title.trim() ||
+     !formData.date ||
+     !formData.registrationDeadline
+   ) {
+     toast.error("Title, date and registration deadline are required");
+     return;
+   }
 
-    setSubmitting(true);
-    try {
-      // Build ISO datetime from date + startTime
-      const eventDateIso = formData.startTime
-        ? new Date(`${formData.date}T${formData.startTime}`).toISOString()
-        : new Date(formData.date).toISOString();
+   setSubmitting(true);
+   try {
+     const eventDateIso = formData.startTime
+       ? new Date(`${formData.date}T${formData.startTime}`).toISOString()
+       : new Date(formData.date).toISOString();
 
-      await createEvent(
-        {
-          title: formData.title.trim(),
-          slug: formData.title
-            .trim()
-            .toLowerCase()
-            .replace(/\s+/g, "-")
-            .replace(/[^a-z0-9-]/g, ""),
-          overview: formData.description,
-          category: formData.category,
-          format: formData.type.toLowerCase() as
-            | "physical"
-            | "virtual"
-            | "hybrid",
-          eventDate: eventDateIso,
-          registrationDeadline: new Date(
-            formData.registrationDeadline,
-          ).toISOString(),
-          capacity: formData.maxCapacity,
-          locationScope: formData.type === "Virtual" ? "online" : "local",
-          location: formData.venueName
-            ? { venue: formData.venueName }
-            : undefined,
-          status: formData.visibility === "Public" ? "published" : "draft",
-        },
-        token,
-      );
+     const slug = formData.title
+       .trim()
+       .toLowerCase()
+       .replace(/\s+/g, "-")
+       .replace(/[^a-z0-9-]/g, "");
 
-      toast.success("Event created successfully!");
-      setFormData(DEFAULT_FORM);
-      setCurrentStep(1);
-      onSuccess?.();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to create event",
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
+     // Step 1: Create the event first (no banner yet)
+     await createEvent(
+       {
+         title: formData.title.trim(),
+         slug,
+         overview: formData.description,
+         category: formData.category,
+         format: formData.type.toLowerCase() as
+           | "physical"
+           | "virtual"
+           | "hybrid",
+         eventDate: eventDateIso,
+         registrationDeadline: new Date(
+           formData.registrationDeadline,
+         ).toISOString(),
+         capacity: formData.maxCapacity,
+         locationScope: formData.type === "Virtual" ? "online" : "local",
+         location: formData.venueName
+           ? { venue: formData.venueName }
+           : undefined,
+         status: formData.visibility === "Public" ? "published" : "draft",
+       },
+       token,
+     );
+
+     // Step 2: If a banner blob is staged, upload it now that the event exists
+     if (formData.bannerBlob) {
+       try {
+         // Use MediaContext directly via the upload pipeline
+         const res = await fetch("/api/media/sign", {
+           method: "POST",
+           headers: {
+             "Content-Type": "application/json",
+             Authorization: `Bearer ${token}`,
+           },
+           body: JSON.stringify({ uploadType: "event-banner", ownerId: slug }),
+         });
+         if (res.ok) {
+           const params = await res.json();
+           const form = new FormData();
+           form.append(
+             "file",
+             formData.bannerBlob,
+             `banner_${Date.now()}.webp`,
+           );
+           form.append("api_key", params.apiKey);
+           form.append("timestamp", String(params.timestamp));
+           form.append("signature", params.signature);
+           form.append("folder", params.folder);
+           form.append("public_id", params.publicId);
+           if (params.eager) form.append("eager", params.eager);
+
+           const uploadRes = await fetch(
+             `https://api.cloudinary.com/v1_1/${params.cloudName}/image/upload`,
+             { method: "POST", body: form },
+           );
+           if (uploadRes.ok) {
+             const uploadData = await uploadRes.json();
+             // Confirm to DB now that event exists
+             await fetch("/api/media/confirm", {
+               method: "POST",
+               headers: {
+                 "Content-Type": "application/json",
+                 Authorization: `Bearer ${token}`,
+               },
+               body: JSON.stringify({
+                 uploadType: "event-banner",
+                 ownerId: slug,
+                 asset_id: uploadData.asset_id,
+                 public_id: uploadData.public_id,
+                 secure_url: uploadData.secure_url,
+                 signature: uploadData.signature,
+                 timestamp: uploadData.timestamp ?? params.timestamp,
+                 format: uploadData.format,
+                 bytes: uploadData.bytes,
+                 width: uploadData.width,
+                 height: uploadData.height,
+                 created_at: uploadData.created_at,
+                 etag: uploadData.etag ?? "",
+               }),
+             });
+           }
+         }
+       } catch {
+         // Banner upload failed — event was still created, just log it
+         console.warn(
+           "[AEEditModal] Banner upload failed after event creation",
+         );
+         toast.error(
+           "Event created but banner upload failed — you can add it from the edit page.",
+         );
+       }
+     }
+
+     toast.success("Event created successfully!");
+     setFormData(DEFAULT_FORM);
+     setCurrentStep(1);
+     onSuccess?.();
+   } catch (err) {
+     toast.error(err instanceof Error ? err.message : "Failed to create event");
+   } finally {
+     setSubmitting(false);
+   }
+ };
 
   const handleClose = () => {
     setFormData(DEFAULT_FORM);
@@ -368,6 +444,15 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                     <BasicInfoStep
                       formData={formData}
                       setFormData={setFormData}
+                      ownerId={
+                        formData.title.trim()
+                          ? formData.title
+                              .trim()
+                              .toLowerCase()
+                              .replace(/\s+/g, "-")
+                              .replace(/[^a-z0-9-]/g, "")
+                          : undefined
+                      }
                     />
                   )}
                   {currentStep === 2 && (
@@ -585,16 +670,77 @@ const InputGroup: React.FC<InputGroupProps> = ({
   </div>
 );
 
-const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
-  <div className={cn("space-y-6")}>
-    <div className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-6")}>
-      <InputGroup
-        label="Event Title"
-        placeholder="e.g. DIUSCADI Annual Summit"
-        icon={LuInfo}
-        value={formData.title}
-        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-      />
+const BasicInfoStep: React.FC<StepProps> = ({
+  formData,
+  setFormData,
+}) => {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleBannerFile = (file: File) => {
+    const url = URL.createObjectURL(file);
+    setFormData((prev) => ({
+      ...prev,
+      bannerBlob: file,
+      bannerPreviewUrl: url,
+    }));
+  };
+
+
+  return (
+    <div className={cn("space-y-6")}>
+      <div className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-6")}>
+        <InputGroup
+          label="Event Title"
+          placeholder="e.g. DIUSCADI Annual Summit"
+          icon={LuInfo}
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+        />
+        <div className="space-y-2">
+          <label
+            className={cn(
+              "text-[10px]",
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              "text-slate-400",
+            )}
+          >
+            Category
+          </label>
+          <select
+            value={formData.category}
+            onChange={(e) =>
+              setFormData({ ...formData, category: e.target.value })
+            }
+            className={cn(
+              "w-full",
+              "bg-muted",
+              "border",
+              "border-border",
+              "p-4",
+              "rounded-2xl",
+              "text-xs",
+              "font-bold",
+              "outline-none",
+              "focus:border-primary",
+              "transition-all",
+              "appearance-none",
+            )}
+          >
+            {[
+              "Technology",
+              "Business",
+              "Governance",
+              "Career",
+              "Networking",
+            ].map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className="space-y-2">
         <label
           className={cn(
@@ -605,13 +751,15 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
             "text-slate-400",
           )}
         >
-          Category
+          Description
         </label>
-        <select
-          value={formData.category}
+        <textarea
+          value={formData.description}
           onChange={(e) =>
-            setFormData({ ...formData, category: e.target.value })
+            setFormData({ ...formData, description: e.target.value })
           }
+          placeholder="What is this event about?"
+          rows={3}
           className={cn(
             "w-full",
             "bg-muted",
@@ -620,104 +768,122 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => (
             "p-4",
             "rounded-2xl",
             "text-xs",
-            "font-bold",
+            "font-medium",
             "outline-none",
             "focus:border-primary",
             "transition-all",
-            "appearance-none",
+            "resize-none",
+          )}
+        />
+      </div>
+
+      {/* Banner upload — stores blob locally, uploaded after event creation */}
+      <div className="space-y-2">
+        <label
+          className={cn(
+            "text-[10px]",
+            "font-black",
+            "uppercase",
+            "tracking-widest",
+            "text-slate-400",
           )}
         >
-          {["Technology", "Business", "Governance", "Career", "Networking"].map(
-            (c) => (
-              <option key={c}>{c}</option>
-            ),
-          )}
-        </select>
+          Event Banner
+        </label>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="sr-only"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleBannerFile(file);
+            e.target.value = "";
+          }}
+        />
+
+        {formData.bannerPreviewUrl ? (
+          <div className="relative group rounded-[2rem] overflow-hidden aspect-[1200/630] bg-muted">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={formData.bannerPreviewUrl}
+              alt="Banner preview"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  "px-4 py-2 bg-background text-foreground rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer",
+                )}
+              >
+                Change
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    bannerBlob: null,
+                    bannerPreviewUrl: null,
+                  }))
+                }
+                className={cn(
+                  "px-4 py-2 bg-destructive text-white rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer",
+                )}
+              >
+                Remove
+              </button>
+            </div>
+            <div className="absolute bottom-3 right-3 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg">
+              Ready to upload
+            </div>
+          </div>
+        ) : (
+          <div
+            onClick={() =>
+              formData.title.trim() && fileInputRef.current?.click()
+            }
+            className={cn(
+              "p-10 border-2 border-dashed border-border rounded-[2rem] bg-muted/50",
+              "flex flex-col items-center justify-center text-center gap-2 transition-colors",
+              formData.title.trim()
+                ? "cursor-pointer hover:border-primary/50 hover:bg-primary/5"
+                : "opacity-50 cursor-not-allowed",
+            )}
+          >
+            <LuImage className={cn("w-8", "h-8", "text-muted-foreground")} />
+            <p
+              className={cn(
+                "text-[10px]",
+                "font-black",
+                "uppercase",
+                "tracking-[0.2em]",
+                "text-foreground",
+              )}
+            >
+              {formData.title.trim()
+                ? "Upload Event Banner"
+                : "Enter a title first"}
+            </p>
+            <p
+              className={cn(
+                "text-[9px]",
+                "font-bold",
+                "text-muted-foreground",
+                "uppercase",
+                "mt-1",
+              )}
+            >
+              PNG, JPG or WebP · Max 10MB · 1200 × 630 recommended
+            </p>
+          </div>
+        )}
       </div>
     </div>
-    <div className="space-y-2">
-      <label
-        className={cn(
-          "text-[10px]",
-          "font-black",
-          "uppercase",
-          "tracking-widest",
-          "text-slate-400",
-        )}
-      >
-        Description
-      </label>
-      <textarea
-        value={formData.description}
-        onChange={(e) =>
-          setFormData({ ...formData, description: e.target.value })
-        }
-        placeholder="What is this event about?"
-        rows={3}
-        className={cn(
-          "w-full",
-          "bg-muted",
-          "border",
-          "border-border",
-          "p-4",
-          "rounded-2xl",
-          "text-xs",
-          "font-medium",
-          "outline-none",
-          "focus:border-primary",
-          "transition-all",
-          "resize-none",
-        )}
-      />
-    </div>
-    {/* Banner upload — TODO: wire to ImageUploader when event image upload is implemented */}
-    <div
-      className={cn(
-        "p-10",
-        "border-2",
-        "border-dashed",
-        "border-border",
-        "rounded-[2.5rem]",
-        "bg-muted/50",
-        "flex",
-        "flex-col",
-        "items-center",
-        "justify-center",
-        "text-center",
-        "cursor-pointer",
-        "hover:border-primary/50",
-        "transition-colors",
-      )}
-    >
-      <LuImage className={cn("w-8", "h-8", "text-muted-foreground", "mb-3")} />
-      <p
-        className={cn(
-          "text-[10px]",
-          "font-black",
-          "uppercase",
-          "tracking-[0.2em]",
-          "text-foreground",
-        )}
-      >
-        Upload Event Banner
-      </p>
-      <p
-        className={cn(
-          "text-[9px]",
-          "font-bold",
-          "text-muted-foreground",
-          "uppercase",
-          "mt-1",
-        )}
-      >
-        PNG, JPG or WebP · Max 5MB
-      </p>
-      <p className={cn("text-[9px]", "font-bold", "text-amber-600", "mt-2")}>
-        TODO: wire to Cloudinary ImageUploader
-      </p>
-    </div>
-  </div>
-);
+  );
+}
 
 const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
   <div className={cn("space-y-8")}>

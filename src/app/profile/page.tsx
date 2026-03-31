@@ -16,6 +16,7 @@ import { ActivitySummarySection } from "@/components/sections/profile/ActivitySu
 import { ProfileCompletionAlert } from "@/components/sections/profile/ProfileCompleteAlert";
 import { cn } from "@/lib/utils";
 import { InviteCodeCard } from "@/components/sections/profile/InviteCodeCard";
+import { useRouter } from "next/navigation";
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
@@ -69,10 +70,12 @@ function ProfileSkeleton() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
+  const router = useRouter();
   const { profile, isLoading, refreshProfile, updateProfile } = useUser();
   const { tickets, loadTickets } = useTickets();
 
-  const [avatarPanelOpen, setAvatarPanelOpen] = useState(false);
+  // Avatar modal — only opened from sidebar camera icon
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 
   useEffect(() => {
     refreshProfile();
@@ -83,11 +86,7 @@ export default function ProfilePage() {
 
   // fullName is now a structured object — not a plain string
   const handleSaveName = useCallback(
-    async (fullName: {
-      firstname: string;
-      secondname?: string;
-      lastname: string;
-    }) => {
+    async (fullName: { firstname: string; secondname?: string; lastname: string }) => {
       await updateProfile({ fullName });
     },
     [updateProfile],
@@ -104,35 +103,38 @@ export default function ProfilePage() {
   // The confirm route already persisted the CloudinaryImage to MongoDB.
   // Just refresh the profile to sync context — no updateProfile call needed.
 
-  const handleAvatarSuccess = useCallback(
-    async (_image: CloudinaryImage) => {
-      await refreshProfile();
-      setAvatarPanelOpen(false);
-    },
-    [refreshProfile],
-  );
+    const handleAvatarSuccess = useCallback(
+      async (_image: CloudinaryImage) => {
+        await refreshProfile();
+        setAvatarModalOpen(false);
+      },
+      [refreshProfile],
+    );
 
-  const handleAvatarRemove = useCallback(async () => {
-    await refreshProfile();
-  }, [refreshProfile]);
+    const handleAvatarRemove = useCallback(async () => {
+      await refreshProfile();
+    }, [refreshProfile]);
 
   // ── Completion calculation ─────────────────────────────────────────────────
-  const missingFields: string[] = [];
-  if (!profile?.hasAvatar) missingFields.push("Profile Photo");
-  if (!profile?.phone) missingFields.push("Phone Number");
-  if (!profile?.profile?.bio) missingFields.push("Bio");
+   const missingFields: string[] = [];
+   if (!profile?.hasAvatar) missingFields.push("Profile Photo");
+   if (!profile?.phone) missingFields.push("Phone Number");
+   if (!profile?.profile?.bio) missingFields.push("Bio");
 
-  const completionPct = Math.round(((3 - missingFields.length) / 3) * 100);
+   const completionPct = Math.round(((3 - missingFields.length) / 3) * 100);
 
-  // ── Ticket-derived stats ───────────────────────────────────────────────────
-  const upcomingCount = tickets.filter((t) => t.status === "registered").length;
-  const ownedCount = tickets.filter((t) => t.status !== "cancelled").length;
+   // ── Ticket-derived stats ───────────────────────────────────────────────────
 
-  const activityStats = {
-    ticketsOwned: ownedCount,
-    eventsAttended: profile?.analytics.eventsAttended ?? 0,
-    upcomingEvents: upcomingCount,
-  };
+   const upcomingCount = tickets.filter(
+     (t) => t.status === "registered",
+   ).length;
+   const ownedCount = tickets.filter((t) => t.status !== "cancelled").length;
+
+   const activityStats = {
+     ticketsOwned: ownedCount,
+     eventsAttended: profile?.analytics.eventsAttended ?? 0,
+     upcomingEvents: upcomingCount,
+   };
 
   // ── Guard ──────────────────────────────────────────────────────────────────
   if (isLoading || !profile) return <ProfileSkeleton />;
@@ -141,14 +143,24 @@ export default function ProfilePage() {
     <main className={cn("min-h-screen", "mt-15", "pb-20")}>
       <ProfileHeader
         completionPercentage={completionPct}
-        onEditClick={() => setAvatarPanelOpen((v) => !v)}
+        onEditClick={() => router.push("/profile/edit")}
       />
+
+      {/* Avatar modal — only opened from sidebar */}
+      {/* <AvatarUploadModal
+        open={avatarModalOpen}
+        onClose={() => setAvatarModalOpen(false)}
+        currentUrl={profile.avatar?.imageUrl ?? null}
+        currentPublicId={profile.avatar?.imagePublicId ?? null}
+        onSuccess={handleAvatarSuccess}
+        onRemove={handleAvatarRemove}
+      /> */}
 
       <div className={cn("max-w-7xl", "mx-auto", "px-4", "sm:px-6", "lg:px-8")}>
         <ProfileCompletionAlert
           isVisible={missingFields.length > 0}
           missingFields={missingFields}
-          onAction={() => setAvatarPanelOpen(true)}
+          onAction={() => router.push("/profile/edit")}
         />
 
         <div
@@ -164,14 +176,14 @@ export default function ProfilePage() {
           <aside className={cn("lg:col-span-4", "xl:col-span-3")}>
             <ProfileSidebar
               profile={profile}
-              onEditAvatar={() => setAvatarPanelOpen(true)}
+              onEditAvatar={() => setAvatarModalOpen(true)}
             />
           </aside>
 
           {/* ── Content area ── */}
           <div className={cn("lg:col-span-8", "xl:col-span-9", "space-y-8")}>
             {/* Avatar upload panel */}
-            {avatarPanelOpen && (
+            {avatarModalOpen && (
               <div
                 className={cn("glass", "rounded-[2.5rem]", "p-8", "space-y-6")}
               >
@@ -187,7 +199,7 @@ export default function ProfilePage() {
                     Update Profile Photo
                   </h3>
                   <button
-                    onClick={() => setAvatarPanelOpen(false)}
+                    onClick={() => setAvatarModalOpen(false)}
                     className={cn(
                       "text-[10px]",
                       "font-black",

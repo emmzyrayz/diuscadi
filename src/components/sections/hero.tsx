@@ -6,6 +6,7 @@ import Image from "next/image";
 import { GraduationCap, CalendarCheck } from "lucide-react";
 // import mentor from "@/assets/img/downloads/Dr-Ikechukwu-Umeh-1440x1920.webp"
 import student from "@/assets/img/downloads/Esther-Chiamaka.webp";
+import Link from "next/link";
 
 export const Hero = () => {
   return (
@@ -119,15 +120,17 @@ export const Hero = () => {
                 "shadow-lg",
                 "shadow-primary/20",
               )}
+              asChild
             >
-              Get Started
+              <Link href="/register">Get Started</Link>
             </Button>
             <Button
               variant="outline"
+              asChild
               size="lg"
               className={cn("h-12", "px-8", "text-base", "border-2")}
             >
-              Learn More
+              <Link href="/about">Learn More</Link>
             </Button>
           </div>
 

@@ -1,499 +1,396 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+// app/gallery/page.tsx
+// Shows concluded (past) events as gallery items.
+// Strategy:
+//   1. Call loadPublicEvents(50) on mount
+//   2. Filter publicEvents to events where eventDate < today
+//   3. If zero past events found → fall back to MOCK_EVENTS
+//   4. In dev, EventContext already falls back to DUMMY_EVENTS on API failure,
+//      so the gallery will always have something to show
+
+import React, { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence, useInView } from "framer-motion";
-import {
-  Camera,
-  ExternalLink,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  ZoomIn,
-  Grid3X3,
-  LayoutGrid,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronLeft, ChevronRight, Calendar, Tag } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useEvents } from "@/context/EventContext";
 
-/* ─── Data ───────────────────────────────────────────────────────────────────── */
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const galleryItems = [
+export interface GalleryEvent {
+  id: string;
+  slug: string;
+  title: string;
+  overview: string;
+  category: string;
+  image: string;
+  eventDate: string;
+}
+
+
+
+// ─── Mock fallback ────────────────────────────────────────────────────────────
+
+const MOCK_EVENTS: GalleryEvent[] = [
   {
     id: "1",
-    eventId: "event-abc",
-    src: "https://images.unsplash.com/photo-1540575861501-7cf05a4b125a",
-    alt: "Global Tech Summit",
-    description:
-      "Keynote session on the future of AI in decentralised platforms.",
+    slug: "global-tech-summit-2024",
+    title: "Global Tech Summit",
+    overview: "Keynote sessions on AI, Web3, and decentralised platforms.",
     category: "Conferences",
-    year: "2024",
-    span: "large",
+    image:
+      "https://images.unsplash.com/photo-1540575861501-7cf05a4b125a?w=900&q=80",
+    eventDate: "2024-11-15",
   },
   {
     id: "2",
-    eventId: "event-123",
-    src: "https://images.unsplash.com/photo-1515187029135-18ee286d815b",
-    alt: "Networking Mixer",
-    description: "Connect with industry leaders and fellow DIUSCADI members.",
+    slug: "networking-mixer-2024",
+    title: "Networking Mixer",
+    overview: "Connect with industry leaders and fellow DIUSCADI members.",
     category: "Community",
-    year: "2024",
-    span: "small",
+    image:
+      "https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=900&q=80",
+    eventDate: "2024-09-22",
   },
   {
     id: "3",
-    eventId: "event-456",
-    src: "https://images.unsplash.com/photo-1505373877841-8d25f7d46678",
-    alt: "Hackathon 2025",
-    description: "48 hours of pure building and innovation.",
+    slug: "hackathon-2025",
+    title: "Hackathon 2025",
+    overview: "48 hours of pure building, innovation, and collaboration.",
     category: "Workshops",
-    year: "2025",
-    span: "tall",
+    image:
+      "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=900&q=80",
+    eventDate: "2024-01-18",
   },
   {
     id: "4",
-    eventId: "event-789",
-    src: "https://images.unsplash.com/photo-1522071820081-009f0129c71c",
-    alt: "Workshop: UI/UX",
-    description: "Deep dive into glassmorphism and modern design trends.",
+    slug: "ux-design-workshop",
+    title: "UI/UX Deep Dive",
+    overview: "Glassmorphism, modern design trends, and prototyping tools.",
     category: "Workshops",
-    year: "2024",
-    span: "wide",
+    image:
+      "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=900&q=80",
+    eventDate: "2024-10-05",
   },
   {
     id: "5",
-    eventId: "event-000",
-    src: "https://images.unsplash.com/photo-1517048676732-d65bc937f952",
-    alt: "Annual Board Meet",
-    description: "Planning the roadmap for the next quarter.",
+    slug: "annual-board-meet-2024",
+    title: "Annual Board Meet",
+    overview: "Planning the roadmap and strategy for the next quarter.",
     category: "Community",
-    year: "2024",
-    span: "small",
+    image:
+      "https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=900&q=80",
+    eventDate: "2024-08-30",
   },
   {
     id: "6",
-    eventId: "event-999",
-    src: "https://images.unsplash.com/photo-1556761175-b413da4baf72",
-    alt: "Product Launch",
-    description: "Unveiling the new DIUSCADI member dashboard.",
+    slug: "product-launch-2024",
+    title: "Product Launch",
+    overview: "Unveiling the new DIUSCADI member dashboard and mobile app.",
     category: "Conferences",
-    year: "2025",
-    span: "small",
-  },
-  {
-    id: "7",
-    eventId: "event-aaa",
-    src: "https://images.unsplash.com/photo-1475721027785-f74eccf877e2",
-    alt: "Policy Forum",
-    description: "Roundtable on broadband access policy across West Africa.",
-    category: "Conferences",
-    year: "2023",
-    span: "wide",
-  },
-  {
-    id: "8",
-    eventId: "event-bbb",
-    src: "https://images.unsplash.com/photo-1531482615713-2afd69097998",
-    alt: "Mentorship Programme",
-    description:
-      "One-on-one pairing of senior practitioners with emerging talent.",
-    category: "Community",
-    year: "2023",
-    span: "small",
+    image:
+      "https://images.unsplash.com/photo-1556761175-b413da4baf72?w=900&q=80",
+    eventDate: "2024-02-10",
   },
 ];
 
-const CATEGORIES = ["All", "Conferences", "Workshops", "Community"];
+const PAGE_SIZE = 6;
 
-const getSpanClass = (span: string) => {
-  switch (span) {
-    case "large":
-      return "md:col-span-2 md:row-span-2 h-[380px] md:h-auto";
-    case "tall":
-      return "md:col-span-1 md:row-span-2 h-[380px] md:h-auto";
-    case "wide":
-      return "md:col-span-2 md:row-span-1 h-[260px] md:h-[280px]";
-    default:
-      return "md:col-span-1 md:row-span-1 h-[260px] md:h-[280px]";
-  }
-};
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/* ─── Lightbox ───────────────────────────────────────────────────────────────── */
-
-function Lightbox({
-  items,
-  index,
-  onClose,
-  onPrev,
-  onNext,
-}: {
-  items: typeof galleryItems;
-  index: number;
-  onClose: () => void;
-  onPrev: () => void;
-  onNext: () => void;
-}) {
-  const item = items[index];
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      if (e.key === "ArrowLeft") onPrev();
-      if (e.key === "ArrowRight") onNext();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose, onPrev, onNext]);
-
-  return (
-    <motion.div
-      key="lightbox"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.25 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-10"
-      onClick={onClose}
-    >
-      {/* backdrop */}
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-xl" />
-
-      {/* panel */}
-      <motion.div
-        initial={{ scale: 0.93, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.93, opacity: 0 }}
-        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        onClick={(e) => e.stopPropagation()}
-        className="relative glass-heavy rounded-[2rem] overflow-hidden max-w-4xl w-full max-h-[90vh] flex flex-col md:flex-row border border-border/60"
-      >
-        {/* image */}
-        <div className="relative flex-1 min-h-[260px] md:min-h-0 md:h-[70vh]">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -30 }}
-              transition={{ duration: 0.3 }}
-              className="absolute inset-0"
-            >
-              <Image
-                src={item.src}
-                alt={item.alt}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 60vw"
-              />
-            </motion.div>
-          </AnimatePresence>
-
-          {/* counter */}
-          <div className="absolute top-4 left-4 glass px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">
-            {index + 1} / {items.length}
-          </div>
-        </div>
-
-        {/* info sidebar */}
-        <div className="p-7 flex flex-col gap-5 md:w-72 shrink-0 justify-between">
-          <div className="space-y-3">
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
-              {item.category} · {item.year}
-            </span>
-            <h3 className="text-2xl font-black leading-tight">{item.alt}</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {item.description}
-            </p>
-          </div>
-          <Link
-            href={`/events/${item.eventId}`}
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-semibold px-5 py-3 rounded-2xl hover:opacity-90 transition-opacity"
-          >
-            View Event <ExternalLink size={14} />
-          </Link>
-        </div>
-
-        {/* close */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 glass rounded-xl p-2 hover:text-primary transition-colors"
-          aria-label="Close"
-        >
-          <X size={18} />
-        </button>
-      </motion.div>
-
-      {/* nav arrows */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onPrev();
-        }}
-        className="absolute left-4 md:left-8 glass rounded-2xl p-3 hover:text-primary transition-colors z-10"
-        aria-label="Previous"
-      >
-        <ChevronLeft size={22} />
-      </button>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onNext();
-        }}
-        className="absolute right-4 md:right-8 glass rounded-2xl p-3 hover:text-primary transition-colors z-10"
-        aria-label="Next"
-      >
-        <ChevronRight size={22} />
-      </button>
-    </motion.div>
-  );
+function isPast(eventDate: string): boolean {
+  return new Date(eventDate) < new Date();
 }
 
-/* ─── Gallery Card ───────────────────────────────────────────────────────────── */
+// ─── Gallery card ─────────────────────────────────────────────────────────────
 
 function GalleryCard({
-  item,
-  index,
-  layout,
-  onOpen,
+  event,
+  className,
 }: {
-  item: (typeof galleryItems)[0];
-  index: number;
-  layout: "bento" | "grid";
-  onOpen: () => void;
+  event: GalleryEvent;
+  className?: string;
 }) {
-  const ref = React.useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-60px" });
+  const [hovered, setHovered] = useState(false);
 
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 24, scale: 0.97 }}
-      animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
-      transition={{
-        delay: index * 0.06,
-        duration: 0.5,
-        ease: [0.22, 1, 0.36, 1],
-      }}
-      onClick={onOpen}
+    <Link
+      href={`/events/${event.slug}`}
       className={cn(
-        "group relative rounded-[2.5rem] overflow-hidden glass p-2 cursor-pointer",
-        layout === "bento" ? getSpanClass(item.span) : "h-[260px]",
+        "group relative block overflow-hidden rounded-[1.25rem] bg-muted cursor-pointer",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        className,
       )}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      <div className="block w-full h-full relative overflow-hidden rounded-[2rem]">
-        {/* Image */}
-        <Image
-          fill
-          src={item.src}
-          alt={item.alt}
-          className="object-cover transition-transform duration-700 group-hover:scale-110"
-          sizes="(max-width: 768px) 100vw, 50vw"
-        />
+      <Image
+        src={event.image}
+        alt={event.title}
+        fill
+        sizes="(max-width: 768px) 100vw, 50vw"
+        className={cn(
+          "object-cover transition-transform duration-700 ease-out",
+          hovered ? "scale-105" : "scale-100",
+        )}
+      />
 
-        {/* Category pill — always visible */}
-        <div className="absolute top-3 left-3 z-10">
-          <span className="text-[10px] font-bold uppercase tracking-widest glass px-3 py-1 rounded-full border border-white/20">
-            {item.category}
-          </span>
-        </div>
+      <div className={cn('absolute', 'inset-0', 'bg-gradient-to-t', 'from-black/40', 'via-transparent', 'to-transparent', 'pointer-events-none')} />
 
-        {/* Zoom hint */}
-        <div className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <div className="bg-primary/90 p-2 rounded-xl text-white">
-            <ZoomIn size={14} />
-          </div>
-        </div>
-
-        {/* Glass overlay on hover */}
-        <div className="absolute inset-0 bg-background/30 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-6">
+      <AnimatePresence>
+        {hovered && (
           <motion.div
-            initial={{ y: 16, opacity: 0 }}
-            whileInView={{ y: 0, opacity: 1 }}
-            className="space-y-2"
+            key="overlay"
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "100%", opacity: 0 }}
+            transition={{ type: "spring", stiffness: 340, damping: 32 }}
+            className={cn('absolute', 'inset-x-0', 'bottom-0', 'p-5', 'bg-black/50', 'backdrop-blur-md', 'border-t', 'border-white/10')}
           >
-            <h3 className="text-xl font-black text-white drop-shadow">
-              {item.alt}
-            </h3>
-            <p className="text-white/85 text-xs leading-relaxed line-clamp-2">
-              {item.description}
+            <div className={cn('flex', 'items-center', 'gap-3', 'mb-2')}>
+              <span className={cn('flex', 'items-center', 'gap-1', 'text-[9px]', 'font-black', 'uppercase', 'tracking-widest', 'text-white/60')}>
+                <Tag className={cn('w-2.5', 'h-2.5')} />
+                {event.category}
+              </span>
+              <span className={cn('flex', 'items-center', 'gap-1', 'text-[9px]', 'font-black', 'uppercase', 'tracking-widest', 'text-white/60')}>
+                <Calendar className={cn('w-2.5', 'h-2.5')} />
+                {new Date(event.eventDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
+            <p className={cn('text-[13px]', 'font-black', 'text-white', 'tracking-tight', 'leading-tight', 'mb-1')}>
+              {event.title}
             </p>
-            <span className="inline-block text-[10px] font-black uppercase tracking-[0.2em] text-primary bg-white/20 backdrop-blur-md px-3 py-1 rounded-full border border-white/30 mt-1">
-              {item.year}
-            </span>
+            <p className={cn('text-[10px]', 'text-white/70', 'font-medium', 'leading-relaxed', 'line-clamp-2')}>
+              {event.overview}
+            </p>
           </motion.div>
-        </div>
+        )}
+      </AnimatePresence>
+
+      <div className={cn('absolute', 'top-3', 'left-3', 'z-10')}>
+        <span className={cn('text-[9px]', 'font-black', 'uppercase', 'tracking-widest', 'px-2.5', 'py-1', 'rounded-full', 'bg-black/30', 'backdrop-blur-md', 'text-white/90', 'border', 'border-white/15')}>
+          {event.category}
+        </span>
       </div>
-    </motion.div>
+    </Link>
   );
 }
 
-/* ─── Page ───────────────────────────────────────────────────────────────────── */
+// ─── Gallery grid ─────────────────────────────────────────────────────────────
 
-export default function GalleryPage() {
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [layout, setLayout] = useState<"bento" | "grid">("bento");
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-
-  const filtered =
-    activeCategory === "All"
-      ? galleryItems
-      : galleryItems.filter((i) => i.category === activeCategory);
-
-  const openLightbox = useCallback(
-    (index: number) => setLightboxIndex(index),
-    [],
-  );
-  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
-  const prevImage = useCallback(
-    () =>
-      setLightboxIndex((i) =>
-        i !== null ? (i - 1 + filtered.length) % filtered.length : null,
-      ),
-    [filtered.length],
-  );
-  const nextImage = useCallback(
-    () =>
-      setLightboxIndex((i) => (i !== null ? (i + 1) % filtered.length : null)),
-    [filtered.length],
-  );
-
-  // lock body scroll when lightbox open
-  useEffect(() => {
-    document.body.style.overflow = lightboxIndex !== null ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [lightboxIndex]);
+function GalleryGrid({ events }: { events: GalleryEvent[] }) {
+  const top = events.slice(0, 3);
+  const bottom = events.slice(3, 6);
 
   return (
-    <>
-      <main className="min-h-screen pt-28 pb-20 px-4 sm:px-6 max-w-7xl mx-auto space-y-10">
-        {/* ── Header ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 22 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-          className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-8 border-b border-border/50"
-        >
-          <div className="space-y-2">
-            <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary/80">
-              <span className="w-6 h-px bg-primary/60 rounded-full" />
-              Visual Archive
-            </span>
-            <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter leading-none">
-              MOMENTS
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              A visual journey through DIUSCADI events and milestones.
-            </p>
-          </div>
+    <div className="space-y-3">
+      <div className={cn('grid', 'grid-cols-3', 'gap-3')}>
+        {top.map((event) => (
+          <GalleryCard
+            key={event.id}
+            event={event}
+            className={cn('h-[220px]', 'sm:h-[260px]')}
+          />
+        ))}
+      </div>
+      {bottom.length > 0 && (
+        <div className={cn('grid', 'grid-cols-12', 'gap-3')}>
+          {bottom[0] && (
+            <GalleryCard
+              event={bottom[0]}
+              className={cn('col-span-5', 'h-[220px]', 'sm:h-[260px]')}
+            />
+          )}
+          {bottom[1] && (
+            <GalleryCard
+              event={bottom[1]}
+              className={cn('col-span-4', 'h-[220px]', 'sm:h-[260px]')}
+            />
+          )}
+          {bottom[2] && (
+            <GalleryCard
+              event={bottom[2]}
+              className={cn('col-span-3', 'h-[220px]', 'sm:h-[260px]')}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* layout toggle */}
-            <div className="glass rounded-2xl p-1 flex gap-1">
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function GallerySkeleton() {
+  return (
+    <div className="space-y-3">
+      <div className={cn('grid', 'grid-cols-3', 'gap-3')}>
+        {[...Array(3)].map((_, i) => (
+          <div
+            key={i}
+            className={cn('h-[260px]', 'rounded-[1.25rem]', 'bg-muted', 'animate-pulse')}
+          />
+        ))}
+      </div>
+      <div className={cn('grid', 'grid-cols-12', 'gap-3')}>
+        <div className={cn('col-span-5', 'h-[260px]', 'rounded-[1.25rem]', 'bg-muted', 'animate-pulse')} />
+        <div className={cn('col-span-4', 'h-[260px]', 'rounded-[1.25rem]', 'bg-muted', 'animate-pulse')} />
+        <div className={cn('col-span-3', 'h-[260px]', 'rounded-[1.25rem]', 'bg-muted', 'animate-pulse')} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function GalleryPage() {
+  const { publicEvents, publicEventsLoading, loadPublicEvents } = useEvents();
+
+  const [activeCategory, setActiveCategory] = useState("All Projects");
+  const [page, setPage] = useState(1);
+
+  // Load a large batch on mount so we have plenty of events to filter
+  useEffect(() => {
+    loadPublicEvents(50, undefined);
+  }, [loadPublicEvents]);
+
+  // ── Derive source ─────────────────────────────────────────────────────────
+  // Filter real events to only past ones.
+  // Fall back to MOCK_EVENTS when:
+  //   - publicEvents is still loading (show skeleton instead)
+  //   - publicEvents loaded but zero are in the past
+  const pastEvents: GalleryEvent[] = publicEvents
+    .filter((e) => isPast(e.eventDate))
+    .map((e) => ({
+      id: e.id,
+      slug: e.slug,
+      title: e.title,
+      overview: e.overview ?? "",
+      category: e.category,
+      image: e.image ?? "",
+      eventDate: e.eventDate,
+    }));
+
+  // Condition: use real past events if any exist, otherwise use mock fallback
+  const usingMock = !publicEventsLoading && pastEvents.length === 0;
+  const allEvents = usingMock ? MOCK_EVENTS : pastEvents;
+
+  // ── Dynamic categories from actual data ───────────────────────────────────
+  const categories = [
+    "All Projects",
+    ...Array.from(new Set(allEvents.map((e) => e.category))),
+  ];
+
+  // ── Filter ────────────────────────────────────────────────────────────────
+  const filtered =
+    activeCategory === "All Projects"
+      ? allEvents
+      : allEvents.filter((e) => e.category === activeCategory);
+
+  // ── Paginate ──────────────────────────────────────────────────────────────
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const handleCategory = useCallback((cat: string) => {
+    setActiveCategory(cat);
+    setPage(1);
+  }, []);
+
+  return (
+    <main className={cn('min-h-screen', 'w-full', 'mt-[50px]', 'pt-24', 'pb-20', 'px-5', 'sm:px-8', 'max-w-7xl', 'mx-auto')}>
+      {/* Mock data notice */}
+      {usingMock && (
+        <div className={cn('mb-6', 'px-4', 'py-2.5', 'bg-amber-50', 'border', 'border-amber-100', 'rounded-2xl', 'flex', 'items-center', 'gap-3')}>
+          <div className={cn('w-1.5', 'h-1.5', 'rounded-full', 'bg-amber-500', 'shrink-0')} />
+          <p className={cn('text-[10px]', 'font-black', 'text-amber-700', 'uppercase', 'tracking-widest')}>
+            Showing sample data — no concluded events found yet
+          </p>
+        </div>
+      )}
+
+      {/* ── Header bar ── */}
+      <div className={cn('flex', 'flex-wrap', 'items-center', 'justify-between', 'gap-4', 'mb-8')}>
+        <div className={cn('flex', 'flex-wrap', 'items-center', 'gap-3')}>
+          <h1 className={cn('text-2xl', 'font-black', 'text-foreground', 'tracking-tight', 'mr-2')}>
+            Gallery
+          </h1>
+          <div className={cn('flex', 'items-center', 'gap-1.5', 'flex-wrap')}>
+            {categories.map((cat) => (
               <button
-                onClick={() => setLayout("bento")}
+                key={cat}
+                onClick={() => handleCategory(cat)}
                 className={cn(
-                  "p-2 rounded-xl transition-colors",
-                  layout === "bento"
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:text-foreground",
+                  "px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer",
+                  activeCategory === cat
+                    ? "bg-foreground text-background shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
                 )}
-                aria-label="Bento layout"
               >
-                <LayoutGrid size={16} />
+                {cat}
               </button>
-              <button
-                onClick={() => setLayout("grid")}
-                className={cn(
-                  "p-2 rounded-xl transition-colors",
-                  layout === "grid"
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                aria-label="Grid layout"
-              >
-                <Grid3X3 size={16} />
-              </button>
-            </div>
-
-            {/* capture count */}
-            <div className="glass px-5 py-2.5 rounded-2xl flex items-center gap-2 text-primary font-black text-xs uppercase tracking-widest">
-              <Camera size={16} />
-              {filtered.length} Captures
-            </div>
+            ))}
           </div>
-        </motion.div>
+        </div>
 
-        {/* ── Filter tabs ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.45 }}
-          className="flex gap-2 flex-wrap"
-        >
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={cn(
-                "px-5 py-2 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all duration-200",
-                activeCategory === cat
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                  : "glass text-muted-foreground hover:text-foreground hover:border-border/80",
-              )}
-            >
-              {cat}
-            </button>
-          ))}
-        </motion.div>
-
-        {/* ── Grid ── */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeCategory + layout}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+        <div className={cn('flex', 'items-center', 'gap-2')}>
+          <span className={cn('text-[11px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'mr-1')}>
+            {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            aria-label="Previous page"
             className={cn(
-              "grid gap-4 md:gap-5",
-              layout === "bento"
-                ? "grid-cols-1 md:grid-cols-4 auto-rows-[180px]"
-                : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+              "w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer bg-muted border border-border",
+              page === 1
+                ? "opacity-40 cursor-not-allowed"
+                : "hover:bg-foreground hover:text-background hover:border-foreground",
             )}
           >
-            {filtered.map((item, i) => (
-              <GalleryCard
-                key={item.id}
-                item={item}
-                index={i}
-                layout={layout}
-                onOpen={() => openLightbox(i)}
-              />
-            ))}
-          </motion.div>
-        </AnimatePresence>
+            <ChevronLeft className={cn('w-4', 'h-4')} />
+          </button>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            aria-label="Next page"
+            className={cn(
+              "w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer bg-foreground text-background border border-foreground",
+              page === totalPages
+                ? "opacity-40 cursor-not-allowed"
+                : "hover:opacity-90",
+            )}
+          >
+            <ChevronRight className={cn('w-4', 'h-4')} />
+          </button>
+        </div>
+      </div>
 
-        {/* empty state */}
-        {filtered.length === 0 && (
-          <div className="text-center py-24 text-muted-foreground text-sm">
-            No captures in this category yet.
-          </div>
-        )}
-      </main>
-
-      {/* ── Lightbox ── */}
-      <AnimatePresence>
-        {lightboxIndex !== null && (
-          <Lightbox
-            items={filtered}
-            index={lightboxIndex}
-            onClose={closeLightbox}
-            onPrev={prevImage}
-            onNext={nextImage}
-          />
-        )}
+      {/* ── Grid ── */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeCategory + page}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {publicEventsLoading && pastEvents.length === 0 ? (
+            <GallerySkeleton />
+          ) : paginated.length > 0 ? (
+            <GalleryGrid events={paginated} />
+          ) : (
+            <div className={cn('flex', 'flex-col', 'items-center', 'justify-center', 'py-28', 'text-center')}>
+              <p className={cn('text-[11px]', 'font-black', 'uppercase', 'tracking-widest', 'text-muted-foreground')}>
+                No events in this category yet
+              </p>
+            </div>
+          )}
+        </motion.div>
       </AnimatePresence>
-    </>
+    </main>
   );
 }
