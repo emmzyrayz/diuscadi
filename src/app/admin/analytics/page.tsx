@@ -33,7 +33,7 @@ export default function AnalyticsDashboardPage() {
   }
 
   return (
-    <div className={cn('max-w-[1600px]', 'w-full', 'px-5', 'mt-[140px]', 'mx-auto', 'pb-20', 'space-y-12', 'animate-in', 'fade-in', 'slide-in-from-bottom-4', 'duration-1000')}>
+    <div className={cn('max-w-[1600px]', 'w-full', 'px-5', 'md:mt-[140px] mt-[70px]', 'mx-auto', 'pb-20', 'space-y-12', 'animate-in', 'fade-in', 'slide-in-from-bottom-4', 'duration-1000')}>
       <section className="space-y-6">
         <AdminAnalyticsHeader />
         <AdminAnalyticsFilters />

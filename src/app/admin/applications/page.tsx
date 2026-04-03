@@ -151,7 +151,7 @@ export default function ApplicationsManagementPage() {
 
   if (loading && applications.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] w-full mt-20">
+      <div className="flex items-center justify-center min-h-[60vh] w-full md:mt-20 mt-10">
         <LuLoader className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
@@ -162,7 +162,7 @@ export default function ApplicationsManagementPage() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.7 }}
-      className="max-w-[1600px] w-full mt-20 p-5 mx-auto space-y-8"
+      className="max-w-[1600px] w-full md:mt-20 mt-10 p-5 mx-auto space-y-8"
     >
       <APHeader pendingCount={stats?.pending ?? 0} />
 

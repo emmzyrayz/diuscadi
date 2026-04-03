@@ -341,12 +341,14 @@ export default function TicketsPage() {
 
   if (ticketsLoading) {
     return (
-      <div className={cn("w-full", "h-full mt-20")}>Loading tickets...</div>
+      <div className={cn("w-full", "h-full md:mt-20 mt-10")}>
+        Loading tickets...
+      </div>
     );
   }
 
   return (
-    <div className={cn("w-full", "h-full mt-20")}>
+    <div className={cn("w-full", "h-full md:mt-20 mt-10")}>
       <TicketListSection
         tickets={tickets}
         onClearFilters={() => loadTickets()}

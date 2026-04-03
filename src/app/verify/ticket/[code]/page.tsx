@@ -286,7 +286,7 @@ export default function VerifyTicketPage() {
   return (
     <div
       className={cn(
-        "min-h-screen w-full mt-[90px]",
+        "min-h-screen w-full md:mt-[90px]",
         "bg-muted",
         "flex",
         "flex-col",

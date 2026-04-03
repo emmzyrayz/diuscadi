@@ -78,14 +78,14 @@ export default function EventsManagementPage() {
 
   if (loadingAdminEvents && adminEvents.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] w-full mt-20">
+      <div className="flex items-center justify-center min-h-[60vh] w-full md:mt-20 mt-10">
         <LuLoader className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 w-full mt-20 p-6">
+    <div className="space-y-6 w-full md:mt-20 mt-10 p-6">
       <AdminEventsHeader onMutation={handleMutation} />
 
       {adminEvents.length === 0 && !loadingAdminEvents ? (
