@@ -16,7 +16,7 @@ import {
 } from "react-icons/lu";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { useAdmin } from "@/context/AdminContext";
+import { resolveAvatarUrl, useAdmin } from "@/context/AdminContext";
 import { useAuth } from "@/context/AuthContext";
 import { Portal } from "@/components/ui/Portal";
 import { AdminUserDeleteModal } from "./modal/AUDeleteModal";
@@ -307,8 +307,7 @@ const AdminUserRow: React.FC<RowProps> = ({
       ? "bg-amber-50 text-amber-600 border-amber-100"
       : "bg-emerald-50 text-emerald-600 border-emerald-100";
 
-  const avatarSrc = user?.avatar ?? null;
-
+  const avatarSrc = resolveAvatarUrl(user.avatar?.imageUrl);
   return (
     <>
       <motion.tr

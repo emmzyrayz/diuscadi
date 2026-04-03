@@ -157,8 +157,7 @@ export default function VerifyTicketPage() {
       toast.success("Check-in successful");
       await fetchTicket();
     } else {
-      // Show modal for time-window errors, toast for everything else
-      setCheckInError(result.error ?? "Check-in failed");
+      setCheckInError(result.error ?? "Check-in failed"); // modal handles all errors
     }
     setChecking(false);
   };
@@ -166,70 +165,7 @@ export default function VerifyTicketPage() {
   {
     /* ── Check-in error modal ── */
   }
-  <AnimatePresence>
-    {checkInError && (
-      <>
-        {/* Backdrop */}
-        <motion.div
-          key="checkin-error-backdrop"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={() => setCheckInError(null)}
-          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
-        />
-
-        {/* Modal */}
-        <motion.div
-          key="checkin-error-modal"
-          initial={{ opacity: 0, scale: 0.9, y: 24 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 24 }}
-          transition={{ type: "spring" as const, stiffness: 300, damping: 26 }}
-          className="fixed inset-x-4 bottom-8 z-50 mx-auto max-w-sm"
-        >
-          <div className="bg-background border-2 border-border rounded-[2rem] p-6 shadow-2xl space-y-4">
-            {/* Icon */}
-            <div className="flex items-center gap-4">
-              <div
-                className={cn(
-                  "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
-                  checkInError.toLowerCase().includes("ended")
-                    ? "bg-rose-50 border border-rose-100"
-                    : "bg-amber-50 border border-amber-100",
-                )}
-              >
-                <LuTriangleAlert
-                  className={cn(
-                    "w-6 h-6",
-                    checkInError.toLowerCase().includes("ended")
-                      ? "text-rose-500"
-                      : "text-amber-500",
-                  )}
-                />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                  Check-in Unavailable
-                </p>
-                <p className="text-sm font-black text-foreground tracking-tight mt-0.5">
-                  {checkInError}
-                </p>
-              </div>
-            </div>
-
-            {/* Dismiss */}
-            <button
-              onClick={() => setCheckInError(null)}
-              className="w-full py-3 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity cursor-pointer"
-            >
-              Got it
-            </button>
-          </div>
-        </motion.div>
-      </>
-    )}
-  </AnimatePresence>;
+  
 
   // ── Loading ──────────────────────────────────────────────────────────────
   // Fix 1 applied: sessionStatus === "pending" instead of "loading"
@@ -348,19 +284,112 @@ export default function VerifyTicketPage() {
   const statusCfg = STATUS_CONFIG[ticket.status];
 
   return (
-    <div className={cn('min-h-screen w-full mt-[90px]', 'bg-muted', 'flex', 'flex-col', 'items-center', 'justify-start', 'py-8', 'px-4')}>
+    <div
+      className={cn(
+        "min-h-screen w-full mt-[90px]",
+        "bg-muted",
+        "flex",
+        "flex-col",
+        "items-center",
+        "justify-start",
+        "py-8",
+        "px-4",
+      )}
+    >
+      {/* ── Check-in error modal ── ADD IT HERE */}
+      <AnimatePresence>
+        {checkInError && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="checkin-error-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setCheckInError(null)}
+              className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
+            />
+
+            {/* Modal */}
+            <motion.div
+              key="checkin-error-modal"
+              initial={{ opacity: 0, scale: 0.9, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 24 }}
+              transition={{
+                type: "spring" as const,
+                stiffness: 300,
+                damping: 26,
+              }}
+              className="fixed inset-x-4 bottom-8 z-50 mx-auto max-w-sm"
+            >
+              <div className="bg-background border-2 border-border rounded-[2rem] p-6 shadow-2xl space-y-4">
+                {/* Icon */}
+                <div className="flex items-center gap-4">
+                  <div
+                    className={cn(
+                      "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+                      checkInError.toLowerCase().includes("ended")
+                        ? "bg-rose-50 border border-rose-100"
+                        : "bg-amber-50 border border-amber-100",
+                    )}
+                  >
+                    <LuTriangleAlert
+                      className={cn(
+                        "w-6 h-6",
+                        checkInError.toLowerCase().includes("ended")
+                          ? "text-rose-500"
+                          : "text-amber-500",
+                      )}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                      Check-in Unavailable
+                    </p>
+                    <p className="text-sm font-black text-foreground tracking-tight mt-0.5">
+                      {checkInError}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Dismiss */}
+                <button
+                  onClick={() => setCheckInError(null)}
+                  className="w-full py-3 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity cursor-pointer"
+                >
+                  Got it
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Back button */}
       <motion.div
         initial={{ opacity: 0, x: -16 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 26 }}
-        className={cn('w-full', 'max-w-md', 'mb-6')}
+        className={cn("w-full", "max-w-md", "mb-6")}
       >
         <button
           onClick={() => router.back()}
-          className={cn('flex', 'items-center', 'gap-2', 'text-[10px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'hover:text-foreground', 'transition-colors', 'cursor-pointer')}
+          className={cn(
+            "flex",
+            "items-center",
+            "gap-2",
+            "text-[10px]",
+            "font-black",
+            "text-muted-foreground",
+            "uppercase",
+            "tracking-widest",
+            "hover:text-foreground",
+            "transition-colors",
+            "cursor-pointer",
+          )}
         >
-          <LuArrowLeft className={cn('w-4', 'h-4')} /> Back
+          <LuArrowLeft className={cn("w-4", "h-4")} /> Back
         </button>
       </motion.div>
 
@@ -370,37 +399,76 @@ export default function VerifyTicketPage() {
         variants={pageVariants}
         initial="hidden"
         animate="visible"
-        className={cn('w-full', 'max-w-md', 'space-y-4')}
+        className={cn("w-full", "max-w-md", "space-y-4")}
       >
         {/* ── Staff check-in card ── */}
         {isStaff && ticket.owner && (
           <motion.div
             variants={cardVariants}
-            className={cn('bg-background', 'rounded-[2.5rem]', 'border-2', 'border-border', 'shadow-sm', 'overflow-hidden')}
+            className={cn(
+              "bg-background",
+              "rounded-[2.5rem]",
+              "border-2",
+              "border-border",
+              "shadow-sm",
+              "overflow-hidden",
+            )}
           >
             {/* Attendee info */}
             <motion.div
               variants={fadeUp}
-              className={cn('p-6', 'flex', 'items-center', 'gap-4')}
+              className={cn("p-6", "flex", "items-center", "gap-4")}
             >
-              <div className={cn('w-16', 'h-16', 'rounded-2xl', 'bg-muted', 'overflow-hidden', 'border', 'border-border', 'flex', 'items-center', 'justify-center', 'text-xl', 'font-black', 'text-muted-foreground', 'shrink-0')}>
+              <div
+                className={cn(
+                  "w-16",
+                  "h-16",
+                  "rounded-2xl",
+                  "bg-muted",
+                  "overflow-hidden",
+                  "border",
+                  "border-border",
+                  "flex",
+                  "items-center",
+                  "justify-center",
+                  "text-xl",
+                  "font-black",
+                  "text-muted-foreground",
+                  "shrink-0",
+                )}
+              >
                 {ticket.owner.avatar ? (
                   <Image
                     src={ticket.owner.avatar}
                     alt={ticket.owner.name}
                     width={64}
                     height={64}
-                    className={cn('w-full', 'h-full', 'object-cover')}
+                    className={cn("w-full", "h-full", "object-cover")}
                   />
                 ) : (
                   <span>{ticket.owner.name.charAt(0).toUpperCase()}</span>
                 )}
               </div>
               <div className="min-w-0">
-                <p className={cn('text-lg', 'font-black', 'text-foreground', 'tracking-tight', 'truncate')}>
+                <p
+                  className={cn(
+                    "text-lg",
+                    "font-black",
+                    "text-foreground",
+                    "tracking-tight",
+                    "truncate",
+                  )}
+                >
                   {ticket.owner.name}
                 </p>
-                <p className={cn('text-[10px]', 'font-bold', 'text-muted-foreground', 'truncate')}>
+                <p
+                  className={cn(
+                    "text-[10px]",
+                    "font-bold",
+                    "text-muted-foreground",
+                    "truncate",
+                  )}
+                >
                   {ticket.owner.email}
                 </p>
                 <span
@@ -417,7 +485,7 @@ export default function VerifyTicketPage() {
             </motion.div>
 
             {/* Status + action — AnimatePresence handles transitions between states */}
-            <div className={cn('p-6', 'pt-0')}>
+            <div className={cn("p-6", "pt-0")}>
               <AnimatePresence mode="wait">
                 {isPending && (
                   <motion.button
@@ -430,7 +498,27 @@ export default function VerifyTicketPage() {
                     disabled={checking || checkInLoading}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.97 }}
-                    className={cn('w-full', 'flex', 'items-center', 'justify-center', 'gap-3', 'py-5', 'bg-emerald-500', 'text-background', 'rounded-2xl', 'text-[11px]', 'font-black', 'uppercase', 'tracking-widest', 'hover:bg-emerald-600', 'transition-colors', 'shadow-xl', 'shadow-emerald-500/20', 'cursor-pointer', 'disabled:opacity-60')}
+                    className={cn(
+                      "w-full",
+                      "flex",
+                      "items-center",
+                      "justify-center",
+                      "gap-3",
+                      "py-5",
+                      "bg-emerald-500",
+                      "text-background",
+                      "rounded-2xl",
+                      "text-[11px]",
+                      "font-black",
+                      "uppercase",
+                      "tracking-widest",
+                      "hover:bg-emerald-600",
+                      "transition-colors",
+                      "shadow-xl",
+                      "shadow-emerald-500/20",
+                      "cursor-pointer",
+                      "disabled:opacity-60",
+                    )}
                   >
                     {checking ? (
                       <>
@@ -443,13 +531,14 @@ export default function VerifyTicketPage() {
                           }}
                           className="inline-block"
                         >
-                          <LuLoader className={cn('w-5', 'h-5')} />
+                          <LuLoader className={cn("w-5", "h-5")} />
                         </motion.span>
                         Checking in…
                       </>
                     ) : (
                       <>
-                        <LuShieldCheck className={cn('w-5', 'h-5')} /> Confirm Entry
+                        <LuShieldCheck className={cn("w-5", "h-5")} /> Confirm
+                        Entry
                       </>
                     )}
                   </motion.button>
@@ -462,15 +551,43 @@ export default function VerifyTicketPage() {
                     initial="hidden"
                     animate="visible"
                     exit="exit"
-                    className={cn('w-full', 'flex', 'items-center', 'justify-center', 'gap-3', 'py-5', 'bg-blue-50', 'border', 'border-blue-100', 'rounded-2xl')}
+                    className={cn(
+                      "w-full",
+                      "flex",
+                      "items-center",
+                      "justify-center",
+                      "gap-3",
+                      "py-5",
+                      "bg-blue-50",
+                      "border",
+                      "border-blue-100",
+                      "rounded-2xl",
+                    )}
                   >
-                    <LuCircleCheck className={cn('w-5', 'h-5', 'text-blue-600')} />
+                    <LuCircleCheck
+                      className={cn("w-5", "h-5", "text-blue-600")}
+                    />
                     <div className="text-left">
-                      <p className={cn('text-[11px]', 'font-black', 'text-blue-700', 'uppercase', 'tracking-widest')}>
+                      <p
+                        className={cn(
+                          "text-[11px]",
+                          "font-black",
+                          "text-blue-700",
+                          "uppercase",
+                          "tracking-widest",
+                        )}
+                      >
                         Already Checked In
                       </p>
                       {ticket.checkedInAt && (
-                        <p className={cn('text-[9px]', 'font-bold', 'text-blue-500', 'mt-0.5')}>
+                        <p
+                          className={cn(
+                            "text-[9px]",
+                            "font-bold",
+                            "text-blue-500",
+                            "mt-0.5",
+                          )}
+                        >
                           at{" "}
                           {new Date(ticket.checkedInAt).toLocaleTimeString([], {
                             hour: "2-digit",
@@ -489,10 +606,29 @@ export default function VerifyTicketPage() {
                     initial="hidden"
                     animate="visible"
                     exit="exit"
-                    className={cn('w-full', 'flex', 'items-center', 'justify-center', 'gap-3', 'py-5', 'bg-rose-50', 'border', 'border-rose-100', 'rounded-2xl')}
+                    className={cn(
+                      "w-full",
+                      "flex",
+                      "items-center",
+                      "justify-center",
+                      "gap-3",
+                      "py-5",
+                      "bg-rose-50",
+                      "border",
+                      "border-rose-100",
+                      "rounded-2xl",
+                    )}
                   >
-                    <LuCircleX className={cn('w-5', 'h-5', 'text-rose-600')} />
-                    <p className={cn('text-[11px]', 'font-black', 'text-rose-700', 'uppercase', 'tracking-widest')}>
+                    <LuCircleX className={cn("w-5", "h-5", "text-rose-600")} />
+                    <p
+                      className={cn(
+                        "text-[11px]",
+                        "font-black",
+                        "text-rose-700",
+                        "uppercase",
+                        "tracking-widest",
+                      )}
+                    >
                       Ticket Cancelled — Deny Entry
                     </p>
                   </motion.div>
@@ -505,12 +641,19 @@ export default function VerifyTicketPage() {
         {/* ── Ticket card ── */}
         <motion.div
           variants={cardVariants}
-          className={cn('bg-background', 'rounded-[2.5rem]', 'border-2', 'border-border', 'shadow-sm', 'overflow-hidden')}
+          className={cn(
+            "bg-background",
+            "rounded-[2.5rem]",
+            "border-2",
+            "border-border",
+            "shadow-sm",
+            "overflow-hidden",
+          )}
         >
           {/* Event banner */}
           <motion.div
             variants={fadeUp}
-            className={cn('relative', 'h-36', 'bg-muted', 'overflow-hidden')}
+            className={cn("relative", "h-36", "bg-muted", "overflow-hidden")}
           >
             <Image
               src={ticket.event.image}
@@ -519,7 +662,15 @@ export default function VerifyTicketPage() {
               priority
               className="object-cover"
             />
-            <div className={cn('absolute', 'inset-0', 'bg-gradient-to-t', 'from-background/80', 'to-transparent')} />
+            <div
+              className={cn(
+                "absolute",
+                "inset-0",
+                "bg-gradient-to-t",
+                "from-background/80",
+                "to-transparent",
+              )}
+            />
             {/* Status badge */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8, x: 8 }}
@@ -540,19 +691,38 @@ export default function VerifyTicketPage() {
             </motion.div>
           </motion.div>
 
-          <div className={cn('p-6', 'space-y-6')}>
+          <div className={cn("p-6", "space-y-6")}>
             {/* Event title + category */}
             <motion.div variants={fadeUp}>
-              <p className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
+              <p
+                className={cn(
+                  "text-[9px]",
+                  "font-black",
+                  "text-muted-foreground",
+                  "uppercase",
+                  "tracking-widest",
+                )}
+              >
                 {ticket.event.category}
               </p>
-              <h1 className={cn('text-xl', 'font-black', 'text-foreground', 'tracking-tight', 'mt-1')}>
+              <h1
+                className={cn(
+                  "text-xl",
+                  "font-black",
+                  "text-foreground",
+                  "tracking-tight",
+                  "mt-1",
+                )}
+              >
                 {ticket.event.title}
               </h1>
             </motion.div>
 
             {/* Event details grid */}
-            <motion.div variants={fadeUp} className={cn('grid', 'grid-cols-2', 'gap-3')}>
+            <motion.div
+              variants={fadeUp}
+              className={cn("grid", "grid-cols-2", "gap-3")}
+            >
               <InfoPill
                 icon={LuCalendar}
                 label="Date"
@@ -583,17 +753,47 @@ export default function VerifyTicketPage() {
             </motion.div>
 
             {/* Perforated divider */}
-            <motion.div variants={fadeUp} className={cn('flex', 'items-center', 'gap-2')}>
-              <div className={cn('w-6', 'h-6', 'rounded-full', 'bg-muted', 'border-2', 'border-border', '-ml-9')} />
-              <div className={cn('flex-1', 'border-t-2', 'border-dashed', 'border-border')} />
-              <div className={cn('w-6', 'h-6', 'rounded-full', 'bg-muted', 'border-2', 'border-border', '-mr-9')} />
+            <motion.div
+              variants={fadeUp}
+              className={cn("flex", "items-center", "gap-2")}
+            >
+              <div
+                className={cn(
+                  "w-6",
+                  "h-6",
+                  "rounded-full",
+                  "bg-muted",
+                  "border-2",
+                  "border-border",
+                  "-ml-9",
+                )}
+              />
+              <div
+                className={cn(
+                  "flex-1",
+                  "border-t-2",
+                  "border-dashed",
+                  "border-border",
+                )}
+              />
+              <div
+                className={cn(
+                  "w-6",
+                  "h-6",
+                  "rounded-full",
+                  "bg-muted",
+                  "border-2",
+                  "border-border",
+                  "-mr-9",
+                )}
+              />
             </motion.div>
 
             {/* QR Code — owner only */}
             {!isStaff && (
               <motion.div
                 variants={fadeUp}
-                className={cn('flex', 'flex-col', 'items-center', 'gap-4')}
+                className={cn("flex", "flex-col", "items-center", "gap-4")}
               >
                 <motion.div
                   initial={{ opacity: 0, scale: 0.85 }}
@@ -629,10 +829,28 @@ export default function VerifyTicketPage() {
 
                 {/* Invite code */}
                 <div className="text-center">
-                  <p className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'mb-1')}>
+                  <p
+                    className={cn(
+                      "text-[9px]",
+                      "font-black",
+                      "text-muted-foreground",
+                      "uppercase",
+                      "tracking-widest",
+                      "mb-1",
+                    )}
+                  >
                     Ticket Code
                   </p>
-                  <p className={cn('text-lg', 'font-black', 'text-foreground', 'font-mono', 'tracking-widest', 'uppercase')}>
+                  <p
+                    className={cn(
+                      "text-lg",
+                      "font-black",
+                      "text-foreground",
+                      "font-mono",
+                      "tracking-widest",
+                      "uppercase",
+                    )}
+                  >
                     {ticket.inviteCode}
                   </p>
                 </div>
@@ -644,9 +862,25 @@ export default function VerifyTicketPage() {
                       initial="hidden"
                       animate="visible"
                       exit="exit"
-                      className={cn('w-full', 'p-4', 'bg-rose-50', 'border', 'border-rose-100', 'rounded-2xl', 'text-center')}
+                      className={cn(
+                        "w-full",
+                        "p-4",
+                        "bg-rose-50",
+                        "border",
+                        "border-rose-100",
+                        "rounded-2xl",
+                        "text-center",
+                      )}
                     >
-                      <p className={cn('text-[11px]', 'font-black', 'text-rose-700', 'uppercase', 'tracking-widest')}>
+                      <p
+                        className={cn(
+                          "text-[11px]",
+                          "font-black",
+                          "text-rose-700",
+                          "uppercase",
+                          "tracking-widest",
+                        )}
+                      >
                         This ticket has been cancelled
                       </p>
                     </motion.div>
@@ -658,14 +892,46 @@ export default function VerifyTicketPage() {
                       initial="hidden"
                       animate="visible"
                       exit="exit"
-                      className={cn('w-full', 'p-4', 'bg-blue-50', 'border', 'border-blue-100', 'rounded-2xl', 'flex', 'items-center', 'gap-3')}
+                      className={cn(
+                        "w-full",
+                        "p-4",
+                        "bg-blue-50",
+                        "border",
+                        "border-blue-100",
+                        "rounded-2xl",
+                        "flex",
+                        "items-center",
+                        "gap-3",
+                      )}
                     >
-                      <LuCircleCheck className={cn('w-5', 'h-5', 'text-blue-600', 'shrink-0')} />
+                      <LuCircleCheck
+                        className={cn(
+                          "w-5",
+                          "h-5",
+                          "text-blue-600",
+                          "shrink-0",
+                        )}
+                      />
                       <div>
-                        <p className={cn('text-[11px]', 'font-black', 'text-blue-700', 'uppercase', 'tracking-widest')}>
+                        <p
+                          className={cn(
+                            "text-[11px]",
+                            "font-black",
+                            "text-blue-700",
+                            "uppercase",
+                            "tracking-widest",
+                          )}
+                        >
                           Checked In
                         </p>
-                        <p className={cn('text-[9px]', 'font-bold', 'text-blue-500', 'mt-0.5')}>
+                        <p
+                          className={cn(
+                            "text-[9px]",
+                            "font-bold",
+                            "text-blue-500",
+                            "mt-0.5",
+                          )}
+                        >
                           {new Date(ticket.checkedInAt).toLocaleString(
                             "en-US",
                             {
@@ -686,12 +952,27 @@ export default function VerifyTicketPage() {
             {/* Registration date */}
             <motion.div
               variants={fadeUp}
-              className={cn('flex', 'items-center', 'justify-between', 'pt-2', 'border-t', 'border-border')}
+              className={cn(
+                "flex",
+                "items-center",
+                "justify-between",
+                "pt-2",
+                "border-t",
+                "border-border",
+              )}
             >
-              <p className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
+              <p
+                className={cn(
+                  "text-[9px]",
+                  "font-black",
+                  "text-muted-foreground",
+                  "uppercase",
+                  "tracking-widest",
+                )}
+              >
                 Registered
               </p>
-              <p className={cn('text-[10px]', 'font-bold', 'text-foreground')}>
+              <p className={cn("text-[10px]", "font-bold", "text-foreground")}>
                 {new Date(ticket.registeredAt).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
@@ -704,12 +985,22 @@ export default function VerifyTicketPage() {
             {ticket.ticketType.price > 0 && (
               <motion.div
                 variants={fadeUp}
-                className={cn('flex', 'items-center', 'justify-between')}
+                className={cn("flex", "items-center", "justify-between")}
               >
-                <p className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
+                <p
+                  className={cn(
+                    "text-[9px]",
+                    "font-black",
+                    "text-muted-foreground",
+                    "uppercase",
+                    "tracking-widest",
+                  )}
+                >
                   Paid
                 </p>
-                <p className={cn('text-[10px]', 'font-bold', 'text-foreground')}>
+                <p
+                  className={cn("text-[10px]", "font-bold", "text-foreground")}
+                >
                   {ticket.ticketType.currency}{" "}
                   {ticket.ticketType.price.toLocaleString()}
                 </p>
@@ -719,8 +1010,16 @@ export default function VerifyTicketPage() {
         </motion.div>
 
         {/* Branding footer */}
-        <motion.div variants={fadeUp} className={cn('text-center', 'pb-4')}>
-          <p className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-[0.3em]')}>
+        <motion.div variants={fadeUp} className={cn("text-center", "pb-4")}>
+          <p
+            className={cn(
+              "text-[9px]",
+              "font-black",
+              "text-muted-foreground",
+              "uppercase",
+              "tracking-[0.3em]",
+            )}
+          >
             DIUSCADI · Official Event Ticket
           </p>
         </motion.div>

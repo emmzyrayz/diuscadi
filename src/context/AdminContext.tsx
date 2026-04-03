@@ -1,5 +1,6 @@
 "use client";
 
+import { CloudinaryImage } from "@/types/cloudinary";
 // context/AdminContext.tsx
 // Manages all admin/webmaster dashboard data in one context.
 // Role-gated at the API level — this context just calls the routes.
@@ -28,7 +29,7 @@ export interface AdminUser {
   fullName: { firstname: string; secondname?: string; lastname?: string }; // ← fix
   email: string;
   phone?: unknown;
-  avatar: string | null;
+  avatar: CloudinaryImage | null;
   role: string;
   eduStatus: string;
   committee: string | null;
@@ -44,6 +45,14 @@ export interface AdminUser {
   };
   createdAt: string;
   lastLoginAt: string | null;
+}
+
+export function resolveAvatarUrl(
+  avatar: CloudinaryImage | string | null | undefined,
+): string | null {
+  if (!avatar) return null;
+  if (typeof avatar === "string") return avatar;
+  return avatar.imageCloudName ?? avatar.imageUrl ?? null;
 }
 
 export interface AdminEvent {
