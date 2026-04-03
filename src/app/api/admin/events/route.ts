@@ -127,6 +127,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       endDate,
       registrationDeadline,
       capacity,
+      ticketPrice,
       targetEduStatus,
       requiredSkills,
       learningOutcomes,
@@ -170,6 +171,15 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
+    const normalizedCapacity =
+      typeof capacity === "number" && Number.isFinite(capacity)
+        ? Math.max(0, capacity)
+        : 0;
+    const normalizedTicketPrice =
+      typeof ticketPrice === "number" && Number.isFinite(ticketPrice)
+        ? Math.max(0, ticketPrice)
+        : 0;
+
     const { insertedId } = await Collections.events(db).insertOne({
       title: title.trim(),
       slug: slug.trim(),
@@ -182,7 +192,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       locationScope: locationScope ?? "local",
       eventDate: new Date(eventDate),
       registrationDeadline: new Date(registrationDeadline),
-      capacity: typeof capacity === "number" ? capacity : 0,
+      capacity: normalizedCapacity,
       targetEduStatus: targetEduStatus ?? "ALL",
       requiredSkills: requiredSkills ?? [],
       learningOutcomes: learningOutcomes ?? [],
@@ -205,6 +215,18 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       ...(level ? { level } : {}),
       ...(instructor ? { instructor } : {}),
       ...(duration ? { duration } : {}),
+    });
+
+    // Create default ticket tier so registration can always resolve ticketTypeId.
+    await Collections.ticketTypes(db).insertOne({
+      eventId: insertedId,
+      name: normalizedTicketPrice > 0 ? "General Admission" : "Free Pass",
+      price: normalizedTicketPrice,
+      currency: "NGN",
+      maxQuantity: normalizedCapacity,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
     });
 
     return NextResponse.json(

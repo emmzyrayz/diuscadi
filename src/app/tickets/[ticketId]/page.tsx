@@ -128,7 +128,7 @@ export default function TicketDetailPage() {
   const registeredDate = fmtDate(t.registeredAt);
 
   return (
-    <main className={cn("min-h-screen w-full", "bg-muted/50", "pt-[72px]")}>
+    <main className={cn("min-h-screen w-full px-5 mt-10", "bg-muted/50", "pt-[72px]")}>
       <TicketViewHeader status={displayStatus} />
 
       <div

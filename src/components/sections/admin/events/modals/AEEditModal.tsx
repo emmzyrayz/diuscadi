@@ -162,6 +162,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
            formData.registrationDeadline,
          ).toISOString(),
          capacity: formData.maxCapacity,
+        ticketPrice: formData.ticketPrice,
          locationScope: formData.type === "Virtual" ? "online" : "local",
          location: formData.venueName
            ? { venue: formData.venueName }

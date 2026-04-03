@@ -44,7 +44,7 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>("info");
 
-  const avatarSrc = user.avatar ?? null;
+  const avatarSrc = user?.avatar ?? null;
   const isActive = user.isAccountActive;
   const statusLabel =
     !isActive && user.membershipStatus === "banned"

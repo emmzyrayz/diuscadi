@@ -79,6 +79,7 @@ export interface CreateEventPayload {
   endDate?: string;
   registrationDeadline: string;
   capacity?: number;
+  ticketPrice?: number;
   targetEduStatus?: string;
   requiredSkills?: string[];
   learningOutcomes?: string[];

@@ -46,12 +46,11 @@ export const AdminEventsTable: React.FC<TableProps> = ({
       "bg-background",
       "border-2",
       "border-border",
-      "rounded-[2.5rem]",
-      "overflow-hidden",
+      "rounded-2xl",
       "shadow-sm",
     )}
   >
-    <div className="overflow-x-auto">
+    <div className={cn('w-full', 'h-full')}>
       <table className={cn("w-full", "text-left", "border-collapse")}>
         <thead>
           <tr className={cn("bg-muted/50", "border-b", "border-border")}>

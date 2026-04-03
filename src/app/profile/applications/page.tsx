@@ -1,5 +1,5 @@
 "use client";
-// app/home/profile/applications/page.tsx
+// app/profile/applications/page.tsx
 // User-facing applications page — submit and track committee/skills requests.
 // Uses ApplicationContext which already has loadMyApplications + submitApplication.
 
@@ -59,11 +59,11 @@ export default function ProfileApplicationsPage() {
     applications,
     loading,
     submitting,
-    error,
+    // error,
     loadMyApplications,
     submitApplication,
     hasPending,
-    clearError,
+    // clearError,
   } = useApplications();
   const { committees, skills, loadCommittees, loadSkills } = usePlatform();
 
@@ -77,7 +77,7 @@ export default function ProfileApplicationsPage() {
     if (token) loadMyApplications();
     loadCommittees();
     loadSkills();
-  }, [token]);
+  }, [loadCommittees, loadMyApplications, loadSkills, token]);
 
   const handleSubmit = async () => {
     if (!token) return;
@@ -129,26 +129,26 @@ export default function ProfileApplicationsPage() {
   const canApplySkills = !hasPending("skills");
 
   return (
-    <main className="min-h-screen mt-15 pb-20">
+    <main className={cn('min-h-screen w-full px-5', 'mt-25', 'pb-20')}>
       {/* Header */}
-      <div className="border-b border-border bg-background">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className={cn('border-b rounded-2xl', 'border-border', 'bg-background')}>
+        <div className={cn('max-w-4xl', 'mx-auto', 'px-4', 'sm:px-6', 'lg:px-8', 'py-8')}>
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors cursor-pointer mb-6"
+            className={cn('flex', 'items-center', 'gap-2', 'text-[10px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'hover:text-foreground', 'transition-colors', 'cursor-pointer', 'mb-6')}
           >
-            <LuArrowLeft className="w-4 h-4" /> Back to Profile
+            <LuArrowLeft className={cn('w-4', 'h-4')} /> Back to Profile
           </button>
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-foreground flex items-center justify-center shadow-xl shadow-foreground/20">
-                <LuInbox className="w-7 h-7 text-background" />
+          <div className={cn('flex', 'flex-col', 'sm:flex-row', 'sm:items-end', 'justify-between', 'gap-6')}>
+            <div className={cn('flex', 'items-center', 'gap-4')}>
+              <div className={cn('w-14', 'h-14', 'rounded-2xl', 'bg-foreground', 'flex', 'items-center', 'justify-center', 'shadow-xl', 'shadow-foreground/20')}>
+                <LuInbox className={cn('w-7', 'h-7', 'text-background')} />
               </div>
               <div>
-                <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase">
+                <h1 className={cn('text-3xl', 'font-black', 'text-foreground', 'tracking-tighter', 'uppercase')}>
                   My Applications
                 </h1>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">
+                <p className={cn('text-xs', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'mt-1')}>
                   {applications.length} submission
                   {applications.length !== 1 ? "s" : ""}
                 </p>
@@ -164,22 +164,22 @@ export default function ProfileApplicationsPage() {
                   : "bg-muted text-muted-foreground cursor-not-allowed shadow-none",
               )}
             >
-              <LuPlus className="w-4 h-4" /> New Application
+              <LuPlus className={cn('w-4', 'h-4')} /> New Application
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-6">
+      <div className={cn('max-w-4xl', 'mx-auto', 'px-4', 'sm:px-6', 'lg:px-8', 'mt-8', 'space-y-6')}>
         {/* Pending notice */}
         {(hasPending("committee") || hasPending("skills")) && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-100 rounded-2xl"
+            className={cn('flex', 'items-start', 'gap-3', 'p-4', 'bg-amber-50', 'border', 'border-amber-100', 'rounded-2xl')}
           >
-            <LuInfo className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest leading-relaxed">
+            <LuInfo className={cn('w-4', 'h-4', 'text-amber-600', 'shrink-0', 'mt-0.5')} />
+            <p className={cn('text-[11px]', 'font-bold', 'text-amber-700', 'uppercase', 'tracking-widest', 'leading-relaxed')}>
               You have a pending application. You cannot submit another of the
               same type until it is reviewed.
             </p>
@@ -195,22 +195,22 @@ export default function ProfileApplicationsPage() {
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              <div className="bg-background border-2 border-border rounded-[2.5rem] p-8 space-y-6">
+              <div className={cn('bg-background', 'border-2', 'border-border', 'rounded-[2.5rem]', 'p-8', 'space-y-6')}>
                 {/* Form header */}
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-black text-foreground uppercase tracking-tighter">
+                <div className={cn('flex', 'items-center', 'justify-between')}>
+                  <h2 className={cn('text-lg', 'font-black', 'text-foreground', 'uppercase', 'tracking-tighter')}>
                     New Application
                   </h2>
                   <button
                     onClick={() => setShowForm(false)}
-                    className="p-2 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    className={cn('p-2', 'hover:bg-muted', 'rounded-xl', 'text-muted-foreground', 'hover:text-foreground', 'transition-colors', 'cursor-pointer')}
                   >
-                    <LuX className="w-5 h-5" />
+                    <LuX className={cn('w-5', 'h-5')} />
                   </button>
                 </div>
 
                 {/* Type selector */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className={cn('grid', 'grid-cols-2', 'gap-3')}>
                   {(["committee", "skills"] as const).map((t) => {
                     const Icon = t === "committee" ? LuShieldCheck : LuCode;
                     const canApply =
@@ -248,7 +248,7 @@ export default function ProfileApplicationsPage() {
                           >
                             {t === "committee" ? "Committee" : "Skills"}
                           </p>
-                          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+                          <p className={cn('text-[9px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'mt-0.5')}>
                             {t === "committee"
                               ? "Join a committee"
                               : "Add skills to profile"}
@@ -262,10 +262,10 @@ export default function ProfileApplicationsPage() {
                 {/* Committee picker */}
                 {formType === "committee" && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                    <label className={cn('text-[10px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
                       Select Committee <span className="text-rose-500">*</span>
                     </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className={cn('grid', 'grid-cols-1', 'sm:grid-cols-2', 'gap-2')}>
                       {(committees ?? []).map((c) => (
                         <button
                           key={c.slug}
@@ -278,7 +278,7 @@ export default function ProfileApplicationsPage() {
                           )}
                         >
                           <div
-                            className="w-8 h-8 rounded-xl flex items-center justify-center text-background text-[11px] font-black shrink-0"
+                            className={cn('w-8', 'h-8', 'rounded-xl', 'flex', 'items-center', 'justify-center', 'text-background', 'text-[11px]', 'font-black', 'shrink-0')}
                             style={{ backgroundColor: c.color }}
                           >
                             {c.name.charAt(0)}
@@ -294,12 +294,12 @@ export default function ProfileApplicationsPage() {
                             >
                               {c.name}
                             </p>
-                            <p className="text-[9px] font-bold text-muted-foreground mt-0.5">
+                            <p className={cn('text-[9px]', 'font-bold', 'text-muted-foreground', 'mt-0.5')}>
                               {c.memberCount} members
                             </p>
                           </div>
                           {selectedComm === c.slug && (
-                            <LuCircleCheck className="w-4 h-4 text-primary ml-auto shrink-0" />
+                            <LuCircleCheck className={cn('w-4', 'h-4', 'text-primary', 'ml-auto', 'shrink-0')} />
                           )}
                         </button>
                       ))}
@@ -310,10 +310,10 @@ export default function ProfileApplicationsPage() {
                 {/* Skills picker */}
                 {formType === "skills" && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                    <label className={cn('text-[10px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
                       Select Skills <span className="text-rose-500">*</span>
                     </label>
-                    <div className="flex flex-wrap gap-2">
+                    <div className={cn('flex', 'flex-wrap', 'gap-2')}>
                       {(skills ?? []).map((s) => {
                         const selected = selectedSkills.includes(s.slug);
                         return (
@@ -333,7 +333,7 @@ export default function ProfileApplicationsPage() {
                       })}
                     </div>
                     {selectedSkills.length > 0 && (
-                      <p className="text-[9px] font-bold text-primary uppercase tracking-widest">
+                      <p className={cn('text-[9px]', 'font-bold', 'text-primary', 'uppercase', 'tracking-widest')}>
                         {selectedSkills.length} skill
                         {selectedSkills.length !== 1 ? "s" : ""} selected
                       </p>
@@ -343,7 +343,7 @@ export default function ProfileApplicationsPage() {
 
                 {/* Reason */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                  <label className={cn('text-[10px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
                     Reason / Motivation (optional)
                   </label>
                   <textarea
@@ -351,31 +351,31 @@ export default function ProfileApplicationsPage() {
                     onChange={(e) => setReason(e.target.value)}
                     placeholder="Tell us why you're interested…"
                     rows={3}
-                    className="w-full bg-muted border border-border rounded-2xl p-4 text-sm font-medium outline-none focus:border-primary transition-all resize-none"
+                    className={cn('w-full', 'bg-muted', 'border', 'border-border', 'rounded-2xl', 'p-4', 'text-sm', 'font-medium', 'outline-none', 'focus:border-primary', 'transition-all', 'resize-none')}
                   />
                 </div>
 
                 {/* Submit */}
-                <div className="flex gap-3">
+                <div className={cn('flex', 'gap-3')}>
                   <button
                     onClick={() => setShowForm(false)}
-                    className="flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted transition-all cursor-pointer"
+                    className={cn('flex-1', 'py-4', 'rounded-2xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'text-muted-foreground', 'hover:bg-muted', 'transition-all', 'cursor-pointer')}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSubmit}
                     disabled={submitting}
-                    className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-foreground text-background hover:bg-primary hover:text-foreground transition-all shadow-xl cursor-pointer disabled:opacity-60"
+                    className={cn('flex-1', 'flex', 'items-center', 'justify-center', 'gap-2', 'py-4', 'rounded-2xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'bg-foreground', 'text-background', 'hover:bg-primary', 'hover:text-foreground', 'transition-all', 'shadow-xl', 'cursor-pointer', 'disabled:opacity-60')}
                   >
                     {submitting ? (
                       <>
-                        <LuLoader className="w-4 h-4 animate-spin" />{" "}
+                        <LuLoader className={cn('w-4', 'h-4', 'animate-spin')} />{" "}
                         Submitting…
                       </>
                     ) : (
                       <>
-                        <LuPlus className="w-4 h-4" /> Submit
+                        <LuPlus className={cn('w-4', 'h-4')} /> Submit
                       </>
                     )}
                   </button>
@@ -387,22 +387,22 @@ export default function ProfileApplicationsPage() {
 
         {/* Applications list */}
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <LuLoader className="w-8 h-8 text-primary animate-spin" />
+          <div className={cn('flex', 'items-center', 'justify-center', 'py-20')}>
+            <LuLoader className={cn('w-8', 'h-8', 'text-primary', 'animate-spin')} />
           </div>
         ) : applications.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="py-20 text-center space-y-4"
+            className={cn('py-20', 'text-center', 'space-y-4')}
           >
-            <div className="w-20 h-20 bg-muted rounded-3xl flex items-center justify-center mx-auto">
-              <LuInbox className="w-10 h-10 text-slate-300" />
+            <div className={cn('w-20', 'h-20', 'bg-muted', 'rounded-3xl', 'flex', 'items-center', 'justify-center', 'mx-auto')}>
+              <LuInbox className={cn('w-10', 'h-10', 'text-slate-300')} />
             </div>
-            <h3 className="text-xl font-black text-foreground uppercase tracking-tighter">
+            <h3 className={cn('text-xl', 'font-black', 'text-foreground', 'uppercase', 'tracking-tighter')}>
               No Applications Yet
             </h3>
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+            <p className={cn('text-[11px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
               Submit a committee or skills application to get started.
             </p>
           </motion.div>
@@ -434,11 +434,11 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="bg-background border-2 border-border rounded-[2rem] overflow-hidden"
+      className={cn('bg-background', 'border-2', 'border-border', 'rounded-[2rem]', 'overflow-hidden')}
     >
       {/* Card header */}
-      <div className="flex items-center justify-between p-6">
-        <div className="flex items-center gap-4">
+      <div className={cn('flex', 'items-center', 'justify-between', 'p-6')}>
+        <div className={cn('flex', 'items-center', 'gap-4')}>
           <div
             className={cn(
               "w-10 h-10 rounded-xl flex items-center justify-center",
@@ -453,12 +453,12 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
             />
           </div>
           <div>
-            <p className="text-sm font-black text-foreground uppercase tracking-tight">
+            <p className={cn('text-sm', 'font-black', 'text-foreground', 'uppercase', 'tracking-tight')}>
               {app.type === "committee"
                 ? (app.requestedCommittee ?? "Committee")
                 : `${app.requestedSkills?.length ?? 0} Skill${(app.requestedSkills?.length ?? 0) !== 1 ? "s" : ""}`}
             </p>
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+            <p className={cn('text-[9px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'mt-0.5')}>
               {new Date(app.createdAt).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
@@ -468,7 +468,7 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className={cn('flex', 'items-center', 'gap-3')}>
           <span
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest",
@@ -481,7 +481,7 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
           </span>
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="p-2 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            className={cn('p-2', 'hover:bg-muted', 'rounded-xl', 'text-muted-foreground', 'hover:text-foreground', 'transition-colors', 'cursor-pointer')}
           >
             <LuChevronDown
               className={cn(
@@ -502,14 +502,14 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-6 pb-6 space-y-4 border-t border-border pt-4">
+            <div className={cn('px-6', 'pb-6', 'space-y-4', 'border-t', 'border-border', 'pt-4')}>
               {/* Skills list */}
               {app.type === "skills" && app.requestedSkills && (
-                <div className="flex flex-wrap gap-2">
+                <div className={cn('flex', 'flex-wrap', 'gap-2')}>
                   {app.requestedSkills.map((s) => (
                     <span
                       key={s}
-                      className="px-3 py-1.5 bg-purple-50 text-purple-600 border border-purple-100 rounded-xl text-[9px] font-black uppercase tracking-widest"
+                      className={cn('px-3', 'py-1.5', 'bg-purple-50', 'text-purple-600', 'border', 'border-purple-100', 'rounded-xl', 'text-[9px]', 'font-black', 'uppercase', 'tracking-widest')}
                     >
                       {s}
                     </span>
@@ -520,10 +520,10 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
               {/* Reason */}
               {app.reason && (
                 <div className="space-y-1">
-                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
+                  <p className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
                     Your Reason
                   </p>
-                  <p className="text-xs font-medium text-foreground leading-relaxed">
+                  <p className={cn('text-xs', 'font-medium', 'text-foreground', 'leading-relaxed')}>
                     {app.reason}
                   </p>
                 </div>
@@ -553,7 +553,7 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
 
               {/* Reviewed at */}
               {app.reviewedAt && (
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                <p className={cn('text-[9px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
                   Reviewed{" "}
                   {new Date(app.reviewedAt).toLocaleDateString("en-US", {
                     month: "short",
@@ -565,9 +565,9 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
 
               {/* Pending notice */}
               {app.status === "pending" && (
-                <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-100 rounded-2xl">
-                  <LuClock className="w-4 h-4 text-amber-600 shrink-0" />
-                  <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">
+                <div className={cn('flex', 'items-center', 'gap-2', 'p-3', 'bg-amber-50', 'border', 'border-amber-100', 'rounded-2xl')}>
+                  <LuClock className={cn('w-4', 'h-4', 'text-amber-600', 'shrink-0')} />
+                  <p className={cn('text-[10px]', 'font-bold', 'text-amber-700', 'uppercase', 'tracking-widest')}>
                     Under review — you will be notified once a decision is made
                   </p>
                 </div>

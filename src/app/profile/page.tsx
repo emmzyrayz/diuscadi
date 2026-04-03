@@ -1,5 +1,5 @@
 "use client";
-// app/home/profile/page.tsx
+// app/profile/page.tsx
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useUser } from "@/context/UserContext";

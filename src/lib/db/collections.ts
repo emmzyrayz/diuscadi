@@ -12,6 +12,8 @@ import { DepartmentDocument } from "@/lib/models/Department";
 import { InviteDocument } from "@/lib/models/invite";
 import { HealthReportDocument } from "@/lib/models/healthReport";
 import { FileDocument } from "@/lib/models/FileDocument";
+import { ReferralLinkDocument } from "@/lib/models/ReferralLink";
+import { ReferralEventDocument } from "@/lib/models/ReferralEvent";
 import type { CurriculumSubmissionDocument } from "@/lib/models/CurriculumSubmission";
 import type {
   CommitteeDocument,
@@ -36,6 +38,10 @@ export const Collections = {
   healthReports: (db: Db) =>
     db.collection<HealthReportDocument>("healthReports"),
   files: (db: Db) => db.collection<FileDocument>("files"),
+  referralLinks: (db: Db) =>
+    db.collection<ReferralLinkDocument>("referralLinks"),
+  referralEvents: (db: Db) =>
+    db.collection<ReferralEventDocument>("referralEvents"),
 
   // ── Academic / curriculum ──────────────────────────────────────────────────
   curriculumSubmissions: (db: Db) =>

@@ -166,6 +166,30 @@ export async function createIndexes() {
   ]);
   console.log("✓ files");
 
+  // ── referralLinks ───────────────────────────────────────────────────────────
+  await db.collection("referralLinks").createIndexes([
+    { key: { code: 1 }, unique: true, name: "referralLinks_code_unique" },
+    {
+      key: { ownerVaultId: 1, resourceType: 1, resourceId: 1 },
+      name: "referralLinks_owner_resource",
+    },
+    { key: { parentCode: 1 }, sparse: true, name: "referralLinks_parentCode" },
+    { key: { createdAt: -1 }, name: "referralLinks_createdAt" },
+  ]);
+  console.log("✓ referralLinks");
+
+  // ── referralEvents ──────────────────────────────────────────────────────────
+  await db.collection("referralEvents").createIndexes([
+    { key: { code: 1 }, name: "referralEvents_code" },
+    { key: { ownerVaultId: 1, createdAt: -1 }, name: "referralEvents_owner" },
+    { key: { eventType: 1, createdAt: -1 }, name: "referralEvents_type_date" },
+    {
+      key: { resourceType: 1, resourceId: 1, createdAt: -1 },
+      name: "referralEvents_resource",
+    },
+  ]);
+  console.log("✓ referralEvents");
+
   // ── institutions ───────────────────────────────────────────────────────────
   await db.collection("institutions").createIndexes([
     // Case-insensitive text search — essential for the public API and admin search

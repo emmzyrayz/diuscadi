@@ -193,7 +193,7 @@ export const AccountSettingsSection = ({ profile }: Props) => {
             >
               <LuUser className={cn("w-5", "h-5")} />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className={cn('flex-1', 'min-w-0')}>
               <p
                 className={cn(
                   "text-[10px]",
@@ -208,7 +208,7 @@ export const AccountSettingsSection = ({ profile }: Props) => {
               </p>
               {editingName ? (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className={cn('grid', 'grid-cols-2', 'gap-2')}>
                     <input
                       autoFocus
                       value={firstname}

@@ -1,9 +1,7 @@
-// app/home/page.tsx — Server Component
+// app/page.tsx — Server Component
 // Fetches all real data server-side, passes as serialisable props
-// to client section components. No ObjectId or Date objects cross
-// the server→client boundary.
+// to client section components.
 
-// import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { verifyJWT } from "@/lib/auth";
 import { ObjectId } from "mongodb";
@@ -19,7 +17,6 @@ import {
 } from "@/lib/homeData";
 import { cn } from "@/lib/utils";
 
-// Section components (client components that accept serialised props)
 import { HomeHeader } from "@/components/sections/homepage/HomeHeader";
 import { HomeHero } from "@/components/sections/homepage/homeHero";
 import { QuickActions } from "@/components/sections/homepage/quickActions";
@@ -30,39 +27,29 @@ import { RecentActivity } from "@/components/sections/homepage/recentActivity";
 import { Announcements } from "@/components/sections/homepage/announcement";
 import { HomeCTAOptional } from "@/components/sections/homepage/CTA";
 
-// ─── Auth guard ───────────────────────────────────────────────────────────────
-
 async function getAuthPayload() {
   const cookieStore = await cookies();
   const token = cookieStore.get("diuscadi_token")?.value;
   if (!token) return null;
   try {
-    return verifyJWT(token); // Returns { vaultId, role, etc }
+    return verifyJWT(token);
   } catch {
     return null;
   }
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default async function HomePage() {
   const auth = await getAuthPayload();
-
-  // If no auth, RouteGuard will eventually kick them out.
-  // We return null or an empty fragment to prevent the server from
-  // crashing while attempting to fetch data with a missing ID.
   if (!auth) return null;
 
   const vaultId = new ObjectId(auth.vaultId);
 
-  // Fetch all data in parallel
   const [homeUser, featuredEvent, upcomingEvents] = await Promise.all([
     fetchHomeUser(),
     fetchFeaturedEvent(),
     fetchUpcomingEvents(vaultId),
   ]);
 
-  // Recommendations need user profile — run after homeUser resolves
   const recommendations = homeUser
     ? await fetchRecommendations({
         skills: homeUser.skills,
@@ -70,13 +57,12 @@ export default async function HomePage() {
       })
     : [];
 
-  // Static stubs for systems not yet built
   const quickActions = getStaticQuickActions();
   const announcements = getStaticAnnouncements();
   const activities = getStaticActivities();
   const continueItems = getStaticContinueItems();
 
-  // ── HomeHeader props ────────────────────────────────────────────────────────
+  // ── HomeHeader props ──────────────────────────────────────────────────────
   const headerUser = homeUser
     ? {
         name: homeUser.name,
@@ -99,32 +85,33 @@ export default async function HomePage() {
         points: 0,
       };
 
-  // ── HomeHero props ──────────────────────────────────────────────────────────
+  // ── HomeHero props — null when no featured event ──────────────────────────
+  // HomeHero now handles null featuredEvent gracefully with an empty state
   const heroEvent = featuredEvent
     ? {
         image: featuredEvent.image,
         title: featuredEvent.title,
         daysLeft: featuredEvent.daysLeft,
         date: featuredEvent.date,
-        category: "Upcoming Event", // static label — not stored on event doc
+        category: "Upcoming Event",
         slug: featuredEvent.slug,
       }
-    : {
-        image: "/default-hero.jpg",
-        title: "No Upcoming Featured Events",
-        category: "Announcement",
-        date: "TBD",
-      };
+    : null; // ← pass null instead of a fake "No events" object
+
+  // Profile completion % — 3 checkpoints: avatar, phone, bio
+  // const missingCount = homeUser && !homeUser.profileCompleted ? 1 : 0;
+  // simplification — real calc in HomeHero via UserContext
+  const completionPct = homeUser?.profileCompleted ? 100 : 40;
 
   const currentTask = {
-    title: "Complete Your Profile",
-    category: "Getting Started",
-    progress: homeUser?.profileCompleted ? 100 : 40,
+    title: homeUser?.profileCompleted
+      ? "Continue Module 4"
+      : "Complete Your Profile",
+    category: homeUser?.profileCompleted ? "Learning Path" : "Getting Started",
+    progress: completionPct,
   };
 
-  // ── RecommendedSection props ────────────────────────────────────────────────
-  // homeData returns { type, title, meta, tag, slug, image }
-  // RecommendedSection expects  { id?, title, type, meta, tag, href? }
+  // ── Recommendations map ───────────────────────────────────────────────────
   const mappedRecommendations = recommendations.map((r, i) => ({
     id: i,
     type: r.type,
@@ -134,10 +121,7 @@ export default async function HomePage() {
     href: `/events/${r.slug}`,
   }));
 
-  // ── UpcomingEvents props ────────────────────────────────────────────────────
-  // homeData returns HomeScheduledEvent with status "registered"|"cancelled"|"checked-in"
-  // UpcomingEvents EventStatus also includes "Confirmed"|"On Waitlist"|"Completed"
-  // Map DB statuses → display statuses
+  // ── Upcoming events map ───────────────────────────────────────────────────
   const mappedEvents = upcomingEvents.map((e) => ({
     id: e.id,
     date: e.date,
@@ -154,23 +138,6 @@ export default async function HomePage() {
     link: `/events/${e.slug}`,
   }));
 
-  // ── Announcements props ─────────────────────────────────────────────────────
-  // StaticAnnouncement id is number — Announcements expects string | number — fine as-is
-  const mappedAnnouncements = announcements.map((a) => ({
-    id: a.id,
-    type: a.type,
-    title: a.title,
-    desc: a.desc,
-  }));
-
-  // ── RecentActivity props ────────────────────────────────────────────────────
-  const mappedActivities = activities.map((a) => ({
-    id: a.id,
-    content: a.content,
-    target: a.target,
-    time: a.time,
-  }));
-
   return (
     <main
       className={cn(
@@ -185,24 +152,16 @@ export default async function HomePage() {
       )}
     >
       <HomeHeader user={headerUser} />
-
       <HomeHero featuredEvent={heroEvent} currentTask={currentTask} />
-
       <QuickActions actions={quickActions} />
-
       <ContinueSection items={continueItems} />
-
       <RecommendedSection
         recommendations={mappedRecommendations}
         userInterests={homeUser?.skills.join(" & ") ?? "General"}
       />
-
       <UpcomingEvents events={mappedEvents} />
-
-      <RecentActivity activities={mappedActivities} />
-
-      <Announcements announcements={mappedAnnouncements} />
-
+      <RecentActivity activities={activities} />
+      <Announcements announcements={announcements} />
       <HomeCTAOptional />
     </main>
   );

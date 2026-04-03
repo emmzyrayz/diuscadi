@@ -307,7 +307,7 @@ const AdminUserRow: React.FC<RowProps> = ({
       ? "bg-amber-50 text-amber-600 border-amber-100"
       : "bg-emerald-50 text-emerald-600 border-emerald-100";
 
-  const avatarSrc = user.avatar ?? null;
+  const avatarSrc = user?.avatar ?? null;
 
   return (
     <>

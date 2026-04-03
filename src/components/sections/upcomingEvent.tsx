@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import img1 from "@/assets/img/downloads/Diuscadi-2023-Testimonial-Thumbnail-1920x1272.webp";
 import { cn } from "@/lib/utils";
+import LoadingScreen from "../loadingScreen";
 
 export const UpcomingEvent = () => {
   const { publicEvents, loadPublicEvents, publicEventsLoading } = useEvents();
@@ -22,19 +23,34 @@ export const UpcomingEvent = () => {
     loadPublicEvents(1); // Load the single latest upcoming event
   }, [loadPublicEvents]);
 
-  if (publicEventsLoading) return <div className="py-24 text-center">Loading Event...</div>;
+  if (publicEventsLoading) return <div className={cn('py-24', 'text-center')}><LoadingScreen /></div>;
 
   // Handle Empty State (Production)
   if (publicEvents.length === 0) {
     return (
-      <section className="py-24 bg-background text-center">
-        <p className="text-muted-foreground">No upcoming events at the moment. Check back soon!</p>
+      <section className={cn('flex items-center justify-center w-full h-full py-24 rounded-2xl', 'bg-background', 'text-center')}>
+        <p className={cn('text-primary font-extrabold p-5', 'w-full')}>No upcoming events at the moment. Check back soon!</p>
       </section>
     );
   }
 
   const event = publicEvents[0];
   const isDummy = event.id.includes("dummy");
+
+  // Format dates from the actual event data
+  const eventDate = new Date(event.eventDate);
+  const endDate = event.endDate ? new Date(event.endDate) : null;
+  
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+  
+  const dateDisplay = endDate 
+    ? `${eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { day: 'numeric', year: 'numeric' })}`
+    : formatDate(eventDate);
+    
+  const timeDisplay = eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+  const locationDisplay = event.location?.venue || event.location?.address || "TBA";
 
   return (
     <section className={cn("w-full rounded-2xl py-24", "bg-background")}>
@@ -55,15 +71,15 @@ export const UpcomingEvent = () => {
         >
           {/* DEMO BADGE */}
           {isDummy && (
-            <div className="absolute top-4 right-4 z-20 flex items-center gap-1 bg-yellow-500/90 text-black px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md">
-              <AlertCircle className="w-3 h-3" /> DEMO DATA
+            <div className={cn('absolute', 'top-4', 'right-4', 'z-20', 'flex', 'items-center', 'gap-1', 'bg-yellow-500/90', 'text-black', 'px-3', 'py-1', 'rounded-full', 'text-xs', 'font-bold', 'backdrop-blur-md')}>
+              <AlertCircle className={cn('w-3', 'h-3')} /> DEMO DATA
             </div>
           )}
 
           {/* BACKGROUND IMAGE WITH OVERLAY */}
           <div className={cn("absolute", "inset-0", "w-full", "h-full", "z-0")}>
             <Image
-              src={img1} // Replace with a wide shot of a previous event or a cool tech/campus background
+              src={event.image || img1}
               alt="Upcoming Event Background"
               fill
               className={cn("object-cover", "opacity-40", "mix-blend-overlay")}
@@ -157,9 +173,7 @@ export const UpcomingEvent = () => {
                     "tracking-tight",
                   )}
                 >
-                  #LASCDSS5:{" "}
-                  <span className="text-primary">Life After School</span>{" "}
-                  Bootcamp 2026
+                  {event.title}
                 </h2>
                 <p
                   className={cn(
@@ -170,9 +184,7 @@ export const UpcomingEvent = () => {
                     "leading-relaxed",
                   )}
                 >
-                  Join hundreds of fresh graduates for an intensive 2-day
-                  bootcamp. Master interview skills, network with top employers,
-                  and build a resilient career roadmap.
+                  {event.overview}
                 </p>
               </div>
 
@@ -202,7 +214,7 @@ export const UpcomingEvent = () => {
                   )}
                 >
                   <CalendarDays className={cn("w-5", "h-5", "text-primary")} />
-                  <span className="font-medium">Oct 15 - 16, 2026</span>
+                  <span className="font-medium">{dateDisplay}</span>
                 </div>
                 <div
                   className={cn(
@@ -220,7 +232,7 @@ export const UpcomingEvent = () => {
                   )}
                 >
                   <Clock className={cn("w-5", "h-5", "text-primary")} />
-                  <span className="font-medium">9:00 AM WAT</span>
+                  <span className="font-medium">{timeDisplay}</span>
                 </div>
                 <div
                   className={cn(
@@ -238,7 +250,7 @@ export const UpcomingEvent = () => {
                   )}
                 >
                   <MapPin className={cn("w-5", "h-5", "text-primary")} />
-                  <span className="font-medium">Nnamdi Azikiwe University</span>
+                  <span className="font-medium">{locationDisplay}</span>
                 </div>
               </div>
             </div>
@@ -266,10 +278,10 @@ export const UpcomingEvent = () => {
             >
               <div className={cn("text-left", "md:text-right", "space-y-2")}>
                 <p className={cn("text-slate-300", "font-medium")}>
-                  Limited Seats Available
+                  {event.slotsRemaining > 0 ? `${event.slotsRemaining} Seats Available` : "Limited Seats Available"}
                 </p>
                 <p className={cn("text-background/60", "text-sm")}>
-                  Registration closes in 14 days.
+                  Registration closes {formatDate(new Date(event.registrationDeadline))}
                 </p>
               </div>
 

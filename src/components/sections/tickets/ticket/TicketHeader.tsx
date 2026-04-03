@@ -37,7 +37,7 @@ export const TicketViewHeader = ({ status }: TicketHeaderProps) => {
       className={cn(
         "w-full",
         "bg-background",
-        "border-b",
+        "border-b rounded-2xl",
         "border-border",
         "py-6",
       )}
