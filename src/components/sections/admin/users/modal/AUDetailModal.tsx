@@ -20,7 +20,7 @@ import {
   LuInfo,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import type { AdminUser } from "@/context/AdminContext";
+import { resolveAvatarUrl, type AdminUser } from "@/context/AdminContext";
 import {
   resolveAdminFullName,
   resolveAdminInitial,
@@ -44,7 +44,7 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>("info");
 
-  const avatarSrc = user?.avatar ?? null;
+  const avatarSrc = resolveAvatarUrl(user.avatar?.imageUrl);
   const isActive = user.isAccountActive;
   const statusLabel =
     !isActive && user.membershipStatus === "banned"
