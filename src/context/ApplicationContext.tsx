@@ -1,14 +1,5 @@
 "use client";
-
 // context/ApplicationContext.tsx
-// Manages committee and skills change requests submitted by the logged-in user.
-//
-// Reads from UserContext to prefill current committee/skills on forms.
-// Resets all state on logout (called by AuthContext).
-//
-// Consumed by:
-//   - Profile page  → submit committee or skills application
-//   - Dashboard     → show pending application status + count
 
 import {
   createContext,
@@ -20,15 +11,28 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type ApplicationType = "committee" | "skills";
+export type ApplicationType =
+  | "membership"
+  | "committee"
+  | "skills"
+  | "sponsorship"
+  | "program"
+  | "writer";
+
 export type ApplicationStatus = "pending" | "approved" | "rejected";
 
 export interface Application {
   id: string;
   type: ApplicationType;
   status: ApplicationStatus;
+  // type-specific payloads
   requestedCommittee?: string;
   requestedSkills?: string[];
+  requestedProgram?: string;
+  sponsorshipDetails?: Record<string, unknown> | null;
+  writingSamples?: string[] | null;
+  topics?: string[] | null;
+  // shared
   reason?: string | null;
   reviewNote?: string | null;
   reviewedAt?: string | null;
@@ -39,6 +43,10 @@ export interface SubmitApplicationPayload {
   type: ApplicationType;
   requestedCommittee?: string;
   requestedSkills?: string[];
+  requestedProgram?: string;
+  sponsorshipDetails?: Record<string, unknown>;
+  writingSamples?: string[];
+  topics?: string[];
   reason?: string;
 }
 
@@ -48,25 +56,21 @@ interface ApplicationState {
   loading: boolean;
   submitting: boolean;
   error: string | null;
-  // Whether applications have been loaded at least once
   initialized: boolean;
 }
 
 interface ApplicationContextValue extends ApplicationState {
-  // Load the current user's own applications
   loadMyApplications: (opts?: {
     type?: string;
     status?: string;
   }) => Promise<void>;
-  // Submit a new application
   submitApplication: (
     payload: SubmitApplicationPayload,
     token: string,
   ) => Promise<Application>;
-  // Derived helpers
   hasPending: (type: ApplicationType) => boolean;
+  hasApproved: (type: ApplicationType) => boolean;
   getLatest: (type: ApplicationType) => Application | undefined;
-  // Reset on logout
   reset: () => void;
   clearError: () => void;
 }
@@ -81,8 +85,6 @@ export function useApplications(): ApplicationContextValue {
     throw new Error("useApplications must be used within ApplicationProvider");
   return ctx;
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function authHeaders(token: string): HeadersInit {
   return {
@@ -113,30 +115,16 @@ export function ApplicationProvider({
   token,
 }: {
   children: ReactNode;
-  token: string | null; // pass from AuthContext
+  token: string | null;
 }) {
   const [state, setState] = useState<ApplicationState>(INITIAL_STATE);
 
-  const clearError = useCallback(() => {
-    setState((s) => ({ ...s, error: null }));
-  }, []);
+  const clearError = useCallback(
+    () => setState((s) => ({ ...s, error: null })),
+    [],
+  );
+  const reset = useCallback(() => setState(INITIAL_STATE), []);
 
-  const reset = useCallback(() => {
-    setState(INITIAL_STATE);
-  }, []);
-
-  // ── loadMyApplications ─────────────────────────────────────────────────────
-  // Fetches all applications for the current user.
-  // The /api/admin/applications route is for admins — users see their own
-  // applications via the profile page. We filter by userId on the client
-  // since we store them in state after POST anyway.
-  // For the full list we call GET /api/admin/applications with the user token
-  // which returns 403 — so instead we track locally via state after each submit
-  // and supplement with a dedicated user-facing fetch.
-  //
-  // NOTE: If you add GET /api/applications (user's own list) later, swap the
-  // fetch URL below. For now we maintain state purely from submit responses
-  // and a lightweight re-fetch pattern.
   const loadMyApplications = useCallback(
     async (opts: { type?: string; status?: string } = {}) => {
       if (!token) return;
@@ -175,7 +163,6 @@ export function ApplicationProvider({
     [token],
   );
 
-  // ── submitApplication ──────────────────────────────────────────────────────
   const submitApplication = useCallback(
     async (
       payload: SubmitApplicationPayload,
@@ -192,16 +179,18 @@ export function ApplicationProvider({
           applicationId: string;
           type: ApplicationType;
           status: ApplicationStatus;
-          message: string;
         }>(res);
 
-        // Build a local Application object from the response
         const newApp: Application = {
           id: data.applicationId,
           type: data.type,
           status: data.status,
           requestedCommittee: payload.requestedCommittee,
           requestedSkills: payload.requestedSkills,
+          requestedProgram: payload.requestedProgram,
+          sponsorshipDetails: payload.sponsorshipDetails ?? null,
+          writingSamples: payload.writingSamples ?? null,
+          topics: payload.topics ?? null,
           reason: payload.reason ?? null,
           reviewNote: null,
           reviewedAt: null,
@@ -214,7 +203,6 @@ export function ApplicationProvider({
           pendingCount: s.pendingCount + 1,
           submitting: false,
         }));
-
         return newApp;
       } catch (err) {
         const message =
@@ -226,23 +214,23 @@ export function ApplicationProvider({
     [],
   );
 
-  // ── Derived helpers ────────────────────────────────────────────────────────
-
-  // Returns true if user has a pending application of this type
   const hasPending = useCallback(
-    (type: ApplicationType): boolean => {
-      return state.applications.some(
-        (a) => a.type === type && a.status === "pending",
-      );
-    },
+    (type: ApplicationType) =>
+      state.applications.some((a) => a.type === type && a.status === "pending"),
     [state.applications],
   );
 
-  // Returns the most recent application of a given type
+  // NEW — useful for checking if membership is already approved
+  const hasApproved = useCallback(
+    (type: ApplicationType) =>
+      state.applications.some(
+        (a) => a.type === type && a.status === "approved",
+      ),
+    [state.applications],
+  );
+
   const getLatest = useCallback(
-    (type: ApplicationType): Application | undefined => {
-      return state.applications.find((a) => a.type === type);
-    },
+    (type: ApplicationType) => state.applications.find((a) => a.type === type),
     [state.applications],
   );
 
@@ -253,6 +241,7 @@ export function ApplicationProvider({
         loadMyApplications,
         submitApplication,
         hasPending,
+        hasApproved,
         getLatest,
         reset,
         clearError,

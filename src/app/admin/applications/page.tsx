@@ -1,7 +1,5 @@
 "use client";
 // app/admin/applications/page.tsx
-// Moderator + admin + webmaster.
-// Lists committee and skills applications. Approve/reject inline.
 
 import React, { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
@@ -13,13 +11,22 @@ import { APTable } from "@/components/sections/admin/applications/APTable";
 import { APPagination } from "@/components/sections/admin/applications/APPagination";
 import { APEmptyState } from "@/components/sections/admin/applications/APEmptyState";
 import { LuLoader } from "react-icons/lu";
+import type { ApplicationType } from "@/context/ApplicationContext";
+import { cn } from "../../../lib/utils";
 
+// ── Shared type — imported by APTable, APDetailModal etc ──────────────────────
 export interface AdminApplication {
   id: string;
-  type: "committee" | "skills";
+  type: ApplicationType;
   status: "pending" | "approved" | "rejected";
-  requestedCommittee: string | null;
-  requestedSkills: string[] | null;
+  // type-specific payloads
+  requestedCommittee?: string | null;
+  requestedSkills?: string[] | null;
+  requestedProgram?: string | null;
+  sponsorshipDetails?: Record<string, unknown> | null;
+  writingSamples?: string[] | null;
+  topics?: string[] | null;
+  // shared
   reason: string | null;
   reviewNote: string | null;
   reviewedAt: string | null;
@@ -34,14 +41,14 @@ export interface AdminApplication {
   } | null;
 }
 
-interface APStats {
+interface StatsData {
   pending: number;
   approved: number;
   rejected: number;
   total: number;
 }
 
-interface APPagination {
+interface PaginationData {
   page: number;
   limit: number;
   total: number;
@@ -54,8 +61,8 @@ export default function ApplicationsManagementPage() {
   const { token } = useAuth();
 
   const [applications, setApplications] = useState<AdminApplication[]>([]);
-  const [stats, setStats] = useState<APStats | null>(null);
-  const [pagination, setPagination] = useState<APPagination | null>(null);
+  const [stats, setStats] = useState<StatsData | null>(null);
+  const [pagination, setPagination] = useState<PaginationData | null>(null);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("pending");
@@ -71,7 +78,6 @@ export default function ApplicationsManagementPage() {
         status: statusFilter,
       });
       if (typeFilter) params.set("type", typeFilter);
-
       const res = await fetch(`/api/admin/applications?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -86,7 +92,6 @@ export default function ApplicationsManagementPage() {
     }
   }, [token, currentPage, statusFilter, typeFilter]);
 
-  // Fetch stats — one call per status to build counts
   const fetchStats = useCallback(async () => {
     if (!token) return;
     try {
@@ -151,8 +156,8 @@ export default function ApplicationsManagementPage() {
 
   if (loading && applications.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] w-full md:mt-20 mt-10">
-        <LuLoader className="w-8 h-8 text-primary animate-spin" />
+      <div className={cn('flex', 'items-center', 'justify-center', 'min-h-[60vh]', 'w-full', 'md:mt-20', 'mt-10')}>
+        <LuLoader className={cn('w-8', 'h-8', 'text-primary', 'animate-spin')} />
       </div>
     );
   }
@@ -162,12 +167,10 @@ export default function ApplicationsManagementPage() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.7 }}
-      className="max-w-[1600px] w-full md:mt-20 mt-10 p-5 mx-auto space-y-8"
+      className={cn('max-w-[1600px]', 'w-full', 'md:mt-20', 'mt-10', 'p-5', 'mx-auto', 'space-y-8')}
     >
       <APHeader pendingCount={stats?.pending ?? 0} />
-
       <APStats stats={stats} />
-
       <APToolbar
         onStatusChange={(v) => {
           setStatusFilter(v);
@@ -178,7 +181,6 @@ export default function ApplicationsManagementPage() {
           setCurrentPage(1);
         }}
       />
-
       {applications.length === 0 && !loading ? (
         <APEmptyState
           statusFilter={statusFilter}

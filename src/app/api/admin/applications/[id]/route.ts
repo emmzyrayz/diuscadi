@@ -1,16 +1,13 @@
 // app/api/admin/applications/[id]/route.ts
-// Admin + webmaster only.
-// Approves or rejects a pending application.
-// On committee approval: assigns committeeMembership + increments memberCount.
-// On skills approval: merges requested skills into user's skills array.
-//
 // PATCH { action: "approve" | "reject", reviewNote?: string }
+// Admin + webmaster only.
 
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
+import { ApplicationDocument, ApplicationStatus } from "@/lib/models/Application";
 
 const ALLOWED_ROLES = ["admin", "webmaster"];
 
@@ -67,28 +64,46 @@ export const PATCH = withAuth(
         );
       }
 
-      // ── Reject ──────────────────────────────────────────────────────────────
+      const reviewUpdate: Partial<ApplicationDocument> = {
+        status: (action === "approve"
+          ? "approved"
+          : "rejected") as ApplicationStatus,
+        reviewedBy,
+        reviewedAt: now,
+        reviewNote: reviewNote ?? null,
+        updatedAt: now,
+      };
+
+      // ── Reject — same for all types ──────────────────────────────────────────
       if (action === "reject") {
         await Collections.applications(db).updateOne(
           { _id: new ObjectId(id) },
-          {
-            $set: {
-              status: "rejected",
-              reviewedBy,
-              reviewedAt: now,
-              reviewNote: reviewNote ?? null,
-              updatedAt: now,
-            },
-          },
+          { $set: reviewUpdate },
         );
         return NextResponse.json({ message: "Application rejected" });
       }
 
-      // ── Approve ─────────────────────────────────────────────────────────────
+      // ── Approve — type-specific side effects ─────────────────────────────────
+
+      // MEMBERSHIP — set membershipStatus to "approved" on UserData
+      if (application.type === "membership") {
+        await Collections.userData(db).updateOne(
+          { _id: application.userId },
+          { $set: { membershipStatus: "approved", updatedAt: now } },
+        );
+        await Collections.applications(db).updateOne(
+          { _id: new ObjectId(id) },
+          { $set: reviewUpdate },
+        );
+        return NextResponse.json({
+          message:
+            "Membership application approved — user is now an approved member",
+        });
+      }
+
+      // COMMITTEE — assign committeeMembership + increment memberCount
       if (application.type === "committee") {
         const requestedCommittee = application.requestedCommittee as string;
-
-        // Validate the requested committee is still active in the DB
         const committeeDoc = await Collections.committees(db).findOne({
           slug: requestedCommittee,
           isActive: true,
@@ -101,8 +116,6 @@ export const PATCH = withAuth(
             { status: 409 },
           );
         }
-
-        // Fetch the default role (lowest rank = entry-level role)
         const defaultRole = await Collections.committeeRoles(db).findOne(
           { isActive: true },
           { sort: { rank: 1 } },
@@ -116,8 +129,6 @@ export const PATCH = withAuth(
             { status: 500 },
           );
         }
-
-        // Assign membership on UserData
         await Collections.userData(db).updateOne(
           { _id: application.userId },
           {
@@ -132,27 +143,14 @@ export const PATCH = withAuth(
             },
           },
         );
-
-        // Increment live member count on the committee document
         await Collections.committees(db).updateOne(
           { slug: requestedCommittee },
           { $inc: { memberCount: 1 } },
         );
-
-        // Mark application approved
         await Collections.applications(db).updateOne(
           { _id: new ObjectId(id) },
-          {
-            $set: {
-              status: "approved",
-              reviewedBy,
-              reviewedAt: now,
-              reviewNote: reviewNote ?? null,
-              updatedAt: now,
-            },
-          },
+          { $set: reviewUpdate },
         );
-
         return NextResponse.json({
           message: "Committee application approved",
           committee: requestedCommittee,
@@ -160,16 +158,14 @@ export const PATCH = withAuth(
         });
       }
 
+      // SKILLS — merge requested skills into user's skills array
       if (application.type === "skills") {
         const requestedSkills = (application.requestedSkills ?? []) as string[];
-
-        // Validate all requested skills are still active
         const validSkills = await Collections.skills(db)
           .find({ isActive: true }, { projection: { slug: 1, _id: 0 } })
           .toArray();
         const validSlugs = validSkills.map((s) => s.slug as string);
         const invalid = requestedSkills.filter((s) => !validSlugs.includes(s));
-
         if (invalid.length > 0) {
           return NextResponse.json(
             {
@@ -178,8 +174,6 @@ export const PATCH = withAuth(
             { status: 409 },
           );
         }
-
-        // Merge into user's skills — $addToSet prevents duplicates
         await Collections.userData(db).updateOne(
           { _id: application.userId },
           {
@@ -187,23 +181,63 @@ export const PATCH = withAuth(
             $set: { updatedAt: now },
           },
         );
-
         await Collections.applications(db).updateOne(
           { _id: new ObjectId(id) },
-          {
-            $set: {
-              status: "approved",
-              reviewedBy,
-              reviewedAt: now,
-              reviewNote: reviewNote ?? null,
-              updatedAt: now,
-            },
-          },
+          { $set: reviewUpdate },
         );
-
         return NextResponse.json({
           message: "Skills application approved",
           skills: requestedSkills,
+        });
+      }
+
+      // SPONSORSHIP — stub: mark approved, no side effect yet
+      if (application.type === "sponsorship") {
+        await Collections.applications(db).updateOne(
+          { _id: new ObjectId(id) },
+          { $set: reviewUpdate },
+        );
+        // TODO: when sponsorship system is built, create a SponsorProfile doc here
+        return NextResponse.json({
+          message:
+            "Sponsorship application approved — sponsor onboarding coming soon",
+        });
+      }
+
+      // PROGRAM — stub: mark approved, set flag on userData
+      if (application.type === "program") {
+        await Collections.userData(db).updateOne(
+          { _id: application.userId },
+          {
+            // TODO: add programExpertise[] to UserData model when program system built
+            $set: { updatedAt: now },
+          },
+        );
+        await Collections.applications(db).updateOne(
+          { _id: new ObjectId(id) },
+          { $set: reviewUpdate },
+        );
+        return NextResponse.json({
+          message:
+            "Program expert application approved — program features coming soon",
+        });
+      }
+
+      // WRITER — stub: mark approved, set flag on userData
+      if (application.type === "writer") {
+        await Collections.userData(db).updateOne(
+          { _id: application.userId },
+          {
+            // TODO: add isWriter: true to UserData model when blog system built
+            $set: { updatedAt: now },
+          },
+        );
+        await Collections.applications(db).updateOne(
+          { _id: new ObjectId(id) },
+          { $set: reviewUpdate },
+        );
+        return NextResponse.json({
+          message: "Writer application approved — blog system coming soon",
         });
       }
 

@@ -9,6 +9,10 @@ import {
   LuShieldCheck,
   LuCode,
   LuCalendar,
+  LuUserCheck,
+  LuHandCoins,
+  LuGraduationCap,
+  LuPenLine,
 } from "react-icons/lu";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -26,147 +30,156 @@ interface Props {
   onAction: (id: string, action: "approve" | "reject", note?: string) => void;
 }
 
+// ── Type config ───────────────────────────────────────────────────────────────
+
+const TYPE_CONFIG: Record<
+  string,
+  {
+    bg: string;
+    color: string;
+    icon: React.ElementType;
+    label: string;
+  }
+> = {
+  membership: {
+    bg: "bg-emerald-50",
+    color: "text-emerald-600",
+    icon: LuUserCheck,
+    label: "Membership",
+  },
+  committee: {
+    bg: "bg-blue-50",
+    color: "text-blue-600",
+    icon: LuShieldCheck,
+    label: "Committee",
+  },
+  skills: {
+    bg: "bg-purple-50",
+    color: "text-purple-600",
+    icon: LuCode,
+    label: "Skills",
+  },
+  sponsorship: {
+    bg: "bg-amber-50",
+    color: "text-amber-600",
+    icon: LuHandCoins,
+    label: "Sponsorship",
+  },
+  program: {
+    bg: "bg-sky-50",
+    color: "text-sky-600",
+    icon: LuGraduationCap,
+    label: "Program",
+  },
+  writer: {
+    bg: "bg-rose-50",
+    color: "text-rose-600",
+    icon: LuPenLine,
+    label: "Writer",
+  },
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  pending: "bg-amber-50 text-amber-600 border-amber-100",
+  approved: "bg-emerald-50 text-emerald-600 border-emerald-100",
+  rejected: "bg-rose-50 text-rose-600 border-rose-100",
+};
+
+// ── Request summary — one-liner per type ──────────────────────────────────────
+
+function RequestSummary({ app }: { app: AdminApplication }) {
+  if (app.type === "membership") {
+    return (
+      <span className="text-[11px] font-black text-foreground uppercase tracking-wide">
+        Membership Upgrade
+      </span>
+    );
+  }
+  if (app.type === "committee") {
+    return (
+      <span className="text-[11px] font-black text-foreground uppercase tracking-wide">
+        {app.requestedCommittee ?? "—"}
+      </span>
+    );
+  }
+  if (app.type === "skills") {
+    return (
+      <div className="flex flex-wrap gap-1">
+        {(app.requestedSkills ?? []).slice(0, 3).map((s) => (
+          <span
+            key={s}
+            className="px-2 py-0.5 bg-purple-50 text-purple-600 rounded-md text-[8px] font-black uppercase tracking-widest"
+          >
+            {s}
+          </span>
+        ))}
+        {(app.requestedSkills?.length ?? 0) > 3 && (
+          <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded-md text-[8px] font-black">
+            +{(app.requestedSkills?.length ?? 0) - 3}
+          </span>
+        )}
+      </div>
+    );
+  }
+  if (app.type === "sponsorship") {
+    const d = app.sponsorshipDetails as Record<string, unknown> | null;
+    return (
+      <span className="text-[11px] font-black text-foreground uppercase tracking-wide">
+        {(d?.companyName as string) ?? "Sponsorship Offer"}
+      </span>
+    );
+  }
+  if (app.type === "program") {
+    return (
+      <span className="text-[11px] font-black text-foreground uppercase tracking-wide">
+        {app.requestedProgram ?? "—"}
+      </span>
+    );
+  }
+  if (app.type === "writer") {
+    return (
+      <span className="text-[11px] font-black text-foreground uppercase tracking-wide">
+        Blog Contributor
+      </span>
+    );
+  }
+  return <span className="text-[11px] text-muted-foreground">—</span>;
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+
 export const APTable: React.FC<Props> = ({ applications, onAction }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.5 }}
-    className={cn(
-      "w-full",
-      "bg-background",
-      "px-4",
-      "py-2",
-      "border-2",
-      "border-border",
-      "rounded-[2.5rem]",
-      "shadow-sm",
-    )}
+    className="w-full bg-background px-4 py-2 border-2 border-border rounded-[2.5rem] shadow-sm"
   >
-    <div className="w-full">
-      <table
-        className={cn(
-          "w-full",
-          "text-left",
-          "border-collapse",
-          "min-w-[360px]",
-        )}
-      >
+    <div className="w-full overflow-x-auto">
+      <table className="w-full text-left border-collapse min-w-[360px]">
         <thead>
-          <tr className={cn("bg-muted/50", "border-b", "border-border")}>
-            <th
-              className={cn(
-                "px-3",
-                "md:px-4",
-                "lg:px-6",
-                "py-3",
-                "lg:py-5",
-                "text-[8px]",
-                "md:text-[9px]",
-                "lg:text-[10px]",
-                "font-black",
-                "text-muted-foreground",
-                "uppercase",
-                "tracking-[0.1em]",
-                "lg:tracking-[0.2em]",
-              )}
-            >
-              Applicant
-            </th>
-            <th
-              className={cn(
-                "hidden",
-                "md:table-cell",
-                "px-4",
-                "lg:px-6",
-                "py-3",
-                "lg:py-5",
-                "text-[9px]",
-                "lg:text-[10px]",
-                "font-black",
-                "text-muted-foreground",
-                "uppercase",
-                "tracking-[0.15em]",
-              )}
-            >
-              Type
-            </th>
-            <th
-              className={cn(
-                "hidden",
-                "lg:table-cell",
-                "px-4",
-                "lg:px-6",
-                "py-3",
-                "lg:py-5",
-                "text-[9px]",
-                "lg:text-[10px]",
-                "font-black",
-                "text-muted-foreground",
-                "uppercase",
-                "tracking-[0.15em]",
-              )}
-            >
-              Request
-            </th>
-            <th
-              className={cn(
-                "hidden",
-                "lg:table-cell",
-                "px-4",
-                "lg:px-6",
-                "py-3",
-                "lg:py-5",
-                "text-[9px]",
-                "lg:text-[10px]",
-                "font-black",
-                "text-muted-foreground",
-                "uppercase",
-                "tracking-[0.15em]",
-              )}
-            >
-              Submitted
-            </th>
-            <th
-              className={cn(
-                "px-2",
-                "md:px-4",
-                "lg:px-6",
-                "py-3",
-                "lg:py-5",
-                "text-[8px]",
-                "md:text-[9px]",
-                "lg:text-[10px]",
-                "font-black",
-                "text-muted-foreground",
-                "uppercase",
-                "tracking-[0.1em]",
-              )}
-            >
-              Status
-            </th>
-            <th
-              className={cn(
-                "pr-3",
-                "md:pr-5",
-                "lg:pr-8",
-                "pl-2",
-                "py-3",
-                "lg:py-5",
-                "text-[8px]",
-                "md:text-[9px]",
-                "lg:text-[10px]",
-                "font-black",
-                "text-muted-foreground",
-                "uppercase",
-                "tracking-[0.1em]",
-                "text-right",
-              )}
-            >
-              Actions
-            </th>
+          <tr className="bg-muted/50 border-b border-border">
+            {[
+              { label: "Applicant", cls: "" },
+              { label: "Type", cls: "hidden md:table-cell" },
+              { label: "Request", cls: "hidden lg:table-cell" },
+              { label: "Submitted", cls: "hidden lg:table-cell" },
+              { label: "Status", cls: "" },
+              { label: "Actions", cls: "text-right" },
+            ].map(({ label, cls }) => (
+              <th
+                key={label}
+                className={cn(
+                  "px-3 md:px-4 lg:px-6 py-3 lg:py-5 text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]",
+                  cls,
+                )}
+              >
+                {label}
+              </th>
+            ))}
           </tr>
         </thead>
-        <tbody className={cn("divide-y", "divide-slate-50")}>
+        <tbody className="divide-y divide-slate-50">
           {applications.map((app, index) => (
             <APRow
               key={app.id}
@@ -180,6 +193,8 @@ export const APTable: React.FC<Props> = ({ applications, onAction }) => (
     </div>
   </motion.div>
 );
+
+// ── Row ───────────────────────────────────────────────────────────────────────
 
 const APRow: React.FC<{
   app: AdminApplication;
@@ -198,27 +213,8 @@ const APRow: React.FC<{
     ? resolveAdminInitial(app.user.fullName as never)
     : "?";
   const avatarSrc = app.user?.avatar ?? null;
-
-  const STATUS_STYLES: Record<string, string> = {
-    pending: "bg-amber-50 text-amber-600 border-amber-100",
-    approved: "bg-emerald-50 text-emerald-600 border-emerald-100",
-    rejected: "bg-rose-50 text-rose-600 border-rose-100",
-  };
-
-  const TYPE_STYLES: Record<
-    string,
-    { bg: string; color: string; icon: React.ElementType }
-  > = {
-    committee: {
-      bg: "bg-blue-50",
-      color: "text-blue-600",
-      icon: LuShieldCheck,
-    },
-    skills: { bg: "bg-purple-50", color: "text-purple-600", icon: LuCode },
-  };
-
-  const typeStyle = TYPE_STYLES[app.type] ?? TYPE_STYLES.committee;
-  const TypeIcon = typeStyle.icon;
+  const typeConfig = TYPE_CONFIG[app.type] ?? TYPE_CONFIG.committee;
+  const TypeIcon = typeConfig.icon;
 
   return (
     <>
@@ -226,32 +222,14 @@ const APRow: React.FC<{
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4, delay }}
-        className={cn("group transition-all hover:bg-muted/50")}
+        className="group transition-all hover:bg-muted/50"
       >
         {/* Applicant */}
-        <td
-          className={cn(
-            "px-3",
-            "md:px-4",
-            "lg:px-6",
-            "py-2.5",
-            "md:py-3",
-            "lg:py-5",
-          )}
-        >
-          <div
-            className={cn(
-              "flex",
-              "items-center",
-              "gap-2",
-              "md:gap-3",
-              "lg:gap-4",
-            )}
-          >
+        <td className="px-3 md:px-4 lg:px-6 py-2.5 md:py-3 lg:py-5">
+          <div className="flex items-center gap-2 md:gap-3 lg:gap-4">
             <div
               className={cn(
-                "shrink-0 rounded-full bg-muted overflow-hidden border border-border",
-                "flex items-center justify-center font-black text-muted-foreground",
+                "shrink-0 rounded-full bg-muted overflow-hidden border border-border flex items-center justify-center font-black text-muted-foreground",
                 "w-7 h-7 text-[10px] md:w-9 md:h-9 md:text-xs lg:w-10 lg:h-10 lg:text-sm",
               )}
             >
@@ -267,155 +245,49 @@ const APRow: React.FC<{
                 <span>{initial}</span>
               )}
             </div>
-            <div className={cn("flex", "flex-col", "min-w-0")}>
-              <span
-                className={cn(
-                  "text-[11px] md:text-xs lg:text-sm",
-                  "font-semibold md:font-bold lg:font-black",
-                  "tracking-tight truncate",
-                  "text-foreground group-hover:text-primary transition-colors",
-                )}
-              >
+            <div className="flex flex-col min-w-0">
+              <span className="text-[11px] md:text-xs lg:text-sm font-black tracking-tight truncate text-foreground group-hover:text-primary transition-colors">
                 {fullName}
               </span>
-              <span
-                className={cn(
-                  "hidden sm:block",
-                  "text-[8px] md:text-[9px]",
-                  "font-medium md:font-bold",
-                  "text-muted-foreground uppercase tracking-widest mt-0.5 truncate",
-                )}
-              >
+              <span className="hidden sm:block text-[8px] md:text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5 truncate">
                 {app.user?.email ?? "—"}
               </span>
             </div>
           </div>
         </td>
 
-        {/* Type — md+ */}
-        <td
-          className={cn(
-            "hidden",
-            "md:table-cell",
-            "px-4",
-            "lg:px-6",
-            "py-3",
-            "lg:py-5",
-          )}
-        >
-          <div className={cn("flex", "items-center", "gap-2")}>
+        {/* Type */}
+        <td className="hidden md:table-cell px-4 lg:px-6 py-3 lg:py-5">
+          <div className="flex items-center gap-2">
             <div
               className={cn(
                 "w-7 h-7 rounded-lg flex items-center justify-center",
-                typeStyle.bg,
+                typeConfig.bg,
               )}
             >
-              <TypeIcon className={cn("w-3.5 h-3.5", typeStyle.color)} />
+              <TypeIcon className={cn("w-3.5 h-3.5", typeConfig.color)} />
             </div>
             <span
               className={cn(
-                "text-[10px] lg:text-[11px]",
-                "font-black",
-                "uppercase",
-                "tracking-wider",
-                typeStyle.color,
+                "text-[10px] lg:text-[11px] font-black uppercase tracking-wider",
+                typeConfig.color,
               )}
             >
-              {app.type}
+              {typeConfig.label}
             </span>
           </div>
         </td>
 
-        {/* Request detail — lg+ */}
-        <td
-          className={cn(
-            "hidden",
-            "lg:table-cell",
-            "px-4",
-            "lg:px-6",
-            "py-3",
-            "lg:py-5",
-          )}
-        >
-          {app.type === "committee" ? (
-            <span
-              className={cn(
-                "text-[11px]",
-                "font-black",
-                "text-foreground",
-                "uppercase",
-                "tracking-wide",
-              )}
-            >
-              {app.requestedCommittee ?? "—"}
-            </span>
-          ) : (
-            <div className={cn("flex", "flex-wrap", "gap-1")}>
-              {(app.requestedSkills ?? []).slice(0, 3).map((s) => (
-                <span
-                  key={s}
-                  className={cn(
-                    "px-2",
-                    "py-0.5",
-                    "bg-purple-50",
-                    "text-purple-600",
-                    "rounded-md",
-                    "text-[8px]",
-                    "font-black",
-                    "uppercase",
-                    "tracking-widest",
-                  )}
-                >
-                  {s}
-                </span>
-              ))}
-              {(app.requestedSkills?.length ?? 0) > 3 && (
-                <span
-                  className={cn(
-                    "px-2",
-                    "py-0.5",
-                    "bg-muted",
-                    "text-muted-foreground",
-                    "rounded-md",
-                    "text-[8px]",
-                    "font-black",
-                  )}
-                >
-                  +{(app.requestedSkills?.length ?? 0) - 3}
-                </span>
-              )}
-            </div>
-          )}
+        {/* Request */}
+        <td className="hidden lg:table-cell px-4 lg:px-6 py-3 lg:py-5">
+          <RequestSummary app={app} />
         </td>
 
-        {/* Submitted date — lg+ */}
-        <td
-          className={cn(
-            "hidden",
-            "lg:table-cell",
-            "px-4",
-            "lg:px-6",
-            "py-3",
-            "lg:py-5",
-          )}
-        >
-          <div
-            className={cn(
-              "flex",
-              "items-center",
-              "gap-1.5",
-              "text-muted-foreground",
-            )}
-          >
-            <LuCalendar className={cn("w-3", "h-3")} />
-            <span
-              className={cn(
-                "text-[9px]",
-                "font-bold",
-                "uppercase",
-                "tracking-widest",
-              )}
-            >
+        {/* Submitted */}
+        <td className="hidden lg:table-cell px-4 lg:px-6 py-3 lg:py-5">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <LuCalendar className="w-3 h-3" />
+            <span className="text-[9px] font-bold uppercase tracking-widest">
               {new Date(app.createdAt).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
@@ -426,21 +298,11 @@ const APRow: React.FC<{
         </td>
 
         {/* Status */}
-        <td
-          className={cn(
-            "px-2",
-            "md:px-4",
-            "lg:px-6",
-            "py-2.5",
-            "md:py-3",
-            "lg:py-5",
-          )}
-        >
+        <td className="px-2 md:px-4 lg:px-6 py-2.5 md:py-3 lg:py-5">
           <span
             className={cn(
-              "rounded-full border font-black uppercase inline-flex items-center",
-              "px-1.5 py-0.5 text-[7px] tracking-[0.1em] gap-1",
-              "md:px-2.5 md:py-1 md:text-[8px] md:tracking-widest md:gap-1.5",
+              "rounded-full border font-black uppercase inline-flex items-center gap-1 md:gap-1.5",
+              "px-1.5 py-0.5 text-[7px] tracking-[0.1em] md:px-2.5 md:py-1 md:text-[8px] md:tracking-widest",
               STATUS_STYLES[app.status] ??
                 "bg-muted text-muted-foreground border-slate-200",
             )}
@@ -460,83 +322,30 @@ const APRow: React.FC<{
         </td>
 
         {/* Actions */}
-        <td
-          className={cn(
-            "pr-2",
-            "md:pr-5",
-            "lg:pr-8",
-            "pl-1",
-            "md:pl-2",
-            "py-2.5",
-            "md:py-3",
-            "lg:py-5",
-            "text-right",
-            "relative",
-          )}
-        >
-          {/* Quick approve/reject for pending — visible md+ */}
+        <td className="pr-2 md:pr-5 lg:pr-8 pl-1 md:pl-2 py-2.5 md:py-3 lg:py-5 text-right relative">
           {isPending && (
-            <div
-              className={cn(
-                "hidden",
-                "md:inline-flex",
-                "items-center",
-                "gap-1.5",
-                "mr-1",
-              )}
-            >
+            <div className="hidden md:inline-flex items-center gap-1.5 mr-1">
               <button
                 onClick={() => onAction(app.id, "approve")}
                 title="Approve"
-                className={cn(
-                  "p-1.5 lg:p-2",
-                  "bg-emerald-500",
-                  "text-background",
-                  "rounded-lg lg:rounded-xl",
-                  "hover:bg-emerald-600",
-                  "transition-all",
-                  "shadow-md",
-                  "cursor-pointer",
-                )}
+                className="p-1.5 lg:p-2 bg-emerald-500 text-background rounded-lg lg:rounded-xl hover:bg-emerald-600 transition-all shadow-md cursor-pointer"
               >
-                <LuCircleCheck className={cn("w-3.5 h-3.5 lg:w-4 lg:h-4")} />
+                <LuCircleCheck className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
               </button>
               <button
                 onClick={() => setShowReject(true)}
                 title="Reject"
-                className={cn(
-                  "p-1.5 lg:p-2",
-                  "bg-rose-500",
-                  "text-background",
-                  "rounded-lg lg:rounded-xl",
-                  "hover:bg-rose-600",
-                  "transition-all",
-                  "shadow-md",
-                  "cursor-pointer",
-                )}
+                className="p-1.5 lg:p-2 bg-rose-500 text-background rounded-lg lg:rounded-xl hover:bg-rose-600 transition-all shadow-md cursor-pointer"
               >
-                <LuCircleX className={cn("w-3.5 h-3.5 lg:w-4 lg:h-4")} />
+                <LuCircleX className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
               </button>
             </div>
           )}
-
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className={cn(
-              "p-1.5",
-              "md:p-2",
-              "hover:bg-background",
-              "border",
-              "border-transparent",
-              "hover:border-border",
-              "rounded-lg",
-              "text-muted-foreground",
-              "hover:text-foreground",
-              "transition-all",
-              "cursor-pointer",
-            )}
+            className="p-1.5 md:p-2 hover:bg-background border border-transparent hover:border-border rounded-lg text-muted-foreground hover:text-foreground transition-all cursor-pointer"
           >
-            <LuEllipsis className={cn("w-4 h-4 md:w-5 md:h-5")} />
+            <LuEllipsis className="w-4 h-4 md:w-5 md:h-5" />
           </button>
 
           <AnimatePresence>
@@ -554,24 +363,7 @@ const APRow: React.FC<{
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -10 }}
                   transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  className={cn(
-                    "absolute",
-                    "right-1",
-                    "md:right-5",
-                    "lg:right-8",
-                    "top-10",
-                    "md:top-12",
-                    "w-44",
-                    "md:w-48",
-                    "bg-background",
-                    "border",
-                    "border-border",
-                    "rounded-2xl",
-                    "shadow-2xl",
-                    "z-20",
-                    "p-1.5",
-                    "md:p-2",
-                  )}
+                  className="absolute right-1 md:right-5 lg:right-8 top-10 md:top-12 w-44 md:w-48 bg-background border border-border rounded-2xl shadow-2xl z-20 p-1.5 md:p-2"
                 >
                   <MenuItem
                     icon={LuEye}
@@ -587,20 +379,20 @@ const APRow: React.FC<{
                       <MenuItem
                         icon={LuCircleCheck}
                         label="Approve"
+                        color="text-emerald-600"
                         onClick={() => {
                           setShowMenu(false);
                           onAction(app.id, "approve");
                         }}
-                        color="text-emerald-600"
                       />
                       <MenuItem
                         icon={LuCircleX}
                         label="Reject"
+                        color="text-rose-600"
                         onClick={() => {
                           setShowMenu(false);
                           setShowReject(true);
                         }}
-                        color="text-rose-600"
                       />
                     </>
                   )}
@@ -630,11 +422,11 @@ const APRow: React.FC<{
         <APRejectModal
           isOpen={showReject}
           onClose={() => setShowReject(false)}
+          applicantName={fullName}
           onConfirm={(note) => {
             setShowReject(false);
             onAction(app.id, "reject", note);
           }}
-          applicantName={fullName}
         />
       </Portal>
     </>
@@ -654,12 +446,8 @@ const MenuItem: React.FC<{
       color,
     )}
   >
-    <Icon className={cn("w-3.5 h-3.5 md:w-4 md:h-4")} />
-    <span
-      className={cn(
-        "text-[9px] md:text-[10px] font-black uppercase tracking-tight",
-      )}
-    >
+    <Icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-tight">
       {label}
     </span>
   </button>
