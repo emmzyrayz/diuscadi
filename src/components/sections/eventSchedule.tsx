@@ -26,7 +26,7 @@ const SCHEDULE_DATA = [
     time: "8:00 am",
     title: "Opening Remarks",
     description:
-      "Join us for a red-carpet worthy meet & greet with our Host, Dr. Umeh and this year’s LASCDS awesome speakers.",
+      "Join us for a red-carpet worthy meet & greet with our Host, Prof. Umeh and this year’s LASCDS awesome speakers.",
     icon: Mic2,
   },
   {

@@ -8,7 +8,7 @@ interface PageParams {
 const WEB_URL = "https://diuscadi.org.ng";
 const IMAGE_URL = `${WEB_URL}/assets/og-banner.png`;
 const DESCRIPTION =
-  "DIUSCADI (Dr. Ikechukwu Umeh's Student Career Development Initiative) is a non-profit initiative dedicated to preparing final year students and fresh graduates for life after school through practical workshops and mentorship.";
+  "DIUSCADI (Prof. Chief Ikechukwu Umeh's Student Career Development Initiative) is a non-profit initiative dedicated to preparing final year students and fresh graduates for life after school through practical workshops and mentorship.";
 
 export const baseMetadata: Metadata = {
   title: "DIUSCADI — Equipping Graduates for the Marketplace",
@@ -49,7 +49,7 @@ export const baseMetadata: Metadata = {
     "Graduate Employability",
     "Skill Acquisition Workshops",
     "Entrepreneurship Training",
-    "Dr. Ikechukwu Umeh",
+    "Prof. Chief Ikechukwu Umeh",
     "Nigeria Youth Empowerment",
   ],
 

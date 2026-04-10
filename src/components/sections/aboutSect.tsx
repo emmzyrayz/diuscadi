@@ -59,7 +59,7 @@ export const AboutSection = () => {
                   "leading-tight",
                 )}
               >
-                Dr. Ikechukwu Umeh
+                Prof. Chief Ikechukwu Umeh
               </p>
               <p className={cn("text-background/70", "text-sm", "mt-1")}>
                 Founder, DIUSCADI & Convener of LASCADSS

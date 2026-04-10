@@ -138,7 +138,7 @@ interface EventContextType {
 //     registeredCount: 50,
 //     slotsRemaining: 50,
 //     image: "/assets/img/downloads/networking-diuscadi.webp", // Ensure path is correct
-//     instructor: "Dr. Umeh",
+//     instructor: "Prof. Chief Umeh",
 //     targetEduStatus: "Final Year",
 //     requiredSkills: ["None"],
 //     locationScope: "Internal",
