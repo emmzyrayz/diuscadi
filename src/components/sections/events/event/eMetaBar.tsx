@@ -1,8 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { LuTicket, LuClock } from "react-icons/lu";
+import { LuTicket, LuClock, LuHistory, LuBan } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { getEventState, EVENT_STATE_CONFIG } from "@/lib/eventUtils";
 import type { EventDetail } from "@/app/events/[slug]/page";
 
 function useCountdown(deadline: string) {
@@ -25,110 +26,80 @@ export const EventMetaBar = ({ event }: { event: EventDetail }) => {
   const router = useRouter();
   const countdown = useCountdown(event.registrationDeadline);
 
+  const state = getEventState({
+    eventDate: event.eventDate,
+    endDate: event.endDate ?? null,
+    registrationDeadline: event.registrationDeadline,
+    slotsRemaining: event.slotsRemaining,
+    isFree: event.isFree,
+  });
+
+  const cfg = EVENT_STATE_CONFIG[state];
+  const isPast = state === "past";
+  const canReg = !cfg.btnDisabled;
+
   const fillPct = Math.min(
     100,
     Math.round((event.registered / event.capacity) * 100),
   );
-  const isAlmostFull = event.slotsRemaining > 0 && event.slotsRemaining <= 20;
-  const isSoldOut = event.slotsRemaining === 0;
+
+  // Bar colour by state
+  const barColor = isPast
+    ? "bg-slate-400"
+    : state === "soldout"
+      ? "bg-rose-500"
+      : state === "closed"
+        ? "bg-slate-400"
+        : "bg-primary";
 
   return (
-    <div
-      className={cn(
-        "sticky",
-        "top-[72px]",
-        "z-40",
-        "w-full",
-        "bg-background",
-        "border-b",
-        "border-border",
-        "shadow-sm",
-        "overflow-hidden",
-      )}
-    >
-      <div
-        className={cn(
-          "max-w-7xl",
-          "mx-auto",
-          "px-4",
-          "sm:px-6",
-          "lg:px-8",
-          "h-20",
-          "md:h-24",
-          "flex",
-          "items-center",
-          "justify-between",
-        )}
-      >
-        {/* Left: Stats */}
-        <div
-          className={cn(
-            "flex",
-            "items-center",
-            "gap-8",
-            "md:gap-12",
-            "overflow-x-auto",
-            "no-scrollbar",
-          )}
-        >
+    <div className="sticky top-[72px] z-40 w-full bg-background border-b border-border shadow-sm overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 md:h-24 flex items-center justify-between">
+        {/* Left: stats */}
+        <div className="flex items-center gap-8 md:gap-12 overflow-x-auto no-scrollbar">
           {/* Price */}
-          <div className={cn("flex", "flex-col")}>
-            <span
-              className={cn(
-                "text-[10px]",
-                "font-black",
-                "uppercase",
-                "tracking-widest",
-                "text-muted-foreground",
-              )}
-            >
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
               Entry Fee
             </span>
-            <span className={cn("text-lg", "font-black", "text-foreground")}>
+            <span className="text-lg font-black text-foreground">
               {event.price}
             </span>
           </div>
 
-          <div
-            className={cn("hidden", "sm:block", "w-px", "h-8", "text-muted")}
-          />
+          <div className="hidden sm:block w-px h-8 bg-border" />
 
           {/* Availability */}
-          <div className={cn("flex", "flex-col", "shrink-0")}>
-            <span
-              className={cn(
-                "text-[10px]",
-                "font-black",
-                "uppercase",
-                "tracking-widest",
-                "text-muted-foreground",
-              )}
-            >
+          <div className="flex flex-col shrink-0">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
               Availability
             </span>
-            <div className={cn("flex", "items-center", "gap-2")}>
-              {isSoldOut ? (
-                <span className={cn("text-lg", "font-black", "text-red-500")}>
+            <div className="flex items-center gap-2">
+              {isPast ? (
+                <span className="text-lg font-black text-slate-400 flex items-center gap-1.5">
+                  <LuHistory className="w-4 h-4" /> Ended
+                </span>
+              ) : state === "soldout" ? (
+                <span className="text-lg font-black text-rose-500">
                   Sold Out
+                </span>
+              ) : state === "closed" || state === "free-closed" ? (
+                <span className="text-lg font-black text-slate-500 flex items-center gap-1.5">
+                  <LuBan className="w-4 h-4" /> Closed
                 </span>
               ) : (
                 <>
                   <span
                     className={cn(
-                      "text-lg",
-                      "font-black",
-                      isAlmostFull ? "text-red-500" : "text-orange-600",
+                      "text-lg font-black",
+                      event.slotsRemaining <= 20
+                        ? "text-rose-500"
+                        : "text-orange-600",
                     )}
                   >
                     {event.slotsRemaining}
                   </span>
-                  <span
-                    className={cn(
-                      "text-xs",
-                      "font-bold",
-                      "text-muted-foreground",
-                    )}
-                  >
+                  <span className="text-xs font-bold text-muted-foreground">
                     Seats Left
                   </span>
                 </>
@@ -136,34 +107,16 @@ export const EventMetaBar = ({ event }: { event: EventDetail }) => {
             </div>
           </div>
 
-          <div
-            className={cn("hidden", "sm:block", "w-px", "h-8", "text-muted")}
-          />
+          <div className="hidden sm:block w-px h-8 bg-border" />
 
           {/* Duration */}
           {event.duration && (
-            <div className={cn("hidden", "md:flex", "flex-col")}>
-              <span
-                className={cn(
-                  "text-[10px]",
-                  "font-black",
-                  "uppercase",
-                  "tracking-widest",
-                  "text-muted-foreground",
-                )}
-              >
+            <div className="hidden md:flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                 Duration
               </span>
-              <div
-                className={cn(
-                  "flex",
-                  "items-center",
-                  "gap-1.5",
-                  "text-foreground",
-                  "font-bold",
-                )}
-              >
-                <LuClock className={cn("w-4", "h-4", "text-primary")} />
+              <div className="flex items-center gap-1.5 text-foreground font-bold">
+                <LuClock className="w-4 h-4 text-primary" />
                 {event.duration}
               </div>
             </div>
@@ -171,60 +124,70 @@ export const EventMetaBar = ({ event }: { event: EventDetail }) => {
         </div>
 
         {/* Right: CTA */}
-        <div className={cn("flex", "items-center", "gap-4")}>
-          <div className={cn("hidden", "lg:flex", "flex-col", "text-right")}>
-            <span
-              className={cn(
-                "text-xs",
-                "font-bold",
-                "text-foreground",
-                "leading-none",
+        <div className="flex items-center gap-4">
+          {/* Countdown — only show when registration is open */}
+          {canReg && (
+            <div className="hidden lg:flex flex-col text-right">
+              <span className="text-xs font-bold text-foreground leading-none">
+                Registration closes
+              </span>
+              <span className="text-[10px] font-black text-primary uppercase mt-1">
+                {countdown}
+              </span>
+            </div>
+          )}
+
+          {/* State label for non-registerable events */}
+          {!canReg && (
+            <div className="hidden lg:flex flex-col text-right">
+              <span className="text-xs font-bold text-muted-foreground leading-none">
+                {cfg.label}
+              </span>
+              {isPast && (
+                <span className="text-[10px] font-black text-slate-400 uppercase mt-1">
+                  {new Date(event.eventDate).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </span>
               )}
-            >
-              Registration closes
-            </span>
-            <span
-              className={cn(
-                "text-[10px]",
-                "font-black",
-                "text-primary",
-                "uppercase",
-                "mt-1",
-              )}
-            >
-              {countdown}
-            </span>
-          </div>
+            </div>
+          )}
+
           <button
-            disabled={isSoldOut}
+            disabled={!canReg}
             onClick={() =>
-              !isSoldOut && router.push(`/events/${event.slug}/register`)
+              canReg && router.push(`/events/${event.slug}/register`)
             }
             className={cn(
               "flex items-center gap-2 px-6 md:px-10 py-3.5 font-black rounded-2xl transition-all shadow-lg",
-              isSoldOut
-                ? "bg-slate-200 text-muted-foreground cursor-not-allowed shadow-none"
-                : "bg-primary text-background hover:bg-orange-600 shadow-primary/20 hover:scale-105 active:scale-95 cursor-pointer",
+              canReg
+                ? "bg-primary text-background hover:bg-orange-600 shadow-primary/20 hover:scale-105 active:scale-95 cursor-pointer"
+                : isPast
+                  ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
+                  : state === "soldout"
+                    ? "bg-rose-100 text-rose-400 cursor-not-allowed shadow-none"
+                    : "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none",
             )}
           >
-            <LuTicket className={cn("w-5", "h-5")} />
-            <span className={cn("hidden", "sm:inline")}>
-              {isSoldOut ? "Sold Out" : "Secure Your Seat"}
+            {isPast || !canReg ? (
+              <LuBan className="w-5 h-5" />
+            ) : (
+              <LuTicket className="w-5 h-5" />
+            )}
+            <span className="hidden sm:inline">{cfg.btnLabel}</span>
+            <span className="sm:hidden">
+              {canReg ? "Register" : isPast ? "Ended" : "Closed"}
             </span>
-            <span className="sm:hidden">{isSoldOut ? "Full" : "Register"}</span>
           </button>
         </div>
       </div>
 
-      {/* Capacity bar */}
-      <div className={cn("w-full", "h-1", "bg-muted")}>
+      {/* Capacity bar — greyed out for past/closed */}
+      <div className="w-full h-1 bg-muted">
         <div
-          className={cn(
-            "h-full",
-            "bg-primary",
-            "transition-all",
-            "duration-1000",
-          )}
+          className={cn("h-full transition-all duration-1000", barColor)}
           style={{ width: `${fillPct}%` }}
         />
       </div>

@@ -25,10 +25,16 @@ import type { CloudinaryImage } from "@/types/cloudinary";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface Institution {
-  Type?: "University" | "Polytechnic";
+  institutionId?: string;
   name?: string;
-  department?: string;
+  abbreviation?: string;
+  Type?: "University" | "Polytechnic" | "College" | "Institute";
+  facultyId?: string;
   faculty?: string;
+  departmentId?: string;
+  department?: string;
+  degreeType?: string;
+  durationYears?: { min: number; max: number };
   level?: string;
   semester?: "First" | "Second";
   enrollmentYear?: number;
@@ -39,53 +45,46 @@ export interface Institution {
   cgpa?: number | null;
 }
 
+// ── Location — matches UserData.ts UserLocation interface ─────────────────────
+export interface UserLocation {
+  country?: string;
+  state?: string;
+  city?: string;
+  lga?: string;
+  pendingVerification?: boolean;
+  rawCountry?: string;
+  rawState?: string;
+  rawCity?: string;
+}
+
 export interface UserProfile {
   id: string;
-  fullName: {
-    firstname: string;
-    secondname?: string;
-    lastname: string;
-  };
+  fullName: { firstname: string; secondname?: string; lastname: string };
   email: string;
   phone?: PhoneNumber;
   role: AccountRole;
   eduStatus: EduStatus;
-
-  // avatar is a CloudinaryImage object — never a plain string.
-  // hasAvatar is the cheap boolean flag for presence checks.
   hasAvatar: boolean;
   avatar?: CloudinaryImage;
-
   socials?: {
     linkedin?: string;
     github?: string;
     twitter?: string;
     portfolio?: string;
   };
-
   committeeMembership: CommitteeMembership | null;
   skills: Skill[];
   profileCompleted: boolean;
   membershipStatus: "pending" | "approved" | "suspended";
-
-  location?: {
-    country?: string;
-    state?: string;
-    city?: string;
-  };
-
+  location?: UserLocation; // ← now uses full UserLocation type
   Institution?: Institution;
-  profile?: {
-    bio?: string;
-  };
-
+  profile?: { bio?: string };
   analytics: {
     eventsRegistered: number;
     eventsAttended: number;
     lastEventRegisteredAt?: string;
     lastActiveAt?: string;
   };
-
   signupInviteCode: string;
   preferences: UserPreferences;
   createdAt: string;
@@ -109,7 +108,7 @@ interface UserContextType {
     fullName?: { firstname: string; secondname?: string; lastname: string };
     bio?: string;
     phone?: PhoneNumber;
-    // avatar intentionally absent — set exclusively via /api/media/confirm
+    location?: UserLocation; // ← ADDED
   }) => Promise<UpdateResult>;
   updateInstitution: (data: Partial<Institution>) => Promise<UpdateResult>;
   updateSkills: (skills: Skill[]) => Promise<UpdateResult>;
@@ -146,7 +145,6 @@ function parseFullName(raw: unknown): UserProfile["fullName"] {
       lastname: String(obj.lastname ?? ""),
     };
   }
-  // Legacy fallback: treat as first name only
   return { firstname: String(raw ?? ""), lastname: "" };
 }
 
@@ -167,7 +165,7 @@ function parseProfile(raw: Record<string, unknown>): UserProfile {
     profileCompleted: Boolean(raw.profileCompleted),
     membershipStatus: (raw.membershipStatus ??
       "pending") as UserProfile["membershipStatus"],
-    location: raw.location as UserProfile["location"],
+    location: raw.location as UserLocation | undefined,
     Institution: raw.Institution as Institution | undefined,
     profile: raw.profile as UserProfile["profile"],
     analytics: (raw.analytics ?? {
@@ -223,14 +221,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Seed from AuthContext on login ─────────────────────────────────────────
+  // Seed from AuthContext on login
   useEffect(() => {
     if (sessionStatus === "pending") return;
     if (!isAuthenticated || !user) {
       setProfile(null);
       return;
     }
-
     setProfile({
       id: user.userDataId ?? "",
       fullName: parseFullName(user.fullName),
@@ -255,7 +252,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [isAuthenticated, sessionStatus, user]);
 
-  // ── Full profile fetch ─────────────────────────────────────────────────────
+  // Full profile fetch on session restore
   const refreshProfile = useCallback(async () => {
     if (!isAuthenticated) return;
     setIsLoading(true);
@@ -278,13 +275,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     refreshProfile();
   }, [sessionStatus, isAuthenticated, refreshProfile]);
 
-  // ── Update methods ─────────────────────────────────────────────────────────
-
+  // ── updateProfile — now includes location ─────────────────────────────────
   const updateProfile = useCallback(
     (data: {
       fullName?: { firstname: string; secondname?: string; lastname: string };
       bio?: string;
       phone?: PhoneNumber;
+      location?: UserLocation;
     }) =>
       callPatch(
         "/api/users/profile",
@@ -384,8 +381,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     </UserContext.Provider>
   );
 };
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export const useUser = (): UserContextType => {
   const ctx = useContext(UserContext);

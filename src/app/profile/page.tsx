@@ -1,11 +1,15 @@
 "use client";
 // app/profile/page.tsx
+// Uses calculateCompletion() from lib/profileCompletion.ts —
+// same logic as homeData.ts so both pages always agree.
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useUser } from "@/context/UserContext";
 import { useTickets } from "@/context/TicketContext";
 import { ImageUploader } from "@/components/ui/ImageUploader";
 import type { CloudinaryImage } from "@/types/cloudinary";
+import { calculateCompletion } from "@/lib/profileCompletion";
+import type { Skill } from "@/types/domain";
 
 import { ProfileHeader } from "@/components/sections/profile/ProfileHeader";
 import { ProfileSidebar } from "@/components/sections/profile/ProfileSideBar";
@@ -14,11 +18,9 @@ import { ProfessionalInfoSection } from "@/components/sections/profile/ProInfoSe
 import { MembershipInfoSection } from "@/components/sections/profile/MembershipInfo";
 import { ActivitySummarySection } from "@/components/sections/profile/ActivitySummary";
 import { ProfileCompletionAlert } from "@/components/sections/profile/ProfileCompleteAlert";
-import { cn } from "@/lib/utils";
 import { InviteCodeCard } from "@/components/sections/profile/InviteCodeCard";
+import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-
-// ── Skeleton ──────────────────────────────────────────────────────────────────
 
 function ProfileSkeleton() {
   return (
@@ -67,14 +69,10 @@ function ProfileSkeleton() {
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
-
 export default function ProfilePage() {
   const router = useRouter();
   const { profile, isLoading, refreshProfile, updateProfile } = useUser();
   const { tickets, loadTickets } = useTickets();
-
-  // Avatar modal — only opened from sidebar camera icon
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 
   useEffect(() => {
@@ -82,11 +80,12 @@ export default function ProfilePage() {
     loadTickets();
   }, [refreshProfile, loadTickets]);
 
-  // ── Save handlers ──────────────────────────────────────────────────────────
-
-  // fullName is now a structured object — not a plain string
   const handleSaveName = useCallback(
-    async (fullName: { firstname: string; secondname?: string; lastname: string }) => {
+    async (fullName: {
+      firstname: string;
+      secondname?: string;
+      lastname: string;
+    }) => {
       await updateProfile({ fullName });
     },
     [updateProfile],
@@ -99,44 +98,50 @@ export default function ProfilePage() {
     [updateProfile],
   );
 
-  // ── Avatar handlers ────────────────────────────────────────────────────────
-  // The confirm route already persisted the CloudinaryImage to MongoDB.
-  // Just refresh the profile to sync context — no updateProfile call needed.
-
-    const handleAvatarSuccess = useCallback(
-      async (_image: CloudinaryImage) => {
-        await refreshProfile();
-        setAvatarModalOpen(false);
-      },
-      [refreshProfile],
-    );
-
-    const handleAvatarRemove = useCallback(async () => {
+  const handleAvatarSuccess = useCallback(
+    async (_image: CloudinaryImage) => {
       await refreshProfile();
-    }, [refreshProfile]);
+      setAvatarModalOpen(false);
+    },
+    [refreshProfile],
+  );
 
-  // ── Completion calculation ─────────────────────────────────────────────────
-   const missingFields: string[] = [];
-   if (!profile?.hasAvatar) missingFields.push("Profile Photo");
-   if (!profile?.phone) missingFields.push("Phone Number");
-   if (!profile?.profile?.bio) missingFields.push("Bio");
+  const handleAvatarRemove = useCallback(async () => {
+    await refreshProfile();
+  }, [refreshProfile]);
 
-   const completionPct = Math.round(((3 - missingFields.length) / 3) * 100);
+  // ── Completion — uses shared utility, same as homeData.ts ─────────────────
+  const completion = profile
+    ? calculateCompletion({
+        hasAvatar: profile.hasAvatar,
+        phone: profile.phone,
+        bio: profile.profile?.bio,
+        firstname: profile.fullName.firstname,
+        lastname: profile.fullName.lastname,
+        institution: profile.Institution,
+        skills: profile.skills as Skill[],
+        socials: profile.socials,
+      })
+    : {
+        pct: 0,
+        missing: [],
+        nextStep: null,
+        isComplete: false,
+        checkpoints: [],
+      };
 
-   // ── Ticket-derived stats ───────────────────────────────────────────────────
+  const completionPct = completion.pct;
+  const missingFields = completion.missing;
 
-   const upcomingCount = tickets.filter(
-     (t) => t.status === "registered",
-   ).length;
-   const ownedCount = tickets.filter((t) => t.status !== "cancelled").length;
+  // ── Ticket stats ──────────────────────────────────────────────────────────
+  const upcomingCount = tickets.filter((t) => t.status === "registered").length;
+  const ownedCount = tickets.filter((t) => t.status !== "cancelled").length;
+  const activityStats = {
+    ticketsOwned: ownedCount,
+    eventsAttended: profile?.analytics.eventsAttended ?? 0,
+    upcomingEvents: upcomingCount,
+  };
 
-   const activityStats = {
-     ticketsOwned: ownedCount,
-     eventsAttended: profile?.analytics.eventsAttended ?? 0,
-     upcomingEvents: upcomingCount,
-   };
-
-  // ── Guard ──────────────────────────────────────────────────────────────────
   if (isLoading || !profile) return <ProfileSkeleton />;
 
   return (
@@ -145,16 +150,6 @@ export default function ProfilePage() {
         completionPercentage={completionPct}
         onEditClick={() => router.push("/profile/edit")}
       />
-
-      {/* Avatar modal — only opened from sidebar */}
-      {/* <AvatarUploadModal
-        open={avatarModalOpen}
-        onClose={() => setAvatarModalOpen(false)}
-        currentUrl={profile.avatar?.imageUrl ?? null}
-        currentPublicId={profile.avatar?.imagePublicId ?? null}
-        onSuccess={handleAvatarSuccess}
-        onRemove={handleAvatarRemove}
-      /> */}
 
       <div className={cn("max-w-7xl", "mx-auto", "px-4", "sm:px-6", "lg:px-8")}>
         <ProfileCompletionAlert
@@ -172,7 +167,6 @@ export default function ProfilePage() {
             "mt-8",
           )}
         >
-          {/* ── Sidebar ── */}
           <aside className={cn("lg:col-span-4", "xl:col-span-3")}>
             <ProfileSidebar
               profile={profile}
@@ -180,9 +174,7 @@ export default function ProfilePage() {
             />
           </aside>
 
-          {/* ── Content area ── */}
           <div className={cn("lg:col-span-8", "xl:col-span-9", "space-y-8")}>
-            {/* Avatar upload panel */}
             {avatarModalOpen && (
               <div
                 className={cn("glass", "rounded-[2.5rem]", "p-8", "space-y-6")}
@@ -231,7 +223,7 @@ export default function ProfilePage() {
             <InviteCodeCard inviteCode={profile.signupInviteCode} />
 
             <ProfileInfoSection
-              key={profile.updatedAt} // ← add this
+              key={profile.updatedAt}
               profile={profile}
               onSaveName={handleSaveName}
               onSaveBio={handleSaveBio}

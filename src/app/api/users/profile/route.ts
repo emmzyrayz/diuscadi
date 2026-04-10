@@ -1,9 +1,9 @@
 // app/api/users/profile/route.ts
 // GET  — fetch current user's full profile
-// PATCH — update fullName, bio, phone
+// PATCH — update fullName, bio, phone, location, socials
 //
-// avatar is NOT accepted here — it is set exclusively via
-// POST /api/media/confirm after a successful Cloudinary upload.
+// avatar is NOT accepted here — set exclusively via POST /api/media/confirm.
+// To lock a field (e.g. phone after verification), pass locks into updateUserProfile.
 
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
@@ -41,16 +41,12 @@ async function getHandler(req: AuthenticatedRequest): Promise<NextResponse> {
 }
 
 // ─── PATCH /api/users/profile ─────────────────────────────────────────────────
-// Allowed fields: fullName, bio, phone
-// Body example:
-// {
-//   "fullName": { "firstname": "John", "lastname": "Doe" },
-//   "phone":    { "countryCode": 234, "phoneNumber": 8012345678 },
-//   "bio":      "I am a tech enthusiast"
-// }
+// Accepted fields: fullName, bio, phone, location, socials
 //
-// NOT accepted here:
-//   avatar — use POST /api/media/confirm (Cloudinary upload pipeline)
+// NOT accepted:
+//   avatar      — use POST /api/media/confirm (Cloudinary upload pipeline)
+//   hasAvatar   — managed by confirm/remove routes
+//   analytics, signupInviteCode, membershipStatus, role, _id, vaultId
 
 async function patchHandler(req: AuthenticatedRequest): Promise<NextResponse> {
   try {
@@ -58,11 +54,11 @@ async function patchHandler(req: AuthenticatedRequest): Promise<NextResponse> {
     const db = await getDb();
     const vaultId = new ObjectId(req.auth.vaultId);
 
-    // Guard: reject any attempt to write restricted fields
+    // Guard: reject restricted fields
     const RESTRICTED = [
       "vaultId",
-      "avatar", // set via /api/media/confirm only
-      "hasAvatar", // managed by confirm/remove routes
+      "avatar",
+      "hasAvatar",
       "analytics",
       "signupInviteCode",
       "membershipStatus",
@@ -77,11 +73,25 @@ async function patchHandler(req: AuthenticatedRequest): Promise<NextResponse> {
       );
     }
 
-    const result = await updateUserProfile(db, vaultId, {
-      fullName: body.fullName,
-      bio: body.bio,
-      phone: body.phone,
-    });
+    // ── Field locks ────────────────────────────────────────────────────────
+    // TODO: when your verification system is live, load per-user lock flags here:
+    //   const userFlags = await getUserVerificationFlags(db, vaultId);
+    //   const locks = { phone: userFlags.phoneVerified, fullName: userFlags.kycCompleted };
+    // For now all fields are unlocked:
+    const locks = {};
+
+    const result = await updateUserProfile(
+      db,
+      vaultId,
+      {
+        fullName: body.fullName,
+        bio: body.bio,
+        phone: body.phone,
+        location: body.location, // ← the fix
+        socials: body.socials,
+      },
+      locks,
+    );
 
     if (result.error) {
       return NextResponse.json(

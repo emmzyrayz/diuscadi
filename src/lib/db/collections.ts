@@ -1,4 +1,4 @@
-// lib/db/collections.ts
+// lib/db/collections.ts — add institutionDepartments
 import { Db } from "mongodb";
 import { VaultDocument } from "@/lib/models/vault";
 import { UserDataDocument } from "@/lib/models/UserData";
@@ -9,6 +9,8 @@ import { EventRegistrationDocument } from "@/lib/models/EventRegistration";
 import { InstitutionDocument } from "@/lib/models/institution";
 import { FacultyDocument } from "@/lib/models/Faculty";
 import { DepartmentDocument } from "@/lib/models/Department";
+import { CampusDocument } from "@/lib/models/campus";
+import { InstitutionDepartmentDocument } from "@/lib/models/Institutiondepartment";
 import { InviteDocument } from "@/lib/models/invite";
 import { HealthReportDocument } from "@/lib/models/healthReport";
 import { FileDocument } from "@/lib/models/FileDocument";
@@ -34,6 +36,9 @@ export const Collections = {
   institutions: (db: Db) => db.collection<InstitutionDocument>("institutions"),
   faculties: (db: Db) => db.collection<FacultyDocument>("faculties"),
   departments: (db: Db) => db.collection<DepartmentDocument>("departments"),
+  campuses: (db: Db) => db.collection<CampusDocument>("campuses"),
+  institutionDepartments: (db: Db) =>
+    db.collection<InstitutionDepartmentDocument>("institutionDepartments"),
   invites: (db: Db) => db.collection<InviteDocument>("invites"),
   healthReports: (db: Db) =>
     db.collection<HealthReportDocument>("healthReports"),
@@ -42,17 +47,12 @@ export const Collections = {
     db.collection<ReferralLinkDocument>("referralLinks"),
   referralEvents: (db: Db) =>
     db.collection<ReferralEventDocument>("referralEvents"),
-
-  // ── Academic / curriculum ──────────────────────────────────────────────────
   curriculumSubmissions: (db: Db) =>
     db.collection<CurriculumSubmissionDocument>("curriculumSubmissions"),
-
-  // ── Platform config (DB-driven lists) ─────────────────────────────────────
   committees: (db: Db) => db.collection<CommitteeDocument>("committees"),
   skills: (db: Db) => db.collection<SkillDocument>("skills"),
   committeeRoles: (db: Db) =>
     db.collection<CommitteeRoleDocument>("committeeRoles"),
-  // ── NEW ───────────────────────────────────────────────────────────────────
   platformConfig: (db: Db) =>
     db.collection<PlatformConfigDocument>("platformConfig"),
 };

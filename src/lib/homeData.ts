@@ -1,7 +1,4 @@
-// lib/homeData.ts
-// Server-side data fetchers for the homepage.
-// All functions run on the server — never imported by client components.
-// No ObjectId or Date objects cross the server→client boundary.
+// lib/homeData.ts — updated fetchHomeUser to return real completion data
 
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
@@ -9,6 +6,7 @@ import { ObjectId } from "mongodb";
 import { verifyJWT } from "@/lib/auth";
 import { cookies } from "next/headers";
 import type { EduStatus, CommitteeMembership } from "@/types/domain";
+import { calculateCompletionFromRaw } from "@/lib/profileCompletion";
 
 // ─── Auth helper ──────────────────────────────────────────────────────────────
 
@@ -27,7 +25,7 @@ async function getServerAuth() {
 
 export interface HomeUser {
   name: string;
-  avatar: string; // imageUrl string or "" — never a CloudinaryImage object
+  avatar: string;
   role: string;
   eduStatus: EduStatus;
   skills: string[];
@@ -37,6 +35,10 @@ export interface HomeUser {
   eventsRegistered: number;
   eventsAttended: number;
   signupInviteCode: string;
+  // ── NEW: real completion data from shared utility ──────────────────────────
+  completionPct: number; // 0-100 — calculated from actual fields
+  completionNextStep: string | null; // label of first missing field
+  completionMissing: string[]; // all missing field labels
 }
 
 export interface HomeFeaturedEvent {
@@ -79,21 +81,18 @@ export interface QuickAction {
   desc: string;
   link: string;
 }
-
 export interface StaticAnnouncement {
   id: number;
   title: string;
   desc: string;
   type: "Update" | "New" | "Alert";
 }
-
 export interface StaticActivity {
   id: number;
   content: string;
   target: string;
   time: string;
 }
-
 export interface ContinueItem {
   type: "Learning" | "Registration" | "Application";
   title: string;
@@ -103,8 +102,6 @@ export interface ContinueItem {
 }
 
 // ─── Image resolver ───────────────────────────────────────────────────────────
-// Shared across all fetchers — resolves the best available image URL
-// from the structured CloudinaryImage fields on an event document.
 
 const FALLBACK_EVENT_IMAGE = "/images/events/default.jpg";
 
@@ -120,7 +117,7 @@ function resolveEventImage(e: {
   return FALLBACK_EVENT_IMAGE;
 }
 
-// ─── Fetch user data ──────────────────────────────────────────────────────────
+// ─── fetchHomeUser ────────────────────────────────────────────────────────────
 
 export async function fetchHomeUser(): Promise<HomeUser | null> {
   const auth = await getServerAuth();
@@ -141,6 +138,7 @@ export async function fetchHomeUser(): Promise<HomeUser | null> {
           fullName: 1,
           hasAvatar: 1,
           avatar: 1,
+          phone: 1,
           eduStatus: 1,
           skills: 1,
           committeeMembership: 1,
@@ -148,6 +146,9 @@ export async function fetchHomeUser(): Promise<HomeUser | null> {
           membershipStatus: 1,
           analytics: 1,
           signupInviteCode: 1,
+          profile: 1,
+          Institution: 1,
+          socials: 1,
         },
       },
     ),
@@ -155,14 +156,23 @@ export async function fetchHomeUser(): Promise<HomeUser | null> {
 
   if (!vault || !userData) return null;
 
-  // fullName is now a structured object — build a display string
   const fn = userData.fullName;
   const name = fn
     ? [fn.firstname, fn.secondname, fn.lastname].filter(Boolean).join(" ")
     : "";
 
-  // avatar is now a CloudinaryImage object — extract the URL for the client
   const avatarUrl = userData.hasAvatar ? (userData.avatar?.imageUrl ?? "") : "";
+
+  // ── Calculate real completion using shared utility ─────────────────────────
+  const completion = calculateCompletionFromRaw({
+    hasAvatar: userData.hasAvatar,
+    phone: userData.phone,
+    fullName: userData.fullName,
+    profile: userData.profile,
+    Institution: userData.Institution,
+    skills: userData.skills,
+    socials: userData.socials,
+  });
 
   return {
     name,
@@ -176,10 +186,14 @@ export async function fetchHomeUser(): Promise<HomeUser | null> {
     eventsRegistered: userData.analytics?.eventsRegistered ?? 0,
     eventsAttended: userData.analytics?.eventsAttended ?? 0,
     signupInviteCode: userData.signupInviteCode ?? "",
+    // Real completion
+    completionPct: completion.pct,
+    completionNextStep: completion.nextStep,
+    completionMissing: completion.missing,
   };
 }
 
-// ─── Fetch featured event ─────────────────────────────────────────────────────
+// ─── fetchFeaturedEvent ───────────────────────────────────────────────────────
 
 export async function fetchFeaturedEvent(): Promise<HomeFeaturedEvent | null> {
   const db = await getDb();
@@ -236,10 +250,8 @@ export async function fetchFeaturedEvent(): Promise<HomeFeaturedEvent | null> {
   if (!event) return null;
 
   const daysLeft = Math.ceil(
-    (new Date(event.eventDate).getTime() - now.getTime()) /
-      (1000 * 60 * 60 * 24),
+    (new Date(event.eventDate).getTime() - now.getTime()) / 86400000,
   );
-
   const locationStr = event.location
     ? [event.location.city, event.location.state].filter(Boolean).join(", ")
     : "";
@@ -258,7 +270,7 @@ export async function fetchFeaturedEvent(): Promise<HomeFeaturedEvent | null> {
   };
 }
 
-// ─── Fetch user's upcoming registered events ──────────────────────────────────
+// ─── fetchUpcomingEvents ──────────────────────────────────────────────────────
 
 export async function fetchUpcomingEvents(
   vaultId: ObjectId,
@@ -272,24 +284,22 @@ export async function fetchUpcomingEvents(
   );
   if (!userData) return [];
 
-  const pipeline = [
-    { $match: { userId: userData._id, status: { $ne: "cancelled" } } },
-    {
-      $lookup: {
-        from: "events",
-        localField: "eventId",
-        foreignField: "_id",
-        as: "event",
-      },
-    },
-    { $unwind: "$event" },
-    { $match: { "event.eventDate": { $gt: now } } },
-    { $sort: { "event.eventDate": 1 } },
-    { $limit: 5 },
-  ];
-
   const regs = await Collections.eventRegistrations(db)
-    .aggregate(pipeline)
+    .aggregate([
+      { $match: { userId: userData._id, status: { $ne: "cancelled" } } },
+      {
+        $lookup: {
+          from: "events",
+          localField: "eventId",
+          foreignField: "_id",
+          as: "event",
+        },
+      },
+      { $unwind: "$event" },
+      { $match: { "event.eventDate": { $gt: now } } },
+      { $sort: { "event.eventDate": 1 } },
+      { $limit: 5 },
+    ])
     .toArray();
 
   return regs.map((r) => {
@@ -302,11 +312,10 @@ export async function fetchUpcomingEvents(
       timeZoneName: "short",
     });
     const loc = r.event.location
-      ? ([r.event.location.venue, r.event.location.city] as string[])
+      ? [r.event.location.venue, r.event.location.city]
           .filter(Boolean)
           .join(" · ")
       : String(r.event.format);
-
     return {
       id: r._id.toString(),
       date: day,
@@ -322,7 +331,7 @@ export async function fetchUpcomingEvents(
   });
 }
 
-// ─── Fetch recommendations ────────────────────────────────────────────────────
+// ─── fetchRecommendations ─────────────────────────────────────────────────────
 
 export async function fetchRecommendations(
   userData: { skills: string[]; eduStatus: EduStatus },
@@ -348,10 +357,9 @@ export async function fetchRecommendations(
 
   return events.map((e) => {
     const metaParts: string[] = [];
-    if (e.format) {
+    if (e.format)
       metaParts.push(e.format.charAt(0).toUpperCase() + e.format.slice(1));
-    }
-    if (e.eventDate) {
+    if (e.eventDate)
       metaParts.push(
         new Date(e.eventDate as Date).toLocaleDateString("en-US", {
           month: "long",
@@ -359,8 +367,6 @@ export async function fetchRecommendations(
           year: "numeric",
         }),
       );
-    }
-
     const skillMatch = (e.requiredSkills as string[] | undefined)?.some((s) =>
       userData.skills.includes(s),
     );
@@ -371,7 +377,6 @@ export async function fetchRecommendations(
       : e.targetEduStatus === userData.eduStatus
         ? `For ${statusLabel}`
         : "Recommended for You";
-
     return {
       type: String(e.category ?? "Event"),
       title: String(e.title),

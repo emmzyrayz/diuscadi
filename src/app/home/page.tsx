@@ -1,6 +1,6 @@
-// app/page.tsx — Server Component
-// Fetches all real data server-side, passes as serialisable props
-// to client section components.
+// app/home/page.tsx — Server Component
+// completionPct now comes from fetchHomeUser() which uses
+// calculateCompletionFromRaw() — same logic as profile/page.tsx
 
 import { cookies } from "next/headers";
 import { verifyJWT } from "@/lib/auth";
@@ -62,7 +62,6 @@ export default async function HomePage() {
   const activities = getStaticActivities();
   const continueItems = getStaticContinueItems();
 
-  // ── HomeHeader props ──────────────────────────────────────────────────────
   const headerUser = homeUser
     ? {
         name: homeUser.name,
@@ -85,8 +84,6 @@ export default async function HomePage() {
         points: 0,
       };
 
-  // ── HomeHero props — null when no featured event ──────────────────────────
-  // HomeHero now handles null featuredEvent gracefully with an empty state
   const heroEvent = featuredEvent
     ? {
         image: featuredEvent.image,
@@ -96,22 +93,20 @@ export default async function HomePage() {
         category: "Upcoming Event",
         slug: featuredEvent.slug,
       }
-    : null; // ← pass null instead of a fake "No events" object
+    : null;
 
-  // Profile completion % — 3 checkpoints: avatar, phone, bio
-  // const missingCount = homeUser && !homeUser.profileCompleted ? 1 : 0;
-  // simplification — real calc in HomeHero via UserContext
-  const completionPct = homeUser?.profileCompleted ? 100 : 40;
+  // ── Use real completion from homeUser (calculated server-side) ────────────
+  // No more hardcoded 40% — same logic as profile/page.tsx via calculateCompletionFromRaw()
+  const completionPct = homeUser?.completionPct ?? 0;
+  const completionNextStep = homeUser?.completionNextStep ?? null;
 
   const currentTask = {
-    title: homeUser?.profileCompleted
-      ? "Continue Module 4"
-      : "Complete Your Profile",
-    category: homeUser?.profileCompleted ? "Learning Path" : "Getting Started",
+    title: completionPct >= 100 ? "Continue Module 4" : "Complete Your Profile",
+    category: completionPct >= 100 ? "Learning Path" : "Getting Started",
     progress: completionPct,
+    nextStep: completionNextStep, // passed to HomeHero for the hint text
   };
 
-  // ── Recommendations map ───────────────────────────────────────────────────
   const mappedRecommendations = recommendations.map((r, i) => ({
     id: i,
     type: r.type,
@@ -121,7 +116,6 @@ export default async function HomePage() {
     href: `/events/${r.slug}`,
   }));
 
-  // ── Upcoming events map ───────────────────────────────────────────────────
   const mappedEvents = upcomingEvents.map((e) => ({
     id: e.id,
     date: e.date,

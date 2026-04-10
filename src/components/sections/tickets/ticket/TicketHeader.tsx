@@ -1,12 +1,19 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
-import { LuArrowLeft, LuCircleCheck, LuClock, LuBan } from "react-icons/lu";
+import {
+  LuArrowLeft,
+  LuCircleCheck,
+  LuClock,
+  LuBan,
+  LuHistory,
+} from "react-icons/lu";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
+// Now includes "Past" as a distinct display status
 interface TicketHeaderProps {
-  status: "Upcoming" | "Used" | "Cancelled";
+  status: "Upcoming" | "Used" | "Cancelled" | "Past";
 }
 
 const STATUS_CONFIG = {
@@ -16,9 +23,14 @@ const STATUS_CONFIG = {
     classes: "bg-emerald-100 text-emerald-700 border-emerald-200",
   },
   Used: {
-    label: "Used / Checked-In",
+    label: "Used / Attended",
     icon: LuCircleCheck,
-    classes: "text-muted text-muted-foreground border-border",
+    classes: "bg-blue-50 text-blue-600 border-blue-100",
+  },
+  Past: {
+    label: "Event Ended",
+    icon: LuHistory,
+    classes: "bg-slate-100 text-slate-500 border-slate-200",
   },
   Cancelled: {
     label: "Cancelled",
@@ -33,42 +45,14 @@ export const TicketViewHeader = ({ status }: TicketHeaderProps) => {
   const Icon = cfg.icon;
 
   return (
-    <header
-      className={cn(
-        "w-full",
-        "bg-background",
-        "border-b rounded-2xl",
-        "border-border",
-        "py-6",
-      )}
-    >
-      <div className={cn("max-w-4xl", "mx-auto", "px-4", "sm:px-6")}>
-        <div className={cn("flex", "items-center", "justify-between", "mb-6")}>
+    <header className="w-full bg-background border-b rounded-2xl border-border py-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between mb-6">
           <button
             onClick={() => router.push("/tickets")}
-            className={cn(
-              "flex",
-              "items-center",
-              "gap-2",
-              "text-muted-foreground",
-              "hover:text-primary",
-              "transition-colors",
-              "text-xs",
-              "font-black",
-              "uppercase",
-              "tracking-widest",
-              "group",
-              "cursor-pointer",
-            )}
+            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors text-xs font-black uppercase tracking-widest group cursor-pointer"
           >
-            <LuArrowLeft
-              className={cn(
-                "w-4",
-                "h-4",
-                "group-hover:-translate-x-1",
-                "transition-transform",
-              )}
-            />
+            <LuArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             Back to My Tickets
           </button>
           <div
@@ -77,7 +61,7 @@ export const TicketViewHeader = ({ status }: TicketHeaderProps) => {
               cfg.classes,
             )}
           >
-            <Icon className={cn("w-3", "h-3")} />
+            <Icon className="w-3 h-3" />
             {cfg.label}
           </div>
         </div>
@@ -85,27 +69,10 @@ export const TicketViewHeader = ({ status }: TicketHeaderProps) => {
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
         >
-          <h1
-            className={cn(
-              "text-3xl",
-              "md:text-4xl",
-              "font-black",
-              "text-foreground",
-              "tracking-tighter",
-            )}
-          >
+          <h1 className="text-3xl md:text-4xl font-black text-foreground tracking-tighter">
             Your <span className="text-primary">Ticket.</span>
           </h1>
-          <p
-            className={cn(
-              "text-muted-foreground",
-              "text-xs",
-              "font-medium",
-              "mt-1",
-              "uppercase",
-              "tracking-widest",
-            )}
-          >
+          <p className="text-muted-foreground text-xs font-medium mt-1 uppercase tracking-widest">
             Issued by DIUSCADI Core Verification System
           </p>
         </motion.div>

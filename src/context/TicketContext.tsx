@@ -84,6 +84,10 @@ interface TicketContextType {
   ticketsError: string | null;
   loadTickets: (status?: RegistrationStatus) => Promise<void>;
   refreshTickets: () => Promise<void>;
+  // In TicketContextType interface, add:
+  cancelRegistration: (
+    registrationId: string,
+  ) => Promise<{ success: boolean; error?: string }>;
 
   // Single ticket detail (for QR page)
   currentTicket: TicketDetail | null;
@@ -261,6 +265,40 @@ export const TicketProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
+  const cancelRegistration = useCallback(
+    async (
+      registrationId: string,
+    ): Promise<{ success: boolean; error?: string }> => {
+      try {
+        const res = await fetch(`/api/tickets/${registrationId}/cancel`, {
+          method: "PATCH",
+          headers: authHeaders(),
+        });
+        const data = await res.json();
+        if (!res.ok)
+          return { success: false, error: data.error ?? "Cancellation failed" };
+
+        // Optimistic update — mark cancelled in both lists
+        setTickets((prev) =>
+          prev.map((t) =>
+            t.id === registrationId ? { ...t, status: "cancelled" } : t,
+          ),
+        );
+        setCurrentTicket((prev) =>
+          prev?.id === registrationId ? { ...prev, status: "cancelled" } : prev,
+        );
+
+        return { success: true };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : "Cancellation failed",
+        };
+      }
+    },
+    [],
+  );
+
   const clearErrors = useCallback(() => {
     setTicketsError(null);
     setCurrentTicketError(null);
@@ -274,6 +312,7 @@ export const TicketProvider = ({ children }: { children: ReactNode }) => {
         ticketsError,
         loadTickets,
         refreshTickets,
+        cancelRegistration,
         currentTicket,
         currentTicketLoading,
         currentTicketError,

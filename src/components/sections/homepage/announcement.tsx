@@ -22,21 +22,21 @@ const TYPE_CONFIG: Record<
   }
 > = {
   Update: {
-    icon: <LuMegaphone className="w-5 h-5" />,
+    icon: <LuMegaphone className={cn('w-5', 'h-5')} />,
     color: "bg-blue-600",
     lightColor: "bg-blue-50",
     borderColor: "border-blue-100",
     textColor: "text-blue-600",
   },
   New: {
-    icon: <LuSparkles className="w-5 h-5" />,
+    icon: <LuSparkles className={cn('w-5', 'h-5')} />,
     color: "bg-orange-600",
     lightColor: "bg-orange-50",
     borderColor: "border-orange-100",
     textColor: "text-orange-600",
   },
   Alert: {
-    icon: <LuInfo className="w-5 h-5" />,
+    icon: <LuInfo className={cn('w-5', 'h-5')} />,
     color: "bg-foreground",
     lightColor: "bg-muted",
     borderColor: "border-border",
@@ -58,31 +58,31 @@ export const Announcements = ({ announcements }: AnnouncementsProps) => {
   const newCount = announcements.length;
 
   return (
-    <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
-      <div className="flex items-center gap-3 mb-8">
-        <h3 className="text-xl font-black text-foreground uppercase tracking-tighter">
+    <section className={cn('w-full', 'max-w-7xl', 'mx-auto', 'px-4', 'sm:px-6', 'lg:px-8', 'mt-16')}>
+      <div className={cn('flex', 'items-center', 'gap-3', 'mb-8')}>
+        <h3 className={cn('text-xl', 'font-black', 'text-foreground', 'uppercase', 'tracking-tighter')}>
           Community Updates
         </h3>
         {newCount > 0 && (
-          <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[10px] font-bold rounded-md animate-pulse">
+          <span className={cn('px-2', 'py-0.5', 'bg-red-100', 'text-red-600', 'text-[10px]', 'font-bold', 'rounded-md', 'animate-pulse')}>
             {newCount} NEW
           </span>
         )}
         {/* Demo badge — remove when real blog system is wired */}
-        <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded-md uppercase tracking-widest">
+        <span className={cn('px-2', 'py-0.5', 'bg-amber-50', 'text-amber-600', 'text-[9px]', 'font-black', 'rounded-md', 'uppercase', 'tracking-widest')}>
           Sample Data
         </span>
       </div>
 
       {announcements.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 bg-background border border-dashed border-border rounded-[2.5rem] text-center gap-4">
-          <LuMegaphone className="w-10 h-10 text-slate-300" />
-          <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">
+        <div className={cn('flex', 'flex-col', 'items-center', 'justify-center', 'py-16', 'bg-background', 'border', 'border-dashed', 'border-border', 'rounded-[2.5rem]', 'text-center', 'gap-4')}>
+          <LuMegaphone className={cn('w-10', 'h-10', 'text-slate-300')} />
+          <p className={cn('text-[11px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
             No announcements yet
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={cn('grid', 'grid-cols-1', 'md:grid-cols-2', 'lg:grid-cols-3', 'gap-6')}>
           {announcements.map((item, index) => {
             const config = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.Alert;
             return (
@@ -97,7 +97,7 @@ export const Announcements = ({ announcements }: AnnouncementsProps) => {
                   config.borderColor,
                 )}
               >
-                <div className="flex items-start justify-between mb-6">
+                <div className={cn('flex', 'items-start', 'justify-between', 'mb-6')}>
                   <div
                     className={cn(
                       "w-12 h-12 rounded-2xl flex items-center justify-center text-background shadow-lg shadow-current/20",
@@ -117,17 +117,17 @@ export const Announcements = ({ announcements }: AnnouncementsProps) => {
                   </span>
                 </div>
                 <div className="flex-1">
-                  <h4 className="text-lg font-bold text-foreground mb-2 leading-tight group-hover:text-primary transition-colors">
+                  <h4 className={cn('text-lg', 'font-bold', 'text-foreground', 'mb-2', 'leading-tight', 'group-hover:text-primary', 'transition-colors')}>
                     {item.title}
                   </h4>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                  <p className={cn('text-sm', 'text-muted-foreground', 'leading-relaxed')}>
                     {item.desc}
                   </p>
                 </div>
-                <button className="mt-6 flex items-center gap-2 text-sm font-bold text-foreground group-hover:text-primary transition-all">
+                <button className={cn('mt-6', 'flex', 'items-center', 'gap-2', 'text-sm', 'font-bold', 'text-foreground', 'group-hover:text-primary', 'transition-all', 'cursor-pointer')}>
                   {/* TODO: route to /blog/[slug] when blog system is ready */}
                   Read More
-                  <LuArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <LuArrowRight className={cn('w-4', 'h-4', 'group-hover:translate-x-1', 'transition-transform')} />
                 </button>
               </motion.div>
             );

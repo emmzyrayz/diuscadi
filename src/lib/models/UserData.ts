@@ -1,4 +1,4 @@
-// lib/models/UserData.ts
+// lib/models/UserData.ts — updated Institution subdoc + location split
 import { ObjectId } from "mongodb";
 import { CloudinaryImage } from "@/types/cloudinary";
 import { SemesterGPARecord } from "@/types/academic";
@@ -22,92 +22,87 @@ export type {
   UserPreferences,
 };
 
+// ── Location ──────────────────────────────────────────────────────────────────
+// Stored as three separate fields for proper filtering/indexing.
+// "Other" entries are flagged as pendingVerification until admin approves.
+export interface UserLocation {
+  country?: string;
+  state?: string;
+  city?: string; // city or LGA
+  lga?: string; // Local Government Area (Nigeria-specific)
+
+  // Set when user chose "Other" for any field — triggers admin verification queue
+  pendingVerification?: boolean;
+  // Raw values typed by user before admin approval
+  rawCountry?: string;
+  rawState?: string;
+  rawCity?: string;
+}
+
 export interface UserDataDocument {
   _id?: ObjectId;
-
-  vaultId: ObjectId; // → Vault._id
+  vaultId: ObjectId;
 
   // ── Identity ──────────────────────────────────────────────────────────────
-  fullName: {
-    firstname: string;
-    secondname?: string;
-    lastname: string;
-  };
-  email: string; // personal email (mirrored from Vault)
+  fullName: { firstname: string; secondname?: string; lastname: string };
+  email: string;
 
   // ── Avatar ────────────────────────────────────────────────────────────────
   hasAvatar: boolean;
-  avatar?: CloudinaryImage; // tag: "avatar"
+  avatar?: CloudinaryImage;
 
-  // ── Phone (mirrored from Vault for display) ───────────────────────────────
+  // ── Phone ─────────────────────────────────────────────────────────────────
   phone: PhoneNumber;
 
-  location?: {
-    country?: string;
-    state?: string;
-    city?: string;
-  };
+  // ── Location (three separate fields) ─────────────────────────────────────
+  location?: UserLocation;
 
-  // ── Role (mirrored from Vault — Vault is source of truth) ─────────────────
+  // ── Role ──────────────────────────────────────────────────────────────────
   role: AccountRole;
-
-  // ── Org profile ───────────────────────────────────────────────────────────
   eduStatus: EduStatus;
 
+  // ── Institution ───────────────────────────────────────────────────────────
   Institution?: {
-    Type?: "University" | "Polytechnic";
-    name?: string;
-    department?: string;
-    faculty?: string;
+    // ObjectId refs + denormalised names for display without joins
+    institutionId?: ObjectId; // → Institution._id
+    name?: string; // denormalised: Institution.name
+    abbreviation?: string; // denormalised: Institution.abbreviation
+    Type?: "University" | "Polytechnic" | "College" | "Institute";
+
+    facultyId?: ObjectId; // → Faculty._id
+    faculty?: string; // denormalised: Faculty.name
+
+    departmentId?: ObjectId; // → Department._id
+    department?: string; // denormalised: Department.name
+
+    // From InstitutionDepartment junction — stored for fast display
+    degreeType?: string; // e.g. "B.Sc", "ND"
+    durationYears?: { min: number; max: number };
+
     semester?: "First" | "Second";
 
-    // ── Students ──────────────────────────────────────────────────────────
-    /**
-     * Year the student enrolled, e.g. 2023.
-     * Derive year-of-study as: currentAcademicYear - enrollmentYear + 1.
-     * Never store a "level" string that goes stale — compute it.
-     */
+    // ── Level ─────────────────────────────────────────────────────────────
+    // Display convenience e.g. "300", "ND2"
+    // Options are constrained by durationYears.max at selection time.
+    // Do NOT store "300 Level" — store the raw value "300" and format in UI.
+    level?: string;
+
     enrollmentYear?: number;
-
-    level?: string; // display convenience e.g. "300 Level" — not source of truth
-
-    // ── School email ──────────────────────────────────────────────────────
-    schoolEmail?: string; // sparse unique index
-    verifiedSchoolEmail: boolean;
-    RegistrationNumber?: string;
-
-    // ── Graduates ─────────────────────────────────────────────────────────
     graduationYear?: number;
     currentStatus?: "Graduate" | "Student";
 
+    // ── School email ──────────────────────────────────────────────────────
+    schoolEmail?: string;
+    verifiedSchoolEmail: boolean;
+    RegistrationNumber?: string;
+
     // ── Academic record ───────────────────────────────────────────────────
-    /**
-     * One entry per semester. Each entry contains all courses for that
-     * semester with credit units and grades entered by the student.
-     *
-     * Append-only in normal usage — never delete past semesters.
-     * Sorted by session + semester for display (sort in application layer).
-     */
     gpaRecord: SemesterGPARecord[];
-
-    /**
-     * Cumulative GPA across all submitted semesters.
-     * Formula: Σ(qualityPoints) / Σ(creditUnits) across all submitted records.
-     * Recalculated automatically:
-     *   - When a student submits or edits a SemesterGPARecord.
-     *   - When an admin manually triggers recalculation.
-     * Rounded to 2 decimal places. Null until at least one semester is submitted.
-     */
     cgpa: number | null;
-
-    /**
-     * ISO-8601 timestamp of the last CGPA recalculation.
-     * Shown in UI so students/admins know how fresh the value is.
-     */
     cgpaLastCalculatedAt?: string;
   };
 
-  // ── Social links ──────────────────────────────────────────────────────────
+  // ── Socials ───────────────────────────────────────────────────────────────
   socials?: {
     linkedin?: string;
     github?: string;
@@ -115,27 +110,14 @@ export interface UserDataDocument {
     portfolio?: string;
   };
 
-  // One committee membership per user. null = not in any committee yet.
   committeeMembership: CommitteeMembership | null;
-
-  // Multiple skills. [] = not yet set.
   skills: Skill[];
-
-  // ── Profile ───────────────────────────────────────────────────────────────
   profileCompleted: boolean;
-
-  profile?: {
-    bio?: string;
-  };
-
-  // ── Membership ────────────────────────────────────────────────────────────
+  profile?: { bio?: string };
   membershipStatus: "pending" | "approved" | "suspended";
-
-  // ── Referral ──────────────────────────────────────────────────────────────
   signupInviteCode: string;
-  referredBy?: ObjectId; // → UserData._id of referring member
+  referredBy?: ObjectId;
 
-  // ── Event tracking ────────────────────────────────────────────────────────
   analytics: {
     eventsRegistered: number;
     eventsAttended: number;
@@ -143,9 +125,7 @@ export interface UserDataDocument {
     lastActiveAt?: Date;
   };
 
-  // ── Preferences ───────────────────────────────────────────────────────────
   preferences: UserPreferences;
-
   createdAt: Date;
   updatedAt: Date;
 }

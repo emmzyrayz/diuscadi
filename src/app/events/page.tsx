@@ -1,4 +1,5 @@
 // app/events/page.tsx — Server Component
+
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { cn } from "@/lib/utils";
@@ -7,19 +8,25 @@ import { EventsHeader } from "@/components/sections/events/eventHeader";
 import { EventsListingClient } from "@/components/sections/events/EventsListingClient";
 import { NewsletterOrCTA } from "@/components/sections/events/eventCTA";
 
-// ── Shared types (imported by child components too) ───────────────────────────
+// ── Shared types ──────────────────────────────────────────────────────────────
 
 export interface EventItem {
   id: string;
   slug: string;
   title: string;
-  date: string;
+  date: string; // display string e.g. "Nov 15"
   location: string;
   format: string;
   tag: "Upcoming" | "Ongoing" | "Past";
   image: string;
   category: string;
   isFree: boolean;
+
+  // ── Fields required by getEventState() ──────────────────────────────────
+  eventDate: string; // ISO — for state calculation
+  endDate: string | null;
+  registrationDeadline: string; // ISO
+  slotsRemaining: number;
 }
 
 export interface SpotlightEvent {
@@ -31,6 +38,13 @@ export interface SpotlightEvent {
   description: string;
   image: string;
   registered: number;
+
+  // ── Fields required by getEventState() ──────────────────────────────────
+  eventDate: string;
+  endDate: string | null;
+  registrationDeadline: string;
+  slotsRemaining: number;
+  isFree: boolean;
 }
 
 export interface TabCount {
@@ -90,7 +104,6 @@ async function fetchEvents(): Promise<{
   const db = await getDb();
   const now = new Date();
 
-  // Fetch events + cheapest ticket per event in one aggregation
   const docs = await Collections.events(db)
     .aggregate([
       { $match: { status: "published" } },
@@ -109,74 +122,131 @@ async function fetchEvents(): Promise<{
           as: "cheapestTicket",
         },
       },
+      // Count non-cancelled registrations per event
+      {
+        $lookup: {
+          from: "eventRegistrations",
+          let: { eid: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$eventId", "$$eid"] },
+                    { $ne: ["$status", "cancelled"] },
+                  ],
+                },
+              },
+            },
+            { $count: "total" },
+          ],
+          as: "regCount",
+        },
+      },
       {
         $addFields: {
           cheapestTicket: { $arrayElemAt: ["$cheapestTicket", 0] },
+          registeredCount: {
+            $ifNull: [{ $arrayElemAt: ["$regCount.total", 0] }, 0],
+          },
         },
       },
     ])
     .toArray();
 
-  // Collect distinct categories from DB results (no hardcoding)
+  // Distinct categories
   const categorySet = new Set<string>();
   docs.forEach((e) => {
     if (e.category) categorySet.add(String(e.category));
   });
   const categories = Array.from(categorySet).sort();
 
-  // Pick first upcoming event as spotlight
-  const spotlightDoc =
-    docs.find((e) => new Date(e.eventDate as Date) > now) ?? docs[0];
-
-  let registeredCount = 0;
-  if (spotlightDoc) {
-    registeredCount = await Collections.eventRegistrations(db).countDocuments({
-      eventId: spotlightDoc._id,
-      status: { $ne: "cancelled" },
-    });
-  }
-
+  // Map to EventItem — include all fields getEventState() needs
   const events: EventItem[] = docs.map((e) => {
-    const d = new Date(e.eventDate as Date);
+    const eventDateObj = new Date(e.eventDate as Date);
+    const deadlineObj = e.registrationDeadline
+      ? new Date(e.registrationDeadline as Date)
+      : eventDateObj;
+    const endDateObj = e.endDate ? new Date(e.endDate as Date) : null;
+
     const locationStr = e.location
       ? [e.location.city, e.location.state].filter(Boolean).join(", ") ||
         String(e.format)
       : String(e.format);
 
-    // Derive isFree from cheapest ticket — not hardcoded
     const cheapest = e.cheapestTicket as { price?: number } | undefined;
     const isFree = !cheapest || !cheapest.price || cheapest.price === 0;
 
+    // slotsRemaining — derived from capacity minus registrations
+    const capacity = (e.capacity as number) ?? 0;
+    const registeredCount = (e.registeredCount as number) ?? 0;
+    const slotsRemaining = Math.max(0, capacity - registeredCount);
+
     return {
       id: e._id!.toString(),
-      slug: e.slug,
-      title: e.title,
-      date: formatDate(d),
+      slug: String(e.slug),
+      title: String(e.title),
+      date: formatDate(eventDateObj),
       location: locationStr,
-      format: e.format,
-      tag: eventTag(d, now),
+      format: String(e.format),
+      tag: eventTag(eventDateObj, now),
       image: resolveEventImage(e),
-      category: e.category,
+      category: String(e.category),
       isFree,
+      // State fields
+      eventDate: eventDateObj.toISOString(),
+      endDate: endDateObj?.toISOString() ?? null,
+      registrationDeadline: deadlineObj.toISOString(),
+      slotsRemaining,
     };
   });
 
+  // Spotlight: prefer first upcoming event; fall back to most recent past event
+  const upcomingDoc = docs.find((e) => new Date(e.eventDate as Date) > now);
+  const pastDoc = [...docs]
+    .reverse()
+    .find((e) => new Date(e.eventDate as Date) <= now);
+  const spotlightDoc = upcomingDoc ?? pastDoc ?? null;
+
   const spotlight: SpotlightEvent | null = spotlightDoc
-    ? {
-        id: spotlightDoc._id!.toString(),
-        slug: spotlightDoc.slug,
-        title: spotlightDoc.title,
-        date: formatFullDate(new Date(spotlightDoc.eventDate as Date)),
-        location: spotlightDoc.location
-          ? [spotlightDoc.location.venue, spotlightDoc.location.city]
-              .filter(Boolean)
-              .join(", ")
-          : String(spotlightDoc.format),
-        description:
-          spotlightDoc.shortDescription ?? spotlightDoc.overview ?? "",
-        image: resolveEventImage(spotlightDoc),
-        registered: registeredCount,
-      }
+    ? (() => {
+        const eventDateObj = new Date(spotlightDoc.eventDate as Date);
+        const deadlineObj = spotlightDoc.registrationDeadline
+          ? new Date(spotlightDoc.registrationDeadline as Date)
+          : eventDateObj;
+        const endDateObj = spotlightDoc.endDate
+          ? new Date(spotlightDoc.endDate as Date)
+          : null;
+        const cheapest = spotlightDoc.cheapestTicket as
+          | { price?: number }
+          | undefined;
+        const isFree = !cheapest || !cheapest.price || cheapest.price === 0;
+        const capacity = (spotlightDoc.capacity as number) ?? 0;
+        const regCount = (spotlightDoc.registeredCount as number) ?? 0;
+
+        return {
+          id: spotlightDoc._id!.toString(),
+          slug: String(spotlightDoc.slug),
+          title: String(spotlightDoc.title),
+          date: formatFullDate(eventDateObj),
+          location: spotlightDoc.location
+            ? [spotlightDoc.location.venue, spotlightDoc.location.city]
+                .filter(Boolean)
+                .join(", ")
+            : String(spotlightDoc.format),
+          description: String(
+            spotlightDoc.shortDescription ?? spotlightDoc.overview ?? "",
+          ),
+          image: resolveEventImage(spotlightDoc),
+          registered: regCount,
+          // State fields
+          eventDate: eventDateObj.toISOString(),
+          endDate: endDateObj?.toISOString() ?? null,
+          registrationDeadline: deadlineObj.toISOString(),
+          slotsRemaining: Math.max(0, capacity - regCount),
+          isFree,
+        };
+      })()
     : null;
 
   const counts: TabCount = {
@@ -206,7 +276,6 @@ export default async function EventPage() {
       )}
     >
       <EventsHeader />
-      {/* EventsListingClient owns filter state + grid — client component */}
       <EventsListingClient
         events={events}
         spotlight={spotlight}

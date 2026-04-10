@@ -1,73 +1,70 @@
 // lib/models/Institution.ts
 // ─────────────────────────────────────────────────────────────────────────────
 // MongoDB collection: `institutions`
-//
-// This document is the source of truth for:
-//   - Institutional identity (name, type, state, country)
-//   - Grading system (set by webmaster — drives all CGPA calculations)
-//   - Approved curriculum (crowdsourced from students, approved by admin)
-//
-// Future: curriculum[] will be the backbone of the Nigerian Institutional
-// Data API — keep this data clean and well-structured from day one.
+// Extended with all fields from the Nigerian schools dataset + schema fields.
+// Faculties and departments live in their own collections — linked via ObjectId[].
+// Campuses live in their own collection — linked via institutionId.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { ObjectId } from "mongodb";
 import { CloudinaryImage } from "@/types/cloudinary";
 import { GradingSystem, ApprovedCurriculumEntry } from "@/types/academic";
 
-export type InstitutionType = "University" | "Polytechnic";
+export type InstitutionType =
+  | "University"
+  | "Polytechnic"
+  | "College"
+  | "Institute";
+export type InstitutionMembership = "public" | "private";
+export type InstitutionLevel = "federal" | "state" | "private";
 
 export interface InstitutionDocument {
   _id?: ObjectId;
 
   // ── Identity ──────────────────────────────────────────────────────────────
-  name: string; // e.g. "University of Benin"
-  abbreviation: string; // e.g. "UNIBEN" — used in API responses + UI badges
+  name: string; // e.g. "University of Lagos, Lagos"
+  abbreviation: string; // e.g. "UNILAG"
   type: InstitutionType;
-  state: string; // e.g. "Edo"
+  state: string; // e.g. "Lagos"
+  city?: string; // e.g. "Lagos" — from seed data
   country: string; // e.g. "Nigeria"
-  website?: string; // official institution website — useful for the public API
   isActive: boolean;
+
+  // ── Extended identity (from schoolModel schema) ───────────────────────────
+  usid?: string; // Unique School ID — generated at seed time (USID-<abbr>-<random>)
+  psid?: string; // Platform School ID — human-readable e.g. "NG-UNI-UNILAG"
+  membership?: InstitutionMembership; // "public" | "private" — filled by admin
+  level?: InstitutionLevel; // "federal" | "state" | "private"
+  foundingYear?: number;
+  website?: string;
+  motto?: string;
+  chancellor?: string;
+  viceChancellor?: string;
+  description?: string;
 
   // ── Media ─────────────────────────────────────────────────────────────────
   hasLogo: boolean;
-  logo?: CloudinaryImage; // tag: "inst-logo"
-
+  logo?: CloudinaryImage;
   hasBanner: boolean;
-  banner?: CloudinaryImage; // tag: "inst-banner"
+  banner?: CloudinaryImage;
 
-  // ── Grading system (set by webmaster, never by users) ─────────────────────
-  /**
-   * The grading system in use at this institution.
-   * Drives all CGPA calculations for students who belong to this institution.
-   * Must be configured by a webmaster before students can submit GPA records.
-   */
+  // ── Grading system ────────────────────────────────────────────────────────
   gradingSystem?: GradingSystem;
-
-  /**
-   * True once gradingSystem has been configured and verified by a webmaster.
-   * Students cannot submit GPA records until this is true.
-   */
   gradingSystemConfirmed: boolean;
 
-  // ── Faculties ─────────────────────────────────────────────────────────────
-  // IDs of faculties assigned to this institution by a webmaster.
+  // ── Linked collections (ObjectId references) ──────────────────────────────
+  // Faculties assigned to this institution — populated by webmaster
   faculties: ObjectId[];
 
-  // ── Approved curriculum ───────────────────────────────────────────────────
-  /**
-   * Canonical course lists per dept / level / semester / session.
-   * Built from approved CurriculumSubmission documents.
-   *
-   * Used to:
-   *   1. Pre-fill course lists when students enter GPA records.
-   *   2. Power the future Nigerian Institutional Data API.
-   *
-   * Kept embedded (not a separate collection) for fast single-document reads
-   * during GPA entry. If this array grows very large (500+ entries), consider
-   * migrating to a separate `institutionCurriculum` collection.
-   */
+  // Campuses are in a separate `campuses` collection, linked by institutionId
+  // Query: Collections.campuses(db).find({ institutionId: institution._id })
+
+  // ── Curriculum ────────────────────────────────────────────────────────────
   curriculum: ApprovedCurriculumEntry[];
+
+  // ── Seed metadata ─────────────────────────────────────────────────────────
+  seededAt?: Date; // set during initial seed — helps distinguish seeded vs manually created
+  seedSource?: string; // e.g. "ng-universities-v1" — for future re-seeding or diff
 
   createdAt: Date;
   updatedAt: Date;
