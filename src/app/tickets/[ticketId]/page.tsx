@@ -1,5 +1,6 @@
 "use client";
 // app/tickets/[ticketId]/page.tsx
+// E3: passes checkedInAt to TicketVisualCard for Attended badge
 
 import React, { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -96,7 +97,6 @@ export default function TicketDetailPage() {
   const t = currentTicket;
   const displayStatus = getDisplayStatus(t);
   const isCancelled = displayStatus === "Cancelled";
-  const isPast = displayStatus === "Past" || displayStatus === "Used";
   const eventDate = fmtDate(t.event.eventDate);
   const eventTime = fmtTime(t.event.eventDate);
   const location = getLocation(t);
@@ -115,6 +115,8 @@ export default function TicketDetailPage() {
               eventImage: t.event.image,
               ticketType: t.ticketType.name,
               status: displayStatus,
+              // E3: pass checkedInAt so Attended badge appears
+              checkedInAt: t.checkedInAt ?? null,
             }}
           />
 
@@ -139,13 +141,12 @@ export default function TicketDetailPage() {
             }}
           />
 
-          {/* Actions — show for all statuses, actions disable themselves based on status */}
           <TicketActions
             ticketId={t.id}
             registrationId={t.id}
             eventSlug={t.event.slug}
             eventTitle={t.event.title}
-            eventDate={t.event.eventDate} // raw ISO for calendar
+            eventDate={t.event.eventDate}
             eventLocation={location}
             status={displayStatus}
           />

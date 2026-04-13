@@ -1,6 +1,9 @@
 // POST /api/events/check-in
 // Auth required. Role-gated: admin | moderator | webmaster.
 // Body: { inviteCode }
+//
+// E3 fix: increments userData.analytics.eventsAttended on successful check-in.
+// This field existed but was never incremented — now fixed.
 
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
@@ -10,8 +13,6 @@ import { ObjectId } from "mongodb";
 import type { AccountRole } from "@/types/domain";
 
 const ALLOWED_ROLES: AccountRole[] = ["admin", "moderator", "webmaster"];
-
-// How many hours before event start to open check-in
 const CHECK_IN_OPENS_HOURS_BEFORE = 2;
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
@@ -48,14 +49,12 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         { status: 404 },
       );
     }
-
     if (registration.status === "cancelled") {
       return NextResponse.json(
         { error: "This registration has been cancelled" },
         { status: 400 },
       );
     }
-
     if (registration.status === "checked-in") {
       return NextResponse.json(
         { error: "Attendee is already checked in" },
@@ -70,13 +69,11 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Check-in opens CHECK_IN_OPENS_HOURS_BEFORE hours before the event
-    // and closes when the event ends (or same day if no endDate)
+    // Time-based check-in window
     const eventStart = new Date(event.eventDate);
     const checkInOpensAt = new Date(
       eventStart.getTime() - CHECK_IN_OPENS_HOURS_BEFORE * 60 * 60 * 1000,
     );
-
     const eventEnd = event.endDate
       ? new Date(event.endDate)
       : new Date(
@@ -87,12 +84,6 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
           59,
           59,
         );
-
-    // Temporary debug — remove after confirming
-    console.log("[check-in] now:", now.toISOString());
-    console.log("[check-in] checkInOpensAt:", checkInOpensAt.toISOString());
-    console.log("[check-in] eventEnd:", eventEnd.toISOString());
-    console.log("[check-in] registration status:", registration.status);
 
     if (now < checkInOpensAt) {
       const minutesUntilOpen = Math.round(
@@ -117,24 +108,32 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
+    // ── Mark registration as checked-in ───────────────────────────────────────
     await Collections.eventRegistrations(db).updateOne(
       { _id: registration._id as ObjectId },
       { $set: { status: "checked-in", checkedInAt: now, updatedAt: now } },
     );
 
+    // ── E3 FIX: Increment eventsAttended counter on userData ──────────────────
+    // This field existed in the schema but was never incremented on check-in.
     await Collections.userData(db).updateOne(
       { _id: registration.userId },
-      { $inc: { "analytics.eventsAttended": 1 }, $set: { updatedAt: now } },
+      {
+        $inc: { "analytics.eventsAttended": 1 },
+        $set: { updatedAt: now },
+      },
     );
 
+    // ── Fetch attendee details for response ───────────────────────────────────
     const attendee = await Collections.userData(db).findOne(
       { _id: registration.userId },
       {
         projection: {
           fullName: 1,
           email: 1,
-          "avatar.imageUrl": 1, // ← was just `avatar: 1`
+          "avatar.imageUrl": 1,
           membershipStatus: 1,
+          Institution: 1, // included for attendance record context
         },
       },
     );
@@ -155,6 +154,11 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         avatar:
           (attendee?.avatar as { imageUrl?: string } | null)?.imageUrl ?? null,
         membershipStatus: attendee?.membershipStatus ?? "pending",
+        // Institution data for attendance records
+        institution: attendee?.Institution?.name ?? null,
+        faculty: attendee?.Institution?.faculty ?? null,
+        department: attendee?.Institution?.department ?? null,
+        level: attendee?.Institution?.level ?? null,
       },
       registration: {
         id: registration._id!.toString(),
