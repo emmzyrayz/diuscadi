@@ -15,6 +15,15 @@ import type { AdminEvent } from "@/context/AdminContext";
 
 const PAGE_SIZE = 10;
 
+// ── Timezone helper (mirrored from AEEditModal) ───────────────────────────────
+// Converts an ISO string to a "YYYY-MM-DDTHH:mm" string in WAT (UTC+1)
+// so that datetime-local inputs are pre-populated with the correct local time.
+function isoToLocalDatetime(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(new Date(iso).getTime() + 60 * 60 * 1000); // shift +1h to WAT
+  return d.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+}
+
 export default function EventsManagementPage() {
   const { token } = useAuth();
   const { refreshFeed } = useEvents();
@@ -32,8 +41,6 @@ export default function EventsManagementPage() {
   const [editingEvent, setEditingEvent] = useState<AdminEvent | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
-  // startTransition defers the setState calls so React 19 doesn't
-  // flag them as synchronous cascades inside an effect body
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -55,7 +62,6 @@ export default function EventsManagementPage() {
     const found = adminEvents.find((e) => e.id === editId);
     if (!found) return;
 
-    // Wrap in startTransition to satisfy React 19's no-sync-setState-in-effect rule
     startTransition(() => {
       setEditingEvent(found);
       setEditModalOpen(true);
@@ -75,6 +81,45 @@ export default function EventsManagementPage() {
     url.searchParams.delete("edit");
     window.history.replaceState({}, "", url.toString());
   };
+
+  // ── Map AdminEvent → EventFormData ─────────────────────────────────────────
+  // All datetime fields come from the DB as ISO strings (UTC).
+  // We convert them to WAT "YYYY-MM-DDTHH:mm" strings so that
+  // the datetime-local / date / time inputs are correctly pre-filled.
+  function buildInitialData(event: AdminEvent) {
+    const eventDateWat = event.eventDate
+      ? isoToLocalDatetime(event.eventDate)
+      : "";
+    // "YYYY-MM-DDTHH:mm" → split at T to get date and startTime separately
+    const [datePart, timePart] = eventDateWat.split("T");
+
+    return {
+      title: event.title ?? "",
+      category: event.category ?? "Technology",
+      description: (event as unknown as { overview?: string }).overview ?? "",
+      date: datePart ?? "",
+      startTime: timePart ?? "",
+      type:
+        event.format === "virtual"
+          ? ("Virtual" as const)
+          : event.format === "hybrid"
+            ? ("Hybrid" as const)
+            : ("Physical" as const),
+      venueName:
+        (event as unknown as { location?: { venue?: string } }).location
+          ?.venue ?? "",
+      maxCapacity: event.capacity ?? 100,
+      ticketPrice: (event as unknown as { ticketPrice?: number }).ticketPrice ?? 0,
+      // registrationDeadline must be "YYYY-MM-DDTHH:mm" for datetime-local
+      registrationDeadline: event.registrationDeadline
+        ? isoToLocalDatetime(event.registrationDeadline)
+        : "",
+      visibility:
+        (event as unknown as { status?: string }).status === "published"
+          ? ("Public" as const)
+          : ("Invite-Only" as const),
+    };
+  }
 
   if (loadingAdminEvents && adminEvents.length === 0) {
     return (
@@ -120,6 +165,7 @@ export default function EventsManagementPage() {
         </div>
       )}
 
+      {/* Edit modal — eventId triggers the PATCH path inside the modal */}
       <AdminEventModal
         isOpen={editModalOpen}
         onClose={handleEditModalClose}
@@ -127,24 +173,8 @@ export default function EventsManagementPage() {
           handleEditModalClose();
           handleMutation();
         }}
-        initialData={
-          editingEvent
-            ? {
-                title: editingEvent.title,
-                category: editingEvent.category,
-                type:
-                  editingEvent.format === "virtual"
-                    ? "Virtual"
-                    : editingEvent.format === "hybrid"
-                      ? "Hybrid"
-                      : "Physical",
-                date: editingEvent.eventDate.split("T")[0],
-                registrationDeadline:
-                  editingEvent.registrationDeadline.split("T")[0],
-                maxCapacity: editingEvent.capacity,
-              }
-            : undefined
-        }
+        eventId={editingEvent?.id}
+        initialData={editingEvent ? buildInitialData(editingEvent) : undefined}
       />
     </div>
   );

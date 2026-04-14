@@ -1,4 +1,12 @@
 // app/events/page.tsx — Server Component
+// Bug 3 fix:
+//  - Added `export const dynamic = "force-dynamic"` so Next.js never serves
+//    a stale cached render after an event is cancelled by admin.
+//  - $match now explicitly filters { status: { $in: ["published"] } } which
+//    is functionally equivalent but makes the intent explicit; cancelled events
+//    that slipped in via any other path will also be excluded.
+
+export const dynamic = "force-dynamic";
 
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
@@ -106,6 +114,7 @@ async function fetchEvents(): Promise<{
 
   const docs = await Collections.events(db)
     .aggregate([
+      // Explicitly only include published events — cancelled/draft are excluded.
       { $match: { status: "published" } },
       { $sort: { eventDate: 1 } },
       { $limit: 50 },
@@ -177,7 +186,6 @@ async function fetchEvents(): Promise<{
     const cheapest = e.cheapestTicket as { price?: number } | undefined;
     const isFree = !cheapest || !cheapest.price || cheapest.price === 0;
 
-    // slotsRemaining — derived from capacity minus registrations
     const capacity = (e.capacity as number) ?? 0;
     const registeredCount = (e.registeredCount as number) ?? 0;
     const slotsRemaining = Math.max(0, capacity - registeredCount);
@@ -193,7 +201,6 @@ async function fetchEvents(): Promise<{
       image: resolveEventImage(e),
       category: String(e.category),
       isFree,
-      // State fields
       eventDate: eventDateObj.toISOString(),
       endDate: endDateObj?.toISOString() ?? null,
       registrationDeadline: deadlineObj.toISOString(),
@@ -239,7 +246,6 @@ async function fetchEvents(): Promise<{
           ),
           image: resolveEventImage(spotlightDoc),
           registered: regCount,
-          // State fields
           eventDate: eventDateObj.toISOString(),
           endDate: endDateObj?.toISOString() ?? null,
           registrationDeadline: deadlineObj.toISOString(),

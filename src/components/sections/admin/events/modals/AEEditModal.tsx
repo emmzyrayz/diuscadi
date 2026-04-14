@@ -1,10 +1,15 @@
 "use client";
 // modals/AEEditModal.tsx
-// The 5-step event creation wizard.
-// On submit calls AdminContext.createEvent() which hits POST /api/admin/events.
-// The banner upload uses ImageUploader → Cloudinary pipeline (TODO: wire step 1 upload).
+// Handles BOTH creating a new event (no initialData / no eventId) and
+// editing an existing one (initialData + eventId supplied by the parent).
+//
+// Key fixes applied:
+//  1. Edit path calls PATCH /api/admin/events/[id] instead of createEvent()
+//  2. Form re-seeds via useEffect whenever initialData/eventId changes
+//  3. datetime-local values are converted to ISO preserving WAT (UTC+1) offset
+//  4. registrationDeadline is seeded as "YYYY-MM-DDTHH:mm" so the input shows correctly
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LuX,
@@ -24,19 +29,22 @@ import {
   LuTimer,
   LuCalendar,
   LuLoader,
+  LuPencil,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { IconType } from "react-icons";
 import { useAdmin } from "@/context/AdminContext";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
-import { ImageUploader } from "@/components/ui/ImageUploader";
-import type { CloudinaryImage } from "@/types/cloudinary";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  /** Present when editing an existing event */
+  eventId?: string;
   initialData?: Partial<EventFormData>;
 }
 
@@ -53,10 +61,10 @@ interface EventFormData {
   maxCapacity: number;
   ticketPrice: number;
   enableWaitlist: boolean;
-  registrationDeadline: string;
+  registrationDeadline: string; // "YYYY-MM-DDTHH:mm" for datetime-local input
   visibility: "Public" | "Invite-Only";
   bannerBlob: Blob | null;
-  bannerPreviewUrl: string | null; // local object URL for preview only
+  bannerPreviewUrl: string | null;
 }
 
 type WizardStep = 1 | 2 | 3 | 4 | 5;
@@ -70,8 +78,10 @@ interface StepConfig {
 interface StepProps {
   formData: EventFormData;
   setFormData: React.Dispatch<React.SetStateAction<EventFormData>>;
-  ownerId?: string; // slug derived from title — used for banner upload signing
+  ownerId?: string;
 }
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const STEPS: StepConfig[] = [
   { id: 1, label: "Basic Info", icon: LuInfo },
@@ -100,14 +110,45 @@ const DEFAULT_FORM: EventFormData = {
   bannerPreviewUrl: null,
 };
 
+// ── Timezone helper ───────────────────────────────────────────────────────────
+
+/**
+ * Convert a datetime-local string ("YYYY-MM-DDTHH:mm") to a proper ISO string
+ * by treating it as WAT (UTC+1). This prevents the browser silently
+ * interpreting local time as UTC which causes the ~1 hour deadline drift.
+ */
+function localDatetimeToIso(value: string): string {
+  if (!value) return "";
+  // datetime-local gives us "YYYY-MM-DDTHH:mm" — no timezone suffix.
+  // Appending "+01:00" tells Date() this is WAT, so toISOString() is correct.
+  return new Date(`${value}:00+01:00`).toISOString();
+}
+
+/**
+ * Convert an ISO string back to a "YYYY-MM-DDTHH:mm" string in WAT
+ * so the datetime-local input is pre-populated correctly.
+ */
+function isoToLocalDatetime(iso: string): string {
+  if (!iso) return "";
+  // WAT = UTC+1
+  const d = new Date(new Date(iso).getTime() + 60 * 60 * 1000);
+  // toISOString() is always UTC — after the +1h shift this is "WAT time in UTC format"
+  return d.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+
 export const AdminEventModal: React.FC<EventModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  eventId,
   initialData,
 }) => {
   const { token } = useAuth();
   const { createEvent } = useAdmin();
+
+  const isEditing = Boolean(eventId);
 
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [submitting, setSubmitting] = useState(false);
@@ -116,6 +157,17 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
     ...initialData,
   });
 
+  // Re-seed the form whenever the modal opens with new initialData.
+  // Without this, clicking "Edit" on a second event would still show
+  // the first event's data because useState only runs once on mount.
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({ ...DEFAULT_FORM, ...(initialData ?? {}) });
+      setCurrentStep(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, eventId]);
+
   if (!isOpen) return null;
 
   const nextStep = () =>
@@ -123,134 +175,120 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
   const prevStep = () =>
     setCurrentStep((p) => Math.max(p - 1, 1) as WizardStep);
 
- const handleSubmit = async () => {
-   if (!token) return;
-   if (
-     !formData.title.trim() ||
-     !formData.date ||
-     !formData.registrationDeadline
-   ) {
-     toast.error("Title, date and registration deadline are required");
-     return;
-   }
+  // ── Submit: create path ──────────────────────────────────────────────────
+  const handleCreate = async () => {
+    if (!token) return;
+    if (!formData.title.trim() || !formData.date || !formData.registrationDeadline) {
+      toast.error("Title, date and registration deadline are required");
+      return;
+    }
 
-   setSubmitting(true);
-   try {
-     const eventDateIso = formData.startTime
-       ? new Date(`${formData.date}T${formData.startTime}`).toISOString()
-       : new Date(formData.date).toISOString();
+    setSubmitting(true);
+    try {
+      const eventDateIso = formData.startTime
+        ? localDatetimeToIso(`${formData.date}T${formData.startTime}`)
+        : new Date(`${formData.date}T00:00:00+01:00`).toISOString();
 
-     const slug = formData.title
-       .trim()
-       .toLowerCase()
-       .replace(/\s+/g, "-")
-       .replace(/[^a-z0-9-]/g, "");
+      const slug = formData.title
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
 
-     // Step 1: Create the event first (no banner yet)
-     await createEvent(
-       {
-         title: formData.title.trim(),
-         slug,
-         overview: formData.description,
-         category: formData.category,
-         format: formData.type.toLowerCase() as
-           | "physical"
-           | "virtual"
-           | "hybrid",
-         eventDate: eventDateIso,
-         registrationDeadline: new Date(
-           formData.registrationDeadline,
-         ).toISOString(),
-         capacity: formData.maxCapacity,
-        ticketPrice: formData.ticketPrice,
-         locationScope: formData.type === "Virtual" ? "online" : "local",
-         location: formData.venueName
-           ? { venue: formData.venueName }
-           : undefined,
-         status: formData.visibility === "Public" ? "published" : "draft",
-       },
-       token,
-     );
+      await createEvent(
+        {
+          title: formData.title.trim(),
+          slug,
+          overview: formData.description,
+          category: formData.category,
+          format: formData.type.toLowerCase() as "physical" | "virtual" | "hybrid",
+          eventDate: eventDateIso,
+          registrationDeadline: localDatetimeToIso(formData.registrationDeadline),
+          capacity: formData.maxCapacity,
+          ticketPrice: formData.ticketPrice,
+          locationScope: formData.type === "Virtual" ? "online" : "local",
+          location: formData.venueName ? { venue: formData.venueName } : undefined,
+          status: formData.visibility === "Public" ? "published" : "draft",
+        },
+        token,
+      );
 
-     // Step 2: If a banner blob is staged, upload it now that the event exists
-     if (formData.bannerBlob) {
-       try {
-         // Use MediaContext directly via the upload pipeline
-         const res = await fetch("/api/media/sign", {
-           method: "POST",
-           headers: {
-             "Content-Type": "application/json",
-             Authorization: `Bearer ${token}`,
-           },
-           body: JSON.stringify({ uploadType: "event-banner", ownerId: slug }),
-         });
-         if (res.ok) {
-           const params = await res.json();
-           const form = new FormData();
-           form.append(
-             "file",
-             formData.bannerBlob,
-             `banner_${Date.now()}.webp`,
-           );
-           form.append("api_key", params.apiKey);
-           form.append("timestamp", String(params.timestamp));
-           form.append("signature", params.signature);
-           form.append("folder", params.folder);
-           form.append("public_id", params.publicId);
-           if (params.eager) form.append("eager", params.eager);
+      // Banner upload after event exists
+      if (formData.bannerBlob) {
+        await uploadBanner(formData.bannerBlob, slug, token);
+      }
 
-           const uploadRes = await fetch(
-             `https://api.cloudinary.com/v1_1/${params.cloudName}/image/upload`,
-             { method: "POST", body: form },
-           );
-           if (uploadRes.ok) {
-             const uploadData = await uploadRes.json();
-             // Confirm to DB now that event exists
-             await fetch("/api/media/confirm", {
-               method: "POST",
-               headers: {
-                 "Content-Type": "application/json",
-                 Authorization: `Bearer ${token}`,
-               },
-               body: JSON.stringify({
-                 uploadType: "event-banner",
-                 ownerId: slug,
-                 asset_id: uploadData.asset_id,
-                 public_id: uploadData.public_id,
-                 secure_url: uploadData.secure_url,
-                 signature: uploadData.signature,
-                 timestamp: uploadData.timestamp ?? params.timestamp,
-                 format: uploadData.format,
-                 bytes: uploadData.bytes,
-                 width: uploadData.width,
-                 height: uploadData.height,
-                 created_at: uploadData.created_at,
-                 etag: uploadData.etag ?? "",
-               }),
-             });
-           }
-         }
-       } catch {
-         // Banner upload failed — event was still created, just log it
-         console.warn(
-           "[AEEditModal] Banner upload failed after event creation",
-         );
-         toast.error(
-           "Event created but banner upload failed — you can add it from the edit page.",
-         );
-       }
-     }
+      toast.success("Event created successfully!");
+      handleClose();
+      onSuccess?.();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create event");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-     toast.success("Event created successfully!");
-     setFormData(DEFAULT_FORM);
-     setCurrentStep(1);
-     onSuccess?.();
-   } catch (err) {
-     toast.error(err instanceof Error ? err.message : "Failed to create event");
-   } finally {
-     setSubmitting(false);
-   }
- };
+  // ── Submit: edit path ────────────────────────────────────────────────────
+  const handleUpdate = async () => {
+    if (!token || !eventId) return;
+    if (!formData.title.trim() || !formData.date || !formData.registrationDeadline) {
+      toast.error("Title, date and registration deadline are required");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const eventDateIso = formData.startTime
+        ? localDatetimeToIso(`${formData.date}T${formData.startTime}`)
+        : new Date(`${formData.date}T00:00:00+01:00`).toISOString();
+
+      const slug = formData.title
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+
+      const res = await fetch(`/api/admin/events/${eventId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: formData.title.trim(),
+          slug,
+          description: formData.description,
+          category: formData.category,
+          format: formData.type.toLowerCase(),
+          eventDate: eventDateIso,
+          registrationDeadline: localDatetimeToIso(formData.registrationDeadline),
+          capacity: formData.maxCapacity,
+          location: formData.venueName ? { venue: formData.venueName } : undefined,
+          status: formData.visibility === "Public" ? "published" : "draft",
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to update event");
+      }
+
+      // Replace banner if a new one was staged
+      if (formData.bannerBlob) {
+        await uploadBanner(formData.bannerBlob, slug, token);
+      }
+
+      toast.success("Event updated successfully!");
+      handleClose();
+      onSuccess?.();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update event");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmit = isEditing ? handleUpdate : handleCreate;
 
   const handleClose = () => {
     setFormData(DEFAULT_FORM);
@@ -263,13 +301,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
       {isOpen && (
         <div
           className={cn(
-            "fixed",
-            "inset-0",
-            "z-[100]",
-            "flex",
-            "items-center",
-            "justify-center",
-            "p-4",
+            "fixed", "inset-0", "z-[100]", "flex", "items-center", "justify-center", "p-4",
           )}
         >
           <motion.div
@@ -277,12 +309,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className={cn(
-              "absolute",
-              "inset-0",
-              "bg-foreground/80",
-              "backdrop-blur-md",
-            )}
+            className={cn("absolute", "inset-0", "bg-foreground/80", "backdrop-blur-md")}
           />
 
           <motion.div
@@ -292,67 +319,50 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "relative",
-              "w-full",
-              "max-w-4xl",
-              "bg-background",
-              "rounded-[3rem]",
-              "shadow-2xl",
-              "overflow-hidden",
-              "flex",
-              "flex-col",
-              "max-h-[90vh]",
+              "relative", "w-full", "max-w-4xl", "bg-background", "rounded-[3rem]",
+              "shadow-2xl", "overflow-hidden", "flex", "flex-col", "max-h-[90vh]",
             )}
           >
             {/* Header */}
             <div
               className={cn(
-                "px-10",
-                "py-8",
-                "border-b",
-                "border-border",
-                "flex",
-                "items-center",
-                "justify-between",
-                "bg-background",
-                "sticky",
-                "top-0",
-                "z-10",
+                "px-10", "py-8", "border-b", "border-border", "flex", "items-center",
+                "justify-between", "bg-background", "sticky", "top-0", "z-10",
               )}
             >
               <div>
                 <h2
                   className={cn(
-                    "text-2xl",
-                    "font-black",
-                    "text-foreground",
-                    "tracking-tighter",
-                    "uppercase",
+                    "text-2xl", "font-black", "text-foreground",
+                    "tracking-tighter", "uppercase", "flex", "items-center", "gap-3",
                   )}
                 >
-                  {currentStep === 5 ? "Finalize Event" : "Create New Event"}
+                  {isEditing && (
+                    <span className={cn('inline-flex', 'items-center', 'justify-center', 'w-8', 'h-8', 'rounded-xl', 'bg-primary/10', 'text-primary')}>
+                      <LuPencil className={cn('w-4', 'h-4')} />
+                    </span>
+                  )}
+                  {currentStep === 5
+                    ? isEditing ? "Save Changes" : "Finalize Event"
+                    : isEditing ? "Edit Event" : "Create New Event"}
                 </h2>
                 <p
                   className={cn(
-                    "text-[10px]",
-                    "font-bold",
-                    "text-muted-foreground",
-                    "uppercase",
-                    "tracking-widest",
-                    "mt-1",
+                    "text-[10px]", "font-bold", "text-muted-foreground",
+                    "uppercase", "tracking-widest", "mt-1",
                   )}
                 >
                   Step {currentStep} of 5 — {STEPS[currentStep - 1].label}
+                  {isEditing && (
+                    <span className={cn('ml-2', 'text-primary')}>· Editing existing event</span>
+                  )}
                 </p>
               </div>
               <button
                 onClick={handleClose}
                 className={cn(
-                  "p-3",
-                  "hover:bg-muted",
-                  "rounded-2xl",
-                  "text-muted-foreground",
-                  "transition-colors",
+                  "p-3", "hover:bg-muted", "rounded-2xl",
+                  "text-muted-foreground", "transition-colors",
                 )}
               >
                 <LuX className={cn("w-6", "h-6")} />
@@ -362,31 +372,18 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
             {/* Step indicator */}
             <div
               className={cn(
-                "px-10",
-                "py-6",
-                "bg-muted/50",
-                "flex",
-                "items-center",
-                "justify-between",
-                "border-b",
-                "border-border",
+                "px-10", "py-6", "bg-muted/50", "flex", "items-center",
+                "justify-between", "border-b", "border-border",
               )}
             >
-              {STEPS.map((step, index) => (
+              {STEPS.map((step) => (
                 <React.Fragment key={step.id}>
                   <div className={cn("flex", "items-center", "gap-3")}>
                     <div
                       className={cn(
-                        "w-8",
-                        "h-8",
-                        "rounded-lg",
-                        "flex",
-                        "items-center",
-                        "justify-center",
-                        "text-[10px]",
-                        "font-black",
-                        "transition-all",
-                        "duration-300",
+                        "w-8", "h-8", "rounded-lg", "flex", "items-center",
+                        "justify-center", "text-[10px]", "font-black",
+                        "transition-all", "duration-300",
                         currentStep >= step.id
                           ? "bg-primary text-foreground shadow-lg shadow-primary/20"
                           : "bg-slate-200 text-muted-foreground",
@@ -400,16 +397,9 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                     </div>
                     <span
                       className={cn(
-                        "text-[9px]",
-                        "font-black",
-                        "uppercase",
-                        "tracking-widest",
-                        "hidden",
-                        "md:block",
-                        "transition-colors",
-                        currentStep >= step.id
-                          ? "text-foreground"
-                          : "text-slate-300",
+                        "text-[9px]", "font-black", "uppercase", "tracking-widest",
+                        "hidden", "md:block", "transition-colors",
+                        currentStep >= step.id ? "text-foreground" : "text-slate-300",
                       )}
                     >
                       {step.label}
@@ -418,11 +408,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                   {step.id !== 5 && (
                     <div
                       className={cn(
-                        "h-[2px]",
-                        "w-8",
-                        "mx-2",
-                        "hidden",
-                        "lg:block",
+                        "h-[2px]", "w-8", "mx-2", "hidden", "lg:block",
                         currentStep > step.id ? "bg-primary" : "bg-muted",
                       )}
                     />
@@ -447,38 +433,22 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                       setFormData={setFormData}
                       ownerId={
                         formData.title.trim()
-                          ? formData.title
-                              .trim()
-                              .toLowerCase()
-                              .replace(/\s+/g, "-")
-                              .replace(/[^a-z0-9-]/g, "")
+                          ? formData.title.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
                           : undefined
                       }
                     />
                   )}
                   {currentStep === 2 && (
-                    <ScheduleStep
-                      formData={formData}
-                      setFormData={setFormData}
-                    />
+                    <ScheduleStep formData={formData} setFormData={setFormData} />
                   )}
                   {currentStep === 3 && (
-                    <CapacityStep
-                      formData={formData}
-                      setFormData={setFormData}
-                    />
+                    <CapacityStep formData={formData} setFormData={setFormData} />
                   )}
                   {currentStep === 4 && (
-                    <PartnersStep
-                      formData={formData}
-                      setFormData={setFormData}
-                    />
+                    <PartnersStep formData={formData} setFormData={setFormData} />
                   )}
                   {currentStep === 5 && (
-                    <PublishStep
-                      formData={formData}
-                      setFormData={setFormData}
-                    />
+                    <PublishStep formData={formData} setFormData={setFormData} isEditing={isEditing} />
                   )}
                 </motion.div>
               </AnimatePresence>
@@ -487,34 +457,16 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
             {/* Footer */}
             <div
               className={cn(
-                "px-10",
-                "py-8",
-                "border-t",
-                "border-border",
-                "flex",
-                "items-center",
-                "justify-between",
-                "bg-background",
-                "sticky",
-                "bottom-0",
-                "z-10",
+                "px-10", "py-8", "border-t", "border-border", "flex",
+                "items-center", "justify-between", "bg-background", "sticky", "bottom-0", "z-10",
               )}
             >
               <button
                 onClick={prevStep}
                 disabled={currentStep === 1}
                 className={cn(
-                  "flex",
-                  "items-center",
-                  "gap-2",
-                  "px-6",
-                  "py-3",
-                  "rounded-xl",
-                  "text-[10px]",
-                  "font-black",
-                  "uppercase",
-                  "tracking-widest",
-                  "transition-all",
+                  "flex", "items-center", "gap-2", "px-6", "py-3", "rounded-xl",
+                  "text-[10px]", "font-black", "uppercase", "tracking-widest", "transition-all",
                   currentStep === 1
                     ? "opacity-0 pointer-events-none"
                     : "text-muted-foreground hover:text-foreground",
@@ -527,12 +479,8 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                 <button
                   onClick={handleClose}
                   className={cn(
-                    "text-[10px]",
-                    "font-black",
-                    "uppercase",
-                    "tracking-widest",
-                    "text-rose-500",
-                    "px-6",
+                    "text-[10px]", "font-black", "uppercase",
+                    "tracking-widest", "text-rose-500", "px-6",
                   )}
                 >
                   Cancel
@@ -541,23 +489,11 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                   <button
                     onClick={nextStep}
                     className={cn(
-                      "flex",
-                      "items-center",
-                      "gap-2",
-                      "px-8",
-                      "py-4",
-                      "bg-foreground",
-                      "text-background",
-                      "rounded-2xl",
-                      "text-[11px]",
-                      "font-black",
-                      "uppercase",
-                      "tracking-widest",
-                      "hover:bg-primary",
-                      "hover:text-foreground",
-                      "transition-colors",
-                      "shadow-xl",
-                      "shadow-foreground/10",
+                      "flex", "items-center", "gap-2", "px-8", "py-4",
+                      "bg-foreground", "text-background", "rounded-2xl",
+                      "text-[11px]", "font-black", "uppercase", "tracking-widest",
+                      "hover:bg-primary", "hover:text-foreground", "transition-colors",
+                      "shadow-xl", "shadow-foreground/10",
                     )}
                   >
                     Continue <LuChevronRight className={cn("w-4", "h-4")} />
@@ -567,22 +503,10 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                     onClick={handleSubmit}
                     disabled={submitting}
                     className={cn(
-                      "flex",
-                      "items-center",
-                      "gap-2",
-                      "px-8",
-                      "py-4",
-                      "bg-primary",
-                      "text-foreground",
-                      "rounded-2xl",
-                      "text-[11px]",
-                      "font-black",
-                      "uppercase",
-                      "tracking-widest",
-                      "transition-all",
-                      "shadow-xl",
-                      "shadow-primary/20",
-                      "disabled:opacity-60",
+                      "flex", "items-center", "gap-2", "px-8", "py-4",
+                      "bg-primary", "text-foreground", "rounded-2xl",
+                      "text-[11px]", "font-black", "uppercase", "tracking-widest",
+                      "transition-all", "shadow-xl", "shadow-primary/20", "disabled:opacity-60",
                     )}
                   >
                     {submitting ? (
@@ -590,7 +514,9 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                     ) : (
                       <LuCheck className={cn("w-4", "h-4")} />
                     )}
-                    {submitting ? "Creating…" : "Deploy Event"}
+                    {submitting
+                      ? isEditing ? "Saving…" : "Creating…"
+                      : isEditing ? "Save Changes" : "Deploy Event"}
                   </button>
                 )}
               </div>
@@ -602,7 +528,59 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
   );
 };
 
-// ── Step components (unchanged UI, just typed properly) ───────────────────────
+// ── Banner upload helper ───────────────────────────────────────────────────────
+
+async function uploadBanner(blob: Blob, slug: string, token: string) {
+  try {
+    const res = await fetch("/api/media/sign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ uploadType: "event-banner", ownerId: slug }),
+    });
+    if (!res.ok) return;
+    const params = await res.json();
+    const form = new FormData();
+    form.append("file", blob, `banner_${Date.now()}.webp`);
+    form.append("api_key", params.apiKey);
+    form.append("timestamp", String(params.timestamp));
+    form.append("signature", params.signature);
+    form.append("folder", params.folder);
+    form.append("public_id", params.publicId);
+    if (params.eager) form.append("eager", params.eager);
+
+    const uploadRes = await fetch(
+      `https://api.cloudinary.com/v1_1/${params.cloudName}/image/upload`,
+      { method: "POST", body: form },
+    );
+    if (!uploadRes.ok) return;
+    const uploadData = await uploadRes.json();
+
+    await fetch("/api/media/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        uploadType: "event-banner",
+        ownerId: slug,
+        asset_id: uploadData.asset_id,
+        public_id: uploadData.public_id,
+        secure_url: uploadData.secure_url,
+        signature: uploadData.signature,
+        timestamp: uploadData.timestamp ?? params.timestamp,
+        format: uploadData.format,
+        bytes: uploadData.bytes,
+        width: uploadData.width,
+        height: uploadData.height,
+        created_at: uploadData.created_at,
+        etag: uploadData.etag ?? "",
+      }),
+    });
+  } catch {
+    console.warn("[AEEditModal] Banner upload failed");
+    toast.error("Banner upload failed — you can update it from the event edit page.");
+  }
+}
+
+// ── Shared sub-components ─────────────────────────────────────────────────────
 
 interface InputGroupProps {
   label: string;
@@ -626,11 +604,7 @@ const InputGroup: React.FC<InputGroupProps> = ({
   <div className="space-y-2">
     <label
       className={cn(
-        "text-[10px]",
-        "font-black",
-        "uppercase",
-        "tracking-widest",
-        dark ? "text-slate-400" : "text-slate-400",
+        "text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400",
       )}
     >
       {label}
@@ -638,12 +612,7 @@ const InputGroup: React.FC<InputGroupProps> = ({
     <div className="relative">
       <Icon
         className={cn(
-          "absolute",
-          "left-4",
-          "top-1/2",
-          "-translate-y-1/2",
-          "w-4",
-          "h-4",
+          "absolute", "left-4", "top-1/2", "-translate-y-1/2", "w-4", "h-4",
           dark ? "text-muted-foreground" : "text-slate-400",
         )}
       />
@@ -653,15 +622,8 @@ const InputGroup: React.FC<InputGroupProps> = ({
         value={value}
         onChange={onChange}
         className={cn(
-          "w-full",
-          "p-4",
-          "pl-12",
-          "rounded-2xl",
-          "text-xs",
-          "font-bold",
-          "outline-none",
-          "border",
-          "transition-all",
+          "w-full", "p-4", "pl-12", "rounded-2xl", "text-xs", "font-bold",
+          "outline-none", "border", "transition-all",
           dark
             ? "bg-background/5 border-background/10 text-background focus:border-primary/50"
             : "bg-muted border-border text-foreground focus:border-primary",
@@ -671,21 +633,15 @@ const InputGroup: React.FC<InputGroupProps> = ({
   </div>
 );
 
-const BasicInfoStep: React.FC<StepProps> = ({
-  formData,
-  setFormData,
-}) => {
+// ── Step 1: Basic Info ────────────────────────────────────────────────────────
+
+const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleBannerFile = (file: File) => {
     const url = URL.createObjectURL(file);
-    setFormData((prev) => ({
-      ...prev,
-      bannerBlob: file,
-      bannerPreviewUrl: url,
-    }));
+    setFormData((prev) => ({ ...prev, bannerBlob: file, bannerPreviewUrl: url }));
   };
-
 
   return (
     <div className={cn("space-y-6")}>
@@ -699,43 +655,20 @@ const BasicInfoStep: React.FC<StepProps> = ({
         />
         <div className="space-y-2">
           <label
-            className={cn(
-              "text-[10px]",
-              "font-black",
-              "uppercase",
-              "tracking-widest",
-              "text-slate-400",
-            )}
+            className={cn("text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400")}
           >
             Category
           </label>
           <select
             value={formData.category}
-            onChange={(e) =>
-              setFormData({ ...formData, category: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             className={cn(
-              "w-full",
-              "bg-muted",
-              "border",
-              "border-border",
-              "p-4",
-              "rounded-2xl",
-              "text-xs",
-              "font-bold",
-              "outline-none",
-              "focus:border-primary",
-              "transition-all",
-              "appearance-none",
+              "w-full", "bg-muted", "border", "border-border", "p-4", "rounded-2xl",
+              "text-xs", "font-bold", "outline-none", "focus:border-primary",
+              "transition-all", "appearance-none",
             )}
           >
-            {[
-              "Technology",
-              "Business",
-              "Governance",
-              "Career",
-              "Networking",
-            ].map((c) => (
+            {["Technology", "Business", "Governance", "Career", "Networking"].map((c) => (
               <option key={c}>{c}</option>
             ))}
           </select>
@@ -744,50 +677,27 @@ const BasicInfoStep: React.FC<StepProps> = ({
 
       <div className="space-y-2">
         <label
-          className={cn(
-            "text-[10px]",
-            "font-black",
-            "uppercase",
-            "tracking-widest",
-            "text-slate-400",
-          )}
+          className={cn("text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400")}
         >
           Description
         </label>
         <textarea
           value={formData.description}
-          onChange={(e) =>
-            setFormData({ ...formData, description: e.target.value })
-          }
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           placeholder="What is this event about?"
           rows={3}
           className={cn(
-            "w-full",
-            "bg-muted",
-            "border",
-            "border-border",
-            "p-4",
-            "rounded-2xl",
-            "text-xs",
-            "font-medium",
-            "outline-none",
-            "focus:border-primary",
-            "transition-all",
-            "resize-none",
+            "w-full", "bg-muted", "border", "border-border", "p-4", "rounded-2xl",
+            "text-xs", "font-medium", "outline-none", "focus:border-primary",
+            "transition-all", "resize-none",
           )}
         />
       </div>
 
-      {/* Banner upload — stores blob locally, uploaded after event creation */}
+      {/* Banner */}
       <div className="space-y-2">
         <label
-          className={cn(
-            "text-[10px]",
-            "font-black",
-            "uppercase",
-            "tracking-widest",
-            "text-slate-400",
-          )}
+          className={cn("text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400")}
         >
           Event Banner
         </label>
@@ -802,50 +712,39 @@ const BasicInfoStep: React.FC<StepProps> = ({
             e.target.value = "";
           }}
         />
-
         {formData.bannerPreviewUrl ? (
-          <div className="relative group rounded-[2rem] overflow-hidden aspect-[1200/630] bg-muted">
+          <div className={cn('relative', 'group', 'rounded-[2rem]', 'overflow-hidden', 'aspect-[1200/630]', 'bg-muted')}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={formData.bannerPreviewUrl}
               alt="Banner preview"
-              className="w-full h-full object-cover"
+              className={cn('w-full', 'h-full', 'object-cover')}
             />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+            <div className={cn('absolute', 'inset-0', 'bg-black/40', 'opacity-0', 'group-hover:opacity-100', 'transition-opacity', 'flex', 'items-center', 'justify-center', 'gap-3')}>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className={cn(
-                  "px-4 py-2 bg-background text-foreground rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer",
-                )}
+                className={cn('px-4', 'py-2', 'bg-background', 'text-foreground', 'rounded-xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'cursor-pointer')}
               >
                 Change
               </button>
               <button
                 type="button"
                 onClick={() =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    bannerBlob: null,
-                    bannerPreviewUrl: null,
-                  }))
+                  setFormData((prev) => ({ ...prev, bannerBlob: null, bannerPreviewUrl: null }))
                 }
-                className={cn(
-                  "px-4 py-2 bg-destructive text-white rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer",
-                )}
+                className={cn('px-4', 'py-2', 'bg-destructive', 'text-white', 'rounded-xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'cursor-pointer')}
               >
                 Remove
               </button>
             </div>
-            <div className="absolute bottom-3 right-3 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg">
+            <div className={cn('absolute', 'bottom-3', 'right-3', 'bg-emerald-500', 'text-white', 'text-[9px]', 'font-black', 'uppercase', 'tracking-widest', 'px-2', 'py-1', 'rounded-lg')}>
               Ready to upload
             </div>
           </div>
         ) : (
           <div
-            onClick={() =>
-              formData.title.trim() && fileInputRef.current?.click()
-            }
+            onClick={() => formData.title.trim() && fileInputRef.current?.click()}
             className={cn(
               "p-10 border-2 border-dashed border-border rounded-[2rem] bg-muted/50",
               "flex flex-col items-center justify-center text-center gap-2 transition-colors",
@@ -855,28 +754,10 @@ const BasicInfoStep: React.FC<StepProps> = ({
             )}
           >
             <LuImage className={cn("w-8", "h-8", "text-muted-foreground")} />
-            <p
-              className={cn(
-                "text-[10px]",
-                "font-black",
-                "uppercase",
-                "tracking-[0.2em]",
-                "text-foreground",
-              )}
-            >
-              {formData.title.trim()
-                ? "Upload Event Banner"
-                : "Enter a title first"}
+            <p className={cn("text-[10px]", "font-black", "uppercase", "tracking-[0.2em]", "text-foreground")}>
+              {formData.title.trim() ? "Upload Event Banner" : "Enter a title first"}
             </p>
-            <p
-              className={cn(
-                "text-[9px]",
-                "font-bold",
-                "text-muted-foreground",
-                "uppercase",
-                "mt-1",
-              )}
-            >
+            <p className={cn("text-[9px]", "font-bold", "text-muted-foreground", "uppercase", "mt-1")}>
               PNG, JPG or WebP · Max 10MB · 1200 × 630 recommended
             </p>
           </div>
@@ -884,7 +765,9 @@ const BasicInfoStep: React.FC<StepProps> = ({
       </div>
     </div>
   );
-}
+};
+
+// ── Step 2: Schedule ──────────────────────────────────────────────────────────
 
 const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
   <div className={cn("space-y-8")}>
@@ -897,13 +780,11 @@ const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
         onChange={(e) => setFormData({ ...formData, date: e.target.value })}
       />
       <InputGroup
-        label="Start Time"
+        label="Start Time (WAT)"
         type="time"
         icon={LuClock}
         value={formData.startTime}
-        onChange={(e) =>
-          setFormData({ ...formData, startTime: e.target.value })
-        }
+        onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
       />
       <InputGroup
         label="Duration (Hrs)"
@@ -917,13 +798,7 @@ const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
     </div>
     <div
       className={cn(
-        "flex",
-        "items-center",
-        "gap-4",
-        "p-2",
-        "text-muted",
-        "rounded-2xl",
-        "w-fit",
+        "flex", "items-center", "gap-4", "p-2", "text-muted", "rounded-2xl", "w-fit",
       )}
     >
       {(["Physical", "Virtual", "Hybrid"] as const).map((type) => (
@@ -931,14 +806,8 @@ const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
           key={type}
           onClick={() => setFormData({ ...formData, type })}
           className={cn(
-            "px-6",
-            "py-2",
-            "rounded-xl",
-            "text-[10px]",
-            "font-black",
-            "uppercase",
-            "tracking-widest",
-            "transition-all",
+            "px-6", "py-2", "rounded-xl", "text-[10px]", "font-black",
+            "uppercase", "tracking-widest", "transition-all",
             formData.type === type
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground",
@@ -957,6 +826,8 @@ const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
     />
   </div>
 );
+
+// ── Step 3: Capacity ──────────────────────────────────────────────────────────
 
 const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
   <div className={cn("space-y-8")}>
@@ -984,35 +855,15 @@ const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
     </div>
     <div
       className={cn(
-        "p-8",
-        "border-2",
-        "border-border",
-        "rounded-[2.5rem]",
-        "flex",
-        "items-center",
-        "justify-between",
+        "p-8", "border-2", "border-border", "rounded-[2.5rem]",
+        "flex", "items-center", "justify-between",
       )}
     >
       <div>
-        <h4
-          className={cn(
-            "text-[11px]",
-            "font-black",
-            "uppercase",
-            "tracking-widest",
-            "text-foreground",
-          )}
-        >
+        <h4 className={cn("text-[11px]", "font-black", "uppercase", "tracking-widest", "text-foreground")}>
           Enable Waitlist
         </h4>
-        <p
-          className={cn(
-            "text-[9px]",
-            "font-bold",
-            "text-muted-foreground",
-            "uppercase",
-          )}
-        >
+        <p className={cn("text-[9px]", "font-bold", "text-muted-foreground", "uppercase")}>
           Allow queue once capacity is reached
         </p>
       </div>
@@ -1021,64 +872,58 @@ const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
           setFormData({ ...formData, enableWaitlist: !formData.enableWaitlist })
         }
         className={cn(
-          "w-14",
-          "h-8",
-          "rounded-full",
-          "p-1",
-          "cursor-pointer",
-          "transition-colors",
+          "w-14", "h-8", "rounded-full", "p-1", "cursor-pointer", "transition-colors",
           formData.enableWaitlist ? "bg-primary" : "bg-muted",
         )}
       >
         <motion.div
           animate={{ x: formData.enableWaitlist ? 24 : 0 }}
           transition={{ type: "spring", stiffness: 500, damping: 30 }}
-          className={cn(
-            "w-6",
-            "h-6",
-            "bg-background",
-            "rounded-full",
-            "shadow-md",
-          )}
+          className={cn("w-6", "h-6", "bg-background", "rounded-full", "shadow-md")}
         />
       </button>
     </div>
-    <InputGroup
-      label="Registration Deadline"
-      type="datetime-local"
-      icon={LuClock}
-      value={formData.registrationDeadline}
-      onChange={(e) =>
-        setFormData({ ...formData, registrationDeadline: e.target.value })
-      }
-    />
+
+    {/* Registration deadline — labeled with timezone note */}
+    <div className="space-y-2">
+      <label className={cn("text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400")}>
+        Registration Deadline{" "}
+        <span className={cn('text-primary', 'normal-case', 'font-bold', 'tracking-normal')}>(WAT — UTC+1)</span>
+      </label>
+      <div className="relative">
+        <LuClock className={cn('absolute', 'left-4', 'top-1/2', '-translate-y-1/2', 'w-4', 'h-4', 'text-slate-400')} />
+        <input
+          type="datetime-local"
+          value={formData.registrationDeadline}
+          onChange={(e) =>
+            setFormData({ ...formData, registrationDeadline: e.target.value })
+          }
+          className={cn(
+            "w-full", "p-4", "pl-12", "rounded-2xl", "text-xs", "font-bold",
+            "outline-none", "border", "transition-all",
+            "bg-muted border-border text-foreground focus:border-primary",
+          )}
+        />
+      </div>
+      <p className={cn('text-[9px]', 'text-muted-foreground', 'font-bold', 'uppercase', 'tracking-widest')}>
+        Saved as West Africa Time. Registrations close automatically at this time.
+      </p>
+    </div>
   </div>
 );
+
+// ── Step 4: Partners ──────────────────────────────────────────────────────────
 
 const PartnersStep: React.FC<StepProps> = () => (
   <div className={cn("space-y-8")}>
     <div className={cn("flex", "items-center", "justify-between")}>
-      <h4
-        className={cn(
-          "text-[10px]",
-          "font-black",
-          "uppercase",
-          "tracking-[0.2em]",
-          "text-slate-400",
-        )}
-      >
+      <h4 className={cn("text-[10px]", "font-black", "uppercase", "tracking-[0.2em]", "text-slate-400")}>
         Featured Speakers
       </h4>
       <button
         className={cn(
-          "text-[9px]",
-          "font-black",
-          "text-primary",
-          "uppercase",
-          "bg-primary/10",
-          "px-3",
-          "py-1.5",
-          "rounded-lg",
+          "text-[9px]", "font-black", "text-primary", "uppercase",
+          "bg-primary/10", "px-3", "py-1.5", "rounded-lg",
         )}
       >
         + Add Speaker
@@ -1090,76 +935,77 @@ const PartnersStep: React.FC<StepProps> = () => (
   </div>
 );
 
-const PublishStep: React.FC<StepProps> = ({ formData, setFormData }) => (
+// ── Step 5: Review / Publish ──────────────────────────────────────────────────
+
+const PublishStep: React.FC<StepProps & { isEditing?: boolean }> = ({
+  formData,
+  setFormData,
+  isEditing,
+}) => (
   <div className={cn("space-y-8")}>
     <div
       className={cn(
-        "bg-primary/10",
-        "p-8",
-        "rounded-[2.5rem]",
-        "border",
-        "border-primary/20",
-        "text-center",
+        "bg-primary/10", "p-8", "rounded-[2.5rem]",
+        "border", "border-primary/20", "text-center",
       )}
     >
       <div
         className={cn(
-          "w-16",
-          "h-16",
-          "bg-primary",
-          "rounded-2xl",
-          "flex",
-          "items-center",
-          "justify-center",
-          "mx-auto",
-          "mb-6",
-          "shadow-xl",
-          "shadow-primary/20",
+          "w-16", "h-16", "bg-primary", "rounded-2xl",
+          "flex", "items-center", "justify-center", "mx-auto", "mb-6",
+          "shadow-xl", "shadow-primary/20",
         )}
       >
-        <LuCircleCheck className={cn("w-8", "h-8", "text-foreground")} />
+        {isEditing ? (
+          <LuPencil className={cn("w-8", "h-8", "text-foreground")} />
+        ) : (
+          <LuCircleCheck className={cn("w-8", "h-8", "text-foreground")} />
+        )}
       </div>
       <h3
         className={cn(
-          "text-xl",
-          "font-black",
-          "text-foreground",
-          "uppercase",
-          "tracking-tighter",
+          "text-xl", "font-black", "text-foreground", "uppercase", "tracking-tighter",
         )}
       >
-        Ready for Deployment
+        {isEditing ? "Ready to Save" : "Ready for Deployment"}
       </h3>
       <p
         className={cn(
-          "text-[10px]",
-          "font-bold",
-          "text-muted-foreground",
-          "uppercase",
-          "mt-2",
-          "tracking-widest",
-          "max-w-[300px]",
-          "mx-auto",
-          "leading-relaxed",
+          "text-[10px]", "font-bold", "text-muted-foreground", "uppercase", "mt-2",
+          "tracking-widest", "max-w-[300px]", "mx-auto", "leading-relaxed",
         )}
       >
-        Review your configurations. Once published, notifications will be sent
-        to subscribed members.
+        {isEditing
+          ? "Review your changes below. Once saved, the event listing will update immediately."
+          : "Review your configurations. Once published, notifications will be sent to subscribed members."}
       </p>
     </div>
+
+    {/* Quick summary */}
+    <div className={cn('grid', 'grid-cols-2', 'gap-3', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest')}>
+      {[
+        { label: "Title", value: formData.title || "—" },
+        { label: "Date", value: formData.date || "—" },
+        { label: "Type", value: formData.type },
+        { label: "Capacity", value: String(formData.maxCapacity) },
+        { label: "Deadline", value: formData.registrationDeadline ? formData.registrationDeadline.replace("T", " ") : "—" },
+        { label: "Ticket", value: formData.ticketPrice === 0 ? "Free" : `₦${formData.ticketPrice}` },
+      ].map(({ label, value }) => (
+        <div key={label} className={cn('p-4', 'rounded-2xl', 'bg-muted', 'border', 'border-border')}>
+          <p className={cn('text-muted-foreground', 'text-[9px]', 'mb-1')}>{label}</p>
+          <p className={cn('text-foreground', 'truncate')}>{value}</p>
+        </div>
+      ))}
+    </div>
+
     <div className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-4")}>
       {(["Public", "Invite-Only"] as const).map((visibility) => (
         <button
           key={visibility}
           onClick={() => setFormData({ ...formData, visibility })}
           className={cn(
-            "p-6",
-            "rounded-2xl",
-            "border-2",
-            "flex",
-            "items-center",
-            "justify-between",
-            "transition-all",
+            "p-6", "rounded-2xl", "border-2", "flex", "items-center",
+            "justify-between", "transition-all",
             formData.visibility === visibility
               ? "bg-muted border-foreground"
               : "bg-background border-border opacity-50",
@@ -1167,13 +1013,8 @@ const PublishStep: React.FC<StepProps> = ({ formData, setFormData }) => (
         >
           <span
             className={cn(
-              "font-black",
-              "uppercase",
-              "tracking-widest",
-              "text-sm",
-              formData.visibility === visibility
-                ? "text-foreground"
-                : "text-slate-400",
+              "font-black", "uppercase", "tracking-widest", "text-sm",
+              formData.visibility === visibility ? "text-foreground" : "text-slate-400",
             )}
           >
             {visibility}
