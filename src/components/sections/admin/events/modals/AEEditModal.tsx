@@ -2,12 +2,6 @@
 // modals/AEEditModal.tsx
 // Handles BOTH creating a new event (no initialData / no eventId) and
 // editing an existing one (initialData + eventId supplied by the parent).
-//
-// Key fixes applied:
-//  1. Edit path calls PATCH /api/admin/events/[id] instead of createEvent()
-//  2. Form re-seeds via useEffect whenever initialData/eventId changes
-//  3. datetime-local values are converted to ISO preserving WAT (UTC+1) offset
-//  4. registrationDeadline is seeded as "YYYY-MM-DDTHH:mm" so the input shows correctly
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,6 +24,8 @@ import {
   LuCalendar,
   LuLoader,
   LuPencil,
+  LuRefreshCcw,
+  LuTriangleAlert,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { IconType } from "react-icons";
@@ -43,7 +39,6 @@ interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
-  /** Present when editing an existing event */
   eventId?: string;
   initialData?: Partial<EventFormData>;
 }
@@ -61,10 +56,13 @@ interface EventFormData {
   maxCapacity: number;
   ticketPrice: number;
   enableWaitlist: boolean;
-  registrationDeadline: string; // "YYYY-MM-DDTHH:mm" for datetime-local input
+  registrationDeadline: string;
   visibility: "Public" | "Invite-Only";
   bannerBlob: Blob | null;
   bannerPreviewUrl: string | null;
+  /** Passed from the page — preserves original DB status so PublishStep
+   *  can show the republish callout when editing a cancelled event. */
+  _originalStatus?: string;
 }
 
 type WizardStep = 1 | 2 | 3 | 4 | 5;
@@ -108,32 +106,20 @@ const DEFAULT_FORM: EventFormData = {
   visibility: "Public",
   bannerBlob: null,
   bannerPreviewUrl: null,
+  _originalStatus: undefined,
 };
 
-// ── Timezone helper ───────────────────────────────────────────────────────────
+// ── Timezone helpers ──────────────────────────────────────────────────────────
 
-/**
- * Convert a datetime-local string ("YYYY-MM-DDTHH:mm") to a proper ISO string
- * by treating it as WAT (UTC+1). This prevents the browser silently
- * interpreting local time as UTC which causes the ~1 hour deadline drift.
- */
 function localDatetimeToIso(value: string): string {
   if (!value) return "";
-  // datetime-local gives us "YYYY-MM-DDTHH:mm" — no timezone suffix.
-  // Appending "+01:00" tells Date() this is WAT, so toISOString() is correct.
   return new Date(`${value}:00+01:00`).toISOString();
 }
 
-/**
- * Convert an ISO string back to a "YYYY-MM-DDTHH:mm" string in WAT
- * so the datetime-local input is pre-populated correctly.
- */
 function isoToLocalDatetime(iso: string): string {
   if (!iso) return "";
-  // WAT = UTC+1
   const d = new Date(new Date(iso).getTime() + 60 * 60 * 1000);
-  // toISOString() is always UTC — after the +1h shift this is "WAT time in UTC format"
-  return d.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+  return d.toISOString().slice(0, 16);
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
@@ -149,6 +135,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
   const { createEvent } = useAdmin();
 
   const isEditing = Boolean(eventId);
+  const isRepublishing = isEditing && initialData?._originalStatus === "cancelled";
 
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [submitting, setSubmitting] = useState(false);
@@ -157,9 +144,6 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
     ...initialData,
   });
 
-  // Re-seed the form whenever the modal opens with new initialData.
-  // Without this, clicking "Edit" on a second event would still show
-  // the first event's data because useState only runs once on mount.
   useEffect(() => {
     if (isOpen) {
       setFormData({ ...DEFAULT_FORM, ...(initialData ?? {}) });
@@ -170,19 +154,16 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
 
   if (!isOpen) return null;
 
-  const nextStep = () =>
-    setCurrentStep((p) => Math.min(p + 1, 5) as WizardStep);
-  const prevStep = () =>
-    setCurrentStep((p) => Math.max(p - 1, 1) as WizardStep);
+  const nextStep = () => setCurrentStep((p) => Math.min(p + 1, 5) as WizardStep);
+  const prevStep = () => setCurrentStep((p) => Math.max(p - 1, 1) as WizardStep);
 
-  // ── Submit: create path ──────────────────────────────────────────────────
+  // ── Create ───────────────────────────────────────────────────────────────
   const handleCreate = async () => {
     if (!token) return;
     if (!formData.title.trim() || !formData.date || !formData.registrationDeadline) {
       toast.error("Title, date and registration deadline are required");
       return;
     }
-
     setSubmitting(true);
     try {
       const eventDateIso = formData.startTime
@@ -213,10 +194,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
         token,
       );
 
-      // Banner upload after event exists
-      if (formData.bannerBlob) {
-        await uploadBanner(formData.bannerBlob, slug, token);
-      }
+      if (formData.bannerBlob) await uploadBanner(formData.bannerBlob, slug, token);
 
       toast.success("Event created successfully!");
       handleClose();
@@ -228,14 +206,13 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
     }
   };
 
-  // ── Submit: edit path ────────────────────────────────────────────────────
+  // ── Update (edit + republish) ────────────────────────────────────────────
   const handleUpdate = async () => {
     if (!token || !eventId) return;
     if (!formData.title.trim() || !formData.date || !formData.registrationDeadline) {
       toast.error("Title, date and registration deadline are required");
       return;
     }
-
     setSubmitting(true);
     try {
       const eventDateIso = formData.startTime
@@ -264,6 +241,9 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
           registrationDeadline: localDatetimeToIso(formData.registrationDeadline),
           capacity: formData.maxCapacity,
           location: formData.venueName ? { venue: formData.venueName } : undefined,
+          // Visibility → status mapping:
+          // "Public" always → "published" (this is also what republishes a cancelled event)
+          // "Invite-Only" → "draft"
           status: formData.visibility === "Public" ? "published" : "draft",
         }),
       });
@@ -273,12 +253,11 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
         throw new Error(data.error ?? "Failed to update event");
       }
 
-      // Replace banner if a new one was staged
-      if (formData.bannerBlob) {
-        await uploadBanner(formData.bannerBlob, slug, token);
-      }
+      if (formData.bannerBlob) await uploadBanner(formData.bannerBlob, slug, token);
 
-      toast.success("Event updated successfully!");
+      toast.success(
+        isRepublishing ? "Event republished successfully!" : "Event updated successfully!",
+      );
       handleClose();
       onSuccess?.();
     } catch (err) {
@@ -296,14 +275,22 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
     onClose();
   };
 
+  // ── Submit button label ──────────────────────────────────────────────────
+  const submitLabel = () => {
+    if (submitting) {
+      if (isRepublishing) return "Republishing…";
+      if (isEditing) return "Saving…";
+      return "Creating…";
+    }
+    if (isRepublishing) return "Republish Event";
+    if (isEditing) return "Save Changes";
+    return "Deploy Event";
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
-        <div
-          className={cn(
-            "fixed", "inset-0", "z-[100]", "flex", "items-center", "justify-center", "p-4",
-          )}
-        >
+        <div className={cn("fixed", "inset-0", "z-[100]", "flex", "items-center", "justify-center", "p-4")}>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -326,8 +313,8 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
             {/* Header */}
             <div
               className={cn(
-                "px-10", "py-8", "border-b", "border-border", "flex", "items-center",
-                "justify-between", "bg-background", "sticky", "top-0", "z-10",
+                "px-10", "py-8", "border-b", "border-border", "flex",
+                "items-center", "justify-between", "bg-background", "sticky", "top-0", "z-10",
               )}
             >
               <div>
@@ -337,63 +324,53 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                     "tracking-tighter", "uppercase", "flex", "items-center", "gap-3",
                   )}
                 >
-                  {isEditing && (
-                    <span className={cn('inline-flex', 'items-center', 'justify-center', 'w-8', 'h-8', 'rounded-xl', 'bg-primary/10', 'text-primary')}>
+                  {isRepublishing && (
+                    <span className={cn("inline-flex", "items-center", "justify-center", "w-8", "h-8", "rounded-xl", "bg-emerald-500/10", "text-emerald-600")}>
+                      <LuRefreshCcw className={cn('w-4', 'h-4')} />
+                    </span>
+                  )}
+                  {!isRepublishing && isEditing && (
+                    <span className={cn("inline-flex", "items-center", "justify-center", "w-8", "h-8", "rounded-xl", "bg-primary/10", "text-primary")}>
                       <LuPencil className={cn('w-4', 'h-4')} />
                     </span>
                   )}
                   {currentStep === 5
-                    ? isEditing ? "Save Changes" : "Finalize Event"
-                    : isEditing ? "Edit Event" : "Create New Event"}
+                    ? isRepublishing ? "Republish Event" : isEditing ? "Save Changes" : "Finalize Event"
+                    : isRepublishing ? "Republish Event" : isEditing ? "Edit Event" : "Create New Event"}
                 </h2>
-                <p
-                  className={cn(
-                    "text-[10px]", "font-bold", "text-muted-foreground",
-                    "uppercase", "tracking-widest", "mt-1",
-                  )}
-                >
+                <p className={cn("text-[10px]", "font-bold", "text-muted-foreground", "uppercase", "tracking-widest", "mt-1")}>
                   Step {currentStep} of 5 — {STEPS[currentStep - 1].label}
-                  {isEditing && (
+                  {isRepublishing && (
+                    <span className={cn('ml-2', 'text-emerald-600')}>· Republishing cancelled event</span>
+                  )}
+                  {isEditing && !isRepublishing && (
                     <span className={cn('ml-2', 'text-primary')}>· Editing existing event</span>
                   )}
                 </p>
               </div>
               <button
                 onClick={handleClose}
-                className={cn(
-                  "p-3", "hover:bg-muted", "rounded-2xl",
-                  "text-muted-foreground", "transition-colors",
-                )}
+                className={cn("p-3", "hover:bg-muted", "rounded-2xl", "text-muted-foreground", "transition-colors")}
               >
-                <LuX className={cn("w-6", "h-6")} />
+                <LuX className={cn('w-6', 'h-6')} />
               </button>
             </div>
 
             {/* Step indicator */}
-            <div
-              className={cn(
-                "px-10", "py-6", "bg-muted/50", "flex", "items-center",
-                "justify-between", "border-b", "border-border",
-              )}
-            >
+            <div className={cn("px-10", "py-6", "bg-muted/50", "flex", "items-center", "justify-between", "border-b", "border-border")}>
               {STEPS.map((step) => (
                 <React.Fragment key={step.id}>
                   <div className={cn("flex", "items-center", "gap-3")}>
                     <div
                       className={cn(
                         "w-8", "h-8", "rounded-lg", "flex", "items-center",
-                        "justify-center", "text-[10px]", "font-black",
-                        "transition-all", "duration-300",
+                        "justify-center", "text-[10px]", "font-black", "transition-all", "duration-300",
                         currentStep >= step.id
                           ? "bg-primary text-foreground shadow-lg shadow-primary/20"
                           : "bg-slate-200 text-muted-foreground",
                       )}
                     >
-                      {currentStep > step.id ? (
-                        <LuCheck className={cn("w-4", "h-4")} />
-                      ) : (
-                        step.id
-                      )}
+                      {currentStep > step.id ? <LuCheck className={cn('w-4', 'h-4')} /> : step.id}
                     </div>
                     <span
                       className={cn(
@@ -438,17 +415,16 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                       }
                     />
                   )}
-                  {currentStep === 2 && (
-                    <ScheduleStep formData={formData} setFormData={setFormData} />
-                  )}
-                  {currentStep === 3 && (
-                    <CapacityStep formData={formData} setFormData={setFormData} />
-                  )}
-                  {currentStep === 4 && (
-                    <PartnersStep formData={formData} setFormData={setFormData} />
-                  )}
+                  {currentStep === 2 && <ScheduleStep formData={formData} setFormData={setFormData} />}
+                  {currentStep === 3 && <CapacityStep formData={formData} setFormData={setFormData} />}
+                  {currentStep === 4 && <PartnersStep formData={formData} setFormData={setFormData} />}
                   {currentStep === 5 && (
-                    <PublishStep formData={formData} setFormData={setFormData} isEditing={isEditing} />
+                    <PublishStep
+                      formData={formData}
+                      setFormData={setFormData}
+                      isEditing={isEditing}
+                      isRepublishing={isRepublishing}
+                    />
                   )}
                 </motion.div>
               </AnimatePresence>
@@ -472,16 +448,13 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <LuChevronLeft className={cn("w-4", "h-4")} /> Previous
+                <LuChevronLeft className={cn('w-4', 'h-4')} /> Previous
               </button>
 
               <div className={cn("flex", "items-center", "gap-4")}>
                 <button
                   onClick={handleClose}
-                  className={cn(
-                    "text-[10px]", "font-black", "uppercase",
-                    "tracking-widest", "text-rose-500", "px-6",
-                  )}
+                  className={cn("text-[10px]", "font-black", "uppercase", "tracking-widest", "text-rose-500", "px-6")}
                 >
                   Cancel
                 </button>
@@ -496,27 +469,29 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                       "shadow-xl", "shadow-foreground/10",
                     )}
                   >
-                    Continue <LuChevronRight className={cn("w-4", "h-4")} />
+                    Continue <LuChevronRight className={cn('w-4', 'h-4')} />
                   </button>
                 ) : (
                   <button
                     onClick={handleSubmit}
                     disabled={submitting}
                     className={cn(
-                      "flex", "items-center", "gap-2", "px-8", "py-4",
-                      "bg-primary", "text-foreground", "rounded-2xl",
+                      "flex", "items-center", "gap-2", "px-8", "py-4", "rounded-2xl",
                       "text-[11px]", "font-black", "uppercase", "tracking-widest",
-                      "transition-all", "shadow-xl", "shadow-primary/20", "disabled:opacity-60",
+                      "transition-all", "shadow-xl", "disabled:opacity-60",
+                      isRepublishing
+                        ? "bg-emerald-500 text-white shadow-emerald-500/20"
+                        : "bg-primary text-foreground shadow-primary/20",
                     )}
                   >
                     {submitting ? (
-                      <LuLoader className={cn("w-4", "h-4", "animate-spin")} />
+                      <LuLoader className={cn('w-4', 'h-4', 'animate-spin')} />
+                    ) : isRepublishing ? (
+                      <LuRefreshCcw className={cn('w-4', 'h-4')} />
                     ) : (
-                      <LuCheck className={cn("w-4", "h-4")} />
+                      <LuCheck className={cn('w-4', 'h-4')} />
                     )}
-                    {submitting
-                      ? isEditing ? "Saving…" : "Creating…"
-                      : isEditing ? "Save Changes" : "Deploy Event"}
+                    {submitLabel()}
                   </button>
                 )}
               </div>
@@ -602,11 +577,7 @@ const InputGroup: React.FC<InputGroupProps> = ({
   onChange,
 }) => (
   <div className="space-y-2">
-    <label
-      className={cn(
-        "text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400",
-      )}
-    >
+    <label className={cn("text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400")}>
       {label}
     </label>
     <div className="relative">
@@ -654,9 +625,7 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => {
           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
         />
         <div className="space-y-2">
-          <label
-            className={cn("text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400")}
-          >
+          <label className={cn("text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400")}>
             Category
           </label>
           <select
@@ -676,9 +645,7 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => {
       </div>
 
       <div className="space-y-2">
-        <label
-          className={cn("text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400")}
-        >
+        <label className={cn("text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400")}>
           Description
         </label>
         <textarea
@@ -694,11 +661,8 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => {
         />
       </div>
 
-      {/* Banner */}
       <div className="space-y-2">
-        <label
-          className={cn("text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400")}
-        >
+        <label className={cn("text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400")}>
           Event Banner
         </label>
         <input
@@ -715,11 +679,7 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => {
         {formData.bannerPreviewUrl ? (
           <div className={cn('relative', 'group', 'rounded-[2rem]', 'overflow-hidden', 'aspect-[1200/630]', 'bg-muted')}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={formData.bannerPreviewUrl}
-              alt="Banner preview"
-              className={cn('w-full', 'h-full', 'object-cover')}
-            />
+            <img src={formData.bannerPreviewUrl} alt="Banner preview" className={cn('w-full', 'h-full', 'object-cover')} />
             <div className={cn('absolute', 'inset-0', 'bg-black/40', 'opacity-0', 'group-hover:opacity-100', 'transition-opacity', 'flex', 'items-center', 'justify-center', 'gap-3')}>
               <button
                 type="button"
@@ -730,9 +690,7 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => {
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  setFormData((prev) => ({ ...prev, bannerBlob: null, bannerPreviewUrl: null }))
-                }
+                onClick={() => setFormData((prev) => ({ ...prev, bannerBlob: null, bannerPreviewUrl: null }))}
                 className={cn('px-4', 'py-2', 'bg-destructive', 'text-white', 'rounded-xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'cursor-pointer')}
               >
                 Remove
@@ -753,7 +711,7 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => {
                 : "opacity-50 cursor-not-allowed",
             )}
           >
-            <LuImage className={cn("w-8", "h-8", "text-muted-foreground")} />
+            <LuImage className={cn('w-8', 'h-8', 'text-muted-foreground')} />
             <p className={cn("text-[10px]", "font-black", "uppercase", "tracking-[0.2em]", "text-foreground")}>
               {formData.title.trim() ? "Upload Event Banner" : "Enter a title first"}
             </p>
@@ -791,26 +749,17 @@ const ScheduleStep: React.FC<StepProps> = ({ formData, setFormData }) => (
         type="number"
         icon={LuTimer}
         value={formData.duration}
-        onChange={(e) =>
-          setFormData({ ...formData, duration: Number(e.target.value) })
-        }
+        onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
       />
     </div>
-    <div
-      className={cn(
-        "flex", "items-center", "gap-4", "p-2", "text-muted", "rounded-2xl", "w-fit",
-      )}
-    >
+    <div className={cn("flex", "items-center", "gap-4", "p-2", "text-muted", "rounded-2xl", "w-fit")}>
       {(["Physical", "Virtual", "Hybrid"] as const).map((type) => (
         <button
           key={type}
           onClick={() => setFormData({ ...formData, type })}
           className={cn(
-            "px-6", "py-2", "rounded-xl", "text-[10px]", "font-black",
-            "uppercase", "tracking-widest", "transition-all",
-            formData.type === type
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground",
+            "px-6", "py-2", "rounded-xl", "text-[10px]", "font-black", "uppercase", "tracking-widest", "transition-all",
+            formData.type === type ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
           )}
         >
           {type}
@@ -838,9 +787,7 @@ const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
         placeholder="500"
         icon={LuUsers}
         value={formData.maxCapacity}
-        onChange={(e) =>
-          setFormData({ ...formData, maxCapacity: Number(e.target.value) })
-        }
+        onChange={(e) => setFormData({ ...formData, maxCapacity: Number(e.target.value) })}
       />
       <InputGroup
         label="Ticket Price (₦)"
@@ -848,17 +795,10 @@ const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
         placeholder="0.00"
         icon={LuTicket}
         value={formData.ticketPrice}
-        onChange={(e) =>
-          setFormData({ ...formData, ticketPrice: Number(e.target.value) })
-        }
+        onChange={(e) => setFormData({ ...formData, ticketPrice: Number(e.target.value) })}
       />
     </div>
-    <div
-      className={cn(
-        "p-8", "border-2", "border-border", "rounded-[2.5rem]",
-        "flex", "items-center", "justify-between",
-      )}
-    >
+    <div className={cn("p-8", "border-2", "border-border", "rounded-[2.5rem]", "flex", "items-center", "justify-between")}>
       <div>
         <h4 className={cn("text-[11px]", "font-black", "uppercase", "tracking-widest", "text-foreground")}>
           Enable Waitlist
@@ -868,9 +808,7 @@ const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
         </p>
       </div>
       <button
-        onClick={() =>
-          setFormData({ ...formData, enableWaitlist: !formData.enableWaitlist })
-        }
+        onClick={() => setFormData({ ...formData, enableWaitlist: !formData.enableWaitlist })}
         className={cn(
           "w-14", "h-8", "rounded-full", "p-1", "cursor-pointer", "transition-colors",
           formData.enableWaitlist ? "bg-primary" : "bg-muted",
@@ -884,7 +822,6 @@ const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
       </button>
     </div>
 
-    {/* Registration deadline — labeled with timezone note */}
     <div className="space-y-2">
       <label className={cn("text-[10px]", "font-black", "uppercase", "tracking-widest", "text-slate-400")}>
         Registration Deadline{" "}
@@ -895,9 +832,7 @@ const CapacityStep: React.FC<StepProps> = ({ formData, setFormData }) => (
         <input
           type="datetime-local"
           value={formData.registrationDeadline}
-          onChange={(e) =>
-            setFormData({ ...formData, registrationDeadline: e.target.value })
-          }
+          onChange={(e) => setFormData({ ...formData, registrationDeadline: e.target.value })}
           className={cn(
             "w-full", "p-4", "pl-12", "rounded-2xl", "text-xs", "font-bold",
             "outline-none", "border", "transition-all",
@@ -920,12 +855,7 @@ const PartnersStep: React.FC<StepProps> = () => (
       <h4 className={cn("text-[10px]", "font-black", "uppercase", "tracking-[0.2em]", "text-slate-400")}>
         Featured Speakers
       </h4>
-      <button
-        className={cn(
-          "text-[9px]", "font-black", "text-primary", "uppercase",
-          "bg-primary/10", "px-3", "py-1.5", "rounded-lg",
-        )}
-      >
+      <button className={cn("text-[9px]", "font-black", "text-primary", "uppercase", "bg-primary/10", "px-3", "py-1.5", "rounded-lg")}>
         + Add Speaker
       </button>
     </div>
@@ -937,47 +867,99 @@ const PartnersStep: React.FC<StepProps> = () => (
 
 // ── Step 5: Review / Publish ──────────────────────────────────────────────────
 
-const PublishStep: React.FC<StepProps & { isEditing?: boolean }> = ({
+const PublishStep: React.FC<StepProps & { isEditing?: boolean; isRepublishing?: boolean }> = ({
   formData,
   setFormData,
   isEditing,
+  isRepublishing,
 }) => (
   <div className={cn("space-y-8")}>
+
+    {/* Republish callout — only shown when editing a cancelled event */}
+    {isRepublishing && (
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn(
+          "flex", "items-start", "gap-4", "p-5", "rounded-2xl",
+          "bg-emerald-50", "border", "border-emerald-200",
+        )}
+      >
+        <div className={cn('flex-shrink-0', 'mt-0.5')}>
+          <LuRefreshCcw className={cn('w-5', 'h-5', 'text-emerald-600')} />
+        </div>
+        <div>
+          <p className={cn("text-[11px]", "font-black", "uppercase", "tracking-widest", "text-emerald-700")}>
+            Republishing a cancelled event
+          </p>
+          <p className={cn("text-[10px]", "font-medium", "text-emerald-600", "mt-1", "leading-relaxed")}>
+            This event was previously cancelled. Selecting <strong>Public</strong> and saving will
+            make it live again immediately. Select <strong>Invite-Only</strong> to save as a
+            draft instead.
+          </p>
+        </div>
+      </motion.div>
+    )}
+
+    {/* Draft callout — only shown when a non-cancelled event is being saved as Invite-Only */}
+    {isEditing && !isRepublishing && formData.visibility === "Invite-Only" && (
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn(
+          "flex", "items-start", "gap-4", "p-5", "rounded-2xl",
+          "bg-amber-50", "border", "border-amber-200",
+        )}
+      >
+        <div className={cn('flex-shrink-0', 'mt-0.5')}>
+          <LuTriangleAlert className={cn('w-5', 'h-5', 'text-amber-600')} />
+        </div>
+        <div>
+          <p className={cn("text-[11px]", "font-black", "uppercase", "tracking-widest", "text-amber-700")}>
+            Saving as draft
+          </p>
+          <p className={cn("text-[10px]", "font-medium", "text-amber-600", "mt-1", "leading-relaxed")}>
+            This event will be hidden from the public listing. You can republish it at any
+            time by editing and switching to <strong>Public</strong>.
+          </p>
+        </div>
+      </motion.div>
+    )}
+
     <div
       className={cn(
-        "bg-primary/10", "p-8", "rounded-[2.5rem]",
-        "border", "border-primary/20", "text-center",
+        "p-8", "rounded-[2.5rem]", "border", "text-center",
+        isRepublishing
+          ? "bg-emerald-50/50 border-emerald-200"
+          : "bg-primary/10 border-primary/20",
       )}
     >
       <div
         className={cn(
-          "w-16", "h-16", "bg-primary", "rounded-2xl",
-          "flex", "items-center", "justify-center", "mx-auto", "mb-6",
-          "shadow-xl", "shadow-primary/20",
+          "w-16", "h-16", "rounded-2xl", "flex", "items-center", "justify-center",
+          "mx-auto", "mb-6", "shadow-xl",
+          isRepublishing
+            ? "bg-emerald-500 shadow-emerald-500/20"
+            : "bg-primary shadow-primary/20",
         )}
       >
-        {isEditing ? (
-          <LuPencil className={cn("w-8", "h-8", "text-foreground")} />
+        {isRepublishing ? (
+          <LuRefreshCcw className={cn('w-8', 'h-8', 'text-white')} />
+        ) : isEditing ? (
+          <LuPencil className={cn('w-8', 'h-8', 'text-foreground')} />
         ) : (
-          <LuCircleCheck className={cn("w-8", "h-8", "text-foreground")} />
+          <LuCircleCheck className={cn('w-8', 'h-8', 'text-foreground')} />
         )}
       </div>
-      <h3
-        className={cn(
-          "text-xl", "font-black", "text-foreground", "uppercase", "tracking-tighter",
-        )}
-      >
-        {isEditing ? "Ready to Save" : "Ready for Deployment"}
+      <h3 className={cn("text-xl", "font-black", "text-foreground", "uppercase", "tracking-tighter")}>
+        {isRepublishing ? "Ready to Republish" : isEditing ? "Ready to Save" : "Ready for Deployment"}
       </h3>
-      <p
-        className={cn(
-          "text-[10px]", "font-bold", "text-muted-foreground", "uppercase", "mt-2",
-          "tracking-widest", "max-w-[300px]", "mx-auto", "leading-relaxed",
-        )}
-      >
-        {isEditing
-          ? "Review your changes below. Once saved, the event listing will update immediately."
-          : "Review your configurations. Once published, notifications will be sent to subscribed members."}
+      <p className={cn("text-[10px]", "font-bold", "text-muted-foreground", "uppercase", "mt-2", "tracking-widest", "max-w-[300px]", "mx-auto", "leading-relaxed")}>
+        {isRepublishing
+          ? "Review your changes. This event will go live again once you republish."
+          : isEditing
+            ? "Review your changes below. Once saved, the event listing will update immediately."
+            : "Review your configurations. Once published, notifications will be sent to subscribed members."}
       </p>
     </div>
 
@@ -1004,25 +986,31 @@ const PublishStep: React.FC<StepProps & { isEditing?: boolean }> = ({
           key={visibility}
           onClick={() => setFormData({ ...formData, visibility })}
           className={cn(
-            "p-6", "rounded-2xl", "border-2", "flex", "items-center",
-            "justify-between", "transition-all",
+            "p-6", "rounded-2xl", "border-2", "flex", "items-center", "justify-between", "transition-all",
             formData.visibility === visibility
               ? "bg-muted border-foreground"
               : "bg-background border-border opacity-50",
           )}
         >
-          <span
-            className={cn(
-              "font-black", "uppercase", "tracking-widest", "text-sm",
-              formData.visibility === visibility ? "text-foreground" : "text-slate-400",
-            )}
-          >
-            {visibility}
-          </span>
+          <div className="text-left">
+            <span
+              className={cn(
+                "font-black", "uppercase", "tracking-widest", "text-sm", "block",
+                formData.visibility === visibility ? "text-foreground" : "text-slate-400",
+              )}
+            >
+              {visibility}
+            </span>
+            <span className={cn("text-[9px]", "font-bold", "text-muted-foreground", "uppercase", "tracking-widest", "mt-0.5", "block")}>
+              {visibility === "Public"
+                ? isRepublishing ? "Make live again" : "Visible to everyone"
+                : "Save as hidden draft"}
+            </span>
+          </div>
           {visibility === "Public" ? (
-            <LuEye className={cn("w-4", "h-4", "text-muted-foreground")} />
+            <LuEye className={cn('w-4', 'h-4', 'text-muted-foreground')} />
           ) : (
-            <LuShield className={cn("w-4", "h-4", "text-muted-foreground")} />
+            <LuShield className={cn('w-4', 'h-4', 'text-muted-foreground')} />
           )}
         </button>
       ))}

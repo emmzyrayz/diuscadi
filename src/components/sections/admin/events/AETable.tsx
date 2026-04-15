@@ -10,10 +10,12 @@ import {
   LuEye,
   LuCircleX,
   LuCopy,
+  LuRefreshCcw,
 } from "react-icons/lu";
 import { cn } from "../../../../lib/utils";
 import { useAdmin } from "@/context/AdminContext";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "react-hot-toast";
 
 import { Portal } from "@/components/ui/Portal";
 import { AdminDeleteEventModal } from "./modals/AEDeleteEventModal";
@@ -27,8 +29,6 @@ import type { AdminEvent } from "@/context/AdminContext";
 interface TableProps {
   events: AdminEvent[];
   onMutation?: () => void;
-  // Page-level edit modal is owned by the page, not the row,
-  // so the row calls this callback instead of navigating.
   onEditRequest?: (event: AdminEvent) => void;
 }
 
@@ -50,7 +50,7 @@ export const AdminEventsTable: React.FC<TableProps> = ({
       "shadow-sm",
     )}
   >
-    <div className={cn('w-full', 'h-full')}>
+    <div className={cn("w-full", "h-full")}>
       <table className={cn("w-full", "text-left", "border-collapse")}>
         <thead>
           <tr className={cn("bg-muted/50", "border-b", "border-border")}>
@@ -117,6 +117,9 @@ const AdminEventRow: React.FC<RowProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [republishing, setRepublishing] = useState(false);
+
+  const isCancelled = event.status === "cancelled";
 
   const fillPct =
     event.capacity > 0
@@ -128,6 +131,35 @@ const AdminEventRow: React.FC<RowProps> = ({
     await deleteEvent(event.id, "delete", token);
     setShowDeleteModal(false);
     onMutation?.();
+  };
+
+  // ── Republish — direct PATCH, no modal needed ────────────────────────────
+  const handleRepublish = async () => {
+    if (!token) return;
+    setRepublishing(true);
+    setShowMenu(false);
+    try {
+      const res = await fetch(`/api/admin/events/${event.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: "published" }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to republish event");
+      }
+      toast.success(`"${event.title}" is live again`);
+      onMutation?.();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to republish event",
+      );
+    } finally {
+      setRepublishing(false);
+    }
   };
 
   const STATUS_STYLES: Record<string, string> = {
@@ -143,7 +175,13 @@ const AdminEventRow: React.FC<RowProps> = ({
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4, delay }}
-        className={cn("group", "hover:bg-muted/50", "transition-colors")}
+        className={cn(
+          "group",
+          "hover:bg-muted/50",
+          "transition-colors",
+          // Subtle visual dimming for cancelled rows
+          isCancelled && "opacity-70",
+        )}
       >
         {/* Identity */}
         <td className={cn("px-8", "py-6")}>
@@ -278,6 +316,7 @@ const AdminEventRow: React.FC<RowProps> = ({
         <td className={cn("px-8", "py-6", "text-right", "relative")}>
           <button
             onClick={() => setShowMenu(!showMenu)}
+            disabled={republishing}
             className={cn(
               "p-2",
               "border",
@@ -288,9 +327,14 @@ const AdminEventRow: React.FC<RowProps> = ({
               "hover:text-foreground",
               "transition-colors",
               "cursor-pointer",
+              "disabled:opacity-40",
             )}
           >
-            <LuEllipsisVertical className={cn("w-5", "h-5")} />
+            {republishing ? (
+              <LuRefreshCcw className={cn("w-5", "h-5", "animate-spin")} />
+            ) : (
+              <LuEllipsisVertical className={cn("w-5", "h-5")} />
+            )}
           </button>
 
           <AnimatePresence>
@@ -312,7 +356,7 @@ const AdminEventRow: React.FC<RowProps> = ({
                     "absolute",
                     "right-8",
                     "top-14",
-                    "w-48",
+                    "w-52",
                     "bg-background",
                     "border",
                     "border-border",
@@ -331,7 +375,6 @@ const AdminEventRow: React.FC<RowProps> = ({
                     }}
                   />
 
-                  {/* Calls the page-level onEditRequest — no router.push */}
                   <MenuItem
                     icon={LuSquarePen}
                     label="Edit Event"
@@ -349,15 +392,26 @@ const AdminEventRow: React.FC<RowProps> = ({
 
                   <div className={cn("h-px", "bg-muted", "my-1")} />
 
-                  <MenuItem
-                    icon={LuCircleX}
-                    label="Cancel Event"
-                    color="text-amber-600"
-                    onClick={() => {
-                      setShowMenu(false);
-                      setShowCancelModal(true);
-                    }}
-                  />
+                  {isCancelled ? (
+                    // ── Cancelled event: show Republish instead of Cancel ──
+                    <MenuItem
+                      icon={LuRefreshCcw}
+                      label="Republish Event"
+                      color="text-emerald-600"
+                      onClick={handleRepublish}
+                    />
+                  ) : (
+                    // ── Active/draft event: show Cancel ───────────────────
+                    <MenuItem
+                      icon={LuCircleX}
+                      label="Cancel Event"
+                      color="text-amber-600"
+                      onClick={() => {
+                        setShowMenu(false);
+                        setShowCancelModal(true);
+                      }}
+                    />
+                  )}
 
                   <MenuItem
                     icon={LuTrash2}
@@ -384,18 +438,21 @@ const AdminEventRow: React.FC<RowProps> = ({
         />
       </Portal>
 
-      <Portal>
-        <AdminCancelEventModal
-          isOpen={showCancelModal}
-          onClose={() => setShowCancelModal(false)}
-          onSuccess={() => {
-            setShowCancelModal(false);
-            onMutation?.();
-          }}
-          eventId={event.id}
-          eventName={event.title}
-        />
-      </Portal>
+      {/* Cancel modal only mounted for non-cancelled events */}
+      {!isCancelled && (
+        <Portal>
+          <AdminCancelEventModal
+            isOpen={showCancelModal}
+            onClose={() => setShowCancelModal(false)}
+            onSuccess={() => {
+              setShowCancelModal(false);
+              onMutation?.();
+            }}
+            eventId={event.id}
+            eventName={event.title}
+          />
+        </Portal>
+      )}
 
       <Portal>
         <AdminDeleteEventModal
