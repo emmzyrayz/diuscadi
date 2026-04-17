@@ -7,13 +7,53 @@ import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
-import { ApplicationDocument, ApplicationStatus } from "@/lib/models/Application";
+import {
+  ApplicationDocument,
+  ApplicationStatus,
+} from "@/lib/models/Application";
+import {
+  sendApplicationStatusEmail,
+  sendMembershipWelcomeEmail,
+} from "@/lib/sendEmail";
 
 const ALLOWED_ROLES = ["admin", "webmaster"];
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 type Context = {
   params?: Promise<Record<string, string>> | Record<string, string>;
 };
+
+// ── Helper: resolve user email + display name from application.userId ─────────
+// userData holds the name; vault holds the email. Both are needed for emails.
+async function resolveUserContact(
+  userId: ObjectId,
+  db: Awaited<ReturnType<typeof import("@/lib/mongodb").getDb>>,
+): Promise<{ email: string; displayName: string } | null> {
+  const userData = await Collections.userData(db).findOne(
+    { _id: userId },
+    { projection: { fullName: 1, vaultId: 1 } },
+  );
+  if (!userData) return null;
+
+  const vault = await Collections.vault(db).findOne(
+    { _id: userData.vaultId as ObjectId },
+    { projection: { email: 1 } },
+  );
+  if (!vault?.email) return null;
+
+  const fn = userData.fullName as
+    | {
+        firstname?: string;
+        secondname?: string;
+        lastname?: string;
+      }
+    | undefined;
+  const displayName = fn
+    ? [fn.firstname, fn.lastname].filter(Boolean).join(" ") || "there"
+    : "there";
+
+  return { email: vault.email as string, displayName };
+}
 
 export const PATCH = withAuth(
   async (req: AuthenticatedRequest, context?: Context) => {
@@ -74,18 +114,57 @@ export const PATCH = withAuth(
         updatedAt: now,
       };
 
-      // ── Reject — same for all types ──────────────────────────────────────────
+      // ── Friendly display label for each application type ──────────────────
+      const TYPE_LABELS: Record<string, string> = {
+        membership: "Membership",
+        committee: "Committee",
+        skills: "Skills",
+        sponsorship: "Sponsorship",
+        program: "Program Expert",
+        writer: "Writer",
+      };
+      const typeLabel =
+        TYPE_LABELS[application.type as string] ??
+        String(application.type).charAt(0).toUpperCase() +
+          String(application.type).slice(1);
+
+      // ── Fire-and-forget email helper ──────────────────────────────────────
+      // Always called AFTER the DB write succeeds so a failed email never
+      // rolls back an approval. Errors are logged, never surfaced to admin.
+      const fireEmail = (fn: () => Promise<void>) => {
+        void fn().catch((err) =>
+          console.error(`[applications/${id}] Email send failed:`, err),
+        );
+      };
+
+      // ── REJECT — same for all types ───────────────────────────────────────
       if (action === "reject") {
         await Collections.applications(db).updateOne(
           { _id: new ObjectId(id) },
           { $set: reviewUpdate },
         );
+
+        fireEmail(async () => {
+          const contact = await resolveUserContact(
+            application.userId as ObjectId,
+            db,
+          );
+          if (!contact) return;
+          await sendApplicationStatusEmail({
+            to: contact.email,
+            name: contact.displayName,
+            applicationType: typeLabel,
+            status: "rejected",
+            reviewNote: reviewNote ?? undefined,
+          });
+        });
+
         return NextResponse.json({ message: "Application rejected" });
       }
 
-      // ── Approve — type-specific side effects ─────────────────────────────────
+      // ── APPROVE — type-specific side effects ──────────────────────────────
 
-      // MEMBERSHIP — set membershipStatus to "approved" on UserData
+      // MEMBERSHIP
       if (application.type === "membership") {
         await Collections.userData(db).updateOne(
           { _id: application.userId },
@@ -95,13 +174,39 @@ export const PATCH = withAuth(
           { _id: new ObjectId(id) },
           { $set: reviewUpdate },
         );
+
+        fireEmail(async () => {
+          const contact = await resolveUserContact(
+            application.userId as ObjectId,
+            db,
+          );
+          if (!contact) return;
+          // 1. Generic approval status email
+          await sendApplicationStatusEmail({
+            to: contact.email,
+            name: contact.displayName,
+            applicationType: typeLabel,
+            status: "approved",
+            reviewNote: reviewNote ?? undefined,
+            ctaLabel: "View Your Profile",
+            ctaUrl: `${APP_URL}/profile`,
+          });
+          // 2. Richer membership-specific welcome email
+          await sendMembershipWelcomeEmail({
+            to: contact.email,
+            name: contact.displayName,
+            profileUrl: `${APP_URL}/profile`,
+            eventsUrl: `${APP_URL}/events`,
+          });
+        });
+
         return NextResponse.json({
           message:
             "Membership application approved — user is now an approved member",
         });
       }
 
-      // COMMITTEE — assign committeeMembership + increment memberCount
+      // COMMITTEE
       if (application.type === "committee") {
         const requestedCommittee = application.requestedCommittee as string;
         const committeeDoc = await Collections.committees(db).findOne({
@@ -151,6 +256,27 @@ export const PATCH = withAuth(
           { _id: new ObjectId(id) },
           { $set: reviewUpdate },
         );
+
+        const committeeName =
+          (committeeDoc.name as string) ?? requestedCommittee;
+
+        fireEmail(async () => {
+          const contact = await resolveUserContact(
+            application.userId as ObjectId,
+            db,
+          );
+          if (!contact) return;
+          await sendApplicationStatusEmail({
+            to: contact.email,
+            name: contact.displayName,
+            applicationType: `${committeeName} Committee`,
+            status: "approved",
+            reviewNote: reviewNote ?? undefined,
+            ctaLabel: "View Your Profile",
+            ctaUrl: `${APP_URL}/profile`,
+          });
+        });
+
         return NextResponse.json({
           message: "Committee application approved",
           committee: requestedCommittee,
@@ -158,7 +284,7 @@ export const PATCH = withAuth(
         });
       }
 
-      // SKILLS — merge requested skills into user's skills array
+      // SKILLS
       if (application.type === "skills") {
         const requestedSkills = (application.requestedSkills ?? []) as string[];
         const validSkills = await Collections.skills(db)
@@ -185,26 +311,66 @@ export const PATCH = withAuth(
           { _id: new ObjectId(id) },
           { $set: reviewUpdate },
         );
+
+        const skillsList = requestedSkills.join(", ");
+
+        fireEmail(async () => {
+          const contact = await resolveUserContact(
+            application.userId as ObjectId,
+            db,
+          );
+          if (!contact) return;
+          await sendApplicationStatusEmail({
+            to: contact.email,
+            name: contact.displayName,
+            applicationType: typeLabel,
+            status: "approved",
+            reviewNote: reviewNote
+              ? reviewNote
+              : `Skills added to your profile: ${skillsList}`,
+            ctaLabel: "View Your Profile",
+            ctaUrl: `${APP_URL}/profile`,
+          });
+        });
+
         return NextResponse.json({
           message: "Skills application approved",
           skills: requestedSkills,
         });
       }
 
-      // SPONSORSHIP — stub: mark approved, no side effect yet
+      // SPONSORSHIP — stub
       if (application.type === "sponsorship") {
         await Collections.applications(db).updateOne(
           { _id: new ObjectId(id) },
           { $set: reviewUpdate },
         );
         // TODO: when sponsorship system is built, create a SponsorProfile doc here
+
+        fireEmail(async () => {
+          const contact = await resolveUserContact(
+            application.userId as ObjectId,
+            db,
+          );
+          if (!contact) return;
+          await sendApplicationStatusEmail({
+            to: contact.email,
+            name: contact.displayName,
+            applicationType: typeLabel,
+            status: "approved",
+            reviewNote:
+              reviewNote ??
+              "Our team will be in touch shortly with next steps for the sponsorship programme.",
+          });
+        });
+
         return NextResponse.json({
           message:
             "Sponsorship application approved — sponsor onboarding coming soon",
         });
       }
 
-      // PROGRAM — stub: mark approved, set flag on userData
+      // PROGRAM — stub
       if (application.type === "program") {
         await Collections.userData(db).updateOne(
           { _id: application.userId },
@@ -217,13 +383,31 @@ export const PATCH = withAuth(
           { _id: new ObjectId(id) },
           { $set: reviewUpdate },
         );
+
+        fireEmail(async () => {
+          const contact = await resolveUserContact(
+            application.userId as ObjectId,
+            db,
+          );
+          if (!contact) return;
+          await sendApplicationStatusEmail({
+            to: contact.email,
+            name: contact.displayName,
+            applicationType: typeLabel,
+            status: "approved",
+            reviewNote:
+              reviewNote ??
+              "Program expert features are coming soon. We'll notify you when they launch.",
+          });
+        });
+
         return NextResponse.json({
           message:
             "Program expert application approved — program features coming soon",
         });
       }
 
-      // WRITER — stub: mark approved, set flag on userData
+      // WRITER — stub
       if (application.type === "writer") {
         await Collections.userData(db).updateOne(
           { _id: application.userId },
@@ -236,6 +420,24 @@ export const PATCH = withAuth(
           { _id: new ObjectId(id) },
           { $set: reviewUpdate },
         );
+
+        fireEmail(async () => {
+          const contact = await resolveUserContact(
+            application.userId as ObjectId,
+            db,
+          );
+          if (!contact) return;
+          await sendApplicationStatusEmail({
+            to: contact.email,
+            name: contact.displayName,
+            applicationType: typeLabel,
+            status: "approved",
+            reviewNote:
+              reviewNote ??
+              "The blog publishing system is coming soon. We'll let you know when your contributor access is active.",
+          });
+        });
+
         return NextResponse.json({
           message: "Writer application approved — blog system coming soon",
         });

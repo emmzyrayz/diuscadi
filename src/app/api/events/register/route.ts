@@ -8,6 +8,7 @@ import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
 import { generateInviteCode } from "@/lib/auth";
+import { sendEventRegistrationEmail } from "@/lib/sendEmail";
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   try {
@@ -32,10 +33,10 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     const vaultId = new ObjectId(req.auth.vaultId);
     const now = new Date();
 
-    // Resolve userDataId
+    // Resolve userData — expand projection to include name for confirmation email
     const userData = await Collections.userData(db).findOne(
       { vaultId },
-      { projection: { _id: 1 } },
+      { projection: { _id: 1, fullName: 1 } },
     );
     if (!userData) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -191,6 +192,77 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         $set: { "analytics.lastEventRegisteredAt": now, updatedAt: now },
       },
     );
+
+    // ── Send confirmation email ────────────────────────────────────────────────
+    // Fire-and-forget — a failed email must never fail the registration response.
+    // We resolve the user's email from vault (userData doesn't store email).
+    void (async () => {
+      try {
+        const vault = await Collections.vault(db).findOne(
+          { _id: vaultId },
+          { projection: { email: 1 } },
+        );
+        if (!vault?.email) return;
+
+        // Build display name from UserData.fullName
+        const fn = userData.fullName as
+          | {
+              firstname?: string;
+              secondname?: string;
+              lastname?: string;
+            }
+          | undefined;
+        const displayName = fn
+          ? [fn.firstname, fn.lastname].filter(Boolean).join(" ") || "there"
+          : "there";
+
+        // Format event date for WAT display
+        const eventDateObj = new Date(event.eventDate as Date);
+        const formattedDate =
+          eventDateObj.toLocaleDateString("en-NG", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "Africa/Lagos",
+          }) +
+          " • " +
+          eventDateObj.toLocaleTimeString("en-NG", {
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone: "Africa/Lagos",
+          });
+
+        // Build location string
+        const loc = event.location as Record<string, string> | undefined;
+        const eventLocation = loc
+          ? [loc.venue, loc.city].filter(Boolean).join(", ") ||
+            String(event.format)
+          : String(event.format ?? "See event details");
+
+        // Determine ticket price display
+        const price = ticketType.price as number | undefined;
+        const isFree = !price || price === 0;
+        const ticketPrice = isFree
+          ? undefined
+          : `₦${price.toLocaleString("en-NG")}`;
+
+        await sendEventRegistrationEmail({
+          to: vault.email as string,
+          ticketId: insertedId.toString(),
+          name: displayName,
+          eventTitle: String(event.title),
+          eventDate: formattedDate,
+          eventLocation,
+          ticketCode: inviteCode,
+          isFree,
+          ticketPrice,
+        });
+      } catch (emailErr) {
+        // Log but never surface to the user — registration already succeeded
+        console.error("[register] Confirmation email failed:", emailErr);
+      }
+    })();
 
     return NextResponse.json(
       {
