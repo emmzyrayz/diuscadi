@@ -44,23 +44,18 @@ export async function createIndexes() {
       sparse: true,
       name: "userData_inviteCode",
     },
-    // schoolEmail moved inside Institution subdocument — path updated accordingly.
-    // sparse: true allows many documents to have no schoolEmail at all.
     {
       key: { "Institution.schoolEmail": 1 },
       unique: true,
       sparse: true,
       name: "userData_schoolEmail",
     },
-    // referredBy — look up everyone a member recruited
     {
       key: { referredBy: 1 },
       sparse: true,
       name: "userData_referredBy",
     },
-    // membership status filter — admin dashboard queries
     { key: { membershipStatus: 1 }, name: "userData_membershipStatus" },
-    // activity — dormant account detection, re-engagement campaigns
     {
       key: { "analytics.lastActiveAt": -1 },
       sparse: true,
@@ -128,6 +123,15 @@ export async function createIndexes() {
     { key: { userId: 1 }, name: "reg_userId" },
     { key: { status: 1 }, name: "reg_status" },
     { key: { referralCodeUsed: 1 }, sparse: true, name: "reg_referral" },
+    // Supports the cron reminder query:
+    // { eventId, status: { $in: [...] }, "reminders.sent24h": { $exists: false } }
+    // sparse: true because most registrations won't have this field until
+    // after their first reminder run — avoids indexing every null entry.
+    {
+      key: { eventId: 1, status: 1, "reminders.sent24h": 1 },
+      sparse: true,
+      name: "reg_eventId_status_reminder24h",
+    },
   ]);
   console.log("✓ eventRegistrations");
 
@@ -147,7 +151,6 @@ export async function createIndexes() {
     { key: { "browser.name": 1, reportedAt: -1 }, name: "health_browser" },
     { key: { page: 1, reportedAt: -1 }, name: "health_page" },
     { key: { "jsErrors.0": 1 }, name: "health_jsErrors" },
-    // Auto-delete reports older than 90 days
     {
       key: { reportedAt: 1 },
       expireAfterSeconds: 90 * 24 * 60 * 60,
@@ -192,7 +195,6 @@ export async function createIndexes() {
 
   // ── institutions ───────────────────────────────────────────────────────────
   await db.collection("institutions").createIndexes([
-    // Case-insensitive text search — essential for the public API and admin search
     {
       key: { name: "text", abbreviation: "text" },
       name: "institutions_text_search",
@@ -207,7 +209,6 @@ export async function createIndexes() {
     { key: { type: 1 }, name: "institutions_type" },
     { key: { state: 1 }, name: "institutions_state" },
     { key: { isActive: 1 }, name: "institutions_active" },
-    // gradingSystemConfirmed — quickly find institutions still awaiting config
     {
       key: { gradingSystemConfirmed: 1 },
       name: "institutions_gradingConfirmed",
@@ -231,7 +232,6 @@ export async function createIndexes() {
 
   // ── curriculumSubmissions ──────────────────────────────────────────────────
   await db.collection("curriculumSubmissions").createIndexes([
-    // Primary lookup: find submissions for a specific dept/level/semester/session
     {
       key: {
         institutionId: 1,
@@ -242,7 +242,6 @@ export async function createIndexes() {
       },
       name: "curriculum_scope",
     },
-    // Prevent a student submitting the same scope twice
     {
       key: {
         institutionId: 1,
@@ -255,13 +254,9 @@ export async function createIndexes() {
       unique: true,
       name: "curriculum_no_duplicate_submission",
     },
-    // Find all submissions by a student (their submission history)
     { key: { submittedBy: 1 }, name: "curriculum_submittedBy" },
-    // Admin review queue — pending and flagged items sorted by oldest first
     { key: { status: 1, createdAt: 1 }, name: "curriculum_status_date" },
-    // Prevent a student flagging the same submission twice
     { key: { "flags.flaggedBy": 1 }, name: "curriculum_flaggedBy" },
-    // Institution-scoped admin view
     {
       key: { institutionId: 1, status: 1 },
       name: "curriculum_institution_status",
