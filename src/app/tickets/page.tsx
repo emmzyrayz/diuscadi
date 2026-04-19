@@ -10,12 +10,14 @@ import {
   LuCalendarPlus,
   LuClock,
   LuHistory,
+  LuLoader,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTickets, type Ticket } from "@/context/TicketContext";
 import { EmptyState } from "@/components/sections/tickets/EmptyState";
+import { useShare } from "@/hooks/useShare";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -91,6 +93,8 @@ function filterTickets(tickets: Ticket[], tab: FilterTab): Ticket[] {
 
 const TicketCard = ({ ticket }: { ticket: Ticket }) => {
   const router = useRouter();
+  const { download, addToCalendar, downloading } = useShare();
+  
   const displayStatus = getDisplayStatus(ticket);
   const location = getLocationString(ticket);
   const eventDate = fmtDate(ticket.event.eventDate);
@@ -99,6 +103,25 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
   const statusStyle = STATUS_STYLES[displayStatus];
   const isPast = displayStatus === "Past" || displayStatus === "Used";
   const isCancelled = displayStatus === "Cancelled";
+
+  const handleDownload = () => {
+    download({
+      type: "ticket",
+      id: ticket.id,
+      filename: `diuscadi-ticket-${ticket.id}.pdf`,
+    });
+  };
+
+  const handleCalendar = () => {
+    if (isPast || isCancelled) return;
+    addToCalendar({
+      title: ticket.event.title,
+      startDate: ticket.event.eventDate,
+      endDate: ticket.event.endDate ?? undefined,
+      location,
+      description: `DIUSCADI event — visit diuscadi.org.ng/events/${ticket.event.slug} for details`,
+    });
+  };
 
   return (
     <motion.div
@@ -186,6 +209,7 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
       </div>
 
       {/* Actions */}
+      {/* Actions */}
       <div
         className={cn(
           "w-full md:w-60 p-6 md:p-8 border-t md:border-t-0 md:border-l border-border flex flex-col justify-center gap-3",
@@ -205,29 +229,38 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
         </button>
 
         <div className="grid grid-cols-2 gap-2">
-          {/* PDF — disabled for past/cancelled */}
+          {/* PDF — wired up, disabled only for cancelled */}
           <button
-            disabled={isCancelled}
+            onClick={handleDownload}
+            disabled={isCancelled || downloading}
             className={cn(
               "py-3 bg-background border border-border rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5",
               isCancelled
                 ? "opacity-40 cursor-not-allowed"
-                : "text-slate-600 hover:border-slate-400 cursor-pointer",
+                : downloading
+                  ? "opacity-60 cursor-not-allowed text-primary"
+                  : "text-slate-600 hover:border-slate-400 cursor-pointer",
             )}
           >
-            <LuDownload className="w-3.5 h-3.5" /> PDF
+            {downloading ? (
+              <LuLoader className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <LuDownload className="w-3.5 h-3.5" />
+            )}
+            {downloading ? "…" : "PDF"}
           </button>
 
-          {/* Calendar sync — disabled for past/cancelled */}
+          {/* Calendar sync */}
           <button
             disabled={isPast || isCancelled}
-            title={isPast ? "Event has already passed" : undefined}
-            onClick={() => {
-              if (isPast || isCancelled) return;
-              const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(ticket.event.title)}&location=${encodeURIComponent(location)}`;
-              window.open(gcalUrl, "_blank");
-              // TODO: replace with full Google Calendar API OAuth when built
-            }}
+            onClick={handleCalendar}
+            title={
+              isPast
+                ? "Event has already passed"
+                : isCancelled
+                  ? "Ticket cancelled"
+                  : "Add to calendar"
+            }
             className={cn(
               "py-3 bg-background border border-border rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5",
               isPast || isCancelled

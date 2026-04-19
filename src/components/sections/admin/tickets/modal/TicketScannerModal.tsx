@@ -108,31 +108,59 @@ export const TicketScannerModal: React.FC<Props> = ({
   const startCamera = useCallback(async () => {
     setCameraError(null);
     setCameraActive(false);
+
+     // Guard: mediaDevices is undefined on HTTP (non-localhost)
+  if (!navigator?.mediaDevices?.getUserMedia) {
+    setCameraError(
+      "Camera requires a secure connection (HTTPS). Try uploading a QR image instead.",
+    );
+    return;
+  }
+
     try {
       if (!readerRef.current) {
         readerRef.current = new BrowserQRCodeReader();
       }
+
+      // ✅ Force permission prompt FIRST — without this, listVideoInputDevices()
+      // returns empty on first visit even if a camera exists.
+      // We immediately stop this stream; it's only needed to trigger the prompt.
+      const permissionStream = await navigator.mediaDevices
+        .getUserMedia({ video: true })
+        .catch((err: Error) => {
+          if (
+            err.name === "NotAllowedError" ||
+            err.name === "PermissionDeniedError"
+          ) {
+            throw new Error("permission_denied");
+          }
+          throw err;
+        });
+      permissionStream.getTracks().forEach((t) => t.stop());
+
+      // Now enumerate — labels will be populated after permission is granted
       const devices = await BrowserQRCodeReader.listVideoInputDevices();
+
       if (!devices.length) {
         setCameraError("No camera found on this device.");
         return;
       }
-      // Prefer back camera on mobile
+
       const device =
-        devices.find(
-          (d) =>
-            d.label.toLowerCase().includes("back") ||
-            d.label.toLowerCase().includes("rear") ||
-            d.label.toLowerCase().includes("environment"),
+        devices.find((d) =>
+          ["back", "rear", "environment"].some((k) =>
+            d.label.toLowerCase().includes(k),
+          ),
         ) ?? devices[0];
 
       if (!videoRef.current) return;
 
       setCameraActive(true);
+
       const controls = await readerRef.current.decodeFromVideoDevice(
         device.deviceId,
         videoRef.current,
-        (scanResult, err) => {
+        (scanResult) => {
           if (scanResult) {
             const text = scanResult.getText();
             stopCamera();
@@ -140,19 +168,22 @@ export const TicketScannerModal: React.FC<Props> = ({
             setMode("manual");
             verify(text);
           }
-          // err fires on every failed frame — ignore
         },
       );
       controlsRef.current = controls;
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Camera unavailable";
+      const msg = e instanceof Error ? e.message : "";
       if (
+        msg === "permission_denied" ||
         msg.toLowerCase().includes("permission") ||
-        msg.toLowerCase().includes("denied")
+        msg.toLowerCase().includes("denied") ||
+        msg.toLowerCase().includes("notallowed")
       ) {
         setCameraError(
-          "Camera permission denied. Please allow camera access and try again.",
+          "Camera permission denied. Please allow camera access in your browser settings and try again.",
         );
+      } else if (msg.toLowerCase().includes("no camera")) {
+        setCameraError("No camera found on this device.");
       } else {
         setCameraError(
           "Could not start camera. Try uploading a QR image instead.",
