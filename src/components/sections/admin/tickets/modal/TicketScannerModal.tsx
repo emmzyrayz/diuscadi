@@ -153,7 +153,13 @@ export const TicketScannerModal: React.FC<Props> = ({
           ),
         ) ?? devices[0];
 
-      if (!videoRef.current) return;
+      // ✅ Defer until after React has painted the <video> element
+      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+
+      if (!videoRef.current) {
+        setCameraError("Could not attach camera to video element.");
+        return;
+      }
 
       setCameraActive(true);
 
@@ -172,6 +178,10 @@ export const TicketScannerModal: React.FC<Props> = ({
       );
       controlsRef.current = controls;
     } catch (e: unknown) {
+       // ✅ Log the real error so you can see what's actually failing
+    console.error("[TicketScannerModal] Camera error:", e);
+
+      
       const msg = e instanceof Error ? e.message : "";
       if (
         msg === "permission_denied" ||
@@ -182,11 +192,31 @@ export const TicketScannerModal: React.FC<Props> = ({
         setCameraError(
           "Camera permission denied. Please allow camera access in your browser settings and try again.",
         );
+      } else if (
+        msg.toLowerCase().includes("overlay") ||
+        msg.toLowerCase().includes("bubble")
+      ) {
+        setCameraError(
+          "Camera blocked by a screen overlay. Go to Settings → Apps → Special app access → Display over other apps, disable any active apps, then retry. Or use the Upload QR tab.",
+        );
       } else if (msg.toLowerCase().includes("no camera")) {
         setCameraError("No camera found on this device.");
+      } else if (
+        msg.toLowerCase().includes("overlay") ||
+        msg.toLowerCase().includes("bubble")
+      ) {
+        setCameraError(
+          "Camera blocked by a screen overlay. Use the Upload QR tab instead — it works without camera access.",
+        );
+        setTimeout(() => {
+          setMode("upload");
+          setCameraError(null);
+        }, 1500);
       } else {
         setCameraError(
-          "Could not start camera. Try uploading a QR image instead.",
+          process.env.NODE_ENV === "development"
+            ? `Camera error: ${msg}`
+            : "Could not start camera. Try uploading a QR image instead.",
         );
       }
       setCameraActive(false);
