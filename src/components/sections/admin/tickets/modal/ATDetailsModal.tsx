@@ -1,7 +1,8 @@
 "use client";
 // modal/ATDetailsModal.tsx
 // Read-only ticket detail view using AdminTicket.
-// Download is a TODO — PDF generation not yet implemented.
+// Save PDF calls GET /api/tickets/[id]/pdf via downloadPdf() from shareUtils.
+// Note: the PDF route uses the registration's MongoDB _id (ticket.id), not the inviteCode.
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,9 +15,12 @@ import {
   LuQrCode,
   LuCircleCheck,
   LuInfo,
+  LuLoader,
 } from "react-icons/lu";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { downloadPdf } from "@/lib/shareUtils";
+import { useAuth } from "@/context/AuthContext";
 import type { AdminTicket } from "@/app/admin/tickets/page";
 
 interface Props {
@@ -30,7 +34,9 @@ export const AdminTicketDetailsModal: React.FC<Props> = ({
   onClose,
   ticket,
 }) => {
+  const { token } = useAuth();
   const [copied, setCopied] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(ticket.inviteCode);
@@ -38,9 +44,26 @@ export const AdminTicketDetailsModal: React.FC<Props> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleSavePdf = async () => {
+    if (downloadingPdf) return;
+    setDownloadingPdf(true);
+    try {
+      await downloadPdf(
+        {
+          type: "ticket",
+          id: ticket.id,
+          filename: `diuscadi-ticket-${ticket.inviteCode}.pdf`,
+        },
+        token ?? undefined,
+      );
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   const STATUS_STYLE: Record<string, string> = {
-    upcoming: "bg-blue-50 text-blue-600",
-    used: "bg-emerald-50 text-emerald-600",
+    registered: "bg-blue-50 text-blue-600",
+    "checked-in": "bg-emerald-50 text-emerald-600",
     cancelled: "bg-rose-50 text-rose-600",
     expired: "bg-muted text-muted-foreground",
   };
@@ -202,6 +225,7 @@ export const AdminTicketDetailsModal: React.FC<Props> = ({
                     </p>
                   </div>
                   <div className="flex gap-2">
+                    {/* Copy */}
                     <button
                       onClick={handleCopy}
                       className={cn(
@@ -248,28 +272,38 @@ export const AdminTicketDetailsModal: React.FC<Props> = ({
                         )}
                       </AnimatePresence>
                     </button>
+
+                    {/* Save PDF — now live */}
                     <button
+                      onClick={handleSavePdf}
+                      disabled={downloadingPdf}
                       className={cn(
                         "flex",
                         "items-center",
                         "gap-2",
                         "px-4",
                         "py-2",
-                        "bg-muted/50",
-                        "border",
-                        "border-border",
+                        "bg-foreground",
+                        "text-background",
                         "rounded-xl",
                         "text-[10px]",
                         "font-black",
                         "uppercase",
                         "tracking-tight",
-                        "text-muted-foreground",
-                        "cursor-not-allowed",
+                        "hover:bg-primary",
+                        "hover:text-foreground",
+                        "transition-all",
+                        "cursor-pointer",
+                        "disabled:opacity-50",
+                        "disabled:cursor-not-allowed",
                       )}
-                      title="PDF download not yet implemented"
                     >
-                      <LuDownload className="w-3.5 h-3.5" /> Save PDF
-                      {/* TODO: implement PDF ticket generation */}
+                      {downloadingPdf ? (
+                        <LuLoader className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <LuDownload className="w-3.5 h-3.5" />
+                      )}
+                      {downloadingPdf ? "Generating…" : "Save PDF"}
                     </button>
                   </div>
                 </div>
@@ -284,7 +318,11 @@ export const AdminTicketDetailsModal: React.FC<Props> = ({
                   label="Issued"
                   value={new Date(ticket.createdAt).toLocaleDateString(
                     "en-US",
-                    { month: "short", day: "numeric", year: "numeric" },
+                    {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    },
                   )}
                 />
                 <StatBlock
@@ -444,7 +482,7 @@ export const AdminTicketDetailsModal: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Activity TODO banner */}
+              {/* Activity info banner */}
               <div
                 className={cn(
                   "flex",
@@ -460,7 +498,6 @@ export const AdminTicketDetailsModal: React.FC<Props> = ({
                 <LuInfo className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <p className={cn("text-[11px]", "font-bold", "text-amber-700")}>
                   Verification ledger coming soon.
-                  {/* TODO: GET /api/admin/tickets/{id}/activity */}
                 </p>
               </div>
             </div>

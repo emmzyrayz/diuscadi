@@ -1,9 +1,11 @@
 "use client";
 // app/admin/users/page.tsx
+
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useAdmin } from "@/context/AdminContext";
 import { useAuth } from "@/context/AuthContext";
+import { useAdminExport } from "@/hooks/useAdminExport";
 import { AdminUsersHeader } from "@/components/sections/admin/users/AUHeader";
 import { AdminUsersToolbar } from "@/components/sections/admin/users/AUToolbar";
 import { AdminUsersTable } from "@/components/sections/admin/users/AUTable";
@@ -25,6 +27,14 @@ export default function UsersManagementPage() {
   const [status, setStatus] = useState("");
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
+  // Export — passes active filters so the CSV matches what admin is viewing
+  const { exporting, triggerExport } = useAdminExport({
+    route: "/api/admin/users",
+    filenamePrefix: "diuscadi-users",
+    loadingMessage: "Exporting users…",
+    successMessage: "Users exported",
+  });
 
   useEffect(() => {
     if (!token) return;
@@ -54,11 +64,6 @@ export default function UsersManagementPage() {
     setTimeout(() => setSelectedUser(null), 300);
   };
 
-  const handleExport = () => {
-    // TODO: implement CSV export via GET /api/admin/users?export=true
-    console.warn("TODO: export users CSV");
-  };
-
   if (loadingUsers && users.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[60vh] w-full md:mt-20 mt-10">
@@ -76,7 +81,8 @@ export default function UsersManagementPage() {
     >
       <AdminUsersHeader
         totalUsers={usersPagination?.total ?? users.length}
-        onExport={handleExport}
+        onExport={() => triggerExport({ search, role, status })}
+        exporting={exporting}
         onImport={() => console.warn("TODO: import CSV")}
       />
 

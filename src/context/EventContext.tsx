@@ -119,34 +119,6 @@ interface EventContextType {
   clearErrors: () => void;
 }
 
-
-// const DUMMY_EVENTS: EventSummary[] = [
-//   {
-//     id: "dummy-1",
-//     slug: "career-navigation-2026",
-//     title: "[DEMO] Career Navigation Summit",
-//     overview: "Practical roadmap for graduates.",
-//     category: "Career",
-//     tags: ["Future", "Jobs"],
-//     level: "Beginner",
-//     format: "In-Person",
-//     location: { venue: "Main Auditorium" },
-//     eventDate: new Date().toISOString(),
-//     endDate: null,
-//     registrationDeadline: new Date().toISOString(),
-//     capacity: 100,
-//     registeredCount: 50,
-//     slotsRemaining: 50,
-//     image: "/assets/img/downloads/networking-diuscadi.webp", // Ensure path is correct
-//     instructor: "Prof. Chief Umeh",
-//     targetEduStatus: "Final Year",
-//     requiredSkills: ["None"],
-//     locationScope: "Internal",
-//     ticketTypes: [],
-//     duration: null
-//   },
-// ];
-
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 const EventContext = createContext<EventContextType | undefined>(undefined);

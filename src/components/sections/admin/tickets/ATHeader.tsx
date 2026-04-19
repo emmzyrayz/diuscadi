@@ -12,12 +12,14 @@ interface AdminTicketsHeaderProps {
   onScanClick: () => void;
   onExportClick: () => void;
   activeTickets: number;
+  exporting: boolean;
 }
 
 export const AdminTicketsHeader: React.FC<AdminTicketsHeaderProps> = ({
   onScanClick,
   onExportClick,
   activeTickets,
+  exporting,
 }) => {
   return (
     <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 mb-10">
@@ -51,11 +53,14 @@ export const AdminTicketsHeader: React.FC<AdminTicketsHeaderProps> = ({
         {/* Export Utility */}
         <button
           onClick={onExportClick}
-          className="flex items-center gap-2 px-5 py-4 bg-background border border-border rounded-2xl text-slate-600 hover:border-foreground hover:text-foreground transition-all group"
+          disabled={exporting}
+          className="flex items-center gap-2 px-5 py-4 bg-background border border-border rounded-2xl text-slate-600 hover:border-foreground hover:text-foreground transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <LuDownload className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+          <LuDownload
+            className={`w-4 h-4 ${exporting ? "animate-bounce" : "group-hover:translate-y-0.5"} transition-transform`}
+          />
           <span className="text-[10px] font-black uppercase tracking-widest">
-            Export Manifest
+            {exporting ? "Exporting…" : "Export Manifest"}
           </span>
         </button>
 

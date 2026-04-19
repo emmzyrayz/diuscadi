@@ -1,12 +1,14 @@
 "use client";
 // app/admin/tickets/page.tsx
-// AdminContext has no loadTickets method — tickets are fetched directly
-// from GET /api/admin/tickets (admin-protected route).
-// TODO: add loadTickets to AdminContext if ticket management grows.
+// Fetches directly from GET /api/admin/tickets — no AdminContext needed for
+// this page since ticket data is local to this view and not shared state.
+// loadTickets has been added to AdminContext for pages that need ticket counts
+// (e.g. dashboard overview) — see AdminContext.tsx.
 
 import React, { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
+import { useAdminExport } from "@/hooks/useAdminExport";
 import { AdminTicketsHeader } from "@/components/sections/admin/tickets/ATHeader";
 import { AdminTicketsStats } from "@/components/sections/admin/tickets/ATStats";
 import { AdminTicketsToolbar } from "@/components/sections/admin/tickets/ATToolbar";
@@ -20,7 +22,7 @@ import { LuLoader } from "react-icons/lu";
 export interface AdminTicket {
   id: string;
   inviteCode: string;
-  status: string; // "upcoming" | "used" | "cancelled" | "expired"
+  status: string; // "registered" | "checked-in" | "cancelled"
   userId: string;
   userName: string;
   userEmail: string;
@@ -60,6 +62,14 @@ export default function TicketManagementPage() {
   const [status, setStatus] = useState("");
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
+  // Export — passes active filters so the CSV matches what admin is viewing
+  const { exporting, triggerExport } = useAdminExport({
+    route: "/api/admin/tickets",
+    filenamePrefix: "diuscadi-tickets",
+    loadingMessage: "Exporting tickets…",
+    successMessage: "Tickets exported",
+  });
+
   const fetchTickets = useCallback(async () => {
     if (!token) return;
     setLoading(true);
@@ -92,11 +102,6 @@ export default function TicketManagementPage() {
 
   const handleMutation = () => fetchTickets();
 
-  const handleExport = () => {
-    // TODO: GET /api/admin/tickets?export=true → download CSV
-    console.warn("TODO: export tickets CSV");
-  };
-
   if (loading && tickets.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[60vh] w-full md:mt-20 mt-10">
@@ -115,7 +120,8 @@ export default function TicketManagementPage() {
       <AdminTicketsHeader
         activeTickets={stats?.active ?? 0}
         onScanClick={() => setIsScannerOpen(true)}
-        onExportClick={handleExport}
+        onExportClick={() => triggerExport({ search, status })}
+        exporting={exporting}
       />
 
       <AdminTicketsStats stats={stats} />

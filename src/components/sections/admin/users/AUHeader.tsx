@@ -13,12 +13,14 @@ interface AdminUsersHeaderProps {
   totalUsers: number;
   onExport: () => void;
   onImport: () => void;
+  exporting: boolean;
 }
 
 export const AdminUsersHeader: React.FC<AdminUsersHeaderProps> = ({
   totalUsers,
   onExport,
   onImport,
+  exporting,
 }) => {
   return (
     <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 mb-10">
@@ -71,12 +73,15 @@ export const AdminUsersHeader: React.FC<AdminUsersHeaderProps> = ({
         {/* Primary CTA: Export Users */}
         <button
           onClick={onExport}
-          className="flex items-center gap-2 px-6 py-4 bg-foreground text-background rounded-2xl hover:bg-primary hover:text-foreground transition-all shadow-xl shadow-foreground/10 group"
+          disabled={exporting}
+          className="flex items-center gap-2 px-6 py-4 bg-foreground text-background rounded-2xl hover:bg-primary hover:text-foreground transition-all shadow-xl shadow-foreground/10 group disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <LuDownload className="w-4 h-4 group-hover:translate-y-1 transition-transform" />
-          <span className="text-[11px] font-black uppercase tracking-[0.15em]">
-            Export User Base
-          </span>
+          <LuDownload
+                     className={`w-4 h-4 ${exporting ? "animate-bounce" : "group-hover:translate-y-0.5"} transition-transform`}
+                   />
+                   <span className="text-[10px] font-black uppercase tracking-widest">
+                     {exporting ? "Exporting…" : "Export Manifest"}
+                   </span>
         </button>
       </div>
     </div>

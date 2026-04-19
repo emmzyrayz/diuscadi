@@ -1,17 +1,7 @@
 "use client";
-
-import { CloudinaryImage } from "@/types/cloudinary";
 // context/AdminContext.tsx
 // Manages all admin/webmaster dashboard data in one context.
 // Role-gated at the API level — this context just calls the routes.
-//
-// Borrows EventContext.refreshFeed() after event mutations so the
-// user-facing feed stays in sync.
-//
-// Consumed by:
-//   - Admin dashboard  → analytics, users, applications, invites
-//   - Event management → create, update, cancel/delete events
-//   - Webmaster tools  → role changes, account suspensions, invite generation
 
 import {
   createContext,
@@ -20,13 +10,14 @@ import {
   useCallback,
   ReactNode,
 } from "react";
+import { CloudinaryImage } from "@/types/cloudinary";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface AdminUser {
   id: string;
   vaultId: string;
-  fullName: { firstname: string; secondname?: string; lastname?: string }; // ← fix
+  fullName: { firstname: string; secondname?: string; lastname?: string };
   email: string;
   phone?: unknown;
   avatar: CloudinaryImage | null;
@@ -129,7 +120,7 @@ export interface Analytics {
   }>;
   recentSignups: Array<{
     id: string;
-    fullName: { firstname: string; secondname?: string; lastname?: string }; // ← fix
+    fullName: { firstname: string; secondname?: string; lastname?: string };
     email: string;
     role: string;
     eduStatus: string;
@@ -176,6 +167,30 @@ export interface Invite {
   createdAt: string;
 }
 
+// ── Ticket types (for AdminContext.loadTickets) ───────────────────────────────
+
+export interface AdminTicketSummary {
+  id: string;
+  inviteCode: string;
+  status: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userAvatar: string | null;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  checkedInAt: string | null;
+  createdAt: string;
+}
+
+export interface TicketStats {
+  total: number;
+  active: number;
+  checkedIn: number;
+  invalidated: number;
+}
+
 export interface Pagination {
   page: number;
   limit: number;
@@ -211,6 +226,12 @@ interface AdminState {
   invites: Invite[];
   invitesPagination: Pagination | null;
   loadingInvites: boolean;
+
+  // Tickets
+  tickets: AdminTicketSummary[];
+  ticketsPagination: Pagination | null;
+  ticketStats: TicketStats | null;
+  loadingTickets: boolean;
 
   // Shared
   error: string | null;
@@ -289,6 +310,18 @@ interface AdminContextValue extends AdminState {
     token: string,
   ) => Promise<Invite[]>;
 
+  // ── Tickets ────────────────────────────────────────────────────────────────
+  loadTickets: (
+    opts?: {
+      search?: string;
+      status?: string;
+      eventId?: string;
+      page?: number;
+      limit?: number;
+    },
+    token?: string,
+  ) => Promise<void>;
+
   // ── Shared ─────────────────────────────────────────────────────────────────
   reset: () => void;
   clearError: () => void;
@@ -334,6 +367,10 @@ const INITIAL_STATE: AdminState = {
   invites: [],
   invitesPagination: null,
   loadingInvites: false,
+  tickets: [],
+  ticketsPagination: null,
+  ticketStats: null,
+  loadingTickets: false,
   error: null,
   submitting: false,
 };
@@ -410,7 +447,6 @@ export function AdminProvider({
           body: JSON.stringify({ role }),
         });
         await handleResponse(res);
-        // Optimistic update
         setState((s) => ({
           ...s,
           submitting: false,
@@ -530,7 +566,6 @@ export function AdminProvider({
           status: string;
         }>(res);
 
-        // Build a lightweight AdminEvent from the response + payload
         const newEvent: AdminEvent = {
           id: data.eventId,
           title: payload.title,
@@ -554,8 +589,6 @@ export function AdminProvider({
           adminEvents: [newEvent, ...s.adminEvents],
           submitting: false,
         }));
-
-        // Sync user-facing EventContext feed
         refreshFeed?.();
         return newEvent;
       } catch (err) {
@@ -629,10 +662,8 @@ export function AdminProvider({
           submitting: false,
           adminEvents:
             action === "delete"
-              ? // Hard delete — remove from list
-                s.adminEvents.filter((e) => e.id !== id)
-              : // Cancel — update status in list
-                s.adminEvents.map((e) =>
+              ? s.adminEvents.filter((e) => e.id !== id)
+              : s.adminEvents.map((e) =>
                   e.id === id ? { ...e, status: "cancelled" } : e,
                 ),
         }));
@@ -810,7 +841,6 @@ export function AdminProvider({
           invites: Array<{ id: string; code: string; maxUses: number }>;
         }>(res);
 
-        // Build full Invite objects from the slim response
         const newInvites: Invite[] = data.invites.map((inv) => ({
           id: inv.id,
           code: inv.code,
@@ -827,7 +857,6 @@ export function AdminProvider({
           invites: [...newInvites, ...s.invites],
           submitting: false,
         }));
-
         return newInvites;
       } catch (err) {
         setState((s) => ({
@@ -840,6 +869,57 @@ export function AdminProvider({
       }
     },
     [],
+  );
+
+  // ── loadTickets ────────────────────────────────────────────────────────────
+  // Used by pages that need ticket data without owning the full ticket table
+  // (e.g. admin dashboard overview showing total/checked-in counts).
+  // The admin/tickets/page.tsx still fetches directly for its own state.
+  const loadTickets = useCallback(
+    async (
+      opts: {
+        search?: string;
+        status?: string;
+        eventId?: string;
+        page?: number;
+        limit?: number;
+      } = {},
+      tkn = token ?? "",
+    ) => {
+      if (!tkn) return;
+      setState((s) => ({ ...s, loadingTickets: true, error: null }));
+      try {
+        const params = new URLSearchParams();
+        if (opts.search) params.set("search", opts.search);
+        if (opts.status) params.set("status", opts.status);
+        if (opts.eventId) params.set("eventId", opts.eventId);
+        if (opts.page) params.set("page", String(opts.page));
+        if (opts.limit) params.set("limit", String(opts.limit));
+
+        const res = await fetch(`/api/admin/tickets?${params}`, {
+          headers: { Authorization: `Bearer ${tkn}` },
+        });
+        const data = await handleResponse<{
+          tickets: AdminTicketSummary[];
+          stats: TicketStats;
+          pagination: Pagination;
+        }>(res);
+        setState((s) => ({
+          ...s,
+          tickets: data.tickets,
+          ticketStats: data.stats,
+          ticketsPagination: data.pagination,
+          loadingTickets: false,
+        }));
+      } catch (err) {
+        setState((s) => ({
+          ...s,
+          loadingTickets: false,
+          error: err instanceof Error ? err.message : "Failed to load tickets",
+        }));
+      }
+    },
+    [token],
   );
 
   return (
@@ -858,6 +938,7 @@ export function AdminProvider({
         reviewApplication,
         loadInvites,
         generateInvites,
+        loadTickets,
         reset,
         clearError,
       }}

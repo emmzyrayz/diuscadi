@@ -3,7 +3,7 @@
 // Import these functions directly — no context needed.
 //
 // Usage:
-//   import { shareEventUrl, downloadTicketPdf, addToCalendar } from "@/lib/shareUtils";
+//   import { shareUrl, downloadPdf, addToCalendar } from "@/lib/shareUtils";
 
 import { toast } from "react-hot-toast";
 
@@ -42,7 +42,6 @@ export async function shareUrl(target: ShareTarget): Promise<boolean> {
       });
       return true;
     } catch (err) {
-      // User cancelled — not an error
       if ((err as Error).name === "AbortError") return false;
     }
   }
@@ -74,18 +73,15 @@ export function addToCalendar(event: CalendarEvent): void {
   const start = new Date(event.startDate);
   const end = event.endDate
     ? new Date(event.endDate)
-    : new Date(start.getTime() + 4 * 60 * 60 * 1000); // default +4h
+    : new Date(start.getTime() + 4 * 60 * 60 * 1000);
 
-  // Detect mobile
   const isMobile =
     typeof navigator !== "undefined" &&
     /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
   if (isMobile) {
-    // Generate .ics for native calendar apps
     _downloadIcs(event, start, end);
   } else {
-    // Google Calendar deep link for desktop
     _openGoogleCalendar(event, start, end);
   }
 }
@@ -144,7 +140,7 @@ function _openGoogleCalendar(
 
 export interface PdfTarget {
   type: "ticket" | "event-details";
-  id: string; // ticketId or eventSlug
+  id: string; // registration _id (MongoDB ObjectId string) for tickets
   filename?: string;
 }
 
@@ -152,12 +148,11 @@ export interface PdfTarget {
  * Download a PDF from the server.
  * Calls the relevant API route and triggers a browser download.
  *
- * Ticket PDF:       GET /api/tickets/[id]/pdf
- * Event detail PDF: GET /api/events/[slug]/pdf   (TODO: not yet built)
+ * Ticket PDF:       GET /api/tickets/[id]/pdf   ← implemented
+ * Event detail PDF: GET /api/events/[slug]/pdf  ← not yet built
  *
- * TODO: implement server-side PDF generation using @react-pdf/renderer or puppeteer:
- *   - Ticket: render TicketVisualCard to PDF with inviteCode + QR
- *   - Event:  render event details page to PDF
+ * The [id] for tickets is the eventRegistration MongoDB _id, not the inviteCode.
+ * Both TicketActions (user side) and ATDetailsModal (admin side) pass ticket.id.
  */
 export async function downloadPdf(
   target: PdfTarget,
@@ -171,8 +166,8 @@ export async function downloadPdf(
   const filename =
     target.filename ??
     (target.type === "ticket"
-      ? `ticket-${target.id}.pdf`
-      : `event-${target.id}.pdf`);
+      ? `diuscadi-ticket-${target.id}.pdf`
+      : `diuscadi-event-${target.id}.pdf`);
 
   try {
     const res = await fetch(endpoint, {
@@ -182,7 +177,6 @@ export async function downloadPdf(
     });
 
     if (res.status === 501 || res.status === 404) {
-      // Route not yet implemented
       toast("PDF download coming soon", { icon: "📄" });
       return;
     }
@@ -195,11 +189,20 @@ export async function downloadPdf(
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
+
+    // Prefer the filename the server provides via Content-Disposition
+    const disposition = res.headers.get("Content-Disposition") ?? "";
+    const serverFilename = disposition.match(/filename="?([^"]+)"?/)?.[1];
+
     a.href = url;
-    a.download = filename;
+    a.download = serverFilename ?? filename;
+    a.style.display = "none";
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
-    toast.success("PDF downloaded!");
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+
+    toast.success("Ticket PDF downloaded!");
   } catch {
     toast.error("Failed to download PDF");
   }
