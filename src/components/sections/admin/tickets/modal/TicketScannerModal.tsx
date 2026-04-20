@@ -49,6 +49,8 @@ export const TicketScannerModal: React.FC<Props> = ({
 
   const [mode, setMode] = useState<ScanMode>("manual");
   const [code, setCode] = useState("");
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const [result, setResult] = useState<VerifyResult>("idle");
   const [resultMsg, setResultMsg] = useState("");
   const [attendeeName, setAttendeeName] = useState<string | null>(null);
@@ -61,6 +63,10 @@ export const TicketScannerModal: React.FC<Props> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const readerRef = useRef<BrowserQRCodeReader | null>(null);
+
+  useEffect(() => {
+    setIsDesktop(window.innerWidth > 1024);
+  }, []);
 
   // ── Verify helper ─────────────────────────────────────────────────────────
   const verify = useCallback(
@@ -148,13 +154,13 @@ export const TicketScannerModal: React.FC<Props> = ({
 
       const device =
         devices.find((d) =>
-          ["back", "rear", "environment"].some((k) =>
+          ["back", "rear", "environment", "integrated", "usb"].some((k) =>
             d.label.toLowerCase().includes(k),
           ),
         ) ?? devices[0];
 
       // ✅ Defer until after React has painted the <video> element
-      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+      await new Promise<void>((resolve) => setTimeout(resolve, 200));
 
       if (!videoRef.current) {
         setCameraError("Could not attach camera to video element.");
@@ -294,60 +300,135 @@ export const TicketScannerModal: React.FC<Props> = ({
     setAttendeeName(null);
     setUploadPreview(null);
     setCameraError(null);
+    setShowHint(false);
   };
+
+   const resultCfg = result !== "idle" ? RESULT_CONFIG[result] : null;
+
+   useEffect(() => {
+     let timer: NodeJS.Timeout;
+
+     if (mode === "camera" && cameraActive && !resultCfg) {
+       // Show hint after 7 seconds of unsuccessful scanning
+       timer = setTimeout(() => setShowHint(true), 7000);
+     } else {
+       setShowHint(false);
+     }
+
+     return () => clearTimeout(timer);
+   }, [mode, cameraActive, resultCfg]);
 
   if (!isOpen) return null;
 
-  const resultCfg = result !== "idle" ? RESULT_CONFIG[result] : null;
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-foreground/90 backdrop-blur-md">
-      <div className="relative w-full max-w-lg bg-background rounded-[3rem] shadow-2xl overflow-hidden">
+    <div
+      className={cn(
+        "fixed",
+        "inset-0",
+        "z-[150]",
+        "flex",
+        "items-center",
+        "justify-center",
+        "p-4",
+        "bg-foreground/90",
+        "backdrop-blur-md",
+      )}
+    >
+      <div
+        className={cn(
+          "relative",
+          "w-full",
+          "max-w-lg",
+          "bg-background",
+          "rounded-[3rem]",
+          "shadow-2xl",
+          "overflow-hidden",
+        )}
+      >
         <button
           onClick={handleClose}
-          className="absolute top-6 right-6 p-2 text-muted-foreground hover:text-foreground z-20 cursor-pointer"
+          className={cn(
+            "absolute",
+            "top-6",
+            "right-6",
+            "p-2",
+            "text-muted-foreground",
+            "hover:text-foreground",
+            "z-20",
+            "cursor-pointer",
+          )}
         >
-          <LuX className="w-6 h-6" />
+          <LuX className={cn("w-6", "h-6")} />
         </button>
 
-        <div className="p-10 flex flex-col items-center text-center">
-          <h3 className="text-2xl font-black text-foreground uppercase tracking-tighter mb-4">
+        <div
+          className={cn(
+            "p-10",
+            "flex",
+            "flex-col",
+            "items-center",
+            "text-center",
+          )}
+        >
+          <h3
+            className={cn(
+              "text-2xl",
+              "font-black",
+              "text-foreground",
+              "uppercase",
+              "tracking-tighter",
+              "mb-4",
+            )}
+          >
             Validate Entry
           </h3>
 
           {/* ── Mode tabs ─────────────────────────────────────────────────── */}
-          <div className="flex gap-2 mb-6 bg-muted rounded-2xl p-1 w-full">
-            {(["camera", "upload", "manual"] as ScanMode[]).map((m) => {
-              const labels: Record<ScanMode, string> = {
-                camera: "Camera",
-                upload: "Upload QR",
-                manual: "Manual",
-              };
-              const Icons: Record<ScanMode, React.ElementType> = {
-                camera: LuCamera,
-                upload: LuUpload,
-                manual: LuKeyboard,
-              };
-              const Icon = Icons[m];
-              return (
-                <button
-                  key={m}
-                  onClick={() => {
-                    handleReset();
-                    setMode(m);
-                  }}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
-                    mode === m
-                      ? "bg-background text-foreground shadow"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {labels[m]}
-                </button>
-              );
-            })}
+          <div
+            className={cn(
+              "flex",
+              "gap-2",
+              "mb-6",
+              "bg-muted",
+              "rounded-2xl",
+              "p-1",
+              "w-full",
+            )}
+          >
+            {(["camera", "upload", "manual"] as ScanMode[])
+              .filter((m) => !(isDesktop && m === "camera"))
+              .map((m) => {
+                const labels: Record<ScanMode, string> = {
+                  camera: "Camera",
+                  upload: "Upload QR",
+                  manual: "Manual",
+                };
+                const Icons: Record<ScanMode, React.ElementType> = {
+                  camera: LuCamera,
+                  upload: LuUpload,
+                  manual: LuKeyboard,
+                };
+                const Icon = Icons[m];
+                return (
+                  <button
+                    key={m}
+                    onClick={() => {
+                      handleReset();
+                      setMode(m);
+                    }}
+                    className={cn(
+                      "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
+                      mode === m
+                        ? "bg-background text-foreground shadow"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Icon className={cn("w-3.5", "h-3.5")} />
+                    {labels[m]}
+                  </button>
+                );
+              })}
           </div>
 
           {/* ── Result banner ─────────────────────────────────────────────── */}
@@ -362,15 +443,22 @@ export const TicketScannerModal: React.FC<Props> = ({
                   resultCfg.bg,
                 )}
               >
-                <resultCfg.Icon className="w-5 h-5 shrink-0" />
+                <resultCfg.Icon className={cn("w-5", "h-5", "shrink-0")} />
                 <div className="text-left">
-                  <p className="text-[11px] font-black uppercase tracking-widest">
+                  <p
+                    className={cn(
+                      "text-[11px]",
+                      "font-black",
+                      "uppercase",
+                      "tracking-widest",
+                    )}
+                  >
                     {resultCfg.label}
                     {result === "valid" && attendeeName
                       ? ` — ${attendeeName}`
                       : ""}
                   </p>
-                  <p className="text-[10px] font-bold opacity-80">
+                  <p className={cn("text-[10px]", "font-bold", "opacity-80")}>
                     {resultMsg}
                   </p>
                 </div>
@@ -380,8 +468,22 @@ export const TicketScannerModal: React.FC<Props> = ({
 
           {/* ── Camera mode ───────────────────────────────────────────────── */}
           {mode === "camera" && (
-            <div className="w-full mb-4">
-              <div className="w-full aspect-square bg-foreground rounded-[2.5rem] relative flex items-center justify-center overflow-hidden border-4 border-border">
+            <div className={cn("w-full", "mb-4")}>
+              <div
+                className={cn(
+                  "w-full",
+                  "aspect-square",
+                  "bg-foreground",
+                  "rounded-[2.5rem]",
+                  "relative",
+                  "flex",
+                  "items-center",
+                  "justify-center",
+                  "overflow-hidden",
+                  "border-4",
+                  "border-border",
+                )}
+              >
                 <video
                   ref={videoRef}
                   className={cn(
@@ -391,17 +493,120 @@ export const TicketScannerModal: React.FC<Props> = ({
                   muted
                   playsInline
                 />
+
+                <AnimatePresence>
+                  {showHint && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3 text-left"
+                    >
+                      <LuInfo className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] font-bold text-amber-600 uppercase tracking-tight">
+                          Taking too long?
+                        </p>
+                        <p className="text-[10px] text-muted-foreground leading-tight">
+                          Try increasing the brightness, holding the code 6
+                          inches away, or
+                          <button
+                            onClick={() => setMode("manual")}
+                            className="text-primary font-bold ml-1 hover:underline"
+                          >
+                            switch to Manual Input
+                          </button>
+                          .
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* Scan frame overlay */}
                 {cameraActive && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-48 h-48 border-2 border-primary rounded-2xl relative">
-                      <span className="absolute -top-px -left-px w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-xl" />
-                      <span className="absolute -top-px -right-px w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-xl" />
-                      <span className="absolute -bottom-px -left-px w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-xl" />
-                      <span className="absolute -bottom-px -right-px w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-xl" />
+                  <div
+                    className={cn(
+                      "absolute",
+                      "inset-0",
+                      "flex",
+                      "items-center",
+                      "justify-center",
+                      "pointer-events-none",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "w-48",
+                        "h-48",
+                        "border-2",
+                        "border-primary",
+                        "rounded-2xl",
+                        "relative",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "absolute",
+                          "-top-px",
+                          "-left-px",
+                          "w-6",
+                          "h-6",
+                          "border-t-4",
+                          "border-l-4",
+                          "border-primary",
+                          "rounded-tl-xl",
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "absolute",
+                          "-top-px",
+                          "-right-px",
+                          "w-6",
+                          "h-6",
+                          "border-t-4",
+                          "border-r-4",
+                          "border-primary",
+                          "rounded-tr-xl",
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "absolute",
+                          "-bottom-px",
+                          "-left-px",
+                          "w-6",
+                          "h-6",
+                          "border-b-4",
+                          "border-l-4",
+                          "border-primary",
+                          "rounded-bl-xl",
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "absolute",
+                          "-bottom-px",
+                          "-right-px",
+                          "w-6",
+                          "h-6",
+                          "border-b-4",
+                          "border-r-4",
+                          "border-primary",
+                          "rounded-br-xl",
+                        )}
+                      />
                       {/* Scanning line */}
                       <motion.div
-                        className="absolute left-1 right-1 h-0.5 bg-primary/70 rounded"
+                        className={cn(
+                          "absolute",
+                          "left-1",
+                          "right-1",
+                          "h-0.5",
+                          "bg-primary/70",
+                          "rounded",
+                        )}
                         animate={{ top: ["10%", "85%", "10%"] }}
                         transition={{
                           duration: 2,
@@ -413,12 +618,36 @@ export const TicketScannerModal: React.FC<Props> = ({
                   </div>
                 )}
                 {!cameraActive && !cameraError && (
-                  <LuLoader className="w-10 h-10 text-slate-600 animate-spin" />
+                  <LuLoader
+                    className={cn(
+                      "w-10",
+                      "h-10",
+                      "text-slate-600",
+                      "animate-spin",
+                    )}
+                  />
                 )}
                 {cameraError && (
-                  <div className="flex flex-col items-center gap-3 px-6">
-                    <LuCameraOff className="w-10 h-10 text-rose-400" />
-                    <p className="text-[11px] font-bold text-slate-400 text-center">
+                  <div
+                    className={cn(
+                      "flex",
+                      "flex-col",
+                      "items-center",
+                      "gap-3",
+                      "px-6",
+                    )}
+                  >
+                    <LuCameraOff
+                      className={cn("w-10", "h-10", "text-rose-400")}
+                    />
+                    <p
+                      className={cn(
+                        "text-[11px]",
+                        "font-bold",
+                        "text-slate-400",
+                        "text-center",
+                      )}
+                    >
                       {cameraError}
                     </p>
                   </div>
@@ -430,17 +659,46 @@ export const TicketScannerModal: React.FC<Props> = ({
                     stopCamera();
                     startCamera();
                   }}
-                  className="mt-3 flex items-center gap-1.5 mx-auto text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  className={cn(
+                    "mt-3",
+                    "flex",
+                    "items-center",
+                    "gap-1.5",
+                    "mx-auto",
+                    "text-[10px]",
+                    "font-black",
+                    "uppercase",
+                    "tracking-widest",
+                    "text-muted-foreground",
+                    "hover:text-foreground",
+                    "transition-colors",
+                    "cursor-pointer",
+                  )}
                 >
-                  <LuSwitchCamera className="w-3.5 h-3.5" /> Switch Camera
+                  <LuSwitchCamera className={cn("w-3.5", "h-3.5")} /> Switch
+                  Camera
                 </button>
               )}
               {cameraError && (
                 <button
                   onClick={startCamera}
-                  className="mt-3 mx-auto flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-80 transition-opacity cursor-pointer"
+                  className={cn(
+                    "mt-3",
+                    "mx-auto",
+                    "flex",
+                    "items-center",
+                    "gap-1.5",
+                    "text-[10px]",
+                    "font-black",
+                    "uppercase",
+                    "tracking-widest",
+                    "text-primary",
+                    "hover:opacity-80",
+                    "transition-opacity",
+                    "cursor-pointer",
+                  )}
                 >
-                  <LuCamera className="w-3.5 h-3.5" /> Retry
+                  <LuCamera className={cn("w-3.5", "h-3.5")} /> Retry
                 </button>
               )}
             </div>
@@ -448,7 +706,7 @@ export const TicketScannerModal: React.FC<Props> = ({
 
           {/* ── Upload mode ───────────────────────────────────────────────── */}
           {mode === "upload" && (
-            <div className="w-full mb-4">
+            <div className={cn("w-full", "mb-4")}>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -459,31 +717,101 @@ export const TicketScannerModal: React.FC<Props> = ({
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={decoding}
-                className="w-full aspect-square bg-muted border-2 border-dashed border-border rounded-[2.5rem] flex flex-col items-center justify-center gap-4 hover:border-primary hover:bg-primary/5 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden"
+                className={cn(
+                  "w-full",
+                  "aspect-square",
+                  "bg-muted",
+                  "border-2",
+                  "border-dashed",
+                  "border-border",
+                  "rounded-[2.5rem]",
+                  "flex",
+                  "flex-col",
+                  "items-center",
+                  "justify-center",
+                  "gap-4",
+                  "hover:border-primary",
+                  "hover:bg-primary/5",
+                  "transition-all",
+                  "cursor-pointer",
+                  "disabled:opacity-60",
+                  "disabled:cursor-not-allowed",
+                  "relative",
+                  "overflow-hidden",
+                )}
               >
                 {uploadPreview && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={uploadPreview}
                     alt="QR preview"
-                    className="absolute inset-0 w-full h-full object-contain opacity-30"
+                    className={cn(
+                      "absolute",
+                      "inset-0",
+                      "w-full",
+                      "h-full",
+                      "object-contain",
+                      "opacity-30",
+                    )}
                   />
                 )}
                 {decoding ? (
                   <>
-                    <LuLoader className="w-10 h-10 text-primary animate-spin relative z-10" />
-                    <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground relative z-10">
+                    <LuLoader
+                      className={cn(
+                        "w-10",
+                        "h-10",
+                        "text-primary",
+                        "animate-spin",
+                        "relative",
+                        "z-10",
+                      )}
+                    />
+                    <p
+                      className={cn(
+                        "text-[11px]",
+                        "font-black",
+                        "uppercase",
+                        "tracking-widest",
+                        "text-muted-foreground",
+                        "relative",
+                        "z-10",
+                      )}
+                    >
                       Reading QR…
                     </p>
                   </>
                 ) : (
                   <>
-                    <LuUpload className="w-10 h-10 text-muted-foreground relative z-10" />
-                    <div className="relative z-10">
-                      <p className="text-[12px] font-black uppercase tracking-widest text-foreground">
+                    <LuUpload
+                      className={cn(
+                        "w-10",
+                        "h-10",
+                        "text-muted-foreground",
+                        "relative",
+                        "z-10",
+                      )}
+                    />
+                    <div className={cn("relative", "z-10")}>
+                      <p
+                        className={cn(
+                          "text-[12px]",
+                          "font-black",
+                          "uppercase",
+                          "tracking-widest",
+                          "text-foreground",
+                        )}
+                      >
                         {uploadPreview ? "Upload Another" : "Upload QR Image"}
                       </p>
-                      <p className="text-[10px] font-bold text-muted-foreground mt-1">
+                      <p
+                        className={cn(
+                          "text-[10px]",
+                          "font-bold",
+                          "text-muted-foreground",
+                          "mt-1",
+                        )}
+                      >
                         Tap to choose a photo from your device
                       </p>
                     </div>
@@ -495,9 +823,21 @@ export const TicketScannerModal: React.FC<Props> = ({
 
           {/* ── Manual mode ───────────────────────────────────────────────── */}
           {mode === "manual" && (
-            <div className="w-full space-y-4 mb-4">
-              <div className="relative group">
-                <LuKeyboard className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors w-5 h-5" />
+            <div className={cn("w-full", "space-y-4", "mb-4")}>
+              <div className={cn("relative", "group")}>
+                <LuKeyboard
+                  className={cn(
+                    "absolute",
+                    "left-5",
+                    "top-1/2",
+                    "-translate-y-1/2",
+                    "text-muted-foreground",
+                    "group-focus-within:text-primary",
+                    "transition-colors",
+                    "w-5",
+                    "h-5",
+                  )}
+                />
                 <input
                   type="text"
                   placeholder="Enter Invite or Ticket Code"
@@ -509,21 +849,59 @@ export const TicketScannerModal: React.FC<Props> = ({
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && code) verify(code);
                   }}
-                  className="w-full bg-muted border border-border rounded-2xl py-5 pl-14 pr-6 text-sm font-black uppercase tracking-widest outline-none focus:border-primary transition-all"
+                  className={cn(
+                    "w-full",
+                    "bg-muted",
+                    "border",
+                    "border-border",
+                    "rounded-2xl",
+                    "py-5",
+                    "pl-14",
+                    "pr-6",
+                    "text-sm",
+                    "font-black",
+                    "uppercase",
+                    "tracking-widest",
+                    "outline-none",
+                    "focus:border-primary",
+                    "transition-all",
+                  )}
                 />
               </div>
               <button
                 onClick={() => verify(code)}
                 disabled={checkInLoading || !code.trim()}
-                className="w-full py-5 bg-foreground text-background rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-primary hover:text-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className={cn(
+                  "w-full",
+                  "py-5",
+                  "bg-foreground",
+                  "text-background",
+                  "rounded-2xl",
+                  "text-[11px]",
+                  "font-black",
+                  "uppercase",
+                  "tracking-widest",
+                  "flex",
+                  "items-center",
+                  "justify-center",
+                  "gap-3",
+                  "hover:bg-primary",
+                  "hover:text-foreground",
+                  "transition-all",
+                  "disabled:opacity-50",
+                  "disabled:cursor-not-allowed",
+                  "cursor-pointer",
+                )}
               >
                 {checkInLoading ? (
                   <>
-                    <LuLoader className="w-5 h-5 animate-spin" /> Verifying…
+                    <LuLoader className={cn("w-5", "h-5", "animate-spin")} />{" "}
+                    Verifying…
                   </>
                 ) : (
                   <>
-                    <LuShieldCheck className="w-5 h-5" /> Verify Credentials
+                    <LuShieldCheck className={cn("w-5", "h-5")} /> Verify
+                    Credentials
                   </>
                 )}
               </button>
@@ -537,7 +915,18 @@ export const TicketScannerModal: React.FC<Props> = ({
                 handleReset();
                 if (mode === "camera") startCamera();
               }}
-              className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className={cn(
+                "w-full",
+                "py-3",
+                "text-[10px]",
+                "font-black",
+                "uppercase",
+                "tracking-widest",
+                "text-muted-foreground",
+                "hover:text-foreground",
+                "transition-colors",
+                "cursor-pointer",
+              )}
             >
               Scan Another
             </button>
