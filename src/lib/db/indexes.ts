@@ -279,6 +279,22 @@ export async function createIndexes() {
   ]);
   console.log("✓ curriculumSubmissions");
 
+  // pageVisits
+  await db.collection("pageVisits").createIndex(
+    { expiresAt: 1 },
+    { expireAfterSeconds: 0 }, // TTL — MongoDB deletes doc when expiresAt is reached
+  );
+  await db.collection("pageVisits").createIndex(
+    { sessionKey: 1 },
+    { unique: true }, // prevents duplicate visits within the 3hr window
+  );
+  await db.collection("pageVisits").createIndex({ hour: 1, dayOfWeek: 1 });
+  await db.collection("predictionLogs").createIndex(
+    { date: 1 },
+    { unique: true }, // one log per day
+  );
+  await db.collection("predictionLogs").createIndex({ appliedAt: -1 });
+
   console.log("\n✅ All indexes created.");
 }
 

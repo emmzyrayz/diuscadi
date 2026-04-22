@@ -24,6 +24,8 @@ import type {
   PlatformConfigDocument,
 } from "@/lib/models/platformConfig";
 import { EventReviewDocument } from "../models/EventReview";
+import { PageVisitDocument } from "../models/pageVisit";
+import { PredictionLogDocument } from "../models/predictionLog";
 
 export const Collections = {
   vault: (db: Db) => db.collection<VaultDocument>("vault"),
@@ -57,4 +59,6 @@ export const Collections = {
     db.collection<CommitteeRoleDocument>("committeeRoles"),
   platformConfig: (db: Db) =>
     db.collection<PlatformConfigDocument>("platformConfig"),
+  pageVisits: (db: Db) => db.collection<PageVisitDocument>("pageVisits"),
+  predictionLogs: (db: Db) => db.collection<PredictionLogDocument>("predictionLogs"),
 };

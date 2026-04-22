@@ -174,6 +174,18 @@ export interface Analytics {
       avgLcpMs: number | null;
     }>;
   };
+  hourlyVisits: Array<{
+    hour: number;
+    count: number;
+    volume: number; // 0–100, normalised for chart
+  }>;
+   prediction: {
+    biasVector: number[];
+    accuracyPct: number | null;   // null = no validation run yet
+    maeScore: number | null;
+    lastValidatedDate: string | null;
+    logCount: number;
+  };
   generatedAt: string;
 }
 

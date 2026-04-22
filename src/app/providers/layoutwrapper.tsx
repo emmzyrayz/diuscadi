@@ -1,8 +1,10 @@
+// layoutwrapper.tsx
 'use client';
 
 import { ReactNode } from 'react';
 import { getEnabledProviders } from './registry';
 import { ProviderConfig } from './types';
+import { usePageVisit } from '@/hooks/usePageVisit';
 
 interface LayoutWrapperProps {
   children: ReactNode;
@@ -30,6 +32,16 @@ function composeProviders(
 }
 
 /**
+ * Tiny invisible component to run our hook inside the provider tree
+ */
+function PageVisitTracker({ children }: { children: ReactNode }) {
+  // This is now a valid React component calling the hook.
+  // Because it sits inside the composed providers, useAuth() works perfectly.
+  usePageVisit();
+  return <>{children}</>;
+}
+
+/**
  * LayoutWrapper - Composes all enabled providers
  */
 export function LayoutContextWrapper({ children }: LayoutWrapperProps) {
@@ -42,5 +54,14 @@ export function LayoutContextWrapper({ children }: LayoutWrapperProps) {
     );
   }
 
-  return <>{composeProviders(enabledProviders, children)}</>;
+  return (
+    <>
+      {composeProviders(
+        enabledProviders,
+        <PageVisitTracker>
+          {children}
+        </PageVisitTracker>
+      )}
+    </>
+  );
 }

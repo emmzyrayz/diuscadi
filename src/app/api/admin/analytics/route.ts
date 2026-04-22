@@ -23,6 +23,8 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
+    
+
     const [
       totalUsers,
       newUsersThisWeek,
@@ -38,6 +40,8 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       topEvents,
       recentSignups,
       healthSummary,
+      hourlyVisitDocs,
+      latestPredictionLog,
     ] = await Promise.all([
       // Users
       Collections.userData(db).countDocuments(),
@@ -133,7 +137,37 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
           { $sort: { count: -1 } },
         ])
         .toArray(),
+
+      Collections.pageVisits(db)
+        .aggregate([
+          // Last 30 days of visits for pattern analysis
+          { $match: { timestamp: { $gte: thirtyDaysAgo } } },
+          {
+            $group: {
+              _id: "$hour",
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { _id: 1 } },
+        ])
+        .toArray(),
+
+      Collections.predictionLogs(db).findOne({}, { sort: { appliedAt: -1 } }),
     ]);
+
+    const hourlyVisitMap = Object.fromEntries(
+      (hourlyVisitDocs as { _id: number; count: number }[]).map((h) => [
+        h._id,
+        h.count,
+      ]),
+    );
+    const maxVisits = Math.max(1, ...Object.values(hourlyVisitMap));
+    const hourlyVisits = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      count: hourlyVisitMap[hour] ?? 0,
+      // Normalise to 0–100 for the chart
+      volume: Math.round(((hourlyVisitMap[hour] ?? 0) / maxVisits) * 100),
+    }));
 
     return NextResponse.json({
       users: {
@@ -184,6 +218,14 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
           visits: b.count,
           avgLcpMs: b.avgLcp ? Math.round(b.avgLcp) : null,
         })),
+      },
+      hourlyVisits,
+      prediction: {
+        biasVector: latestPredictionLog?.biasVector ?? new Array(24).fill(0),
+        accuracyPct: latestPredictionLog?.accuracyPct ?? null,
+        maeScore: latestPredictionLog?.maeScore ?? null,
+        lastValidatedDate: latestPredictionLog?.date ?? null,
+        logCount: await Collections.predictionLogs(db).countDocuments(),
       },
       generatedAt: now.toISOString(),
     });
