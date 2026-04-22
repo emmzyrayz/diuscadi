@@ -3,6 +3,8 @@ import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { cookies } from "next/headers";
+import { verifyJWT } from "@/lib/auth";
 import type {
   EventSpeaker,
   EventScheduleItem,
@@ -17,8 +19,10 @@ import { EventSchedule } from "@/components/sections/events/event/eSchedule";
 import { SpeakersSection } from "@/components/sections/events/event/eSpeaker";
 import { SponsorsSection } from "@/components/sections/events/event/eSponsors";
 import { FAQSection } from "@/components/sections/events/event/eFAQ";
+import { EventReviewsSection } from "@/components/sections/events/event/eReviews";
 import { RelatedEvents } from "@/components/sections/events/event/eRelated";
 import { FinalCTA } from "@/components/sections/events/event/eCTA";
+import { ObjectId } from "mongodb";
 
 // ── Shared detail type (exported for child components) ────────────────────────
 
@@ -49,7 +53,10 @@ export interface EventDetail {
   sponsors: EventSponsor[];
   faqs: EventFAQ[];
   eventDate: string;
+  // Raw ISO dates — needed by EventReviewsSection for window calculation
+  eventDateIso: string;
   endDate: string;
+  endDateIso: string | null;
   registrationDeadline: string;
   duration: string;
   capacity: number;
@@ -57,11 +64,10 @@ export interface EventDetail {
   slotsRemaining: number;
   price: string;
   isFree: boolean;
-  // Image fields — resolved from CloudinaryImage fields on the event document
-  image: string; // banner URL (preferred) or logo URL or fallback
-  logoImage: string; // logo URL or fallback — used in meta bar / OG tags
+  image: string;
+  logoImage: string;
   hasGallery: boolean;
-  galleryUrls: string[]; // first 6 gallery imageUrls for preview
+  galleryUrls: string[];
   status: string;
   locationScope: string;
 }
@@ -139,7 +145,6 @@ async function fetchEventDetail(
     : "Free";
   const now = new Date();
 
-  // ── Resolve image fields ──────────────────────────────────────────────────
   const bannerUrl = doc.hasEventBanner ? (doc.eventBanner?.imageUrl ?? "") : "";
   const logoUrl = doc.hasEventLogo ? (doc.eventLogo?.imageUrl ?? "") : "";
   const heroImage = bannerUrl || logoUrl || FALLBACK_IMAGE;
@@ -147,6 +152,9 @@ async function fetchEventDetail(
   const galleryUrls = doc.hasEventGallery
     ? (doc.eventGallery ?? []).slice(0, 6).map((g) => g.imageUrl)
     : [];
+
+  const eventDateObj = new Date(doc.eventDate as Date);
+  const endDateObj = doc.endDate ? new Date(doc.endDate as Date) : null;
 
   const detail: EventDetail = {
     id: doc._id!.toString(),
@@ -174,11 +182,11 @@ async function fetchEventDetail(
     schedule: doc.schedule ?? [],
     sponsors: doc.sponsors ?? [],
     faqs: doc.faqs ?? [],
-    eventDate: fmt(new Date(doc.eventDate as Date)),
-    endDate: doc.endDate ? fmt(new Date(doc.endDate as Date)) : "",
-    registrationDeadline: new Date(
-      doc.registrationDeadline as Date,
-    ).toISOString(),
+    eventDate: fmt(eventDateObj),
+    eventDateIso: eventDateObj.toISOString(),
+    endDate: endDateObj ? fmt(endDateObj) : "",
+    endDateIso: endDateObj?.toISOString() ?? null,
+    registrationDeadline: new Date(doc.registrationDeadline as Date).toISOString(),
     duration: doc.duration ?? "",
     capacity: doc.capacity,
     registered,
@@ -215,6 +223,38 @@ async function fetchEventDetail(
   return { detail, related };
 }
 
+// ── Resolve membership from server-side session cookie ────────────────────────
+// Used to determine whether to show the reviews gate on the server.
+// We use the HTTP-only session cookie here — no client JS needed.
+
+async function resolveIsMember(): Promise<boolean> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("diuscadi_token")?.value;
+    if (!token) return false;
+
+    const payload = verifyJWT(token);
+    if (!payload?.vaultId) return false;
+
+    // ✅ Convert string vaultId from JWT to ObjectId for MongoDB query
+    let vaultObjectId: ObjectId;
+    try {
+      vaultObjectId = new ObjectId(payload.vaultId);
+    } catch {
+      return false;
+    }
+
+    const db = await getDb();
+   const userData = await Collections.userData(db).findOne(
+     { vaultId: vaultObjectId },
+     { projection: { membershipStatus: 1 } },
+   );
+    return userData?.membershipStatus === "approved";
+  } catch {
+    return false;
+  }
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function EventDetailPage({
@@ -223,7 +263,11 @@ export default async function EventDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const result = await fetchEventDetail(slug);
+
+  const [result, isMember] = await Promise.all([
+    fetchEventDetail(slug),
+    resolveIsMember(),
+  ]);
 
   if (!result) notFound();
 
@@ -245,6 +289,14 @@ export default async function EventDetailPage({
         <SpeakersSection event={detail} />
         <SponsorsSection event={detail} />
         <FAQSection event={detail} />
+        {/* E1 — Reviews & Ratings: appears after event ends, members only */}
+        <EventReviewsSection
+          eventSlug={detail.slug}
+          eventId={detail.id}
+          endDateIso={detail.endDateIso}
+          eventDateIso={detail.eventDateIso}
+          isMember={isMember}
+        />
         <RelatedEvents events={related} currentSlug={detail.slug} />
         <FinalCTA event={detail} />
       </div>

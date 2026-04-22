@@ -1,10 +1,13 @@
 "use client";
 // modal/AUDetailModal.tsx
 // Read-only user profile viewer.
-// Accepts AdminUser from AdminContext — no fake data.
-// Tickets/Events tabs are honest TODOs until user-specific ticket API exists.
+// Tabs:
+//   info     — static from AdminUser prop (no fetch needed)
+//   tickets  — GET /api/admin/users/[id]/tickets
+//   events   — GET /api/admin/users/[id]/events
+//   activity — Account Timeline derived from AdminUser data (no fetch needed)
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LuX,
@@ -17,16 +20,34 @@ import {
   LuCalendar,
   LuActivity,
   LuShieldCheck,
-  LuInfo,
+  LuLoader,
+  LuCircleAlert,
+  LuCheckCheck,
+  LuCircleX,
+  LuClock,
+  LuUserCheck,
+  LuUsers,
+  LuMapPin,
+  LuCalendarCheck,
+  LuBadgeCheck,
+  LuClipboardList,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
-import { resolveAvatarUrl, type AdminUser } from "@/context/AdminContext";
+import {
+  resolveAvatarUrl,
+  type AdminUser,
+  useAdmin,
+  type AdminUserTicket,
+  type AdminUserEvent,
+  type AdminUserActivity,
+} from "@/context/AdminContext";
 import {
   resolveAdminFullName,
   resolveAdminInitial,
 } from "@/utils/adminFullName";
 import { IconType } from "react-icons";
 import Image from "next/image";
+import { useAuth } from "@/context/AuthContext";
 
 type TabType = "info" | "tickets" | "events" | "activity";
 
@@ -37,12 +58,107 @@ interface Props {
   onMutation?: () => void;
 }
 
-export const AdminUserDetailsModal: React.FC<Props> = ({
-  isOpen,
-  onClose,
-  user,
-}) => {
+// ── Ticket shape from /api/admin/users/[id]/tickets ───────────────────────────
+interface UserTicket {
+  id: string;
+  inviteCode: string;
+  status: string;
+  registeredAt: string;
+  checkedInAt: string | null;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string | null;
+  eventFormat: string;
+  ticketTypeName: string;
+  ticketPrice: number;
+  ticketCurrency: string;
+}
+
+// ── Event shape from /api/admin/users/[id]/events ─────────────────────────────
+interface UserEvent {
+  registrationId: string;
+  registrationStatus: string;
+  registeredAt: string;
+  checkedInAt: string | null;
+  eventId: string;
+  eventTitle: string;
+  eventSlug: string;
+  eventDate: string | null;
+  eventFormat: string;
+  eventCategory: string;
+  eventStatus: string;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatShortDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("en-NG", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "Africa/Lagos",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function ticketStatusStyle(status: string): string {
+  switch (status) {
+    case "checked-in": return "bg-emerald-50 text-emerald-600 border-emerald-100";
+    case "cancelled":  return "bg-rose-50 text-rose-600 border-rose-100";
+    case "registered": return "bg-blue-50 text-blue-600 border-blue-100";
+    default:           return "bg-muted text-muted-foreground border-border";
+  }
+}
+
+function ticketStatusLabel(status: string): string {
+  switch (status) {
+    case "checked-in": return "Attended";
+    case "cancelled":  return "Cancelled";
+    case "registered": return "Registered";
+    default:           return status;
+  }
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export const AdminUserDetailsModal: React.FC<Props> = ({ isOpen, onClose, user }) => {
+  const { token } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("info");
+
+  // ── Ticket tab state ───────────────────────────────────────────────────────
+  const [tickets, setTickets] = useState<UserTicket[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [ticketsError, setTicketsError] = useState<string | null>(null);
+  const [ticketsLoaded, setTicketsLoaded] = useState(false);
+
+  // ── Events tab state ───────────────────────────────────────────────────────
+  const [events, setEvents] = useState<UserEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+  const [eventsLoaded, setEventsLoaded] = useState(false);
+
+  const { loadUserTickets, loadUserEvents, loadUserActivity } = useAdmin();
+
+  const [userTickets, setUserTickets] = useState<AdminUserTicket[]>([]);
+  const [userTicketsPagination, setUserTicketsPagination] = useState<{
+    page: number;
+    totalPages: number;
+  } | null>(null);
+  const [userTicketsLoading, setUserTicketsLoading] = useState(false);
+
+  const [userEvents, setUserEvents] = useState<AdminUserEvent[]>([]);
+  const [userEventsPagination, setUserEventsPagination] = useState<{
+    page: number;
+    totalPages: number;
+  } | null>(null);
+  const [userEventsLoading, setUserEventsLoading] = useState(false);
+
+  const [userActivity, setUserActivity] = useState<AdminUserActivity[]>([]);
+  const [userActivityLoading, setUserActivityLoading] = useState(false);
 
   const avatarSrc = resolveAvatarUrl(user.avatar?.imageUrl);
   const isActive = user.isAccountActive;
@@ -58,6 +174,99 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
       : !isActive
         ? "bg-amber-50 text-amber-600 border-amber-100"
         : "bg-emerald-50 text-emerald-600 border-emerald-100";
+
+  // Reset on user change
+  useEffect(() => {
+    setActiveTab("info");
+    setTickets([]);
+    setTicketsLoaded(false);
+    setTicketsError(null);
+    setEvents([]);
+    setEventsLoaded(false);
+    setEventsError(null);
+  }, [user.id]);
+
+  // Fetch on tab change
+  useEffect(() => {
+    if (!isOpen) return;
+    if (activeTab === "tickets" && userTickets.length === 0) {
+      setUserTicketsLoading(true);
+      loadUserTickets(user.id, 1, token ?? undefined).then((res) => {
+        if (res) {
+          setUserTickets(res.tickets);
+          setUserTicketsPagination(res.pagination);
+        }
+        setUserTicketsLoading(false);
+      });
+    }
+    if (activeTab === "events" && userEvents.length === 0) {
+      setUserEventsLoading(true);
+      loadUserEvents(user.id, 1, token ?? undefined).then((res) => {
+        if (res) {
+          setUserEvents(res.events);
+          setUserEventsPagination(res.pagination);
+        }
+        setUserEventsLoading(false);
+      });
+    }
+    if (activeTab === "activity" && userActivity.length === 0) {
+      setUserActivityLoading(true);
+      loadUserActivity(user.id, token ?? undefined).then((res) => {
+        if (res) setUserActivity(res);
+        setUserActivityLoading(false);
+      });
+    }
+  }, [activeTab, isOpen, loadUserActivity, loadUserEvents, loadUserTickets, token, user.id, userActivity.length, userEvents.length, userTickets.length]);
+
+  // ── Fetch tickets (lazy — only when tab is first opened) ───────────────────
+  const fetchTickets = useCallback(async () => {
+    if (!token || ticketsLoaded) return;
+    setTicketsLoading(true);
+    setTicketsError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/tickets?limit=10`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to load tickets");
+      setTickets(data.tickets ?? []);
+      setTicketsLoaded(true);
+    } catch (err) {
+      setTicketsError(
+        err instanceof Error ? err.message : "Failed to load tickets",
+      );
+    } finally {
+      setTicketsLoading(false);
+    }
+  }, [token, user.id, ticketsLoaded]);
+
+  // ── Fetch events (lazy — only when tab is first opened) ────────────────────
+  const fetchEvents = useCallback(async () => {
+    if (!token || eventsLoaded) return;
+    setEventsLoading(true);
+    setEventsError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/events`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to load events");
+      setEvents(data.events ?? []);
+      setEventsLoaded(true);
+    } catch (err) {
+      setEventsError(
+        err instanceof Error ? err.message : "Failed to load events",
+      );
+    } finally {
+      setEventsLoading(false);
+    }
+  }, [token, user.id, eventsLoaded]);
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    if (tab === "tickets") fetchTickets();
+    if (tab === "events") fetchEvents();
+  };
 
   return (
     <AnimatePresence>
@@ -133,7 +342,7 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                 "overflow-hidden",
               )}
             >
-              {/* Left sidebar */}
+              {/* ── Left sidebar ─────────────────────────────────────────── */}
               <div
                 className={cn(
                   "w-full",
@@ -145,7 +354,6 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                   "overflow-y-auto",
                 )}
               >
-                {/* Avatar */}
                 <div
                   className={cn(
                     "flex",
@@ -176,7 +384,7 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                     >
                       {avatarSrc ? (
                         <Image
-                        height={300}
+                          height={300}
                           width={500}
                           src={avatarSrc}
                           alt={resolveAdminFullName(user.fullName)}
@@ -263,7 +471,6 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                   </div>
                 </div>
 
-                {/* Quick info */}
                 <div
                   className={cn(
                     "mt-8",
@@ -289,7 +496,11 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                     label="Member Since"
                     value={new Date(user.createdAt).toLocaleDateString(
                       "en-US",
-                      { month: "short", day: "numeric", year: "numeric" },
+                      {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      },
                     )}
                   />
                   {user.lastLoginAt && (
@@ -298,14 +509,18 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                       label="Last Login"
                       value={new Date(user.lastLoginAt).toLocaleDateString(
                         "en-US",
-                        { month: "short", day: "numeric", year: "numeric" },
+                        {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        },
                       )}
                     />
                   )}
                 </div>
               </div>
 
-              {/* Right tabs */}
+              {/* ── Right tabs ────────────────────────────────────────────── */}
               <div
                 className={cn(
                   "w-full",
@@ -344,16 +559,12 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                         label: `Events (${user.analytics.eventsAttended})`,
                         icon: LuCalendar,
                       },
-                      {
-                        id: "activity",
-                        label: "Activity Log",
-                        icon: LuActivity,
-                      },
+                      { id: "activity", label: "Timeline", icon: LuActivity },
                     ] as { id: TabType; label: string; icon: IconType }[]
                   ).map((tab) => (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
+                      onClick={() => handleTabChange(tab.id)}
                       className={cn(
                         "flex",
                         "items-center",
@@ -385,6 +596,7 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
 
                 <div className={cn("flex-1", "overflow-y-auto", "p-10")}>
                   <AnimatePresence mode="wait">
+                    {/* ── Info tab ───────────────────────────────────────── */}
                     {activeTab === "info" && (
                       <motion.div
                         key="info"
@@ -484,6 +696,7 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                       </motion.div>
                     )}
 
+                    {/* ── TICKETS TAB ─────────────────────────────────────────── */}
                     {activeTab === "tickets" && (
                       <motion.div
                         key="tickets"
@@ -491,44 +704,140 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         transition={{ duration: 0.2 }}
-                        className={cn(
-                          "flex",
-                          "flex-col",
-                          "items-center",
-                          "justify-center",
-                          "h-48",
-                          "text-center",
-                          "gap-3",
-                        )}
+                        className="space-y-4"
                       >
-                        <LuInfo
-                          className={cn("w-8", "h-8", "text-slate-300")}
-                        />
-                        <p
-                          className={cn(
-                            "text-[11px]",
-                            "font-black",
-                            "text-muted-foreground",
-                            "uppercase",
-                            "tracking-widest",
-                          )}
-                        >
-                          Ticket details coming soon
-                        </p>
-                        <p
-                          className={cn(
-                            "text-[9px]",
-                            "font-bold",
-                            "text-muted-foreground",
-                          )}
-                        >
-                          {/* TODO: GET /api/admin/users/{id}/tickets */}
-                          User has {user.analytics.eventsRegistered}{" "}
-                          registrations total
-                        </p>
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground border-b border-border pb-4">
+                          Ticket History ({user.analytics.eventsRegistered}{" "}
+                          total)
+                        </h3>
+                        {userTicketsLoading ? (
+                          <div className="flex justify-center py-12">
+                            <LuLoader className="w-6 h-6 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : userTickets.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-40 gap-3 text-center">
+                            <LuTicket className="w-8 h-8 text-slate-300" />
+                            <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">
+                              No tickets found
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {userTickets.map((t) => (
+                              <div
+                                key={t.id}
+                                className="flex items-start justify-between p-4 bg-muted rounded-2xl gap-4"
+                              >
+                                <div className="space-y-1 flex-1 min-w-0">
+                                  <p className="text-xs font-black text-foreground truncate">
+                                    {t.eventTitle}
+                                  </p>
+                                  <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground">
+                                    <LuCalendarDays className="w-3 h-3" />
+                                    {t.eventDate
+                                      ? new Date(
+                                          t.eventDate,
+                                        ).toLocaleDateString("en-NG", {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        })
+                                      : "—"}
+                                  </div>
+                                  <p className="text-[10px] font-mono text-slate-400 uppercase">
+                                    {t.inviteCode}
+                                  </p>
+                                </div>
+                                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                  <span
+                                    className={cn(
+                                      "px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
+                                      t.status === "checked-in"
+                                        ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                        : t.status === "cancelled"
+                                          ? "bg-rose-50 text-rose-600 border-rose-100"
+                                          : "bg-blue-50 text-blue-600 border-blue-100",
+                                    )}
+                                  >
+                                    {t.status}
+                                  </span>
+                                  <span className="text-[9px] font-bold text-muted-foreground">
+                                    {t.ticketTypeName}
+                                  </span>
+                                  <span className="text-[9px] font-bold text-muted-foreground">
+                                    {t.ticketTypePrice === 0
+                                      ? "Free"
+                                      : `₦${t.ticketTypePrice.toLocaleString()}`}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                            {userTicketsPagination &&
+                              userTicketsPagination.totalPages > 1 && (
+                                <div className="flex items-center justify-between pt-2">
+                                  <button
+                                    disabled={userTicketsPagination.page <= 1}
+                                    onClick={() => {
+                                      const nextPage =
+                                        userTicketsPagination.page - 1;
+                                      setUserTicketsLoading(true);
+                                      loadUserTickets(
+                                        user.id,
+                                        nextPage,
+                                        token ?? undefined,
+                                      ).then((res) => {
+                                        if (res) {
+                                          setUserTickets(res.tickets);
+                                          setUserTicketsPagination(
+                                            res.pagination,
+                                          );
+                                        }
+                                        setUserTicketsLoading(false);
+                                      });
+                                    }}
+                                    className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                                  >
+                                    ← Prev
+                                  </button>
+                                  <span className="text-[10px] font-bold text-muted-foreground">
+                                    Page {userTicketsPagination.page} of{" "}
+                                    {userTicketsPagination.totalPages}
+                                  </span>
+                                  <button
+                                    disabled={
+                                      userTicketsPagination.page >=
+                                      userTicketsPagination.totalPages
+                                    }
+                                    onClick={() => {
+                                      const nextPage =
+                                        userTicketsPagination.page + 1;
+                                      setUserTicketsLoading(true);
+                                      loadUserTickets(
+                                        user.id,
+                                        nextPage,
+                                        token ?? undefined,
+                                      ).then((res) => {
+                                        if (res) {
+                                          setUserTickets(res.tickets);
+                                          setUserTicketsPagination(
+                                            res.pagination,
+                                          );
+                                        }
+                                        setUserTicketsLoading(false);
+                                      });
+                                    }}
+                                    className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                                  >
+                                    Next →
+                                  </button>
+                                </div>
+                              )}
+                          </div>
+                        )}
                       </motion.div>
                     )}
 
+                    {/* ── EVENTS TAB ───────────────────────────────────────────── */}
                     {activeTab === "events" && (
                       <motion.div
                         key="events"
@@ -536,43 +845,139 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         transition={{ duration: 0.2 }}
-                        className={cn(
-                          "flex",
-                          "flex-col",
-                          "items-center",
-                          "justify-center",
-                          "h-48",
-                          "text-center",
-                          "gap-3",
-                        )}
+                        className="space-y-4"
                       >
-                        <LuInfo
-                          className={cn("w-8", "h-8", "text-slate-300")}
-                        />
-                        <p
-                          className={cn(
-                            "text-[11px]",
-                            "font-black",
-                            "text-muted-foreground",
-                            "uppercase",
-                            "tracking-widest",
-                          )}
-                        >
-                          Event history coming soon
-                        </p>
-                        <p
-                          className={cn(
-                            "text-[9px]",
-                            "font-bold",
-                            "text-muted-foreground",
-                          )}
-                        >
-                          {/* TODO: GET /api/admin/users/{id}/events */}
-                          User attended {user.analytics.eventsAttended} events
-                        </p>
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground border-b border-border pb-4">
+                          Events Attended ({user.analytics.eventsAttended}{" "}
+                          total)
+                        </h3>
+                        {userEventsLoading ? (
+                          <div className="flex justify-center py-12">
+                            <LuLoader className="w-6 h-6 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : userEvents.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-40 gap-3 text-center">
+                            <LuCalendar className="w-8 h-8 text-slate-300" />
+                            <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">
+                              No events attended yet
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {userEvents.map((e) => (
+                              <div
+                                key={e.id}
+                                className="flex items-start justify-between p-4 bg-muted rounded-2xl gap-4"
+                              >
+                                <div className="space-y-1 flex-1 min-w-0">
+                                  <p className="text-xs font-black text-foreground truncate">
+                                    {e.eventTitle}
+                                  </p>
+                                  <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground">
+                                    <LuCalendarDays className="w-3 h-3" />
+                                    {e.eventDate
+                                      ? new Date(
+                                          e.eventDate,
+                                        ).toLocaleDateString("en-NG", {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        })
+                                      : "—"}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground">
+                                    <LuMapPin className="w-3 h-3" />{" "}
+                                    {e.eventFormat}
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                  <span className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border bg-emerald-50 text-emerald-600 border-emerald-100 flex items-center gap-1">
+                                    <LuCalendarCheck className="w-3 h-3" />{" "}
+                                    Attended
+                                  </span>
+                                  {e.checkedInAt && (
+                                    <span className="text-[9px] font-bold text-muted-foreground">
+                                      {new Date(
+                                        e.checkedInAt,
+                                      ).toLocaleTimeString("en-NG", {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}{" "}
+                                      WAT
+                                    </span>
+                                  )}
+                                  <span className="text-[9px] font-bold text-muted-foreground capitalize">
+                                    {e.eventCategory}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                            {userEventsPagination &&
+                              userEventsPagination.totalPages > 1 && (
+                                <div className="flex items-center justify-between pt-2">
+                                  <button
+                                    disabled={userEventsPagination.page <= 1}
+                                    onClick={() => {
+                                      const nextPage =
+                                        userEventsPagination.page - 1;
+                                      setUserEventsLoading(true);
+                                      loadUserEvents(
+                                        user.id,
+                                        nextPage,
+                                        token ?? undefined,
+                                      ).then((res) => {
+                                        if (res) {
+                                          setUserEvents(res.events);
+                                          setUserEventsPagination(
+                                            res.pagination,
+                                          );
+                                        }
+                                        setUserEventsLoading(false);
+                                      });
+                                    }}
+                                    className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                                  >
+                                    ← Prev
+                                  </button>
+                                  <span className="text-[10px] font-bold text-muted-foreground">
+                                    Page {userEventsPagination.page} of{" "}
+                                    {userEventsPagination.totalPages}
+                                  </span>
+                                  <button
+                                    disabled={
+                                      userEventsPagination.page >=
+                                      userEventsPagination.totalPages
+                                    }
+                                    onClick={() => {
+                                      const nextPage =
+                                        userEventsPagination.page + 1;
+                                      setUserEventsLoading(true);
+                                      loadUserEvents(
+                                        user.id,
+                                        nextPage,
+                                        token ?? undefined,
+                                      ).then((res) => {
+                                        if (res) {
+                                          setUserEvents(res.events);
+                                          setUserEventsPagination(
+                                            res.pagination,
+                                          );
+                                        }
+                                        setUserEventsLoading(false);
+                                      });
+                                    }}
+                                    className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                                  >
+                                    Next →
+                                  </button>
+                                </div>
+                              )}
+                          </div>
+                        )}
                       </motion.div>
                     )}
 
+                    {/* ── ACTIVITY TAB ─────────────────────────────────────────── */}
                     {activeTab === "activity" && (
                       <motion.div
                         key="activity"
@@ -580,31 +985,89 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         transition={{ duration: 0.2 }}
-                        className={cn(
-                          "flex",
-                          "flex-col",
-                          "items-center",
-                          "justify-center",
-                          "h-48",
-                          "text-center",
-                          "gap-3",
-                        )}
+                        className="space-y-4"
                       >
-                        <LuActivity
-                          className={cn("w-8", "h-8", "text-slate-300")}
-                        />
-                        <p
-                          className={cn(
-                            "text-[11px]",
-                            "font-black",
-                            "text-muted-foreground",
-                            "uppercase",
-                            "tracking-widest",
-                          )}
-                        >
-                          Activity log coming soon
-                        </p>
-                        {/* TODO: GET /api/admin/users/{id}/activity */}
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground border-b border-border pb-4">
+                          Activity Log
+                        </h3>
+                        {userActivityLoading ? (
+                          <div className="flex justify-center py-12">
+                            <LuLoader className="w-6 h-6 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : userActivity.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-40 gap-3 text-center">
+                            <LuActivity className="w-8 h-8 text-slate-300" />
+                            <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">
+                              No activity recorded
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="relative space-y-0">
+                            {/* Timeline line */}
+                            <div className="absolute left-4 top-2 bottom-2 w-px bg-border" />
+                            {userActivity.map((a, i) => {
+                              const iconMap: Record<string, React.ElementType> =
+                                {
+                                  registration: LuTicket,
+                                  "check-in": LuCalendarCheck,
+                                  application: LuClipboardList,
+                                };
+                              const colorMap: Record<string, string> = {
+                                registration: "bg-blue-100 text-blue-600",
+                                "check-in": "bg-emerald-100 text-emerald-600",
+                                application: "bg-amber-100 text-amber-600",
+                              };
+                              const Icon = iconMap[a.type] ?? LuActivity;
+                              return (
+                                <div
+                                  key={i}
+                                  className="flex items-start gap-4 pl-10 pb-5 relative"
+                                >
+                                  {/* Dot */}
+                                  <div
+                                    className={cn(
+                                      "absolute left-2 top-1 w-4 h-4 rounded-full flex items-center justify-center -translate-x-1/2",
+                                      colorMap[a.type] ??
+                                        "bg-muted text-muted-foreground",
+                                    )}
+                                  >
+                                    <Icon className="w-2.5 h-2.5" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-foreground">
+                                      {a.label}
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <span
+                                        className={cn(
+                                          "text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded",
+                                          a.status === "checked-in" ||
+                                            a.status === "approved"
+                                            ? "bg-emerald-50 text-emerald-600"
+                                            : a.status === "cancelled" ||
+                                                a.status === "rejected"
+                                              ? "bg-rose-50 text-rose-600"
+                                              : "bg-blue-50 text-blue-600",
+                                        )}
+                                      >
+                                        {a.status}
+                                      </span>
+                                      <span className="text-[9px] font-bold text-muted-foreground">
+                                        {new Date(
+                                          a.timestamp,
+                                        ).toLocaleDateString("en-NG", {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        })}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -616,7 +1079,9 @@ export const AdminUserDetailsModal: React.FC<Props> = ({
       )}
     </AnimatePresence>
   );
-};
+};;
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 const InfoRow: React.FC<{ icon: IconType; label: string; value: string }> = ({
   icon: Icon,
@@ -626,41 +1091,18 @@ const InfoRow: React.FC<{ icon: IconType; label: string; value: string }> = ({
   <div className={cn("flex", "items-center", "gap-4")}>
     <div
       className={cn(
-        "w-10",
-        "h-10",
-        "rounded-xl",
-        "bg-background",
-        "border",
-        "border-border",
-        "flex",
-        "items-center",
-        "justify-center",
-        "shrink-0",
+        "w-10", "h-10", "rounded-xl",
+        "bg-background", "border", "border-border",
+        "flex", "items-center", "justify-center", "shrink-0",
       )}
     >
       <Icon className={cn("w-4", "h-4", "text-muted-foreground")} />
     </div>
     <div>
-      <p
-        className={cn(
-          "text-[9px]",
-          "font-black",
-          "text-muted-foreground",
-          "uppercase",
-          "tracking-widest",
-        )}
-      >
+      <p className={cn("text-[9px]", "font-black", "text-muted-foreground", "uppercase", "tracking-widest")}>
         {label}
       </p>
-      <p
-        className={cn(
-          "text-xs",
-          "font-bold",
-          "text-foreground",
-          "truncate",
-          "max-w-[200px]",
-        )}
-      >
+      <p className={cn("text-xs", "font-bold", "text-foreground", "truncate", "max-w-[200px]")}>
         {value || "—"}
       </p>
     </div>
@@ -673,18 +1115,9 @@ const InfoBlock: React.FC<{ icon: IconType; label: string; value: string }> = ({
   value,
 }) => (
   <div className={cn("space-y-2")}>
-    <div
-      className={cn("flex", "items-center", "gap-2", "text-muted-foreground")}
-    >
+    <div className={cn("flex", "items-center", "gap-2", "text-muted-foreground")}>
       <Icon className={cn("w-4", "h-4")} />
-      <span
-        className={cn(
-          "text-[9px]",
-          "font-black",
-          "uppercase",
-          "tracking-widest",
-        )}
-      >
+      <span className={cn("text-[9px]", "font-black", "uppercase", "tracking-widest")}>
         {label}
       </span>
     </div>

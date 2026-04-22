@@ -104,6 +104,21 @@ export async function createIndexes() {
   ]);
   console.log("✓ events");
 
+  // ── eventReviewsTypes ────────────────────────────────────────────────────────────
+  await db.collection("eventReviews").createIndexes([
+    // One review per user per event — enforced at DB level
+    {
+      key: { eventId: 1, userId: 1 },
+      unique: true,
+      name: "eventReviews_user_event_unique",
+    },
+    // Fetch all visible reviews for an event fast
+    { key: { eventId: 1, isVisible: 1 }, name: "eventReviews_eventId_visible" },
+    // Admin moderation queue — hidden reviews sorted by date
+    { key: { isVisible: 1, createdAt: -1 }, name: "eventReviews_moderation" },
+  ]);
+  console.log("✓ eventReviews");
+
   // ── ticketTypes ────────────────────────────────────────────────────────────
   await db.collection("ticketTypes").createIndexes([
     { key: { eventId: 1 }, name: "ticketTypes_eventId" },

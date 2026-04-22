@@ -90,6 +90,47 @@ export interface CreateEventPayload {
   status?: string;
 }
 
+// ── User detail tab types ─────────────────────────────────────────────────────
+
+export interface AdminUserTicket {
+  id: string;
+  inviteCode: string;
+  status: string;
+  registeredAt: string;
+  checkedInAt: string | null;
+  createdAt: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string | null;
+  eventSlug: string;
+  eventFormat: string;
+  eventStatus: string;
+  ticketTypeName: string;
+  ticketTypePrice: number;
+  ticketTypeCurrency: string;
+}
+
+export interface AdminUserEvent {
+  id: string;
+  inviteCode: string;
+  checkedInAt: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string | null;
+  eventSlug: string;
+  eventFormat: string;
+  eventCategory: string;
+  eventImage: string | null;
+}
+
+export interface AdminUserActivity {
+  type: "registration" | "check-in" | "application";
+  label: string;
+  meta: string;
+  status: string;
+  timestamp: string;
+}
+
 export type UpdateEventPayload = Partial<CreateEventPayload>;
 
 export interface Analytics {
@@ -251,6 +292,29 @@ interface AdminContextValue extends AdminState {
     reason?: string,
     token?: string,
   ) => Promise<void>;
+  // in AdminContextValue interface
+  loadUserTickets: (
+    userId: string,
+    page?: number,
+    token?: string,
+  ) => Promise<{
+    tickets: AdminUserTicket[];
+    pagination: Pagination;
+  } | null>;
+
+  loadUserEvents: (
+    userId: string,
+    page?: number,
+    token?: string,
+  ) => Promise<{
+    events: AdminUserEvent[];
+    pagination: Pagination;
+  } | null>;
+
+  loadUserActivity: (
+    userId: string,
+    token?: string,
+  ) => Promise<AdminUserActivity[] | null>;
 
   // ── Events ─────────────────────────────────────────────────────────────────
   loadAdminEvents: (
@@ -922,6 +986,62 @@ export function AdminProvider({
     [token],
   );
 
+  const loadUserTickets = useCallback(
+    async (userId: string, page = 1, tkn = token ?? "") => {
+      if (!tkn) return null;
+      try {
+        const res = await fetch(
+          `/api/admin/users/${userId}/tickets?page=${page}&limit=10`,
+          { headers: { Authorization: `Bearer ${tkn}` } },
+        );
+        return await handleResponse<{
+          tickets: AdminUserTicket[];
+          pagination: Pagination;
+        }>(res);
+      } catch {
+        return null;
+      }
+    },
+    [token],
+  );
+
+  const loadUserEvents = useCallback(
+    async (userId: string, page = 1, tkn = token ?? "") => {
+      if (!tkn) return null;
+      try {
+        const res = await fetch(
+          `/api/admin/users/${userId}/events?page=${page}&limit=10`,
+          { headers: { Authorization: `Bearer ${tkn}` } },
+        );
+        return await handleResponse<{
+          events: AdminUserEvent[];
+          pagination: Pagination;
+        }>(res);
+      } catch {
+        return null;
+      }
+    },
+    [token],
+  );
+
+  const loadUserActivity = useCallback(
+    async (userId: string, tkn = token ?? "") => {
+      if (!tkn) return null;
+      try {
+        const res = await fetch(`/api/admin/users/${userId}/activity`, {
+          headers: { Authorization: `Bearer ${tkn}` },
+        });
+        const data = await handleResponse<{ activity: AdminUserActivity[] }>(
+          res,
+        );
+        return data.activity;
+      } catch {
+        return null;
+      }
+    },
+    [token],
+  );
+
   return (
     <AdminContext.Provider
       value={{
@@ -929,6 +1049,9 @@ export function AdminProvider({
         loadUsers,
         changeRole,
         changeStatus,
+        loadUserTickets,
+        loadUserEvents,
+        loadUserActivity,
         loadAdminEvents,
         createEvent,
         updateEvent,

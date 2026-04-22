@@ -23,6 +23,7 @@ import type {
   CommitteeRoleDocument,
   PlatformConfigDocument,
 } from "@/lib/models/platformConfig";
+import { EventReviewDocument } from "../models/EventReview";
 
 export const Collections = {
   vault: (db: Db) => db.collection<VaultDocument>("vault"),
@@ -33,6 +34,7 @@ export const Collections = {
   ticketTypes: (db: Db) => db.collection<TicketTypeDocument>("ticketTypes"),
   eventRegistrations: (db: Db) =>
     db.collection<EventRegistrationDocument>("eventRegistrations"),
+  eventReviews: (db: Db) => db.collection<EventReviewDocument>("eventReviews"),
   institutions: (db: Db) => db.collection<InstitutionDocument>("institutions"),
   faculties: (db: Db) => db.collection<FacultyDocument>("faculties"),
   departments: (db: Db) => db.collection<DepartmentDocument>("departments"),
