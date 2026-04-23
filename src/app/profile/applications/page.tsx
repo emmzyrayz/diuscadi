@@ -1,12 +1,14 @@
 "use client";
 // app/profile/applications/page.tsx
-// User-facing applications page — submit and track committee/skills requests.
-// Uses ApplicationContext which already has loadMyApplications + submitApplication.
+// Role-gated applications page.
+// Participant (not yet member) → Membership card only.
+// Approved member / moderator / admin → Committee, Skills, Writer, Program, Sponsorship.
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useUser } from "@/context/UserContext";
 import { useApplications } from "@/context/ApplicationContext";
 import { usePlatform } from "@/context/PlatformContext";
 import { cn } from "@/lib/utils";
@@ -24,8 +26,18 @@ import {
   LuX,
   LuChevronDown,
   LuInfo,
+  LuUsers,
+  LuPenLine,
+  LuBriefcase,
+  LuGraduationCap,
+  LuLock,
 } from "react-icons/lu";
-import type { Application } from "@/context/ApplicationContext";
+import type {
+  Application,
+  ApplicationType,
+} from "@/context/ApplicationContext";
+
+// ── Status styles ─────────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; dot: string }> =
   {
@@ -52,25 +64,116 @@ const STATUS_ICONS = {
   rejected: LuCircleX,
 };
 
+// ── Application type config ───────────────────────────────────────────────────
+
+interface AppTypeConfig {
+  type: ApplicationType;
+  label: string;
+  description: string;
+  icon: React.ElementType;
+  iconBg: string;
+  iconColor: string;
+  memberOnly: boolean; // false = visible to all, true = member only
+}
+
+const APP_TYPE_CONFIGS: AppTypeConfig[] = [
+  {
+    type: "membership",
+    label: "DIUSCADI Membership",
+    description:
+      "Apply to become an official DIUSCADI member and unlock all platform features",
+    icon: LuUsers,
+    iconBg: "bg-primary/10",
+    iconColor: "text-primary",
+    memberOnly: false,
+  },
+  {
+    type: "committee",
+    label: "Join a Committee",
+    description:
+      "Apply to join one of our active committees and contribute to DIUSCADI's mission",
+    icon: LuShieldCheck,
+    iconBg: "bg-blue-50",
+    iconColor: "text-blue-600",
+    memberOnly: true,
+  },
+  {
+    type: "skills",
+    label: "Skills Verification",
+    description:
+      "Add verified skills to your profile for recognition and career opportunities",
+    icon: LuCode,
+    iconBg: "bg-purple-50",
+    iconColor: "text-purple-600",
+    memberOnly: true,
+  },
+  {
+    type: "writer",
+    label: "Content Writer",
+    description:
+      "Apply to become a DIUSCADI content contributor and publish articles on the platform",
+    icon: LuPenLine,
+    iconBg: "bg-emerald-50",
+    iconColor: "text-emerald-600",
+    memberOnly: true,
+  },
+  {
+    type: "program",
+    label: "Program Expert",
+    description:
+      "Apply to lead or participate in DIUSCADI's career development programs",
+    icon: LuGraduationCap,
+    iconBg: "bg-amber-50",
+    iconColor: "text-amber-600",
+    memberOnly: true,
+  },
+  {
+    type: "sponsorship",
+    label: "Sponsorship",
+    description:
+      "Apply to sponsor DIUSCADI events and programmes and gain brand visibility",
+    icon: LuBriefcase,
+    iconBg: "bg-rose-50",
+    iconColor: "text-rose-600",
+    memberOnly: true,
+  },
+];
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function ProfileApplicationsPage() {
   const router = useRouter();
   const { token } = useAuth();
+  const { profile } = useUser();
   const {
     applications,
     loading,
     submitting,
-    // error,
     loadMyApplications,
     submitApplication,
     hasPending,
-    // clearError,
+    hasApproved,
   } = useApplications();
   const { committees, skills, loadCommittees, loadSkills } = usePlatform();
 
-  const [showForm, setShowForm] = useState(false);
-  const [formType, setFormType] = useState<"committee" | "skills">("committee");
+  // ── Role gate ─────────────────────────────────────────────────────────────
+  // isMember = approved member OR any elevated role
+  const isMember =
+    profile?.membershipStatus === "approved" ||
+    (profile?.role !== "participant" && profile?.role !== undefined);
+
+  // Visible application types based on membership status
+  const visibleTypes = APP_TYPE_CONFIGS.filter((cfg) =>
+    isMember ? cfg.type !== "membership" : !cfg.memberOnly,
+  );
+
+  // ── Form state ────────────────────────────────────────────────────────────
+  const [activeForm, setActiveForm] = useState<ApplicationType | null>(null);
   const [selectedComm, setSelectedComm] = useState("");
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [requestedProgram, setRequestedProgram] = useState("");
+  const [topics, setTopics] = useState<string[]>([]);
+  const [topicInput, setTopicInput] = useState("");
   const [reason, setReason] = useState("");
 
   useEffect(() => {
@@ -79,10 +182,26 @@ export default function ProfileApplicationsPage() {
     loadSkills();
   }, [loadCommittees, loadMyApplications, loadSkills, token]);
 
+  const resetForm = () => {
+    setActiveForm(null);
+    setSelectedComm("");
+    setSelectedSkills([]);
+    setRequestedProgram("");
+    setTopics([]);
+    setTopicInput("");
+    setReason("");
+  };
+
   const handleSubmit = async () => {
-    if (!token) return;
+    if (!token || !activeForm) return;
+
     try {
-      if (formType === "committee") {
+      if (activeForm === "membership") {
+        await submitApplication(
+          { type: "membership", reason: reason || undefined },
+          token,
+        );
+      } else if (activeForm === "committee") {
         if (!selectedComm) {
           toast.error("Select a committee");
           return;
@@ -95,7 +214,7 @@ export default function ProfileApplicationsPage() {
           },
           token,
         );
-      } else {
+      } else if (activeForm === "skills") {
         if (selectedSkills.length === 0) {
           toast.error("Select at least one skill");
           return;
@@ -108,12 +227,41 @@ export default function ProfileApplicationsPage() {
           },
           token,
         );
+      } else if (activeForm === "program") {
+        if (!requestedProgram.trim()) {
+          toast.error("Enter a program name or area");
+          return;
+        }
+        await submitApplication(
+          {
+            type: "program",
+            requestedProgram: requestedProgram.trim(),
+            reason: reason || undefined,
+          },
+          token,
+        );
+      } else if (activeForm === "writer") {
+        if (topics.length === 0) {
+          toast.error("Add at least one topic area");
+          return;
+        }
+        await submitApplication(
+          { type: "writer", topics, reason: reason || undefined },
+          token,
+        );
+      } else if (activeForm === "sponsorship") {
+        if (!reason.trim()) {
+          toast.error("Please describe your sponsorship interest");
+          return;
+        }
+        await submitApplication(
+          { type: "sponsorship", reason: reason.trim() },
+          token,
+        );
       }
-      toast.success("Application submitted");
-      setShowForm(false);
-      setSelectedComm("");
-      setSelectedSkills([]);
-      setReason("");
+
+      toast.success("Application submitted successfully");
+      resetForm();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Submission failed");
     }
@@ -125,293 +273,664 @@ export default function ProfileApplicationsPage() {
     );
   };
 
-  const canApplyCommittee = !hasPending("committee");
-  const canApplySkills = !hasPending("skills");
+  const addTopic = () => {
+    const t = topicInput.trim();
+    if (t && !topics.includes(t)) {
+      setTopics((prev) => [...prev, t]);
+      setTopicInput("");
+    }
+  };
+
+  const removeTopic = (t: string) =>
+    setTopics((prev) => prev.filter((x) => x !== t));
+
+  const activeCfg = APP_TYPE_CONFIGS.find((c) => c.type === activeForm);
 
   return (
-    <main className={cn('min-h-screen w-full px-5', 'mt-25', 'pb-20')}>
+    <main className={cn("min-h-screen w-full px-5 mt-25 pb-20")}>
       {/* Header */}
-      <div className={cn('border-b rounded-2xl', 'border-border', 'bg-background')}>
-        <div className={cn('max-w-4xl', 'mx-auto', 'px-4', 'sm:px-6', 'lg:px-8', 'py-8')}>
+      <div className={cn("border-b rounded-2xl border-border bg-background")}>
+        <div className={cn("max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8")}>
           <button
             onClick={() => router.back()}
-            className={cn('flex', 'items-center', 'gap-2', 'text-[10px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'hover:text-foreground', 'transition-colors', 'cursor-pointer', 'mb-6')}
+            className={cn(
+              "flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors cursor-pointer mb-6",
+            )}
           >
-            <LuArrowLeft className={cn('w-4', 'h-4')} /> Back to Profile
+            <LuArrowLeft className="w-4 h-4" /> Back to Profile
           </button>
-          <div className={cn('flex', 'flex-col', 'sm:flex-row', 'sm:items-end', 'justify-between', 'gap-6')}>
-            <div className={cn('flex', 'items-center', 'gap-4')}>
-              <div className={cn('w-14', 'h-14', 'rounded-2xl', 'bg-foreground', 'flex', 'items-center', 'justify-center', 'shadow-xl', 'shadow-foreground/20')}>
-                <LuInbox className={cn('w-7', 'h-7', 'text-background')} />
+          <div
+            className={cn(
+              "flex flex-col sm:flex-row sm:items-end justify-between gap-6",
+            )}
+          >
+            <div className={cn("flex items-center gap-4")}>
+              <div
+                className={cn(
+                  "w-14 h-14 rounded-2xl bg-foreground flex items-center justify-center shadow-xl shadow-foreground/20",
+                )}
+              >
+                <LuInbox className="w-7 h-7 text-background" />
               </div>
               <div>
-                <h1 className={cn('text-3xl', 'font-black', 'text-foreground', 'tracking-tighter', 'uppercase')}>
+                <h1
+                  className={cn(
+                    "text-3xl font-black text-foreground tracking-tighter uppercase",
+                  )}
+                >
                   My Applications
                 </h1>
-                <p className={cn('text-xs', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'mt-1')}>
+                <p
+                  className={cn(
+                    "text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1",
+                  )}
+                >
                   {applications.length} submission
                   {applications.length !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setShowForm(true)}
-              disabled={!canApplyCommittee && !canApplySkills}
-              className={cn(
-                "flex items-center gap-2 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl cursor-pointer",
-                canApplyCommittee || canApplySkills
-                  ? "bg-foreground text-background hover:bg-primary hover:text-foreground shadow-foreground/10"
-                  : "bg-muted text-muted-foreground cursor-not-allowed shadow-none",
-              )}
-            >
-              <LuPlus className={cn('w-4', 'h-4')} /> New Application
-            </button>
           </div>
         </div>
       </div>
 
-      <div className={cn('max-w-4xl', 'mx-auto', 'px-4', 'sm:px-6', 'lg:px-8', 'mt-8', 'space-y-6')}>
-        {/* Pending notice */}
-        {(hasPending("committee") || hasPending("skills")) && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={cn('flex', 'items-start', 'gap-3', 'p-4', 'bg-amber-50', 'border', 'border-amber-100', 'rounded-2xl')}
-          >
-            <LuInfo className={cn('w-4', 'h-4', 'text-amber-600', 'shrink-0', 'mt-0.5')} />
-            <p className={cn('text-[11px]', 'font-bold', 'text-amber-700', 'uppercase', 'tracking-widest', 'leading-relaxed')}>
-              You have a pending application. You cannot submit another of the
-              same type until it is reviewed.
-            </p>
-          </motion.div>
-        )}
-
-        {/* Application form */}
-        <AnimatePresence>
-          {showForm && (
+      <div
+        className={cn("max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-8")}
+      >
+        {/* ── Membership gate banner ──────────────────────────────────────── */}
+        {!isMember &&
+          !hasApproved("membership") &&
+          !hasPending("membership") && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={cn(
+                "flex items-start gap-3 p-4 bg-primary/5 border border-primary/20 rounded-2xl",
+              )}
             >
-              <div className={cn('bg-background', 'border-2', 'border-border', 'rounded-[2.5rem]', 'p-8', 'space-y-6')}>
-                {/* Form header */}
-                <div className={cn('flex', 'items-center', 'justify-between')}>
-                  <h2 className={cn('text-lg', 'font-black', 'text-foreground', 'uppercase', 'tracking-tighter')}>
-                    New Application
-                  </h2>
-                  <button
-                    onClick={() => setShowForm(false)}
-                    className={cn('p-2', 'hover:bg-muted', 'rounded-xl', 'text-muted-foreground', 'hover:text-foreground', 'transition-colors', 'cursor-pointer')}
-                  >
-                    <LuX className={cn('w-5', 'h-5')} />
-                  </button>
-                </div>
-
-                {/* Type selector */}
-                <div className={cn('grid', 'grid-cols-2', 'gap-3')}>
-                  {(["committee", "skills"] as const).map((t) => {
-                    const Icon = t === "committee" ? LuShieldCheck : LuCode;
-                    const canApply =
-                      t === "committee" ? canApplyCommittee : canApplySkills;
-                    return (
-                      <button
-                        key={t}
-                        onClick={() => canApply && setFormType(t)}
-                        disabled={!canApply}
-                        className={cn(
-                          "flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left",
-                          !canApply
-                            ? "opacity-40 cursor-not-allowed border-border"
-                            : formType === t
-                              ? "border-primary bg-primary/5 cursor-pointer"
-                              : "border-border hover:border-slate-300 cursor-pointer",
-                        )}
-                      >
-                        <Icon
-                          className={cn(
-                            "w-5 h-5 shrink-0",
-                            formType === t
-                              ? "text-primary"
-                              : "text-muted-foreground",
-                          )}
-                        />
-                        <div>
-                          <p
-                            className={cn(
-                              "text-[11px] font-black uppercase tracking-wide",
-                              formType === t
-                                ? "text-primary"
-                                : "text-foreground",
-                            )}
-                          >
-                            {t === "committee" ? "Committee" : "Skills"}
-                          </p>
-                          <p className={cn('text-[9px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'mt-0.5')}>
-                            {t === "committee"
-                              ? "Join a committee"
-                              : "Add skills to profile"}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Committee picker */}
-                {formType === "committee" && (
-                  <div className="space-y-2">
-                    <label className={cn('text-[10px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
-                      Select Committee <span className="text-rose-500">*</span>
-                    </label>
-                    <div className={cn('grid', 'grid-cols-1', 'sm:grid-cols-2', 'gap-2')}>
-                      {(committees ?? []).map((c) => (
-                        <button
-                          key={c.slug}
-                          onClick={() => setSelectedComm(c.slug)}
-                          className={cn(
-                            "flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all cursor-pointer",
-                            selectedComm === c.slug
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-slate-300",
-                          )}
-                        >
-                          <div
-                            className={cn('w-8', 'h-8', 'rounded-xl', 'flex', 'items-center', 'justify-center', 'text-background', 'text-[11px]', 'font-black', 'shrink-0')}
-                            style={{ backgroundColor: c.color }}
-                          >
-                            {c.name.charAt(0)}
-                          </div>
-                          <div className="min-w-0">
-                            <p
-                              className={cn(
-                                "text-[11px] font-black uppercase tracking-wide truncate",
-                                selectedComm === c.slug
-                                  ? "text-primary"
-                                  : "text-foreground",
-                              )}
-                            >
-                              {c.name}
-                            </p>
-                            <p className={cn('text-[9px]', 'font-bold', 'text-muted-foreground', 'mt-0.5')}>
-                              {c.memberCount} members
-                            </p>
-                          </div>
-                          {selectedComm === c.slug && (
-                            <LuCircleCheck className={cn('w-4', 'h-4', 'text-primary', 'ml-auto', 'shrink-0')} />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Skills picker */}
-                {formType === "skills" && (
-                  <div className="space-y-2">
-                    <label className={cn('text-[10px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
-                      Select Skills <span className="text-rose-500">*</span>
-                    </label>
-                    <div className={cn('flex', 'flex-wrap', 'gap-2')}>
-                      {(skills ?? []).map((s) => {
-                        const selected = selectedSkills.includes(s.slug);
-                        return (
-                          <button
-                            key={s.slug}
-                            onClick={() => toggleSkill(s.slug)}
-                            className={cn(
-                              "px-3 py-2 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
-                              selected
-                                ? "border-primary bg-primary/10 text-primary"
-                                : "border-border text-muted-foreground hover:border-slate-300 hover:text-foreground",
-                            )}
-                          >
-                            {s.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {selectedSkills.length > 0 && (
-                      <p className={cn('text-[9px]', 'font-bold', 'text-primary', 'uppercase', 'tracking-widest')}>
-                        {selectedSkills.length} skill
-                        {selectedSkills.length !== 1 ? "s" : ""} selected
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Reason */}
-                <div className="space-y-2">
-                  <label className={cn('text-[10px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
-                    Reason / Motivation (optional)
-                  </label>
-                  <textarea
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="Tell us why you're interested…"
-                    rows={3}
-                    className={cn('w-full', 'bg-muted', 'border', 'border-border', 'rounded-2xl', 'p-4', 'text-sm', 'font-medium', 'outline-none', 'focus:border-primary', 'transition-all', 'resize-none')}
-                  />
-                </div>
-
-                {/* Submit */}
-                <div className={cn('flex', 'gap-3')}>
-                  <button
-                    onClick={() => setShowForm(false)}
-                    className={cn('flex-1', 'py-4', 'rounded-2xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'text-muted-foreground', 'hover:bg-muted', 'transition-all', 'cursor-pointer')}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSubmit}
-                    disabled={submitting}
-                    className={cn('flex-1', 'flex', 'items-center', 'justify-center', 'gap-2', 'py-4', 'rounded-2xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'bg-foreground', 'text-background', 'hover:bg-primary', 'hover:text-foreground', 'transition-all', 'shadow-xl', 'cursor-pointer', 'disabled:opacity-60')}
-                  >
-                    {submitting ? (
-                      <>
-                        <LuLoader className={cn('w-4', 'h-4', 'animate-spin')} />{" "}
-                        Submitting…
-                      </>
-                    ) : (
-                      <>
-                        <LuPlus className={cn('w-4', 'h-4')} /> Submit
-                      </>
-                    )}
-                  </button>
-                </div>
+              <LuInfo className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p
+                  className={cn(
+                    "text-[11px] font-black text-primary uppercase tracking-widest",
+                  )}
+                >
+                  Become a Member First
+                </p>
+                <p
+                  className={cn(
+                    "text-[10px] font-bold text-muted-foreground mt-1 leading-relaxed",
+                  )}
+                >
+                  Apply for DIUSCADI membership below. Once approved, you&apos;ll
+                  unlock committee applications, skills verification, writer
+                  applications, and more.
+                </p>
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
 
-        {/* Applications list */}
-        {loading ? (
-          <div className={cn('flex', 'items-center', 'justify-center', 'py-20')}>
-            <LuLoader className={cn('w-8', 'h-8', 'text-primary', 'animate-spin')} />
+        {/* Membership pending notice */}
+        {!isMember && hasPending("membership") && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={cn(
+              "flex items-start gap-3 p-4 bg-amber-50 border border-amber-100 rounded-2xl",
+            )}
+          >
+            <LuClock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p
+                className={cn(
+                  "text-[11px] font-black text-amber-700 uppercase tracking-widest",
+                )}
+              >
+                Membership Application Under Review
+              </p>
+              <p
+                className={cn(
+                  "text-[10px] font-bold text-amber-600 mt-1 leading-relaxed",
+                )}
+              >
+                Your membership application is pending. Other application types
+                will unlock once your membership is approved.
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Locked features preview — shown to non-members so they know what awaits */}
+        {!isMember && (
+          <div className="space-y-3">
+            <p
+              className={cn(
+                "text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]",
+              )}
+            >
+              Unlocks After Membership Approval
+            </p>
+            <div className={cn("grid grid-cols-1 sm:grid-cols-2 gap-3")}>
+              {APP_TYPE_CONFIGS.filter((c) => c.memberOnly).map((cfg) => {
+                const Icon = cfg.icon;
+                return (
+                  <div
+                    key={cfg.type}
+                    className={cn(
+                      "flex items-center gap-3 p-4 rounded-2xl border border-border bg-muted/30 opacity-50",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+                        cfg.iconBg,
+                      )}
+                    >
+                      <Icon className={cn("w-4 h-4", cfg.iconColor)} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className={cn(
+                          "text-[11px] font-black text-foreground uppercase tracking-wide truncate",
+                        )}
+                      >
+                        {cfg.label}
+                      </p>
+                    </div>
+                    <LuLock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        ) : applications.length === 0 ? (
+        )}
+
+        {/* ── Application type cards ──────────────────────────────────────── */}
+        <div className="space-y-3">
+          <p
+            className={cn(
+              "text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]",
+            )}
+          >
+            {isMember ? "Available Applications" : "Open to All"}
+          </p>
+          <div className={cn("grid grid-cols-1 gap-4")}>
+            {visibleTypes.map((cfg) => {
+              const Icon = cfg.icon;
+              const isPending = hasPending(cfg.type);
+              const isApproved = hasApproved(cfg.type);
+              const isActive = activeForm === cfg.type;
+
+              return (
+                <div
+                  key={cfg.type}
+                  className={cn(
+                    "bg-background border-2 rounded-[2rem] overflow-hidden transition-all",
+                    isActive ? "border-primary" : "border-border",
+                  )}
+                >
+                  {/* Card header — always visible */}
+                  <div className={cn("flex items-center justify-between p-6")}>
+                    <div className={cn("flex items-center gap-4")}>
+                      <div
+                        className={cn(
+                          "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+                          cfg.iconBg,
+                        )}
+                      >
+                        <Icon className={cn("w-6 h-6", cfg.iconColor)} />
+                      </div>
+                      <div>
+                        <p
+                          className={cn(
+                            "text-sm font-black text-foreground uppercase tracking-tight",
+                          )}
+                        >
+                          {cfg.label}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-[10px] font-bold text-muted-foreground mt-0.5 leading-relaxed max-w-sm",
+                          )}
+                        >
+                          {cfg.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      className={cn("flex items-center gap-3 shrink-0 ml-4")}
+                    >
+                      {isApproved && (
+                        <span
+                          className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border-emerald-100",
+                          )}
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Approved
+                        </span>
+                      )}
+                      {isPending && !isApproved && (
+                        <span
+                          className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest bg-amber-50 text-amber-700 border-amber-100",
+                          )}
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          Pending
+                        </span>
+                      )}
+                      {!isPending && !isApproved && (
+                        <button
+                          onClick={() =>
+                            setActiveForm(isActive ? null : cfg.type)
+                          }
+                          className={cn(
+                            "flex items-center gap-2 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
+                            isActive
+                              ? "bg-muted text-muted-foreground"
+                              : "bg-foreground text-background hover:bg-primary hover:text-foreground",
+                          )}
+                        >
+                          {isActive ? (
+                            <LuX className="w-3.5 h-3.5" />
+                          ) : (
+                            <LuPlus className="w-3.5 h-3.5" />
+                          )}
+                          {isActive ? "Cancel" : "Apply"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Inline form — expands inside card */}
+                  <AnimatePresence>
+                    {isActive && activeCfg && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div
+                          className={cn(
+                            "px-6 pb-6 pt-0 border-t border-border space-y-5",
+                          )}
+                        >
+                          <div className="pt-5 space-y-5">
+                            {/* ── MEMBERSHIP form ────────────────────────── */}
+                            {activeForm === "membership" && (
+                              <div
+                                className={cn(
+                                  "p-4 bg-primary/5 border border-primary/20 rounded-2xl",
+                                )}
+                              >
+                                <p
+                                  className={cn(
+                                    "text-[11px] font-bold text-primary leading-relaxed",
+                                  )}
+                                >
+                                  Applying for DIUSCADI membership gives you
+                                  access to events, committees, skills
+                                  verification, career programs, and more. Your
+                                  application will be reviewed by an admin.
+                                </p>
+                              </div>
+                            )}
+
+                            {/* ── COMMITTEE form ─────────────────────────── */}
+                            {activeForm === "committee" && (
+                              <div className="space-y-2">
+                                <label
+                                  className={cn(
+                                    "text-[10px] font-black text-muted-foreground uppercase tracking-widest",
+                                  )}
+                                >
+                                  Select Committee{" "}
+                                  <span className="text-rose-500">*</span>
+                                </label>
+                                <div
+                                  className={cn(
+                                    "grid grid-cols-1 sm:grid-cols-2 gap-2",
+                                  )}
+                                >
+                                  {(committees ?? []).map((c) => (
+                                    <button
+                                      key={c.slug}
+                                      onClick={() => setSelectedComm(c.slug)}
+                                      className={cn(
+                                        "flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all cursor-pointer",
+                                        selectedComm === c.slug
+                                          ? "border-primary bg-primary/5"
+                                          : "border-border hover:border-slate-300",
+                                      )}
+                                    >
+                                      <div
+                                        className={cn(
+                                          "w-8 h-8 rounded-xl flex items-center justify-center text-background text-[11px] font-black shrink-0",
+                                        )}
+                                        style={{ backgroundColor: c.color }}
+                                      >
+                                        {c.name.charAt(0)}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p
+                                          className={cn(
+                                            "text-[11px] font-black uppercase tracking-wide truncate",
+                                            selectedComm === c.slug
+                                              ? "text-primary"
+                                              : "text-foreground",
+                                          )}
+                                        >
+                                          {c.name}
+                                        </p>
+                                        <p
+                                          className={cn(
+                                            "text-[9px] font-bold text-muted-foreground mt-0.5",
+                                          )}
+                                        >
+                                          {c.memberCount} members
+                                        </p>
+                                      </div>
+                                      {selectedComm === c.slug && (
+                                        <LuCircleCheck className="w-4 h-4 text-primary ml-auto shrink-0" />
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* ── SKILLS form ────────────────────────────── */}
+                            {activeForm === "skills" && (
+                              <div className="space-y-2">
+                                <label
+                                  className={cn(
+                                    "text-[10px] font-black text-muted-foreground uppercase tracking-widest",
+                                  )}
+                                >
+                                  Select Skills{" "}
+                                  <span className="text-rose-500">*</span>
+                                </label>
+                                <div className={cn("flex flex-wrap gap-2")}>
+                                  {(skills ?? []).map((s) => {
+                                    const selected = selectedSkills.includes(
+                                      s.slug,
+                                    );
+                                    return (
+                                      <button
+                                        key={s.slug}
+                                        onClick={() => toggleSkill(s.slug)}
+                                        className={cn(
+                                          "px-3 py-2 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
+                                          selected
+                                            ? "border-primary bg-primary/10 text-primary"
+                                            : "border-border text-muted-foreground hover:border-slate-300 hover:text-foreground",
+                                        )}
+                                      >
+                                        {s.name}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                {selectedSkills.length > 0 && (
+                                  <p
+                                    className={cn(
+                                      "text-[9px] font-bold text-primary uppercase tracking-widest",
+                                    )}
+                                  >
+                                    {selectedSkills.length} skill
+                                    {selectedSkills.length !== 1 ? "s" : ""}{" "}
+                                    selected
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {/* ── WRITER form ────────────────────────────── */}
+                            {activeForm === "writer" && (
+                              <div className="space-y-4">
+                                <div className="space-y-2">
+                                  <label
+                                    className={cn(
+                                      "text-[10px] font-black text-muted-foreground uppercase tracking-widest",
+                                    )}
+                                  >
+                                    Topics You&apos;d Write About{" "}
+                                    <span className="text-rose-500">*</span>
+                                  </label>
+                                  <div className={cn("flex gap-2")}>
+                                    <input
+                                      type="text"
+                                      value={topicInput}
+                                      onChange={(e) =>
+                                        setTopicInput(e.target.value)
+                                      }
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          e.preventDefault();
+                                          addTopic();
+                                        }
+                                      }}
+                                      placeholder="e.g. Artificial Intelligence"
+                                      className={cn(
+                                        "flex-1 bg-muted border border-border rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:border-primary transition-all",
+                                      )}
+                                    />
+                                    <button
+                                      onClick={addTopic}
+                                      className={cn(
+                                        "px-4 py-3 bg-foreground text-background rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-foreground transition-all cursor-pointer",
+                                      )}
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                  {topics.length > 0 && (
+                                    <div
+                                      className={cn(
+                                        "flex flex-wrap gap-2 mt-2",
+                                      )}
+                                    >
+                                      {topics.map((t) => (
+                                        <span
+                                          key={t}
+                                          className={cn(
+                                            "flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-[9px] font-black uppercase tracking-widest",
+                                          )}
+                                        >
+                                          {t}
+                                          <button
+                                            onClick={() => removeTopic(t)}
+                                            className="hover:text-rose-500 cursor-pointer"
+                                          >
+                                            <LuX className="w-3 h-3" />
+                                          </button>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* ── PROGRAM form ───────────────────────────── */}
+                            {activeForm === "program" && (
+                              <div className="space-y-2">
+                                <label
+                                  className={cn(
+                                    "text-[10px] font-black text-muted-foreground uppercase tracking-widest",
+                                  )}
+                                >
+                                  Program / Area of Expertise{" "}
+                                  <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={requestedProgram}
+                                  onChange={(e) =>
+                                    setRequestedProgram(e.target.value)
+                                  }
+                                  placeholder="e.g. Career Development, Tech Entrepreneurship"
+                                  className={cn(
+                                    "w-full bg-muted border border-border rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:border-primary transition-all",
+                                  )}
+                                />
+                              </div>
+                            )}
+
+                            {/* ── SPONSORSHIP form ───────────────────────── */}
+                            {activeForm === "sponsorship" && (
+                              <div
+                                className={cn(
+                                  "p-4 bg-rose-50 border border-rose-100 rounded-2xl",
+                                )}
+                              >
+                                <p
+                                  className={cn(
+                                    "text-[11px] font-bold text-rose-700 leading-relaxed",
+                                  )}
+                                >
+                                  Describe your sponsorship interest in the
+                                  field below — include your organisation name,
+                                  the type of support you&apos;re offering, and any
+                                  events or programmes you&apos;d like to be
+                                  associated with.
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Reason / motivation — shown for all types */}
+                            <div className="space-y-2">
+                              <label
+                                className={cn(
+                                  "text-[10px] font-black text-muted-foreground uppercase tracking-widest",
+                                )}
+                              >
+                                {activeForm === "sponsorship"
+                                  ? "Sponsorship Details & Motivation"
+                                  : "Reason / Motivation"}
+                                {activeForm === "sponsorship" && (
+                                  <span className="text-rose-500 ml-1">*</span>
+                                )}
+                                {activeForm !== "sponsorship" && (
+                                  <span className="text-muted-foreground ml-1">
+                                    (optional)
+                                  </span>
+                                )}
+                              </label>
+                              <textarea
+                                value={reason}
+                                onChange={(e) => setReason(e.target.value)}
+                                placeholder={
+                                  activeForm === "sponsorship"
+                                    ? "Tell us about your organisation and sponsorship interest…"
+                                    : "Tell us why you're interested…"
+                                }
+                                rows={3}
+                                className={cn(
+                                  "w-full bg-muted border border-border rounded-2xl p-4 text-sm font-medium outline-none focus:border-primary transition-all resize-none",
+                                )}
+                              />
+                            </div>
+
+                            {/* Submit row */}
+                            <div className={cn("flex gap-3 pt-2")}>
+                              <button
+                                onClick={resetForm}
+                                className={cn(
+                                  "flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted transition-all cursor-pointer",
+                                )}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={handleSubmit}
+                                disabled={submitting}
+                                className={cn(
+                                  "flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-foreground text-background hover:bg-primary hover:text-foreground transition-all shadow-xl cursor-pointer disabled:opacity-60",
+                                )}
+                              >
+                                {submitting ? (
+                                  <>
+                                    <LuLoader className="w-4 h-4 animate-spin" />{" "}
+                                    Submitting…
+                                  </>
+                                ) : (
+                                  <>
+                                    <LuPlus className="w-4 h-4" /> Submit
+                                    Application
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Applications history ────────────────────────────────────────── */}
+        {applications.length > 0 && (
+          <div className="space-y-3">
+            <p
+              className={cn(
+                "text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]",
+              )}
+            >
+              Submission History
+            </p>
+            {loading ? (
+              <div className={cn("flex items-center justify-center py-12")}>
+                <LuLoader className="w-8 h-8 text-primary animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {applications.map((app, index) => (
+                  <ApplicationCard key={app.id} app={app} index={index} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && applications.length === 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className={cn('py-20', 'text-center', 'space-y-4')}
+            className={cn("py-16 text-center space-y-4")}
           >
-            <div className={cn('w-20', 'h-20', 'bg-muted', 'rounded-3xl', 'flex', 'items-center', 'justify-center', 'mx-auto')}>
-              <LuInbox className={cn('w-10', 'h-10', 'text-slate-300')} />
+            <div
+              className={cn(
+                "w-20 h-20 bg-muted rounded-3xl flex items-center justify-center mx-auto",
+              )}
+            >
+              <LuInbox className="w-10 h-10 text-slate-300" />
             </div>
-            <h3 className={cn('text-xl', 'font-black', 'text-foreground', 'uppercase', 'tracking-tighter')}>
+            <h3
+              className={cn(
+                "text-xl font-black text-foreground uppercase tracking-tighter",
+              )}
+            >
               No Applications Yet
             </h3>
-            <p className={cn('text-[11px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
-              Submit a committee or skills application to get started.
+            <p
+              className={cn(
+                "text-[11px] font-bold text-muted-foreground uppercase tracking-widest",
+              )}
+            >
+              {isMember
+                ? "Use the cards above to submit your first application."
+                : "Apply for membership above to get started."}
             </p>
           </motion.div>
-        ) : (
-          <div className="space-y-4">
-            {applications.map((app, index) => (
-              <ApplicationCard key={app.id} app={app} index={index} />
-            ))}
-          </div>
         )}
       </div>
     </main>
@@ -420,45 +939,99 @@ export default function ProfileApplicationsPage() {
 
 // ── ApplicationCard ───────────────────────────────────────────────────────────
 
+const TYPE_DISPLAY: Record<
+  ApplicationType,
+  { label: string; icon: React.ElementType; iconBg: string; iconColor: string }
+> = {
+  membership: {
+    label: "Membership",
+    icon: LuUsers,
+    iconBg: "bg-primary/10",
+    iconColor: "text-primary",
+  },
+  committee: {
+    label: "Committee",
+    icon: LuShieldCheck,
+    iconBg: "bg-blue-50",
+    iconColor: "text-blue-600",
+  },
+  skills: {
+    label: "Skills",
+    icon: LuCode,
+    iconBg: "bg-purple-50",
+    iconColor: "text-purple-600",
+  },
+  writer: {
+    label: "Writer",
+    icon: LuPenLine,
+    iconBg: "bg-emerald-50",
+    iconColor: "text-emerald-600",
+  },
+  program: {
+    label: "Program Expert",
+    icon: LuGraduationCap,
+    iconBg: "bg-amber-50",
+    iconColor: "text-amber-600",
+  },
+  sponsorship: {
+    label: "Sponsorship",
+    icon: LuBriefcase,
+    iconBg: "bg-rose-50",
+    iconColor: "text-rose-600",
+  },
+};
+
 const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
   app,
   index,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const cfg = STATUS_STYLES[app.status];
-  const Icon = STATUS_ICONS[app.status];
-  const TypeIcon = app.type === "committee" ? LuShieldCheck : LuCode;
+  const StatusIcon = STATUS_ICONS[app.status];
+  const typeDef = TYPE_DISPLAY[app.type] ?? TYPE_DISPLAY.committee;
+  const TypeIcon = typeDef.icon;
+
+  const typeTitle =
+    app.type === "committee"
+      ? (app.requestedCommittee ?? "Committee")
+      : app.type === "skills"
+        ? `${app.requestedSkills?.length ?? 0} Skill${(app.requestedSkills?.length ?? 0) !== 1 ? "s" : ""}`
+        : app.type === "program"
+          ? (app.requestedProgram ?? "Program Expert")
+          : typeDef.label;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className={cn('bg-background', 'border-2', 'border-border', 'rounded-[2rem]', 'overflow-hidden')}
+      className={cn(
+        "bg-background border-2 border-border rounded-[2rem] overflow-hidden",
+      )}
     >
-      {/* Card header */}
-      <div className={cn('flex', 'items-center', 'justify-between', 'p-6')}>
-        <div className={cn('flex', 'items-center', 'gap-4')}>
+      <div className={cn("flex items-center justify-between p-6")}>
+        <div className={cn("flex items-center gap-4")}>
           <div
             className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center",
-              app.type === "committee" ? "bg-blue-50" : "bg-purple-50",
+              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+              typeDef.iconBg,
             )}
           >
-            <TypeIcon
-              className={cn(
-                "w-5 h-5",
-                app.type === "committee" ? "text-blue-600" : "text-purple-600",
-              )}
-            />
+            <TypeIcon className={cn("w-5 h-5", typeDef.iconColor)} />
           </div>
           <div>
-            <p className={cn('text-sm', 'font-black', 'text-foreground', 'uppercase', 'tracking-tight')}>
-              {app.type === "committee"
-                ? (app.requestedCommittee ?? "Committee")
-                : `${app.requestedSkills?.length ?? 0} Skill${(app.requestedSkills?.length ?? 0) !== 1 ? "s" : ""}`}
+            <p
+              className={cn(
+                "text-sm font-black text-foreground uppercase tracking-tight",
+              )}
+            >
+              {typeTitle}
             </p>
-            <p className={cn('text-[9px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'mt-0.5')}>
+            <p
+              className={cn(
+                "text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5",
+              )}
+            >
               {new Date(app.createdAt).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
@@ -468,7 +1041,7 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
           </div>
         </div>
 
-        <div className={cn('flex', 'items-center', 'gap-3')}>
+        <div className={cn("flex items-center gap-3")}>
           <span
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest",
@@ -481,7 +1054,9 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
           </span>
           <button
             onClick={() => setExpanded((v) => !v)}
-            className={cn('p-2', 'hover:bg-muted', 'rounded-xl', 'text-muted-foreground', 'hover:text-foreground', 'transition-colors', 'cursor-pointer')}
+            className={cn(
+              "p-2 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors cursor-pointer",
+            )}
           >
             <LuChevronDown
               className={cn(
@@ -493,7 +1068,6 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
         </div>
       </div>
 
-      {/* Expanded detail */}
       <AnimatePresence>
         {expanded && (
           <motion.div
@@ -502,14 +1076,18 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className={cn('px-6', 'pb-6', 'space-y-4', 'border-t', 'border-border', 'pt-4')}>
+            <div
+              className={cn("px-6 pb-6 space-y-4 border-t border-border pt-4")}
+            >
               {/* Skills list */}
               {app.type === "skills" && app.requestedSkills && (
-                <div className={cn('flex', 'flex-wrap', 'gap-2')}>
+                <div className={cn("flex flex-wrap gap-2")}>
                   {app.requestedSkills.map((s) => (
                     <span
                       key={s}
-                      className={cn('px-3', 'py-1.5', 'bg-purple-50', 'text-purple-600', 'border', 'border-purple-100', 'rounded-xl', 'text-[9px]', 'font-black', 'uppercase', 'tracking-widest')}
+                      className={cn(
+                        "px-3 py-1.5 bg-purple-50 text-purple-600 border border-purple-100 rounded-xl text-[9px] font-black uppercase tracking-widest",
+                      )}
                     >
                       {s}
                     </span>
@@ -517,13 +1095,62 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
                 </div>
               )}
 
+              {/* Topics list for writer */}
+              {app.type === "writer" && app.topics && app.topics.length > 0 && (
+                <div className="space-y-1">
+                  <p
+                    className={cn(
+                      "text-[9px] font-black text-muted-foreground uppercase tracking-widest",
+                    )}
+                  >
+                    Topics
+                  </p>
+                  <div className={cn("flex flex-wrap gap-2")}>
+                    {app.topics.map((t) => (
+                      <span
+                        key={t}
+                        className={cn(
+                          "px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-[9px] font-black uppercase tracking-widest",
+                        )}
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Program */}
+              {app.type === "program" && app.requestedProgram && (
+                <div className="space-y-1">
+                  <p
+                    className={cn(
+                      "text-[9px] font-black text-muted-foreground uppercase tracking-widest",
+                    )}
+                  >
+                    Program
+                  </p>
+                  <p className={cn("text-xs font-bold text-foreground")}>
+                    {app.requestedProgram}
+                  </p>
+                </div>
+              )}
+
               {/* Reason */}
               {app.reason && (
                 <div className="space-y-1">
-                  <p className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
+                  <p
+                    className={cn(
+                      "text-[9px] font-black text-muted-foreground uppercase tracking-widest",
+                    )}
+                  >
                     Your Reason
                   </p>
-                  <p className={cn('text-xs', 'font-medium', 'text-foreground', 'leading-relaxed')}>
+                  <p
+                    className={cn(
+                      "text-xs font-medium text-foreground leading-relaxed",
+                    )}
+                  >
                     {app.reason}
                   </p>
                 </div>
@@ -534,11 +1161,11 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
                 <div className={cn("p-4 rounded-2xl border space-y-1", cfg.bg)}>
                   <p
                     className={cn(
-                      "text-[9px] font-black uppercase tracking-widest",
+                      "text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5",
                       cfg.text,
                     )}
                   >
-                    Review Note
+                    <StatusIcon className="w-3.5 h-3.5" /> Review Note
                   </p>
                   <p
                     className={cn(
@@ -553,7 +1180,11 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
 
               {/* Reviewed at */}
               {app.reviewedAt && (
-                <p className={cn('text-[9px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
+                <p
+                  className={cn(
+                    "text-[9px] font-bold text-muted-foreground uppercase tracking-widest",
+                  )}
+                >
                   Reviewed{" "}
                   {new Date(app.reviewedAt).toLocaleDateString("en-US", {
                     month: "short",
@@ -565,9 +1196,17 @@ const ApplicationCard: React.FC<{ app: Application; index: number }> = ({
 
               {/* Pending notice */}
               {app.status === "pending" && (
-                <div className={cn('flex', 'items-center', 'gap-2', 'p-3', 'bg-amber-50', 'border', 'border-amber-100', 'rounded-2xl')}>
-                  <LuClock className={cn('w-4', 'h-4', 'text-amber-600', 'shrink-0')} />
-                  <p className={cn('text-[10px]', 'font-bold', 'text-amber-700', 'uppercase', 'tracking-widest')}>
+                <div
+                  className={cn(
+                    "flex items-center gap-2 p-3 bg-amber-50 border border-amber-100 rounded-2xl",
+                  )}
+                >
+                  <LuClock className="w-4 h-4 text-amber-600 shrink-0" />
+                  <p
+                    className={cn(
+                      "text-[10px] font-bold text-amber-700 uppercase tracking-widest",
+                    )}
+                  >
                     Under review — you will be notified once a decision is made
                   </p>
                 </div>

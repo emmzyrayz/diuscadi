@@ -311,6 +311,13 @@ export const GET = withAuth(
           { projection: { rating: 1, body: 1, isAnonymous: 1, createdAt: 1 } },
         );
 
+      // ADD THIS: Check if the user is actually checked in to this event
+      const registration = await Collections.eventRegistrations(db).findOne({
+        eventId: eventInfo.eventId,
+        userId,
+        status: "checked-in",
+      });
+
       return NextResponse.json({
         reviews,
         stats,
@@ -320,6 +327,7 @@ export const GET = withAuth(
           opensAt: eventInfo.windowStart.toISOString(),
           closesAt: eventInfo.windowEnd.toISOString(),
         },
+        canReview: !!registration,
         myReview: myReview
           ? {
               rating: myReview.rating,

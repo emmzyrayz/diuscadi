@@ -20,11 +20,13 @@ import {
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { toast } from "react-hot-toast";
+import { useAuth } from "@/context/AuthContext";
+import Image from "next/image";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface ReviewAuthor {
-  name: string | null;
+  name: string;
   avatar: string | null;
 }
 
@@ -34,8 +36,7 @@ interface Review {
   body: string | null;
   isAnonymous: boolean;
   createdAt: string;
-  authorName: string | null;
-  authorAvatar: string | null;
+  author: ReviewAuthor | null;
   isOwn: boolean;
 }
 
@@ -64,6 +65,7 @@ interface ReviewsData {
   stats: ReviewStats;
   window: ReviewWindow;
   myReview: MyReview | null;
+  canReview: boolean;
 }
 
 interface Props {
@@ -173,6 +175,8 @@ export const EventReviewsSection: React.FC<Props> = ({
   eventSlug,
   isMember,
 }) => {
+  const { token } = useAuth();
+
   const [data, setData] = useState<ReviewsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -184,6 +188,11 @@ export const EventReviewsSection: React.FC<Props> = ({
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
+   const docWindow = data?.window;
+   const stats = data?.stats;
+   const reviews = data?.reviews ?? [];
+   const myReview = data?.myReview ?? null;
+
   // ── Fetch reviews ───────────────────────────────────────────────────────────
   const fetchReviews = useCallback(async () => {
     if (!isMember) {
@@ -193,10 +202,7 @@ export const EventReviewsSection: React.FC<Props> = ({
     setLoading(true);
     setError(null);
     try {
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("diuscadi_token")
-          : null;
+      // Use the context token instead of localStorage
       const res = await fetch(`/api/events/${eventSlug}/reviews`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -213,7 +219,7 @@ export const EventReviewsSection: React.FC<Props> = ({
     } finally {
       setLoading(false);
     }
-  }, [eventSlug, isMember]);
+  }, [eventSlug, isMember, token]);
 
   useEffect(() => {
     fetchReviews();
@@ -365,13 +371,10 @@ export const EventReviewsSection: React.FC<Props> = ({
     );
   }
 
-  const window = data?.window;
-  const stats = data?.stats;
-  const reviews = data?.reviews ?? [];
-  const myReview = data?.myReview ?? null;
+ 
 
   // Event hasn't ended yet — show "reviews open after event"
-  if (window && !window.hasEnded) {
+  if (docWindow && !docWindow.hasEnded) {
     return (
       <section
         className={cn(
@@ -557,269 +560,319 @@ export const EventReviewsSection: React.FC<Props> = ({
             </motion.div>
           )}
 
-          {/* Review form — only if window is open and not yet reviewed */}
-          {window?.isOpen && !myReview && (
+          {/* Review form — only if docWindow is open and not yet reviewed */}
+          {docWindow?.isOpen && !myReview && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className={cn(
-                "border",
-                "border-border",
-                "rounded-3xl",
-                "overflow-hidden",
-              )}
             >
-              <button
-                onClick={() => setShowForm((s) => !s)}
-                className={cn(
-                  "w-full",
-                  "flex",
-                  "items-center",
-                  "justify-between",
-                  "p-5",
-                  "bg-muted",
-                  "hover:bg-muted/80",
-                  "transition-colors",
-                  "cursor-pointer",
-                )}
-              >
-                <span
+              {data?.canReview ? (
+                /* The User IS checked in - Show the normal form wrapper */
+                <div
                   className={cn(
-                    "text-sm",
-                    "font-black",
-                    "text-foreground",
-                    "uppercase",
-                    "tracking-tight",
+                    "border",
+                    "border-border",
+                    "rounded-3xl",
+                    "overflow-hidden",
                   )}
                 >
-                  Write a Review
-                </span>
-                {showForm ? (
-                  <LuChevronUp className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                  <LuChevronDown className="w-4 h-4 text-muted-foreground" />
-                )}
-              </button>
-
-              <AnimatePresence>
-                {showForm && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
+                  <button
+                    onClick={() => setShowForm((s) => !s)}
+                    className={cn(
+                      "w-full",
+                      "flex",
+                      "items-center",
+                      "justify-between",
+                      "p-5",
+                      "bg-muted",
+                      "hover:bg-muted/80",
+                      "transition-colors",
+                      "cursor-pointer",
+                    )}
                   >
-                    <div className="p-5 space-y-5 bg-background">
-                      {/* Star picker */}
-                      <div className="space-y-2">
-                        <label
-                          className={cn(
-                            "text-[10px]",
-                            "font-black",
-                            "uppercase",
-                            "tracking-widest",
-                            "text-muted-foreground",
-                          )}
-                        >
-                          Your Rating *
-                        </label>
-                        <StarDisplay
-                          rating={formRating}
-                          size="lg"
-                          interactive
-                          onRate={setFormRating}
-                        />
-                        {formRating > 0 && (
-                          <p
+                    <span
+                      className={cn(
+                        "text-sm",
+                        "font-black",
+                        "text-foreground",
+                        "uppercase",
+                        "tracking-tight",
+                      )}
+                    >
+                      Write a Review
+                    </span>
+                    {showForm ? (
+                      <LuChevronUp className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <LuChevronDown className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </button>
+
+                  <AnimatePresence>
+                    {showForm && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="p-5 space-y-5 bg-background">
+                          {/* Star picker */}
+                          <div className="space-y-2">
+                            <label
+                              className={cn(
+                                "text-[10px]",
+                                "font-black",
+                                "uppercase",
+                                "tracking-widest",
+                                "text-muted-foreground",
+                              )}
+                            >
+                              Your Rating *
+                            </label>
+                            <StarDisplay
+                              rating={formRating}
+                              size="lg"
+                              interactive
+                              onRate={setFormRating}
+                            />
+                            {formRating > 0 && (
+                              <p
+                                className={cn(
+                                  "text-[10px]",
+                                  "font-bold",
+                                  "text-muted-foreground",
+                                )}
+                              >
+                                {
+                                  [
+                                    "",
+                                    "Poor",
+                                    "Fair",
+                                    "Good",
+                                    "Very Good",
+                                    "Excellent",
+                                  ][formRating]
+                                }
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Body */}
+                          <div className="space-y-2">
+                            <label
+                              className={cn(
+                                "text-[10px]",
+                                "font-black",
+                                "uppercase",
+                                "tracking-widest",
+                                "text-muted-foreground",
+                              )}
+                            >
+                              Your Review (Optional)
+                            </label>
+                            <textarea
+                              value={formBody}
+                              onChange={(e) =>
+                                setFormBody(e.target.value.slice(0, 500))
+                              }
+                              placeholder="Share what you learned, what stood out, or what could be improved..."
+                              rows={4}
+                              className={cn(
+                                "w-full",
+                                "bg-muted",
+                                "border",
+                                "border-border",
+                                "p-3",
+                                "rounded-2xl",
+                                "text-xs",
+                                "font-medium",
+                                "outline-none",
+                                "focus:border-primary",
+                                "transition-all",
+                                "resize-none",
+                              )}
+                            />
+                            <p
+                              className={cn(
+                                "text-[9px]",
+                                "font-bold",
+                                "text-muted-foreground",
+                                "text-right",
+                              )}
+                            >
+                              {formBody.length}/500
+                            </p>
+                          </div>
+
+                          {/* Anonymous toggle */}
+                          <div
                             className={cn(
-                              "text-[10px]",
-                              "font-bold",
-                              "text-muted-foreground",
+                              "flex",
+                              "items-center",
+                              "justify-between",
+                              "p-4",
+                              "bg-muted",
+                              "rounded-2xl",
                             )}
                           >
-                            {
-                              [
-                                "",
-                                "Poor",
-                                "Fair",
-                                "Good",
-                                "Very Good",
-                                "Excellent",
-                              ][formRating]
-                            }
-                          </p>
-                        )}
-                      </div>
+                            <div>
+                              <p
+                                className={cn(
+                                  "text-[11px]",
+                                  "font-black",
+                                  "text-foreground",
+                                )}
+                              >
+                                Post Anonymously
+                              </p>
+                              <p
+                                className={cn(
+                                  "text-[9px]",
+                                  "font-bold",
+                                  "text-muted-foreground",
+                                )}
+                              >
+                                Your name will be hidden from other members
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setFormAnonymous((s) => !s)}
+                              className={cn(
+                                "w-11",
+                                "h-6",
+                                "rounded-full",
+                                "p-0.5",
+                                "transition-colors",
+                                "cursor-pointer",
+                                "shrink-0",
+                                formAnonymous ? "bg-primary" : "bg-slate-300",
+                              )}
+                            >
+                              <motion.div
+                                animate={{ x: formAnonymous ? 20 : 0 }}
+                                transition={{
+                                  type: "spring",
+                                  stiffness: 500,
+                                  damping: 30,
+                                }}
+                                className="w-5 h-5 bg-white rounded-full shadow-sm"
+                              />
+                            </button>
+                          </div>
 
-                      {/* Body */}
-                      <div className="space-y-2">
-                        <label
-                          className={cn(
-                            "text-[10px]",
-                            "font-black",
-                            "uppercase",
-                            "tracking-widest",
-                            "text-muted-foreground",
-                          )}
-                        >
-                          Your Review (Optional)
-                        </label>
-                        <textarea
-                          value={formBody}
-                          onChange={(e) =>
-                            setFormBody(e.target.value.slice(0, 500))
-                          }
-                          placeholder="Share what you learned, what stood out, or what could be improved..."
-                          rows={4}
-                          className={cn(
-                            "w-full",
-                            "bg-muted",
-                            "border",
-                            "border-border",
-                            "p-3",
-                            "rounded-2xl",
-                            "text-xs",
-                            "font-medium",
-                            "outline-none",
-                            "focus:border-primary",
-                            "transition-all",
-                            "resize-none",
-                          )}
-                        />
-                        <p
-                          className={cn(
-                            "text-[9px]",
-                            "font-bold",
-                            "text-muted-foreground",
-                            "text-right",
-                          )}
-                        >
-                          {formBody.length}/500
-                        </p>
-                      </div>
-
-                      {/* Anonymous toggle */}
-                      <div
-                        className={cn(
-                          "flex",
-                          "items-center",
-                          "justify-between",
-                          "p-4",
-                          "bg-muted",
-                          "rounded-2xl",
-                        )}
-                      >
-                        <div>
-                          <p
+                          {/* Submit */}
+                          <button
+                            onClick={handleSubmit}
+                            disabled={submitting || formRating === 0}
                             className={cn(
+                              "w-full",
+                              "py-3",
+                              "bg-foreground",
+                              "text-background",
+                              "rounded-2xl",
                               "text-[11px]",
                               "font-black",
-                              "text-foreground",
+                              "uppercase",
+                              "tracking-widest",
+                              "hover:bg-primary",
+                              "hover:text-foreground",
+                              "transition-colors",
+                              "disabled:opacity-50",
+                              "disabled:cursor-not-allowed",
+                              "flex",
+                              "items-center",
+                              "justify-center",
+                              "gap-2",
                             )}
                           >
-                            Post Anonymously
-                          </p>
-                          <p
-                            className={cn(
-                              "text-[9px]",
-                              "font-bold",
-                              "text-muted-foreground",
+                            {submitting && (
+                              <LuLoader className="w-3.5 h-3.5 animate-spin" />
                             )}
-                          >
-                            Your name will be hidden from other members
-                          </p>
+                            {submitting ? "Submitting…" : "Submit Review"}
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setFormAnonymous((s) => !s)}
-                          className={cn(
-                            "w-11",
-                            "h-6",
-                            "rounded-full",
-                            "p-0.5",
-                            "transition-colors",
-                            "cursor-pointer",
-                            "shrink-0",
-                            formAnonymous ? "bg-primary" : "bg-slate-300",
-                          )}
-                        >
-                          <motion.div
-                            animate={{ x: formAnonymous ? 20 : 0 }}
-                            transition={{
-                              type: "spring",
-                              stiffness: 500,
-                              damping: 30,
-                            }}
-                            className="w-5 h-5 bg-white rounded-full shadow-sm"
-                          />
-                        </button>
-                      </div>
-
-                      {/* Submit */}
-                      <button
-                        onClick={handleSubmit}
-                        disabled={submitting || formRating === 0}
-                        className={cn(
-                          "w-full",
-                          "py-3",
-                          "bg-foreground",
-                          "text-background",
-                          "rounded-2xl",
-                          "text-[11px]",
-                          "font-black",
-                          "uppercase",
-                          "tracking-widest",
-                          "hover:bg-primary",
-                          "hover:text-foreground",
-                          "transition-colors",
-                          "disabled:opacity-50",
-                          "disabled:cursor-not-allowed",
-                          "flex",
-                          "items-center",
-                          "justify-center",
-                          "gap-2",
-                        )}
-                      >
-                        {submitting && (
-                          <LuLoader className="w-3.5 h-3.5 animate-spin" />
-                        )}
-                        {submitting ? "Submitting…" : "Submit Review"}
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                /* The User IS NOT checked in - Show the locked warning */
+                <div
+                  className={cn(
+                    "p-5",
+                    "bg-amber-50",
+                    "border",
+                    "border-amber-100",
+                    "rounded-3xl",
+                    "flex",
+                    "gap-3",
+                  )}
+                >
+                  <LuInfo className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p
+                      className={cn(
+                        "text-[11px]",
+                        "font-black",
+                        "text-amber-700",
+                        "uppercase",
+                        "tracking-widest",
+                      )}
+                    >
+                      Check-in Required
+                    </p>
+                    <p
+                      className={cn(
+                        "text-xs",
+                        "font-bold",
+                        "text-amber-800/80",
+                        "mt-1",
+                        "leading-relaxed",
+                      )}
+                    >
+                      You must be checked in to this event to unlock comments
+                      and reviews. If you attended but missed the check-in,
+                      please contact an admin.
+                    </p>
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 
-          {/* Window closed notice */}
-          {window && window.hasEnded && !window.isOpen && !myReview && (
-            <div
-              className={cn(
-                "flex",
-                "items-center",
-                "gap-3",
-                "p-4",
-                "bg-muted",
-                "rounded-2xl",
-                "border",
-                "border-border",
-              )}
-            >
-              <LuEyeOff className="w-4 h-4 text-muted-foreground shrink-0" />
-              <p
+          {/* docWindow closed notice */}
+          {docWindow &&
+            docWindow.hasEnded &&
+            !docWindow.isOpen &&
+            !myReview && (
+              <div
                 className={cn(
-                  "text-[11px]",
-                  "font-bold",
-                  "text-muted-foreground",
+                  "flex",
+                  "items-center",
+                  "gap-3",
+                  "p-4",
+                  "bg-muted",
+                  "rounded-2xl",
+                  "border",
+                  "border-border",
                 )}
               >
-                The 30-day review window has closed.
-              </p>
-            </div>
-          )}
+                <LuEyeOff className="w-4 h-4 text-muted-foreground shrink-0" />
+                <p
+                  className={cn(
+                    "text-[11px]",
+                    "font-bold",
+                    "text-muted-foreground",
+                  )}
+                >
+                  The 30-day review window has closed.
+                </p>
+              </div>
+            )}
         </div>
 
         {/* ── Right: reviews list ───────────────────────────────────────────── */}
@@ -848,7 +901,7 @@ export const EventReviewsSection: React.FC<Props> = ({
               >
                 No reviews yet
               </p>
-              {window?.isOpen && !myReview && (
+              {docWindow?.isOpen && !myReview && (
                 <p
                   className={cn(
                     "text-[11px]",
@@ -900,17 +953,20 @@ export const EventReviewsSection: React.FC<Props> = ({
                         "text-sm",
                       )}
                     >
-                      {review.isAnonymous || !review.authorName ? (
+                      {review.isAnonymous || !review.author ? (
                         <LuUser className="w-4 h-4" />
-                      ) : review.authorAvatar ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={review.authorAvatar}
-                          alt={review.authorName}
+                      ) : review.author.avatar ? (
+                        <Image
+                          width={500}
+                          height={300}
+                          src={review.author.avatar}
+                          alt={review.author.name}
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span>{review.authorName.charAt(0).toUpperCase()}</span>
+                        <span>
+                          {review.author.name.charAt(0).toUpperCase()}
+                        </span>
                       )}
                     </div>
                     <div>
@@ -921,9 +977,9 @@ export const EventReviewsSection: React.FC<Props> = ({
                           "text-foreground",
                         )}
                       >
-                        {review.isAnonymous || !review.authorName
+                        {review.isAnonymous || !review.author
                           ? "Anonymous Member"
-                          : review.authorName}
+                          : review.author.name}
                         {review.isOwn && (
                           <span
                             className={cn(

@@ -65,19 +65,56 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 // ── POST ──────────────────────────────────────────────────────────────────────
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   try {
-    const { type, requestedCommittee, requestedSkills, reason } =
-      await req.json();
+    const body = await req.json();
+    const {
+      type,
+      requestedCommittee,
+      requestedSkills,
+      requestedProgram,
+      sponsorshipDetails,
+      writingSamples,
+      topics,
+      reason,
+    } = body;
 
-    if (!type || !["committee", "skills"].includes(type)) {
+    const VALID_TYPES = [
+      "membership",
+      "committee",
+      "skills",
+      "sponsorship",
+      "program",
+      "writer",
+    ];
+
+    if (!type || !VALID_TYPES.includes(type)) {
       return NextResponse.json(
-        { error: "type must be 'committee' or 'skills'" },
+        { error: `type must be one of: ${VALID_TYPES.join(", ")}` },
         { status: 400 },
       );
     }
 
     const db = await getDb();
+    const vaultId = new ObjectId(req.auth.vaultId);
 
-    // ── Validate committee against live DB list ────────────────────────────────
+    const userData = await Collections.userData(db).findOne({ vaultId });
+    if (!userData) {
+      return NextResponse.json(
+        { error: "User profile not found" },
+        { status: 404 },
+      );
+    }
+
+    // ── Membership: only participants with pending/no membership can apply ──
+    if (type === "membership") {
+      if (userData.membershipStatus === "approved") {
+        return NextResponse.json(
+          { error: "You are already an approved member" },
+          { status: 409 },
+        );
+      }
+    }
+
+    // ── Committee: validate against live DB list ───────────────────────────
     if (type === "committee") {
       if (!requestedCommittee || typeof requestedCommittee !== "string") {
         return NextResponse.json(
@@ -85,7 +122,6 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
           { status: 400 },
         );
       }
-
       const committeeDoc = await Collections.committees(db).findOne({
         slug: requestedCommittee,
         isActive: true,
@@ -103,7 +139,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       }
     }
 
-    // ── Validate skills against live DB list ──────────────────────────────────
+    // ── Skills: validate against live DB list ─────────────────────────────
     if (type === "skills") {
       if (!Array.isArray(requestedSkills) || requestedSkills.length === 0) {
         return NextResponse.json(
@@ -111,7 +147,6 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
           { status: 400 },
         );
       }
-
       const validSkills = await Collections.skills(db)
         .find({ isActive: true }, { projection: { slug: 1, _id: 0 } })
         .toArray();
@@ -127,16 +162,29 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       }
     }
 
-    const vaultId = new ObjectId(req.auth.vaultId);
-    const userData = await Collections.userData(db).findOne({ vaultId });
-    if (!userData) {
-      return NextResponse.json(
-        { error: "User profile not found" },
-        { status: 404 },
-      );
+    // ── Program: requires a program name ──────────────────────────────────
+    if (type === "program") {
+      if (!requestedProgram || typeof requestedProgram !== "string") {
+        return NextResponse.json(
+          { error: "requestedProgram is required" },
+          { status: 400 },
+        );
+      }
     }
 
-    // Block duplicate pending application of same type
+    // ── Writer: writing samples optional but topics required ──────────────
+    if (type === "writer") {
+      if (!Array.isArray(topics) || topics.length === 0) {
+        return NextResponse.json(
+          { error: "topics must be a non-empty array for writer applications" },
+          { status: 400 },
+        );
+      }
+    }
+
+    // ── Sponsorship: no extra validation — reason is sufficient ───────────
+
+    // ── Block duplicate pending application of same type ──────────────────
     const existing = await Collections.applications(db).findOne({
       userId: userData._id!,
       type,
@@ -159,8 +207,17 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       createdAt: now,
       updatedAt: now,
     };
+
+    // Type-specific payload fields
     if (type === "committee") doc.requestedCommittee = requestedCommittee;
     if (type === "skills") doc.requestedSkills = requestedSkills;
+    if (type === "program") doc.requestedProgram = requestedProgram;
+    if (type === "sponsorship")
+      doc.sponsorshipDetails = sponsorshipDetails ?? null;
+    if (type === "writer") {
+      doc.writingSamples = writingSamples ?? null;
+      doc.topics = topics ?? null;
+    }
 
     const { insertedId } = await Collections.applications(db).insertOne(
       doc as never,

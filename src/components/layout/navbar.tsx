@@ -36,6 +36,7 @@ const MEMBER_LINKS = [
   { name: "Events", href: "/events" },
   { name: "Tickets", href: "/tickets" },
   { name: "Profile", href: "/profile" },
+  { name: "Apply", href: "/profile/applications" },
 ];
 
 const MODERATOR_LINKS = [

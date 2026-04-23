@@ -149,8 +149,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
       setFormData({ ...DEFAULT_FORM, ...(initialData ?? {}) });
       setCurrentStep(1);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, eventId]);
+  }, [isOpen, eventId, initialData]);
 
   if (!isOpen) return null;
 

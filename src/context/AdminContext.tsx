@@ -179,12 +179,23 @@ export interface Analytics {
     count: number;
     volume: number; // 0–100, normalised for chart
   }>;
-   prediction: {
+  prediction: {
     biasVector: number[];
-    accuracyPct: number | null;   // null = no validation run yet
+    accuracyPct: number | null; // null = no validation run yet
     maeScore: number | null;
     lastValidatedDate: string | null;
     logCount: number;
+  };
+  funnel: {
+    eventListingViews: number;
+    eventDetailViews: number;
+    registerPageViews: number;
+    completedRegistrations: number;
+    dropoff: {
+      emailUnverified: number;
+      profileIncomplete: number;
+      profileCompletionRate: number;
+    };
   };
   generatedAt: string;
 }

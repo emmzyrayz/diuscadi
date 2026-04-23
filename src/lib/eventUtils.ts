@@ -12,9 +12,9 @@ export type EventState =
   | "free-closed";
 
 export interface EventStateInput {
-  eventDate: string;
-  endDate?: string | null;
-  registrationDeadline: string;
+  eventDate: string; // must be ISO 8601 — use eventDateIso from EventDetail
+  endDate?: string | null; // must be ISO 8601 — use endDateIso from EventDetail
+  registrationDeadline: string; // already ISO from DB
   slotsRemaining: number;
   isFree?: boolean;
 }
@@ -24,6 +24,9 @@ export interface EventStateInput {
 // isFree is derived: ticketTypes.every(t => t.price === 0) || ticketTypes.length === 0
 
 export function getEventState(e: EventStateInput): EventState {
+  // All date fields must be ISO 8601 strings.
+  // On EventDetail, use eventDateIso and endDateIso — NOT eventDate/endDate
+  // which are pre-formatted display strings (e.g. "Thursday, April 23, 2026").
   const now = new Date();
   const start = new Date(e.eventDate);
   const end = e.endDate

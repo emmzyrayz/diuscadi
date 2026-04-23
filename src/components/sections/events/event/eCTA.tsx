@@ -11,8 +11,8 @@ export const FinalCTA = ({ event }: { event: EventDetail }) => {
   const router = useRouter();
 
   const state = getEventState({
-    eventDate: event.eventDate,
-    endDate: event.endDate ?? null,
+    eventDate: event.eventDateIso,
+    endDate: event.endDateIso ?? null,
     registrationDeadline: event.registrationDeadline,
     slotsRemaining: event.slotsRemaining,
     isFree: event.isFree,

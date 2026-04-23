@@ -27,8 +27,8 @@ export const EventMetaBar = ({ event }: { event: EventDetail }) => {
   const countdown = useCountdown(event.registrationDeadline);
 
   const state = getEventState({
-    eventDate: event.eventDate,
-    endDate: event.endDate ?? null,
+    eventDate: event.eventDateIso,
+    endDate: event.endDateIso ?? null,
     registrationDeadline: event.registrationDeadline,
     slotsRemaining: event.slotsRemaining,
     isFree: event.isFree,
@@ -145,7 +145,7 @@ export const EventMetaBar = ({ event }: { event: EventDetail }) => {
               </span>
               {isPast && (
                 <span className="text-[10px] font-black text-slate-400 uppercase mt-1">
-                  {new Date(event.eventDate).toLocaleDateString("en-US", {
+                  {new Date(event.eventDateIso).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
                     year: "numeric",

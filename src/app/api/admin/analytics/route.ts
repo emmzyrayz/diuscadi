@@ -42,6 +42,12 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       healthSummary,
       hourlyVisitDocs,
       latestPredictionLog,
+      funnelEventListingViews,
+      funnelEventDetailViews,
+      funnelRegisterPageViews,
+      dropoffEmailUnverified,
+      dropoffProfileIncomplete,
+      profileCompleted,
     ] = await Promise.all([
       // Users
       Collections.userData(db).countDocuments(),
@@ -153,6 +159,40 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         .toArray(),
 
       Collections.predictionLogs(db).findOne({}, { sort: { appliedAt: -1 } }),
+
+      // Funnel: event listing views (last 30 days)
+      Collections.pageVisits(db).countDocuments({
+        timestamp: { $gte: thirtyDaysAgo },
+        page: "/events",
+      }),
+
+      // Funnel: event detail views (last 30 days)
+      // Any /events/* page that isn't /events or /events/*/register
+      Collections.pageVisits(db).countDocuments({
+        timestamp: { $gte: thirtyDaysAgo },
+        page: { $regex: "^/events/[^/]+$", $options: "i" },
+      }),
+
+      // Funnel: registration page views (last 30 days)
+      Collections.pageVisits(db).countDocuments({
+        timestamp: { $gte: thirtyDaysAgo },
+        page: { $regex: "^/events/.+/register$", $options: "i" },
+      }),
+
+      // Drop-off: email verification incomplete (pending verification)
+      Collections.vault(db).countDocuments({
+        isEmailVerified: false,
+        createdAt: { $gte: thirtyDaysAgo },
+      }),
+
+      // Drop-off: profile incomplete (no avatar after 3+ days)
+      Collections.userData(db).countDocuments({
+        hasAvatar: false,
+        createdAt: { $lte: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000) },
+      }),
+
+      // Profile completion: total users with avatar
+      Collections.userData(db).countDocuments({ hasAvatar: true }),
     ]);
 
     const hourlyVisitMap = Object.fromEntries(
@@ -226,6 +266,20 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         maeScore: latestPredictionLog?.maeScore ?? null,
         lastValidatedDate: latestPredictionLog?.date ?? null,
         logCount: await Collections.predictionLogs(db).countDocuments(),
+      },
+      funnel: {
+        eventListingViews: funnelEventListingViews,
+        eventDetailViews: funnelEventDetailViews,
+        registerPageViews: funnelRegisterPageViews,
+        completedRegistrations: totalRegistrations, // already fetched
+        dropoff: {
+          emailUnverified: dropoffEmailUnverified,
+          profileIncomplete: dropoffProfileIncomplete,
+          profileCompletionRate:
+            totalUsers > 0
+              ? Math.round((profileCompleted / totalUsers) * 100)
+              : 0,
+        },
       },
       generatedAt: now.toISOString(),
     });
