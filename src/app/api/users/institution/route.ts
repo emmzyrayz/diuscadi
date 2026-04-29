@@ -11,12 +11,15 @@ import { ObjectId } from "mongodb";
 export const PATCH = withAuth(async (req: AuthenticatedRequest) => {
   try {
     const body = await req.json();
-    const { institutionId, facultyId, departmentId, level } = body as {
-      institutionId: string;
-      facultyId: string;
-      departmentId: string;
-      level?: string;
-    };
+    const { institutionId, facultyId, departmentId, level, cgpa, cgpaScale } =
+      body as {
+        institutionId: string;
+        facultyId: string;
+        departmentId: string;
+        level?: string;
+        cgpa?: number | null;
+        cgpaScale?: number;
+      };
 
     if (!institutionId || !facultyId || !departmentId) {
       return NextResponse.json(
@@ -111,12 +114,27 @@ export const PATCH = withAuth(async (req: AuthenticatedRequest) => {
       { projection: { Institution: 1 } },
     );
 
+    // Validate CGPA against scale
+    if (cgpa !== undefined && cgpa !== null) {
+      const scale = cgpaScale ?? existing?.Institution?.cgpaScale ?? 5.0;
+      if (cgpa < 0 || cgpa > scale) {
+        return NextResponse.json(
+          { error: `CGPA must be between 0 and ${scale}` },
+          { status: 400 },
+        );
+      }
+    }
+
     const merged = {
       ...(existing?.Institution ?? {}),
       ...institutionUpdate,
       // Always preserve these — never overwrite from this route
       gpaRecord: existing?.Institution?.gpaRecord ?? [],
-      cgpa: existing?.Institution?.cgpa ?? null,
+      cgpa: cgpa !== undefined ? cgpa : (existing?.Institution?.cgpa ?? null),
+      cgpaScale:
+        cgpaScale !== undefined
+          ? cgpaScale
+          : (existing?.Institution?.cgpaScale ?? undefined),
       verifiedSchoolEmail: existing?.Institution?.verifiedSchoolEmail ?? false,
     };
 

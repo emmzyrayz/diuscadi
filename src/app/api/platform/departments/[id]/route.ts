@@ -36,6 +36,8 @@ export const PATCH = withAuth(
       if (body.name !== undefined) updates.name = String(body.name).trim();
       if (body.isActive !== undefined)
         updates.isActive = Boolean(body.isActive);
+      if (body.degreeType !== undefined)
+        updates.degreeType = body.degreeType ?? null;
 
       if (Object.keys(updates).length === 0) {
         return NextResponse.json(

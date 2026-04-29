@@ -50,7 +50,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
-    const { name } = await req.json();
+    const { name, degreeType } = await req.json();
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json(
         { error: "Department name is required" },
@@ -74,6 +74,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     const { insertedId } = await Collections.departments(db).insertOne({
       name: name.trim(),
       isActive: true,
+      degreeType: degreeType ?? null,
       createdAt: now,
       updatedAt: now,
     });
@@ -85,6 +86,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
           id: insertedId.toString(),
           name: name.trim(),
           isActive: true,
+          degreeType: degreeType ?? null,
           createdAt: now.toISOString(),
           updatedAt: now.toISOString(),
         },

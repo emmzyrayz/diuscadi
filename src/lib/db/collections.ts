@@ -26,6 +26,7 @@ import type {
 import { EventReviewDocument } from "../models/EventReview";
 import { PageVisitDocument } from "../models/pageVisit";
 import { PredictionLogDocument } from "../models/predictionLog";
+import { CustomLocationDocument } from "@/lib/models/CustomLocation";
 
 export const Collections = {
   vault: (db: Db) => db.collection<VaultDocument>("vault"),
@@ -60,5 +61,8 @@ export const Collections = {
   platformConfig: (db: Db) =>
     db.collection<PlatformConfigDocument>("platformConfig"),
   pageVisits: (db: Db) => db.collection<PageVisitDocument>("pageVisits"),
-  predictionLogs: (db: Db) => db.collection<PredictionLogDocument>("predictionLogs"),
+  predictionLogs: (db: Db) =>
+    db.collection<PredictionLogDocument>("predictionLogs"),
+  customLocations: (db: Db) =>
+    db.collection<CustomLocationDocument>("customLocations"),
 };

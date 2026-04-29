@@ -25,6 +25,7 @@ export interface AdminUser {
   eduStatus: string;
   committee: string | null;
   skills: string[];
+  verifiedSkills?: string[];
   profileCompleted: boolean;
   membershipStatus: string;
   isAccountActive: boolean;
@@ -349,6 +350,9 @@ interface AdminContextValue extends AdminState {
     },
     token?: string,
   ) => Promise<void>;
+
+  updateVerifiedSkills: (userId: string, verifiedSkills: string[], token: string) => Promise<void>;
+
   createEvent: (
     payload: CreateEventPayload,
     token: string,
@@ -1065,6 +1069,28 @@ export function AdminProvider({
     [token],
   );
 
+  const updateVerifiedSkills = useCallback(
+  async (userId: string, verifiedSkills: string[], tkn: string) => {
+    setState((s) => ({ ...s, submitting: true, error: null }));
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/verified-skills`, {
+        method: "PATCH",
+        headers: authHeaders(tkn),
+        body: JSON.stringify({ verifiedSkills }),
+      });
+      await handleResponse(res);
+      setState((s) => ({
+        ...s,
+        submitting: false,
+        users: s.users.map((u) => u.id === userId ? { ...u, verifiedSkills } : u),
+      }));
+    } catch (err) {
+      setState((s) => ({ ...s, submitting: false, error: err instanceof Error ? err.message : "Failed" }));
+      throw err;
+    }
+  }, [],
+);
+
   return (
     <AdminContext.Provider
       value={{
@@ -1087,6 +1113,7 @@ export function AdminProvider({
         loadTickets,
         reset,
         clearError,
+        updateVerifiedSkills,
       }}
     >
       {children}

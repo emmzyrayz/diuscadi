@@ -99,6 +99,7 @@ export interface UserDataDocument {
     // ── Academic record ───────────────────────────────────────────────────
     gpaRecord: SemesterGPARecord[];
     cgpa: number | null;
+    cgpaScale?: number;
     cgpaLastCalculatedAt?: string;
   };
 
@@ -111,7 +112,8 @@ export interface UserDataDocument {
   };
 
   committeeMembership: CommitteeMembership | null;
-  skills: Skill[];
+  skills: Skill[]; // skill slugs manually verified by admin
+  verifiedSkills?: string[];
   profileCompleted: boolean;
   profile?: { bio?: string };
   membershipStatus: "pending" | "approved" | "suspended";

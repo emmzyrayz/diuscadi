@@ -9,6 +9,8 @@ export interface DepartmentDocument {
   name: string; // e.g. "Computer Science"
   isActive: boolean;
 
+  degreeType?: string; // e.g. "B.Sc", "ND", "HND", "B.Eng"
+
   createdAt: Date;
   updatedAt: Date;
 }

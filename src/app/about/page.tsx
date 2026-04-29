@@ -5,83 +5,56 @@ import {
   Users,
   Target,
   ShieldCheck,
-  Milestone,
   Globe2,
   BookOpen,
   Award,
   TrendingUp,
   Lightbulb,
   ArrowRight,
+  Rocket,
+  Sprout,
+  MonitorSmartphone,
+  HeartHandshake,
+  Laptop,
+  Briefcase,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import mentor from "@/assets/img/downloads/Dr-Ikechukwu-Umeh-1440x1920.webp";
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
-const team = [
-  {
-    name: "Dr. Adaora Nwosu",
-    role: "Executive Director",
-    image: "https://i.pravatar.cc/150?u=adaora",
-    bio: "Former UNDP policy analyst with 14 years shaping digital-governance frameworks across West Africa.",
-  },
-  {
-    name: "Emeka Okafor",
-    role: "Head of Research",
-    image: "https://i.pravatar.cc/150?u=emeka",
-    bio: "PhD in Information Systems (UCL). Published researcher in AI ethics and inclusive technology design.",
-  },
-  {
-    name: "Chisom Eze",
-    role: "Director of Programmes",
-    image: "https://i.pravatar.cc/150?u=chisom",
-    bio: "15 years delivering youth-capacity programmes across Nigeria, Ghana, and Senegal.",
-  },
-  {
-    name: "Ngozi Abiodun",
-    role: "Communications Lead",
-    image: "https://i.pravatar.cc/150?u=ngozi",
-    bio: "Award-winning science communicator and former BBC Africa technology correspondent.",
-  },
-  {
-    name: "Tunde Adeleke",
-    role: "Chief Technology Officer",
-    image: "https://i.pravatar.cc/150?u=tunde",
-    bio: "Full-stack engineer and open-source maintainer. Leads DIUSCADI's digital infrastructure and tooling.",
-  },
-  {
-    name: "Amaka Obi",
-    role: "Partnerships Manager",
-    image: "https://i.pravatar.cc/150?u=amaka",
-    bio: "Broker of strategic alliances with universities, NGOs, and government bodies across 12 countries.",
-  },
-];
-
 const milestones = [
   {
-    year: "2016",
-    title: "Founded in Abuja",
-    desc: "DIUSCADI was established by a cohort of 22 digital practitioners committed to open-access research and civic technology.",
-  },
-  {
-    year: "2018",
-    title: "First Policy Brief",
-    desc: "Our landmark report on broadband inclusion influenced Nigeria's National Digital Economy Policy and Strategy.",
-  },
-  {
     year: "2020",
-    title: "Regional Expansion",
-    desc: "Chapters launched in Accra, Lagos, and Nairobi, growing membership to over 1,400 professionals.",
+    title: "DIUSCADI Founded",
+    desc: "Prof. Chief Ikechukwu I. Umeh established DIUSCADI at Nnamdi Azikiwe University, Awka. The inaugural LASCADSS 1.0 drew students from across Anambra State.",
+  },
+  {
+    year: "2021",
+    title: "LASCADSS 2.0 — Growing Reach",
+    desc: "The second edition expanded with more participants, new facilitators, and a broader curriculum covering ICT, entrepreneurship, and career readiness.",
   },
   {
     year: "2022",
-    title: "DIUSCADI Platform Launch",
-    desc: "We shipped our open-source collaboration platform, enabling members to co-author research and manage projects.",
+    title: "LASCADSS 3.0 — Sponsored by PA-CENT Technologies",
+    desc: "Corporate sponsorship from PA-CENT Technologies Limited enabled a larger event with exhibitions, workshop stations, and laptop prizes for participants.",
+  },
+  {
+    year: "2023",
+    title: "LASCADSS 4.0 — Finalist Launchpad Workshop",
+    desc: "Themed 'Finalist Launchpad Workshop for Life After School', this edition introduced deep-dive CV preparation, interview training, and mentorship sessions.",
   },
   {
     year: "2024",
-    title: "UN Recognition",
-    desc: "Named a UN ECOSOC-affiliated civil society organisation, strengthening our voice in global digital governance.",
+    title: "LASCADSS 5.0 — Turn Your Skills into Wealth",
+    desc: "Held at ASUU Secretariat, UNIZIK on 23 August 2024 with the theme 'Turn Your Skills into Wealth for Life After School'. Featured workshops, networking, exhibitions, and gifts. Sponsored by MTN Nigeria and others.",
+  },
+  {
+    year: "2025",
+    title: "LASCADSS 6.0 — Navigating Your Career Paths",
+    desc: "Themed 'Navigating Your Career Paths in a Dynamic World', the 6th edition featured Tech Up sessions, networking, practical hands-on training, and panel discussions. Now with over 5,000 graduates trained in total.",
   },
 ];
 
@@ -89,40 +62,131 @@ const values = [
   {
     icon: Target,
     title: "Mission",
-    desc: "Advance equitable digital development by connecting practitioners, amplifying evidence-based policy, and building open tools for civic good.",
+    desc: "To bridge the gap between academic learning and real-world opportunities by equipping students and graduates with future-ready skills, career guidance, innovation capacity, and entrepreneurial orientation.",
   },
   {
     icon: Lightbulb,
     title: "Vision",
-    desc: "A continent where every community has the digital literacy, infrastructure, and agency to shape its own technological future.",
+    desc: "To empower the next generation of leaders, innovators, and entrepreneurs — preparing young Nigerians not just for jobs, but for leadership, innovation, and nation-building.",
   },
   {
     icon: ShieldCheck,
     title: "Integrity",
-    desc: "Our research is independent and peer-reviewed. We publish all findings openly, accepting no funding that restricts publication.",
+    desc: "All our programmes are transparently managed. Registration for LASCADSS is 100% free for selected participants. We maintain accountability to our community and partners.",
   },
   {
     icon: Globe2,
     title: "Inclusion",
-    desc: "Programmes designed around the most marginalised voices — rural, low-income, and differently-abled communities come first.",
+    desc: "DIUSCADI programmes serve students with disabilities, rural communities, and underserved institutions. Over 200 students with disabilities have benefited from our inclusive career training.",
   },
   {
     icon: Users,
     title: "Community",
-    desc: "Over 3,200 members across 19 countries, united by shared standards of professional practice and mutual accountability.",
+    desc: "A growing alumni network across universities and polytechnics in Nigeria, connected via WhatsApp communities for ongoing mentorship, job alerts, and peer support.",
   },
   {
     icon: BookOpen,
     title: "Learning",
-    desc: "Continuous education through fellowships, masterclasses, and a peer-reviewed digital journal published quarterly.",
+    desc: "Continuous skill-building through workshops, bootcamps, seminars, and practical training sessions covering ICT, fashion, agriculture, entrepreneurship, and financial literacy.",
+  },
+];
+
+const focusAreas = [
+  {
+    icon: MonitorSmartphone,
+    label: "Digital Skills & ICT",
+    desc: "Training in hardware, AI, software, and emerging technologies",
+  },
+  {
+    icon: Rocket,
+    label: "Entrepreneurship",
+    desc: "Business incubation and startup support for young founders",
+  },
+  {
+    icon: HeartHandshake,
+    label: "Career Mentorship",
+    desc: "Personalised coaching and guidance from industry professionals",
+  },
+  {
+    icon: Sprout,
+    label: "Agriculture & Livelihood",
+    desc: "Training on modern farming, livestock, and agro-enterprise",
+  },
+  {
+    icon: Globe2,
+    label: "Financial Literacy",
+    desc: "Investment strategies, business finance, and SMART money management",
+  },
+  {
+    icon: ShieldCheck,
+    label: "Leadership Development",
+    desc: "Building confident, visionary, and impact-driven young leaders",
+  },
+  {
+    icon: Target,
+    label: "Career Development & Mentorship",
+    desc: "Personalised coaching and career guidance from top industry professionals.",
+  },
+  {
+    icon: Laptop,
+    label: "Digital Skills & Innovation",
+    desc: "Training in ICT, hardware, AI, and emerging technologies.",
+  },
+  {
+    icon: Briefcase,
+    label: "Internships & Job Placements",
+    desc: "Connecting students to internships, graduate trainee programmes, and job opportunities.",
+  },
+  {
+    icon: TrendingUp,
+    label: "Entrepreneurship & Start-Up Support",
+    desc: "Business incubation and training for young entrepreneurs.",
+  },
+  {
+    icon: GraduationCap,
+    label: "Financial Literacy & Wealth Creation",
+    desc: "Investment strategies, business finance, and SMART money management.",
+  },
+  {
+    icon: Users,
+    label: "Women in Tech & Agriculture",
+    desc: "Hands-on training in fashion, agro-empowerment, and STEM fields for women.",
   },
 ];
 
 const stats = [
-  { value: "3,200+", label: "Members" },
-  { value: "19", label: "Countries" },
-  { value: "48", label: "Published Reports" },
-  { value: "12", label: "Partner Universities" },
+  { value: "5,000+", label: "Students Trained" },
+  { value: "6", label: "LASCADSS Editions" },
+  { value: "2,500+", label: "Jobs & Internships" },
+  { value: "100+", label: "Startups Launched" },
+];
+
+const sdgs = [
+  {
+    num: "4",
+    label: "Quality Education",
+    desc: "Equipping students with relevant skills & knowledge.",
+  },
+  {
+    num: "8",
+    label: "Decent Work & Economic Growth",
+    desc: "Creating job opportunities & entrepreneurial success.",
+  },
+  {
+    num: "9",
+    label: "Industry, Innovation & Infrastructure",
+    desc: "Fostering tech-driven career development.",
+  },
+  {
+    num: "10",
+    label: "Reduced Inequalities",
+    desc: "Providing equal opportunities for all students.",
+  },
+  {
+    num: "17",
+    label: "Partnerships for the Goals",
+    desc: "Collaboration with corporate organisations and institutions.",
+  },
 ];
 
 /* ─── Helpers ───────────────────────────────────────────────────────────────── */
@@ -168,7 +232,6 @@ export default function AboutPage() {
     <main className="min-h-screen pt-28 pb-20 px-4 sm:px-6 max-w-7xl mx-auto space-y-32">
       {/* ── Hero ── */}
       <section className="relative text-center space-y-6 max-w-4xl mx-auto">
-        {/* decorative ring */}
         <div
           aria-hidden
           className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 w-[520px] h-[520px] rounded-full border border-primary/10 blur-sm"
@@ -180,8 +243,8 @@ export default function AboutPage() {
         >
           <SectionLabel>About DIUSCADI</SectionLabel>
           <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.05] mt-2">
-            Advancing <span className="text-primary">Digital Equity</span>{" "}
-            Across Africa
+            Shaping the Young for{" "}
+            <span className="text-primary">Future Career Success</span>
           </h1>
         </motion.div>
         <motion.p
@@ -190,11 +253,11 @@ export default function AboutPage() {
           transition={{ delay: 0.18, duration: 0.6 }}
           className="text-muted-foreground text-lg md:text-xl leading-relaxed max-w-2xl mx-auto"
         >
-          DIUSCADI is an independent, non-governmental research and
-          capacity-building organisation. Since 2016 we have worked at the
-          intersection of digital policy, civic technology, and professional
-          development to ensure Africa&apos;s digital transformation leaves no one
-          behind.
+          DIUSCADI (Digitized Initiative for Up-Skilling Career Development and
+          Innovation) is a non-profit initiative domiciled at Nnamdi Azikiwe
+          University, Awka, Anambra State. Since 2020, we have been empowering
+          final-year students and fresh graduates to discover their potential,
+          build meaningful careers, and contribute positively to society.
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -209,15 +272,15 @@ export default function AboutPage() {
             Our Mission <ArrowRight size={16} />
           </a>
           <a
-            href="#team"
+            href="#lascadss"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl glass font-semibold text-sm hover:bg-muted transition-colors"
           >
-            Meet the Team
+            LASCADSS Programme
           </a>
         </motion.div>
       </section>
 
-      {/* ── Stats Bar ── */}
+      {/* ── Stats ── */}
       <FadeIn>
         <div className="glass rounded-3xl px-6 py-8 grid grid-cols-2 md:grid-cols-4 divide-x divide-border/60">
           {stats.map((s, i) => (
@@ -236,48 +299,59 @@ export default function AboutPage() {
         </div>
       </FadeIn>
 
-      {/* ── About / Origin Story ── */}
+      {/* ── Founder & Story ── */}
       <section className="grid md:grid-cols-2 gap-12 items-center">
         <FadeIn className="space-y-5">
           <SectionLabel>Our Story</SectionLabel>
           <h2 className="text-3xl md:text-4xl font-bold leading-tight">
-            Born from a simple conviction: access to technology is a right, not
-            a privilege.
+            Born from a conviction: every graduate deserves to be prepared for
+            what comes after school.
           </h2>
           <p className="text-muted-foreground leading-relaxed">
-            In 2016, a small group of information-systems researchers, software
-            engineers, and public-policy advocates gathered in Abuja with a
-            shared frustration — African voices were largely absent from the
-            global conversations defining how digital infrastructure would be
-            built and governed. DIUSCADI was their answer.
+            DIUSCADI was founded in 2020 by Professor (Chief) Ikechukwu Innocent
+            Umeh, FNCS, FIPMD — Head of Department, Information Technology, at
+            Nnamdi Azikiwe University, Awka. Driven by the rising unemployment
+            rate among Nigerian graduates and a harsh labour market, Prof. Umeh
+            established DIUSCADI to change that narrative.
           </p>
           <p className="text-muted-foreground leading-relaxed">
-            We began as a reading group of 22. Within two years, our first
-            policy brief on rural broadband reached Nigeria&apos;s Ministry of
-            Communications. Within five, we had chapters in three countries.
-            Today, we are a recognised civil-society organisation influencing
-            policy from Geneva to Lagos.
+            Through the Life After School Career Development Seminar Series
+            (LASCADSS), DIUSCADI has run 6 editions since 2020, training over
+            5,000 graduates from universities and polytechnics across Anambra
+            State. We are expanding our reach to include undergraduates before
+            they participate in Industrial Training (IT/SIWES).
           </p>
           <p className="text-muted-foreground leading-relaxed">
-            Our independence is non-negotiable. We accept no funding that
-            constrains our research conclusions, and every report we publish is
-            freely available under Creative Commons. The knowledge we generate
-            belongs to the communities it is meant to serve.
+            Our programmes focus on career development, digital and
+            technological skills, entrepreneurship, sustainable livelihood, and
+            leadership development — always with 100% free participation for
+            selected final-year students.
           </p>
         </FadeIn>
 
-        {/* stacked glass cards for visual interest */}
-        <FadeIn delay={0.15} className="relative h-96 hidden md:block">
+        <FadeIn delay={0.15} className="relative hidden md:block">
           <div className="glass rounded-3xl absolute inset-0 rotate-3 opacity-40" />
           <div className="glass rounded-3xl absolute inset-0 -rotate-2 opacity-60" />
-          <div className="glass glass-shine rounded-3xl absolute inset-0 flex flex-col justify-end p-8 space-y-3">
-            <Award size={36} className="text-primary" />
-            <p className="text-xl font-bold leading-snug">
-              &quot;Technology must empower communities, not merely reach them.&quot;
-            </p>
-            <p className="text-sm text-muted-foreground">
-              — DIUSCADI Founding Charter, 2016
-            </p>
+          <div className="glass glass-shine rounded-3xl absolute inset-0 flex flex-col justify-end p-8 space-y-3 overflow-hidden">
+            <div className="absolute inset-0">
+              <Image
+                src={mentor}
+                alt="Prof. Chief Ikechukwu I. Umeh"
+                fill
+                className="object-cover opacity-30"
+              />
+            </div>
+            <div className="relative z-10">
+              <Award size={36} className="text-primary mb-4" />
+              <p className="text-xl font-bold leading-snug">
+                &quot;We are preparing young people for leadership, innovation,
+                and nation-building — not just jobs.&quot;
+              </p>
+              <p className="text-sm text-muted-foreground mt-3">
+                — Prof. Chief Ikechukwu I. Umeh, FNCS, FIPMD · Founder, DIUSCADI
+                · HOD Information Technology, UNIZIK
+              </p>
+            </div>
           </div>
         </FadeIn>
       </section>
@@ -311,17 +385,48 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* ── History Timeline ── */}
+      {/* ── Focus Areas ── */}
+      <section id="lascadss" className="space-y-10">
+        <FadeIn className="text-center space-y-2">
+          <SectionLabel>Programme Focus Areas</SectionLabel>
+          <h2 className="text-3xl md:text-4xl font-bold">What DIUSCADI Does</h2>
+          <p className="text-muted-foreground max-w-xl mx-auto text-sm">
+            Our programmes span multiple domains to prepare graduates for every
+            path — employment, entrepreneurship, or further education.
+          </p>
+        </FadeIn>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {focusAreas.map((area, i) => (
+            <FadeIn key={i} delay={i * 0.07}>
+              <div className="glass rounded-3xl p-6 h-full space-y-3 hover:border-primary/30 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <area.icon size={20} />
+                </div>
+                <h3 className="font-bold text-base">{area.label}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {area.desc}
+                </p>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </section>
+
+      {/* ── LASCADSS Timeline ── */}
       <section className="space-y-10">
         <FadeIn className="text-center space-y-2">
-          <SectionLabel>Our Journey</SectionLabel>
-          <h2 className="text-3xl md:text-4xl font-bold">A Decade of Impact</h2>
+          <SectionLabel>LASCADSS History</SectionLabel>
+          <h2 className="text-3xl md:text-4xl font-bold">
+            Six Editions. One Mission.
+          </h2>
+          <p className="text-muted-foreground max-w-xl mx-auto text-sm">
+            From a single seminar in 2020 to a nationally recognised career
+            development platform in 2025.
+          </p>
         </FadeIn>
 
         <div className="relative space-y-0">
-          {/* vertical line */}
           <div className="absolute left-[calc(50%-1px)] top-0 bottom-0 w-px bg-border hidden md:block" />
-
           {milestones.map((m, i) => {
             const isLeft = i % 2 === 0;
             return (
@@ -330,7 +435,6 @@ export default function AboutPage() {
                 delay={i * 0.08}
                 className="md:grid md:grid-cols-2 md:gap-10 relative mb-10 last:mb-0"
               >
-                {/* left slot */}
                 <div
                   className={cn(
                     "",
@@ -350,11 +454,7 @@ export default function AboutPage() {
                     </p>
                   </motion.div>
                 </div>
-
-                {/* centre dot — desktop */}
                 <div className="absolute left-1/2 top-6 -translate-x-1/2 w-4 h-4 rounded-full bg-primary border-4 border-background hidden md:block z-10" />
-
-                {/* empty opposite slot */}
                 {isLeft && <div className="hidden md:block" />}
               </FadeIn>
             );
@@ -362,69 +462,65 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* ── Team ── */}
-      <section id="team" className="space-y-10">
-        <FadeIn className="text-center space-y-2">
-          <SectionLabel>Leadership</SectionLabel>
-          <h2 className="text-3xl md:text-4xl font-bold">Meet the Team</h2>
-          <p className="text-muted-foreground max-w-xl mx-auto text-sm">
-            A multidisciplinary team of researchers, engineers, communicators,
-            and policy professionals united by a shared purpose.
-          </p>
-        </FadeIn>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {team.map((member, i) => (
-            <FadeIn key={i} delay={i * 0.07}>
-              <motion.div
-                whileHover={{ y: -5 }}
-                transition={{ type: "spring", stiffness: 280, damping: 20 }}
-                className="glass glass-shine rounded-3xl p-6 flex gap-5 items-start border-b-4 border-b-primary/20"
-              >
-                <Image
-                  width={80}
-                  height={80}
-                  src={member.image}
-                  alt={member.name}
-                  className="w-16 h-16 rounded-2xl object-cover grayscale hover:grayscale-0 transition-all flex-shrink-0"
-                />
-                <div className="space-y-1.5">
-                  <h4 className="font-bold text-sm leading-tight">
-                    {member.name}
-                  </h4>
-                  <p className="text-xs text-primary font-semibold">
-                    {member.role}
-                  </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {member.bio}
-                  </p>
-                </div>
-              </motion.div>
-            </FadeIn>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Partners / Affiliations ── */}
+      {/* ── SDG Alignment ── */}
       <section className="space-y-8">
         <FadeIn className="text-center space-y-2">
-          <SectionLabel>Affiliations</SectionLabel>
+          <SectionLabel>UN Sustainable Development Goals</SectionLabel>
           <h2 className="text-3xl font-bold">
-            Trusted by Leading Institutions
+            Driving Sustainable Development
+          </h2>
+          <p className="text-muted-foreground max-w-xl mx-auto text-sm">
+            DIUSCADI&apos;s mission directly aligns with the United Nations SDGs
+            by fostering inclusive education, economic empowerment, and
+            sustainable community development.
+          </p>
+        </FadeIn>
+        <FadeIn>
+          <div className="glass rounded-3xl p-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {sdgs.map((sdg, i) => (
+                <div
+                  key={i}
+                  className="glass-subtle rounded-2xl p-5 text-center space-y-2"
+                >
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto">
+                    <span className="text-primary font-black text-xl">
+                      {sdg.num}
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold text-foreground leading-tight">
+                    {sdg.label}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    {sdg.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </FadeIn>
+      </section>
+
+      {/* ── Partners ── */}
+      <section className="space-y-8">
+        <FadeIn className="text-center space-y-2">
+          <SectionLabel>Partners & Sponsors</SectionLabel>
+          <h2 className="text-3xl font-bold">
+            Supported by Leading Organisations
           </h2>
         </FadeIn>
         <FadeIn>
           <div className="glass rounded-3xl p-8">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 items-center text-center">
               {[
-                "United Nations ECOSOC",
-                "African Union Commission",
-                "World Bank Group",
-                "Mozilla Foundation",
-                "Internet Society",
-                "GSMA",
-                "Open Government Partnership",
-                "Carnegie Endowment",
+                "MTN Nigeria",
+                "PA-CENT Technologies Limited",
+                "Nnamdi Azikiwe University",
+                "ASUU, UNIZIK",
+                "Anambra State Government",
+                "Nigerian Communications Commission",
+                "Ministry of Communications",
+                "Corporate Sponsors (LASCADSS 7.0 — Open)",
               ].map((partner, i) => (
                 <div
                   key={i}
@@ -441,32 +537,32 @@ export default function AboutPage() {
       {/* ── CTA ── */}
       <FadeIn>
         <div className="glass glass-shine rounded-3xl p-10 md:p-14 text-center space-y-5 relative overflow-hidden">
-          {/* decorative blob */}
           <div
             aria-hidden
             className="pointer-events-none absolute -top-20 -right-20 w-72 h-72 rounded-full bg-primary/10 blur-3xl"
           />
           <TrendingUp size={36} className="text-primary mx-auto" />
           <h3 className="text-3xl md:text-4xl font-black">
-            Ready to make an impact?
+            Ready to shape your future?
           </h3>
           <p className="text-muted-foreground max-w-lg mx-auto text-sm leading-relaxed">
-            Join over 3,200 practitioners shaping Africa&apos;s digital future.
-            Membership is open to researchers, technologists, policymakers, and
-            anyone committed to equitable digital development.
+            Join thousands of students and graduates who have transformed their
+            academic knowledge into career success through DIUSCADI&apos;s
+            programmes. Whether you are a student, graduate, mentor, partner, or
+            supporter — DIUSCADI welcomes you.
           </p>
           <div className="flex flex-wrap justify-center gap-4 pt-2">
             <a
               href="/auth"
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
             >
-              Become a Member <ArrowRight size={16} />
+              Join DIUSCADI <ArrowRight size={16} />
             </a>
             <a
               href="/contact"
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl glass font-semibold text-sm hover:bg-muted transition-colors"
             >
-              Contact Us
+              Partner With Us
             </a>
           </div>
         </div>

@@ -68,9 +68,14 @@ export interface AppearancePreferences {
 }
 
 export interface PrivacyPreferences {
-  profilePrivate: boolean; // hide from DIUSCADI directory
-  showEmail: boolean; // display on digital ID
-  showPhone: boolean; // display for networking
+  profileVisibility: "public" | "members" | "private";
+  fieldPermissions: {
+    phone: "public" | "members" | "private";
+    email: "public" | "members" | "private";
+    location: "public" | "members" | "private";
+    socials: "public" | "members" | "private";
+    academic: "public" | "members" | "private"; // For CGPA/Level
+  }
 }
 
 export interface UserPreferences {
@@ -92,9 +97,14 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     accent: "emerald",
   },
   privacy: {
-    profilePrivate: false,
-    showEmail: false,
-    showPhone: false,
+    profileVisibility: "members",
+    fieldPermissions: {
+      phone: 'private',
+      email: "members",
+    location: "private",
+    socials: "members",
+    academic: "private",
+    },
   },
 };
 

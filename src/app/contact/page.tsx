@@ -18,6 +18,10 @@ import {
   MessageSquare,
   Users,
   FileText,
+  Briefcase,
+  Facebook,
+  Instagram,
+  Youtube,
 } from "lucide-react";
 import {
   Form,
@@ -49,41 +53,44 @@ const contactInfo = [
   {
     icon: Mail,
     label: "General Enquiries",
-    value: "hello@diuscadi.org",
+    value: "info@diuscadi.org.ng",
     sub: "We respond within 2 business days",
   },
   {
-    icon: FileText,
-    label: "Research & Publications",
-    value: "research@diuscadi.org",
-    sub: "For collaboration and citation requests",
+    icon: Mail,
+    label: "Founder (Direct)",
+    value: "ik.umeh@unizik.edu.ng",
+    sub: "Prof. Chief Ikechukwu I. Umeh",
   },
   {
     icon: Phone,
     label: "Phone",
-    value: "+234 (0) 802 345 6789",
+    value: "+234-8035906416",
     sub: "Mon – Fri, 9 AM – 5 PM WAT",
   },
   {
     icon: MapPin,
     label: "Head Office",
-    value: "4 Yakubu Gowon Crescent, Asokoro, Abuja, FCT",
-    sub: "Nigeria",
+    value:
+      "c/o Dept of Information Technology, Nnamdi Azikiwe University, Awka",
+    sub: "Anambra State, Nigeria",
   },
 ];
 
 const enquiryTypes = [
   { value: "general", label: "General Enquiry", icon: MessageSquare },
-  { value: "membership", label: "Membership", icon: Users },
+  { value: "membership", label: "LASCADSS / Membership", icon: Users },
   { value: "research", label: "Research / Press", icon: FileText },
   { value: "partnership", label: "Partnership", icon: ArrowRight },
+  { value: "sponsorship", label: "Sponsorship", icon: Briefcase },
 ];
 
 const officeHours = [
   { day: "Monday – Friday", hours: "9:00 AM – 5:00 PM WAT" },
-  { day: "Saturday", hours: "10:00 AM – 2:00 PM WAT" },
+  { day: "Saturday", hours: "By appointment" },
   { day: "Sunday", hours: "Closed" },
 ];
+
 
 /* ─── Page ───────────────────────────────────────────────────────────────────── */
 
@@ -203,9 +210,9 @@ export default function ContactPage() {
           >
             {[
               {
-                Icon: Twitter,
-                label: "Twitter / X",
-                href: "https://twitter.com/diuscadi",
+                Icon: Facebook,
+                label: "Facebook",
+                href: "https://facebook.com/diuscadi",
               },
               {
                 Icon: Linkedin,
@@ -213,9 +220,14 @@ export default function ContactPage() {
                 href: "https://linkedin.com/company/diuscadi",
               },
               {
-                Icon: Github,
-                label: "GitHub",
-                href: "https://github.com/diuscadi",
+                Icon: Youtube,
+                label: "YouTube",
+                href: "https://youtube.com/@diuscadi",
+              },
+              {
+                Icon: Instagram,
+                label: "Instagram",
+                href: "https://instagram.com/diuscadi",
               },
             ].map(({ Icon, label, href }, i) => (
               <a
@@ -252,10 +264,10 @@ export default function ContactPage() {
                 <MapPin size={16} className="text-primary" />
               </div>
               <p className="text-xs font-semibold text-muted-foreground">
-                Asokoro, Abuja · Nigeria
+                Nnamdi Azikiwe University, UNIZIK, Awka · Anambra, Nigeria
               </p>
               <a
-                href="https://maps.google.com"
+                href="https://maps.google.com/?q=Nnamdi+Azikiwe+University+Awka+Anambra+Nigeria"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[10px] text-primary underline underline-offset-2 hover:opacity-80 transition-opacity"

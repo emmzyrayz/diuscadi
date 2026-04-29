@@ -1,4 +1,4 @@
-// lib/data/nigeriaLocations.ts
+// assets/data/nigeriaLocations.ts
 // Static location data for Nigerian dropdowns.
 // States sourced from official 36 states + FCT list.
 // LGAs are the top-level groupings per state — admins can extend via "Other" flow.

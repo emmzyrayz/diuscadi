@@ -48,6 +48,8 @@ import {
 import { IconType } from "react-icons";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "react-hot-toast";
+
 
 type TabType = "info" | "tickets" | "events" | "activity";
 
@@ -128,6 +130,8 @@ function ticketStatusLabel(status: string): string {
 export const AdminUserDetailsModal: React.FC<Props> = ({ isOpen, onClose, user }) => {
   const { token } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("info");
+
+  const { updateVerifiedSkills } = useAdmin();
 
   // ── Ticket tab state ───────────────────────────────────────────────────────
   const [tickets, setTickets] = useState<UserTicket[]>([]);
@@ -690,6 +694,73 @@ export const AdminUserDetailsModal: React.FC<Props> = ({ isOpen, onClose, user }
                                   </span>
                                 ))}
                               </div>
+                            </div>
+                          )}
+                          {/* Verified Skills — admin checkbox control */}
+                          {user.skills?.length > 0 && (
+                            <div className={cn("col-span-2 space-y-2")}>
+                              <p
+                                className={cn(
+                                  "text-[9px]",
+                                  "font-black",
+                                  "text-muted-foreground",
+                                  "uppercase",
+                                  "tracking-widest",
+                                )}
+                              >
+                                Verified Skills
+                              </p>
+                              <div className={cn("flex", "flex-wrap", "gap-2")}>
+                                {user.skills.map((s) => {
+                                  const isVerified = (
+                                    user.verifiedSkills ?? []
+                                  ).includes(s);
+                                  return (
+                                    <button
+                                      key={s}
+                                      onClick={async () => {
+                                        const next = isVerified
+                                          ? (user.verifiedSkills ?? []).filter(
+                                              (v) => v !== s,
+                                            )
+                                          : [...(user.verifiedSkills ?? []), s];
+                                        try {
+                                          await updateVerifiedSkills(
+                                            user.id,
+                                            next,
+                                            token ?? "",
+                                          );
+                                          toast.success(
+                                            isVerified
+                                              ? "Badge removed"
+                                              : "Badge granted",
+                                          );
+                                        } catch {
+                                          toast.error("Failed to update");
+                                        }
+                                      }}
+                                      className={cn(
+                                        "px-2 py-1 rounded-lg text-[9px] font-black uppercase border transition-all cursor-pointer",
+                                        isVerified
+                                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                          : "bg-muted text-muted-foreground border-border hover:border-primary",
+                                      )}
+                                    >
+                                      {isVerified ? "✓ " : "+ "}
+                                      {s}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <p
+                                className={cn(
+                                  "text-[9px]",
+                                  "text-muted-foreground",
+                                )}
+                              >
+                                Click a skill to grant or remove its verified
+                                badge.
+                              </p>
                             </div>
                           )}
                         </div>

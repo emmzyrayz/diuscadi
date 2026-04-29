@@ -78,6 +78,7 @@ function CreateDeptModal({
   const [faculties, setFaculties] = useState<FacultyOption[]>([]);
   const [loadingFac, setLoadingFac] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [degreeType, setDegreeType] = useState("");
 
   // Reset on close
   useEffect(() => {
@@ -87,6 +88,7 @@ function CreateDeptModal({
       setSelectedInst("");
       setSelectedFaculty("");
       setFaculties([]);
+      setDegreeType("");
     }
   }, [isOpen]);
 
@@ -114,7 +116,10 @@ function CreateDeptModal({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ name: deptName.trim() }),
+        body: JSON.stringify({
+          name: deptName.trim(),
+          degreeType: degreeType || undefined,
+        }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? "Failed to create department");
@@ -201,6 +206,37 @@ function CreateDeptModal({
                   if (e.key === "Enter" && deptName.trim()) setStep(2);
                 }}
               />
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                  Degree Type{" "}
+                  <span className="text-muted-foreground font-normal normal-case">
+                    (optional)
+                  </span>
+                </label>
+                <select
+                  value={degreeType}
+                  onChange={(e) => setDegreeType(e.target.value)}
+                  className="w-full bg-muted border border-border rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:border-primary transition-all cursor-pointer"
+                >
+                  <option value="">— Select degree type —</option>
+                  {[
+                    "B.Sc",
+                    "B.Eng",
+                    "B.Ed",
+                    "B.A",
+                    "B.Tech",
+                    "ND",
+                    "HND",
+                    "M.Sc",
+                    "PhD",
+                    "Others",
+                  ].map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
 
@@ -270,6 +306,12 @@ function CreateDeptModal({
               <p>
                 <span className="text-foreground">Department:</span> {deptName}
               </p>
+              {degreeType && (
+                <p>
+                  <span className="text-foreground">Degree Type:</span>{" "}
+                  {degreeType}
+                </p>
+              )}
               {selectedInstObj && (
                 <p>
                   <span className="text-foreground">Institution:</span>{" "}

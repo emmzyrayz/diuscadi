@@ -43,6 +43,7 @@ export interface Institution {
   schoolEmail?: string;
   verifiedSchoolEmail?: boolean;
   cgpa?: number | null;
+  cgpaScale?: number;
 }
 
 // ── Location — matches UserData.ts UserLocation interface ─────────────────────

@@ -11,10 +11,11 @@ import {
   LuDownload,
   LuInfo,
   LuLoader,
+  LuMapPin,
+  LuLink,
 } from "react-icons/lu";
 import { IconType } from "react-icons";
 import { useUser } from "@/context/UserContext";
-import type { PrivacyPreferences } from "@/types/domain";
 import { toast } from "react-hot-toast";
 
 interface PrivacyToggleProps {
@@ -27,28 +28,69 @@ interface PrivacyToggleProps {
 }
 
 export const PrivacySettingsSection = () => {
-  const { profile, updatePreferences } = useUser();
+  const { profile } = useUser();
   const prefs = profile?.preferences.privacy;
 
   // Initialise from prefs at mount — component is keyed in page.tsx so it
   // remounts once profile loads, no useEffect sync needed.
-  const [values, setValues] = useState<PrivacyPreferences>({
-    profilePrivate: prefs?.profilePrivate ?? false,
-    showEmail: prefs?.showEmail ?? false,
-    showPhone: prefs?.showPhone ?? false,
-  });
+  // ✅ correct shape from types/domain.ts
+  const [profileVisibility, setProfileVisibility] = useState<
+    "public" | "members" | "private"
+  >(prefs?.profileVisibility ?? "members");
+  const [fieldPermissions, setFieldPermissions] = useState(
+    prefs?.fieldPermissions ?? {
+      phone: "private" as const,
+      email: "members" as const,
+      location: "private" as const,
+      socials: "members" as const,
+      academic: "private" as const,
+    },
+  );
   const [saving, setSaving] = useState(false);
 
-  const save = async (patch: Partial<PrivacyPreferences>) => {
-    const next = { ...values, ...patch };
-    const prev = { ...values };
-    setValues(next);
+  const saveVisibility = async (v: "public" | "members" | "private") => {
+    const prev = profileVisibility;
+    setProfileVisibility(v);
     setSaving(true);
-    const result = await updatePreferences({ privacy: next });
-    setSaving(false);
-    if (!result.success) {
-      setValues(prev); // roll back
-      toast.error(result.error ?? "Failed to save");
+    try {
+      await fetch("/api/users/privacy", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("diuscadi_token")}`,
+        },
+        body: JSON.stringify({ profileVisibility: v }),
+      });
+    } catch {
+      setProfileVisibility(prev);
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveField = async (
+    field: keyof typeof fieldPermissions,
+    value: "public" | "members" | "private",
+  ) => {
+    const prev = { ...fieldPermissions };
+    const next = { ...fieldPermissions, [field]: value };
+    setFieldPermissions(next);
+    setSaving(true);
+    try {
+      await fetch("/api/users/privacy", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("diuscadi_token")}`,
+        },
+        body: JSON.stringify({ fieldPermissions: { [field]: value } }),
+      });
+    } catch {
+      setFieldPermissions(prev);
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -127,7 +169,7 @@ export const PrivacySettingsSection = () => {
           "border-2",
           "transition-all",
           "duration-300",
-          values.profilePrivate
+          profileVisibility === "private"
             ? "bg-foreground border-slate-800"
             : "bg-blue-50/30 border-blue-100",
         )}
@@ -155,13 +197,13 @@ export const PrivacySettingsSection = () => {
                 "shrink-0",
                 "transition-all",
                 "duration-300",
-                values.profilePrivate
+                profileVisibility === "private"
                   ? "bg-background/10 text-primary"
                   : "bg-background text-primary shadow-sm",
               )}
             >
               <AnimatePresence mode="wait">
-                {values.profilePrivate ? (
+                {profileVisibility === "private" ? (
                   <motion.div
                     key="private"
                     initial={{ scale: 0, rotate: -180 }}
@@ -189,7 +231,9 @@ export const PrivacySettingsSection = () => {
                   "font-black",
                   "uppercase",
                   "tracking-tight",
-                  values.profilePrivate ? "text-background" : "text-foreground",
+                  profileVisibility === "private"
+                    ? "text-background"
+                    : "text-foreground",
                 )}
               >
                 Private Profile Mode
@@ -201,7 +245,7 @@ export const PrivacySettingsSection = () => {
                   "mt-1",
                   "leading-relaxed",
                   "max-w-sm",
-                  values.profilePrivate
+                  profileVisibility === "private"
                     ? "text-muted-foreground"
                     : "text-muted-foreground",
                 )}
@@ -213,7 +257,11 @@ export const PrivacySettingsSection = () => {
           </div>
           <button
             disabled={saving}
-            onClick={() => save({ profilePrivate: !values.profilePrivate })}
+            onClick={() =>
+              saveVisibility(
+                profileVisibility === "private" ? "members" : "private",
+              )
+            }
             className={cn(
               "px-8",
               "py-3",
@@ -226,12 +274,12 @@ export const PrivacySettingsSection = () => {
               "duration-300",
               "cursor-pointer",
               "disabled:opacity-50",
-              values.profilePrivate
+              profileVisibility === "private"
                 ? "bg-primary text-background shadow-lg shadow-primary/20"
                 : "bg-background border border-blue-200 text-blue-600",
             )}
           >
-            {values.profilePrivate ? "Go Public" : "Make Private"}
+            {profileVisibility === "private" ? "Go Public" : "Make Private"}
           </button>
         </div>
       </motion.div>
@@ -250,23 +298,42 @@ export const PrivacySettingsSection = () => {
         >
           Data Display Preferences
         </label>
-
+        {/* // replace the showEmail PrivacyToggle: */}
         <PrivacyToggle
           icon={LuMail}
-          label="Display Email on Digital ID"
-          desc="Allow verified event attendees to see your primary email."
-          checked={values.showEmail}
-          onChange={(v) => save({ showEmail: v })}
+          label="Show Email Address"
+          desc="Visible to members and public. Set to private to hide from all."
+          checked={fieldPermissions.email !== "private"}
+          onChange={(v) => saveField("email", v ? "members" : "private")}
           delay={0.05}
         />
+        {/* // replace the showPhone PrivacyToggle: */}
         <PrivacyToggle
           icon={LuPhone}
-          label="Display Phone Number"
-          desc="Show your contact number for direct networking during sessions."
-          checked={values.showPhone}
-          onChange={(v) => save({ showPhone: v })}
+          label="Show Phone Number"
+          desc="Visible to members only when enabled."
+          checked={fieldPermissions.phone !== "private"}
+          onChange={(v) => saveField("phone", v ? "members" : "private")}
           delay={0.1}
         />
+
+        <PrivacyToggle
+  icon={LuMapPin} 
+  label="Show Location"
+  desc="Your state and city visible to other members."
+  checked={fieldPermissions.location !== "private"}
+  onChange={(v) => saveField("location", v ? "members" : "private")}
+  delay={0.15}
+/>
+<PrivacyToggle
+  icon={LuLink}
+  label="Show Social Links"
+  desc="LinkedIn, GitHub, Twitter and portfolio visible to members."
+  checked={fieldPermissions.socials !== "private"}
+  onChange={(v) => saveField("socials", v ? "members" : "private")}
+  delay={0.2}
+/>
+
 
         {/* Data export */}
         <div
@@ -328,7 +395,7 @@ export const PrivacySettingsSection = () => {
       </div>
     </motion.section>
   );
-};
+};;
 
 const PrivacyToggle = ({
   icon: Icon,

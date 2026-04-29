@@ -161,7 +161,7 @@ export default function NotFound() {
         {/* Support Links */}
         <div className="mt-12 pt-8 border-t border-border/50 flex flex-wrap justify-center gap-6 text-sm">
           <a
-            href="/register"
+            href="/auth"
             className="text-muted-foreground hover:text-primary transition-colors"
           >
             Register for 2026

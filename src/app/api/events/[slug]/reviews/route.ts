@@ -205,7 +205,7 @@ export const GET = withAuth(
       }
 
       // Fetch visible reviews with author join (for named reviews)
-      const reviews = await db
+      const rawReviews = await db
         .collection<EventReviewDocument>("eventReviews")
         .aggregate([
           {
@@ -264,6 +264,21 @@ export const GET = withAuth(
           },
         ])
         .toArray();
+
+      const reviews = rawReviews.map((r) => ({
+        id: r.id,
+        rating: r.rating,
+        body: r.body ?? null,
+        isAnonymous: r.isAnonymous,
+        createdAt: (r.createdAt as Date).toISOString(),
+        isOwn: r.isOwn,
+        author: r.authorName
+          ? {
+              name: r.authorName as string,
+              avatar: (r.authorAvatar as string | null) ?? null,
+            }
+          : null,
+      }));
 
       // ── Aggregate stats ───────────────────────────────────────────────────────
       const [agg] = await db
@@ -327,7 +342,7 @@ export const GET = withAuth(
           opensAt: eventInfo.windowStart.toISOString(),
           closesAt: eventInfo.windowEnd.toISOString(),
         },
-        canReview: !!registration,
+        canReview: !!registration && !myReview,
         myReview: myReview
           ? {
               rating: myReview.rating,
