@@ -604,3 +604,68 @@ export function membershipWelcomeEmail({
 
   return { subject, html, text };
 }
+
+// ─── 9. Newsletter Welcome ────────────────────────────────────────────────────
+
+interface NewsletterWelcomeEmailOptions {
+  email: string;
+}
+
+export function newsletterWelcomeEmail({ email }: NewsletterWelcomeEmailOptions) {
+  const subject = `${APP_NAME} — You're on the list 🎉`;
+  const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/newsletter/unsubscribe?email=${encodeURIComponent(email)}`;
+
+  const html = wrapper(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:900;color:${PRIMARY_COLOR};text-transform:uppercase;letter-spacing:-0.02em;">
+      You're In.
+    </h1>
+    <p style="margin:0 0 4px;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;">
+      Welcome to the DIUSCADI Community
+    </p>
+
+    ${accentBanner(
+      "📬",
+      "Subscription Confirmed",
+      "You'll be first to hear about LASCADSS events and opportunities.",
+      PRIMARY_COLOR,
+      "#fefce8",
+    )}
+
+    <p style="margin:20px 0;font-size:13px;color:#475569;line-height:1.7;">
+      You've joined over <strong>2,000+ Nigerian youths</strong> on the DIUSCADI
+      mailing list. We'll notify you about:
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;">
+      ${[
+        ["🎓", "Upcoming LASCADSS seminar dates and registration windows"],
+        ["🛠️", "New workshops, skill clinics, and bootcamps"],
+        ["💼", "Career opportunities, internships, and mentorship programmes"],
+        ["📣", "DIUSCADI community news and announcements"],
+      ]
+        .map(
+          ([icon, text]) => `
+        <tr>
+          <td style="padding:8px 0;vertical-align:top;width:28px;">
+            <span style="font-size:16px;">${icon}</span>
+          </td>
+          <td style="padding:8px 0 8px 8px;vertical-align:top;">
+            <span style="font-size:12px;font-weight:600;color:#475569;">${text}</span>
+          </td>
+        </tr>`,
+        )
+        .join("")}
+    </table>
+
+    ${ctaButton("Browse Upcoming Events", `${process.env.NEXT_PUBLIC_APP_URL}/events`)}
+
+    <p style="margin:24px 0 0;font-size:11px;color:#94a3b8;text-align:center;line-height:1.6;">
+      No spam, ever. We only send what matters.
+      <a href="${unsubscribeUrl}" style="color:#94a3b8;">Unsubscribe at any time.</a>
+    </p>
+  `);
+
+  const text = `Welcome to DIUSCADI!\n\nYou're now on our mailing list. We'll keep you updated on upcoming events, workshops, and career opportunities.\n\nBrowse events: ${process.env.NEXT_PUBLIC_APP_URL}/events\n\nTo unsubscribe: ${unsubscribeUrl}`;
+
+  return { subject, html, text };
+}

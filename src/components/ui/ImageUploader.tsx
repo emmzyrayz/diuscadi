@@ -36,6 +36,7 @@ import { useImageCropper, CROP_ASPECT } from "@/hooks/useImageCropper";
 import { useMedia } from "@/context/MediaContext";
 import type { UploadType } from "@/lib/services/CloudinaryService";
 import type { CloudinaryImage } from "@/types/cloudinary";
+import Image from "next/image";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -265,8 +266,9 @@ export function ImageUploader({
                   : "aspect-square",
             )}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
+                      width={500}
+                      height={300}
               src={blobUrl}
               alt="Cropped preview"
               className={cn("w-full", "h-full", "object-cover")}
@@ -342,8 +344,9 @@ export function ImageUploader({
                   : "aspect-square max-w-[200px] mx-auto",
             )}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
+                                  width={500}
+                                  height={300}
               src={previewUrl}
               alt={label ?? uploadType}
               className={cn("w-full", "h-full", "object-cover")}

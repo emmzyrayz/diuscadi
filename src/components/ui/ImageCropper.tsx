@@ -18,6 +18,7 @@ import ReactCrop, { type PercentCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { LuCheck, LuX, LuLoader } from "react-icons/lu";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface ImageCropperProps {
   srcUrl: string;
@@ -78,8 +79,9 @@ export function ImageCropper({
           minHeight={20}
           keepSelection
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
+                      width={500}
+                      height={300}
             ref={imgRef}
             src={srcUrl}
             alt="Crop preview"

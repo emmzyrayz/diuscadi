@@ -1,15 +1,37 @@
 "use client";
 import React, { useState } from "react";
 // import { motion } from "framer-motion";
-import { Send, BellRing } from "lucide-react";
+import { Send, BellRing, CheckCircle2 } from "lucide-react";
 
 export const Newsletter = () => {
   const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Thanks for subscribing! Check your email soon.");
-    setEmail("");
+    if (done) return;
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to subscribe");
+      setDone(true);
+      setEmail("");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Something went wrong. Try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -48,8 +70,13 @@ export const Newsletter = () => {
                 <button
                   type="submit"
                   className="bg-foreground text-background px-8 py-4 rounded-full font-bold flex items-center justify-center gap-2 hover:bg-primary transition-all group"
+                  disabled={submitting}
                 >
-                  Join the Community
+                  {submitting
+                    ? "Joining..."
+                    : done
+                      ? "You're in! ✓"
+                      : "Join the Community"}
                   <Send className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 </button>
               </div>
@@ -57,6 +84,14 @@ export const Newsletter = () => {
                 Join 2,000+ Nigerian youths already on the list.
               </p>
             </form>
+               {error && (
+       <p className="mt-2 text-sm text-red-500 text-center">{error}</p>
+     )}
+     {done && (
+       <p className="mt-2 text-sm text-green-600 font-medium flex items-center justify-center gap-1">
+         <CheckCircle2 className="w-4 h-4" /> Check your inbox for a welcome email.
+       </p>
+     )}
           </div>
         </div>
       </div>

@@ -1,46 +1,74 @@
-'use client'
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import banner1 from "@/assets/img/downloads/Diuscadi-2023-Testimonial-Thumbnail-1920x1272.webp"
-import banner2 from "@/assets/img/downloads/networking-diuscadi.webp"
+import { useLandingConfig } from "@/hooks/useLandingConfig";
+import banner1 from "@/assets/img/downloads/Diuscadi-2023-Testimonial-Thumbnail-1920x1272.webp";
+import banner2 from "@/assets/img/downloads/networking-diuscadi.webp";
 import Link from "next/link";
 
-// Sample data - replace with your actual data source
-const BANNERS = [
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface SlideShape {
+  id: string;
+  title: string;
+  subtitle?: string;
+  imageUrl: string;
+  ctaLabel?: string;
+  ctaHref?: string; // optional — DB slides may not have this set
+  hidden?: boolean;
+}
+
+// ─── Static fallback slides ───────────────────────────────────────────────────
+
+const FALLBACK_SLIDES: SlideShape[] = [
   {
-    id: 1,
-    title: "Upcoming: Career Navigation Summit 2026",
-    subtitle: "Registration closes in 5 days.",
-    image: banner1, // Replace with banner1
-    buttonText: "Register Now",
-    url: "/auth",
+    id: "1",
+    title: "LASCADSS 7.0 — Coming 2026",
+    subtitle: "Life After School Career Development Seminar Series",
+    imageUrl: banner1.src,
+    ctaLabel: "Register Now",
+    ctaHref: "/auth",
   },
   {
-    id: 2,
+    id: "2",
     title: "Design Workshop: Mastering Glassmorphism",
     subtitle: "Join us this Friday at 6 PM.",
-    image: banner2,
-    buttonText: "Learn More",
-    url: "",
+    imageUrl: banner2.src,
+    ctaLabel: "Learn More",
+    ctaHref: "",
   },
 ];
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export const Banner = () => {
   const [index, setIndex] = useState(0);
+  const { config } = useLandingConfig();
 
-  // Auto-play logic
+  const slides: SlideShape[] = config?.banner?.slides?.length
+    ? config.banner.slides.filter((s) => !s.hidden) // don't show hidden slides
+    : FALLBACK_SLIDES;
+
+  // Auto-play
   useEffect(() => {
+    if (slides.length <= 1) return;
     const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % BANNERS.length);
-    }, 10000); // Switches every 10 seconds
+      setIndex((prev) => (prev + 1) % slides.length);
+    }, 10000);
     return () => clearInterval(timer);
-  }, []);
+  }, [slides.length]);
 
-  const activeBanner = BANNERS[index];
+  // Clamp index during render — no effect needed, avoids cascading setState
+  const safeIndex = slides.length > 0 ? index % slides.length : 0;
+  const activeBanner = slides[safeIndex] ?? FALLBACK_SLIDES[0];
+
+  // Normalise ctaHref: undefined | "" → "#" so <Link href> always gets a valid Url
+  const ctaHref: string = activeBanner.ctaHref || "#";
+  const ctaLabel: string = activeBanner.ctaLabel || "Learn More";
 
   return (
     <div
@@ -57,23 +85,23 @@ export const Banner = () => {
     >
       <AnimatePresence mode="wait">
         <motion.div
-          key={activeBanner.id}
+          key={safeIndex}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 1, ease: "easeInOut" }}
           className={cn("absolute", "inset-0", "w-full", "h-full")}
         >
-          {/* BACKGROUND: The Image */}
+          {/* Background image */}
           <Image
             alt="banner-image"
-            src={activeBanner.image}
+            src={activeBanner.imageUrl}
             fill
             priority
             className="object-cover"
           />
 
-          {/* FOREGROUND: The Glass Info Card */}
+          {/* Glass info card */}
           <div
             className={cn(
               "absolute",
@@ -89,9 +117,7 @@ export const Banner = () => {
               className={cn(
                 "group w-full max-w-4xl mx-auto",
                 "transition-all duration-500 ease-in-out",
-                // Glass Effect
                 "bg-foreground/30 backdrop-blur-md border border-background/20 shadow-2xl rounded-2xl",
-                // Hover: Darken effect for readability
                 "hover:bg-background/40 hover:backdrop-blur-lg",
                 "p-5 md:p-8 flex flex-col md:flex-row items-center justify-between gap-4",
               )}
@@ -113,58 +139,67 @@ export const Banner = () => {
                 >
                   {activeBanner.title}
                 </h2>
-                <p
-                  className={cn(
-                    "text-sm",
-                    "md:text-base",
-                    "text-background/80 group-hover:text-foreground/60",
-                    "mt-1",
-                  )}
-                >
-                  {activeBanner.subtitle}
-                </p>
+                {activeBanner.subtitle && (
+                  <p
+                    className={cn(
+                      "text-sm",
+                      "md:text-base",
+                      "text-background/80 group-hover:text-foreground/60",
+                      "mt-1",
+                    )}
+                  >
+                    {activeBanner.subtitle}
+                  </p>
+                )}
               </div>
 
-              <Link href={activeBanner.url}>
-                <Button
-                  variant="secondary"
-                  className={cn(
-                    "font-semibold bg-background hover:bg-foreground hover:text-background cursor-pointer",
-                    "px-4 md:px-8",
-                    "hover:scale-105",
-                    "transition-transform",
-                  )}
-                >
-                  {activeBanner.buttonText}
-                </Button>
-              </Link>
+              {/* Only render the CTA when there's a meaningful href */}
+              {ctaHref !== "#" && (
+                <Link href={ctaHref}>
+                  <Button
+                    variant="secondary"
+                    className={cn(
+                      "font-semibold bg-background hover:bg-foreground hover:text-background cursor-pointer",
+                      "px-4 md:px-8",
+                      "hover:scale-105",
+                      "transition-transform",
+                    )}
+                  >
+                    {ctaLabel}
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </motion.div>
       </AnimatePresence>
 
-      {/* Optional: Slide Indicators */}
-      <div
-        className={cn(
-          "absolute",
-          "bottom-2",
-          "left-1/2",
-          "-translate-x-1/2",
-          "flex",
-          "gap-2",
-          "z-10",
-        )}
-      >
-        {BANNERS.map((_, i) => (
-          <div
-            key={i}
-            className={cn(
-              "h-1 w-8 rounded-full transition-all",
-              i === index ? "bg-background" : "bg-background/30",
-            )}
-          />
-        ))}
-      </div>
+      {/* Slide indicators */}
+      {slides.length > 1 && (
+        <div
+          className={cn(
+            "absolute",
+            "bottom-2",
+            "left-1/2",
+            "-translate-x-1/2",
+            "flex",
+            "gap-2",
+            "z-10",
+          )}
+        >
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIndex(i)}
+              aria-label={`Go to slide ${i + 1}`}
+              className={cn(
+                "h-1 w-8 rounded-full transition-all",
+                i === safeIndex ? "bg-background" : "bg-background/30",
+              )}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -19,6 +19,9 @@ import {
 import { cn } from "@/lib/utils";
 import { useTickets } from "@/context/TicketContext";
 import { BrowserQRCodeReader, IScannerControls } from "@zxing/browser";
+// ✅ Do NOT import Image from next/image here — we need the native
+//    HTMLImageElement constructor (new HTMLImageElement / document.createElement)
+//    for the QR decode pipeline. Use a plain <img> tag for the upload preview.
 
 type VerifyResult = "idle" | "valid" | "already_used" | "invalid" | "error";
 type ScanMode = "manual" | "camera" | "upload";
@@ -39,6 +42,12 @@ const RESULT_CONFIG = {
   },
   error: { bg: "bg-rose-600", Icon: LuTriangleAlert, label: "Error" },
 } as const;
+
+// ✅ Safe QR-reader factory — passes an empty hints Map so the constructor
+//    always receives exactly 1 argument regardless of @zxing/browser version.
+function makeQRReader(): BrowserQRCodeReader {
+  return new BrowserQRCodeReader(new Map());
+}
 
 export const TicketScannerModal: React.FC<Props> = ({
   isOpen,
@@ -115,22 +124,21 @@ export const TicketScannerModal: React.FC<Props> = ({
     setCameraError(null);
     setCameraActive(false);
 
-     // Guard: mediaDevices is undefined on HTTP (non-localhost)
-  if (!navigator?.mediaDevices?.getUserMedia) {
-    setCameraError(
-      "Camera requires a secure connection (HTTPS). Try uploading a QR image instead.",
-    );
-    return;
-  }
+    // Guard: mediaDevices is undefined on HTTP (non-localhost)
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      setCameraError(
+        "Camera requires a secure connection (HTTPS). Try uploading a QR image instead.",
+      );
+      return;
+    }
 
     try {
       if (!readerRef.current) {
-        readerRef.current = new BrowserQRCodeReader();
+        readerRef.current = makeQRReader(); // ✅ always passes hints Map
       }
 
-      // ✅ Force permission prompt FIRST — without this, listVideoInputDevices()
+      // Force permission prompt FIRST — without this, listVideoInputDevices()
       // returns empty on first visit even if a camera exists.
-      // We immediately stop this stream; it's only needed to trigger the prompt.
       const permissionStream = await navigator.mediaDevices
         .getUserMedia({ video: true })
         .catch((err: Error) => {
@@ -144,7 +152,6 @@ export const TicketScannerModal: React.FC<Props> = ({
         });
       permissionStream.getTracks().forEach((t) => t.stop());
 
-      // Now enumerate — labels will be populated after permission is granted
       const devices = await BrowserQRCodeReader.listVideoInputDevices();
 
       if (!devices.length) {
@@ -159,7 +166,7 @@ export const TicketScannerModal: React.FC<Props> = ({
           ),
         ) ?? devices[0];
 
-      // ✅ Defer until after React has painted the <video> element
+      // Defer until after React has painted the <video> element
       await new Promise<void>((resolve) => setTimeout(resolve, 200));
 
       if (!videoRef.current) {
@@ -184,10 +191,8 @@ export const TicketScannerModal: React.FC<Props> = ({
       );
       controlsRef.current = controls;
     } catch (e: unknown) {
-       // ✅ Log the real error so you can see what's actually failing
-    console.error("[TicketScannerModal] Camera error:", e);
+      console.error("[TicketScannerModal] Camera error:", e);
 
-      
       const msg = e instanceof Error ? e.message : "";
       if (
         msg === "permission_denied" ||
@@ -205,19 +210,12 @@ export const TicketScannerModal: React.FC<Props> = ({
         setCameraError(
           "Camera blocked by a screen overlay. Go to Settings → Apps → Special app access → Display over other apps, disable any active apps, then retry. Or use the Upload QR tab.",
         );
-      } else if (msg.toLowerCase().includes("no camera")) {
-        setCameraError("No camera found on this device.");
-      } else if (
-        msg.toLowerCase().includes("overlay") ||
-        msg.toLowerCase().includes("bubble")
-      ) {
-        setCameraError(
-          "Camera blocked by a screen overlay. Use the Upload QR tab instead — it works without camera access.",
-        );
         setTimeout(() => {
           setMode("upload");
           setCameraError(null);
         }, 1500);
+      } else if (msg.toLowerCase().includes("no camera")) {
+        setCameraError("No camera found on this device.");
       } else {
         setCameraError(
           process.env.NODE_ENV === "development"
@@ -257,13 +255,19 @@ export const TicketScannerModal: React.FC<Props> = ({
       setResultMsg("");
 
       try {
-        const reader = new BrowserQRCodeReader();
-        const imgEl = new Image();
+        const reader = makeQRReader(); // ✅ always passes hints Map
+
+        // ✅ Use document.createElement("img") — NOT new Image() which would
+        //    call the next/image React component as a constructor (no construct
+        //    signature → TS error). The native DOM factory is the correct API.
+        const imgEl = document.createElement("img");
         imgEl.src = objectUrl;
+
         await new Promise<void>((res, rej) => {
           imgEl.onload = () => res();
           imgEl.onerror = () => rej(new Error("Image failed to load"));
         });
+
         const scanResult = await reader.decodeFromImageElement(imgEl);
         const text = scanResult.getText();
         setCode(text);
@@ -303,23 +307,19 @@ export const TicketScannerModal: React.FC<Props> = ({
     setShowHint(false);
   };
 
-   const resultCfg = result !== "idle" ? RESULT_CONFIG[result] : null;
+  const resultCfg = result !== "idle" ? RESULT_CONFIG[result] : null;
 
-   useEffect(() => {
-     let timer: NodeJS.Timeout;
-
-     if (mode === "camera" && cameraActive && !resultCfg) {
-       // Show hint after 7 seconds of unsuccessful scanning
-       timer = setTimeout(() => setShowHint(true), 7000);
-     } else {
-       setShowHint(false);
-     }
-
-     return () => clearTimeout(timer);
-   }, [mode, cameraActive, resultCfg]);
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (mode === "camera" && cameraActive && !resultCfg) {
+      timer = setTimeout(() => setShowHint(true), 7000);
+    } else {
+      setShowHint(false);
+    }
+    return () => clearTimeout(timer);
+  }, [mode, cameraActive, resultCfg]);
 
   if (!isOpen) return null;
-
 
   return (
     <div
@@ -418,7 +418,8 @@ export const TicketScannerModal: React.FC<Props> = ({
                       setMode(m);
                     }}
                     className={cn(
-                      "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
+                      "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl",
+                      "text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
                       mode === m
                         ? "bg-background text-foreground shadow"
                         : "text-muted-foreground hover:text-foreground",
@@ -509,7 +510,7 @@ export const TicketScannerModal: React.FC<Props> = ({
                         </p>
                         <p className="text-[10px] text-muted-foreground leading-tight">
                           Try increasing the brightness, holding the code 6
-                          inches away, or
+                          inches away, or{" "}
                           <button
                             onClick={() => setMode("manual")}
                             className="text-primary font-bold ml-1 hover:underline"
@@ -597,7 +598,6 @@ export const TicketScannerModal: React.FC<Props> = ({
                           "rounded-br-xl",
                         )}
                       />
-                      {/* Scanning line */}
                       <motion.div
                         className={cn(
                           "absolute",
@@ -617,6 +617,7 @@ export const TicketScannerModal: React.FC<Props> = ({
                     </div>
                   </div>
                 )}
+
                 {!cameraActive && !cameraError && (
                   <LuLoader
                     className={cn(
@@ -653,6 +654,7 @@ export const TicketScannerModal: React.FC<Props> = ({
                   </div>
                 )}
               </div>
+
               {cameraActive && (
                 <button
                   onClick={() => {
@@ -740,6 +742,7 @@ export const TicketScannerModal: React.FC<Props> = ({
                   "overflow-hidden",
                 )}
               >
+                {/* ✅ Plain <img> tag for the preview — no next/image needed here */}
                 {uploadPreview && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img

@@ -7,6 +7,7 @@
     {
       "path": "/api/cron/validate-predictions",
       "schedule": "5 23 * * *"
-    }
+    },
+    { "path": "/api/cron/landing-banner", "schedule": "0 0 * * *" }
   ]
 }

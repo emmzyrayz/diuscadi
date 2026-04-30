@@ -27,6 +27,8 @@ import { EventReviewDocument } from "../models/EventReview";
 import { PageVisitDocument } from "../models/pageVisit";
 import { PredictionLogDocument } from "../models/predictionLog";
 import { CustomLocationDocument } from "@/lib/models/CustomLocation";
+import { LandingPageConfigDocument } from "@/lib/models/landingPageConfig";
+import { NewsletterSubscriberDocument } from "@/lib/models/newsletterSubscriber";
 
 export const Collections = {
   vault: (db: Db) => db.collection<VaultDocument>("vault"),
@@ -65,4 +67,8 @@ export const Collections = {
     db.collection<PredictionLogDocument>("predictionLogs"),
   customLocations: (db: Db) =>
     db.collection<CustomLocationDocument>("customLocations"),
+  landingPageConfig: (db: Db) =>
+  db.collection<LandingPageConfigDocument>("landingPageConfig"),
+newsletterSubscribers: (db: Db) =>
+  db.collection<NewsletterSubscriberDocument>("newsletterSubscribers"),
 };

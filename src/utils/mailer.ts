@@ -24,7 +24,6 @@ for (const key of REQUIRED_ENV) {
 // SMTP connection pool being created on every Next.js file-save in dev.
 
 declare global {
-  // eslint-disable-next-line no-var
   var _smtpTransporter: Transporter | undefined;
 }
 

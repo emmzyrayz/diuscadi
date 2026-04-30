@@ -11,6 +11,7 @@ import { AuthenticatedProviders } from "./AuthenticatedProviders";
 import { ProviderConfig } from "./types";
 import { DocProvider } from "@/context/DocContext";
 import { DebugProvider } from "@/context/DebugContext";
+import { Toaster } from "@/hooks/useToast";
 
 /**
  * Provider Registry
@@ -89,6 +90,11 @@ export const providerRegistry: ProviderConfig[] = [
   {
     id: "health",
     provider: { component: HealthProvider },
+    enabled: true,
+  },
+  {
+    id: "toaster",
+    provider: { component: Toaster },
     enabled: true,
   },
   {

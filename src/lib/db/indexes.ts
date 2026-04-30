@@ -294,6 +294,21 @@ export async function createIndexes() {
     { unique: true }, // one log per day
   );
   await db.collection("predictionLogs").createIndex({ appliedAt: -1 });
+  // landingPageConfig — sectionKey is the primary key, must be unique
+  await db
+    .collection("landingPageConfig")
+    .createIndex(
+      { sectionKey: 1 },
+      { unique: true, name: "landingPageConfig_sectionKey" },
+    );
+
+  // newsletterSubscribers
+  await db.collection("newsletterSubscribers").createIndexes([
+    { key: { email: 1 }, unique: true, name: "newsletter_email_unique" },
+    { key: { subscribedAt: -1 }, name: "newsletter_subscribedAt" },
+    { key: { active: 1 }, name: "newsletter_active" },
+  ]);
+  console.log("✓ landingPageConfig + newsletterSubscribers");
 
   console.log("\n✅ All indexes created.");
 }

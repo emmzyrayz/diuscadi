@@ -32,6 +32,7 @@ import { IconType } from "react-icons";
 import { useAdmin } from "@/context/AdminContext";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
+import Image from "next/image";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -677,8 +678,9 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, setFormData }) => {
         />
         {formData.bannerPreviewUrl ? (
           <div className={cn('relative', 'group', 'rounded-[2rem]', 'overflow-hidden', 'aspect-[1200/630]', 'bg-muted')}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={formData.bannerPreviewUrl} alt="Banner preview" className={cn('w-full', 'h-full', 'object-cover')} />
+            <Image
+                                  width={500}
+                                  height={300} src={formData.bannerPreviewUrl} alt="Banner preview" className={cn('w-full', 'h-full', 'object-cover')} />
             <div className={cn('absolute', 'inset-0', 'bg-black/40', 'opacity-0', 'group-hover:opacity-100', 'transition-opacity', 'flex', 'items-center', 'justify-center', 'gap-3')}>
               <button
                 type="button"
