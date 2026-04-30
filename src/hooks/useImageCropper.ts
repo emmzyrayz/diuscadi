@@ -88,6 +88,10 @@ const DEFAULT_CROPS: Record<UploadType, PercentCrop> = {
     width: 100,
     height: 75,
   },
+  "landing-banner": { unit: "%", x: 0, y: 0, width: 100, height: 100 },
+  "landing-initiative": { unit: "%", x: 0, y: 12.5, width: 100, height: 75 },
+  "landing-logo": { unit: "%", x: 12.5, y: 12.5, width: 75, height: 75 },
+  "landing-person": { unit: "%", x: 12.5, y: 12.5, width: 75, height: 75 },
 };
 
 // ─── Aspect ratios ────────────────────────────────────────────────────────────
