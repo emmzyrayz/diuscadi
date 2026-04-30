@@ -36,6 +36,12 @@ const SUB_PAGES = [
     desc: "Manage universities and polytechnics",
   },
   {
+    label: "Landing Page",
+    icon: LuBuilding2,
+    path: "/admin/settings/landing",
+    desc: "Manage Landing page datas and informations",
+  },
+  {
     label: "Faculties",
     icon: LuGraduationCap,
     path: "/admin/settings/faculties",
