@@ -94,6 +94,33 @@ const ACCENT_TOKENS: Record<AccentColor, AccentTokens> = {
     lightBlobC: "oklch(0.92 0.06 95 / 10%)",
     darkBlobA: "oklch(0.72 0.18 84 /  5%)",
   },
+  sky: {
+    primary: "oklch(0.60 0.16 235)",
+    primaryForeground: "oklch(1 0 0)",
+    ring: "oklch(0.60 0.16 235)",
+    lightBlobA: "oklch(0.60 0.16 235 / 18%)",
+    lightBlobB: "oklch(0.75 0.10 220 / 14%)",
+    lightBlobC: "oklch(0.85 0.05 250 / 10%)",
+    darkBlobA: "oklch(0.60 0.16 235 / 5%)",
+  },
+  indigo: {
+    primary: "oklch(0.55 0.20 265)",
+    primaryForeground: "oklch(1 0 0)",
+    ring: "oklch(0.55 0.20 265)",
+    lightBlobA: "oklch(0.55 0.20 265 / 18%)",
+    lightBlobB: "oklch(0.70 0.12 280 / 14%)",
+    lightBlobC: "oklch(0.80 0.08 250 / 10%)",
+    darkBlobA: "oklch(0.55 0.20 265 / 5%)",
+  },
+  cyan: {
+    primary: "oklch(0.65 0.15 195)",
+    primaryForeground: "oklch(1 0 0)",
+    ring: "oklch(0.65 0.15 195)",
+    lightBlobA: "oklch(0.65 0.15 195 / 18%)",
+    lightBlobB: "oklch(0.80 0.10 210 / 14%)",
+    lightBlobC: "oklch(0.88 0.06 180 / 10%)",
+    darkBlobA: "oklch(0.65 0.15 195 / 5%)",
+  },
 };
 
 // Dark mode neutral blob values (blob-b and blob-c are always achromatic)

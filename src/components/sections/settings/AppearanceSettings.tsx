@@ -16,12 +16,18 @@ import type { ThemeMode, AccentColor } from "@/types/domain";
 import { THEME_MODES, ACCENT_COLORS } from "@/types/domain";
 import { toast } from "react-hot-toast";
 
+// AppearanceSettingsSection.tsx
+
 const ACCENT_META: Record<AccentColor, { label: string; hex: string }> = {
   orange: { label: "Classic", hex: "#F97316" },
   emerald: { label: "Emerald", hex: "#10B981" },
   violet: { label: "Violet", hex: "#8B5CF6" },
   rose: { label: "Rose", hex: "#F43F5E" },
   amber: { label: "Amber", hex: "#F59E0B" },
+  // ─── New Blue Variants ──────────────────────────────────────────
+  sky: { label: "Sky", hex: "#0EA5E9" },       // Vibrant Azure
+  indigo: { label: "Indigo", hex: "#6366F1" }, // Deep Electric
+  cyan: { label: "Cyan", hex: "#06B6D4" },     // Tropical Ice
 };
 
 const THEME_META: Record<

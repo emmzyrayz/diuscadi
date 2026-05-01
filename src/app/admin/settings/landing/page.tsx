@@ -33,6 +33,8 @@ import { useEvents } from "@/context/EventContext";
 import { EventSummary } from "@/context/EventContext";
 import type { UploadType } from "@/lib/services/CloudinaryService";
 import type { CloudinaryImage } from "@/types/cloudinary";
+import { cn } from "../../../../lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 // ─── Tab labels ────────────────────────────────────────────────────────────
 
@@ -115,41 +117,71 @@ function ImageUploadModal({
   onUploaded,
   folder,
 }: {
-   open: boolean;
+  open: boolean;
   onClose: () => void;
-  onUploaded: (url: string) => void;
+  onUploaded: (url: CloudinaryImage) => void;
   folder: LandingUploadContext;
 }) {
+  const { user } = useAuth();
+
   if (!open || typeof window === "undefined") return null;
 
-   const uploadType = resolveUploadType(folder);
+  const uploadType = resolveUploadType(folder);
 
-   // Shape and aspect hints per type
-   const isLogo =
-     folder === "landing/validators" || folder === "landing/sponsors";
-   const isBanner = folder === "landing/banners";
-   const isPerson =
-     folder === "landing/mission" ||
-     folder === "landing/experts" ||
-     folder === "landing/testimonials";
-
+  // Shape and aspect hints per type
+  const isLogo =
+    folder === "landing/validators" || folder === "landing/sponsors";
+  const isBanner = folder === "landing/banners";
+  const isPerson =
+    folder === "landing/mission" ||
+    folder === "landing/experts" ||
+    folder === "landing/testimonials";
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className={cn(
+        "fixed",
+        "inset-0",
+        "z-50",
+        "flex",
+        "items-center",
+        "justify-center",
+        "bg-black/60",
+        "backdrop-blur-sm",
+      )}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative bg-background rounded-2xl shadow-2xl border border-border p-6 w-full max-w-md mx-4">
+      <div
+        className={cn(
+          "relative",
+          "bg-background",
+          "rounded-2xl",
+          "shadow-2xl",
+          "border",
+          "border-border",
+          "p-6",
+          "w-full",
+          "max-w-md",
+          "mx-4",
+        )}
+      >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 rounded-full hover:bg-muted"
+          className={cn(
+            "absolute",
+            "top-4",
+            "right-4",
+            "p-1",
+            "rounded-full",
+            "hover:bg-muted",
+          )}
         >
-          <X className="w-4 h-4" />
+          <X className={cn("w-4", "h-4")} />
         </button>
-        <h3 className="font-bold text-lg mb-4">Upload Image</h3>
-        <p className="text-xs text-muted-foreground mb-4">
+        <h3 className={cn("font-bold", "text-lg", "mb-4")}>Upload Image</h3>
+        <p className={cn("text-xs", "text-muted-foreground", "mb-4")}>
           {isBanner && "Recommended: 1920 × 1080. Max 10 MB."}
           {isLogo && "Logo will be padded to square. Max 3 MB."}
           {isPerson && "Face-aware crop to square. Max 5 MB."}
@@ -157,9 +189,10 @@ function ImageUploadModal({
         </p>
         <ImageUploader
           uploadType={uploadType}
+          ownerId={user?.id ?? "landing-cms"}
           currentUrl={null}
           currentPublicId={null}
-          shape={isPerson ? "circle" : "square"}
+          shape={isPerson ? "circle" : "rect"}
           aspectHint={
             isBanner
               ? "1920 × 1080"
@@ -174,7 +207,7 @@ function ImageUploadModal({
           onSuccess={(image: CloudinaryImage) => {
             const url = image.imageUrl ?? image.imageCloudName ?? "";
             if (url) {
-              onUploaded(url);
+              onUploaded(image);
               onClose();
             }
           }}
@@ -200,14 +233,14 @@ function SaveBar({
   saved: boolean;
 }) {
   return (
-    <div className="flex items-center justify-end gap-3 pt-4 border-t">
+    <div className={cn('flex', 'items-center', 'justify-end', 'gap-3', 'pt-4', 'border-t')}>
       {saved && (
-        <span className="text-sm text-green-600 font-medium">✓ Saved</span>
+        <span className={cn('text-sm', 'text-green-600', 'font-medium')}>✓ Saved</span>
       )}
       <button
         onClick={onSave}
         disabled={saving}
-        className="px-5 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+        className={cn('px-5', 'py-2', 'rounded-md', 'bg-primary', 'text-primary-foreground', 'text-sm', 'font-medium', 'disabled:opacity-50')}
       >
         {saving ? "Saving…" : "Save Changes"}
       </button>
@@ -219,6 +252,7 @@ function SaveBar({
 
 export default function LandingSettingsPage() {
   useAdminAuth();
+  const { user } = useAuth(); 
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<TabKey>("banner");
   const [config, setConfig] = useState<LandingConfig>({});
@@ -312,23 +346,23 @@ export default function LandingSettingsPage() {
 
   if (loading)
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+      <div className={cn('flex', 'items-center', 'justify-center', 'h-64', 'text-muted-foreground', 'text-sm')}>
         Loading landing page config…
       </div>
     );
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className={cn('max-w-4xl', 'mx-auto', 'p-6', 'space-y-6')}>
       <div>
-        <h1 className="text-2xl font-bold">Landing Page Settings</h1>
-        <p className="text-muted-foreground text-sm mt-1">
+        <h1 className={cn('text-2xl', 'font-bold')}>Landing Page Settings</h1>
+        <p className={cn('text-muted-foreground', 'text-sm', 'mt-1')}>
           Manage every dynamic section of the public landing page. Changes save
           to the database and reflect live within 60 seconds.
         </p>
       </div>
 
       {/* Tab bar */}
-      <div className="flex flex-wrap gap-2 border-b pb-3">
+      <div className={cn('flex', 'flex-wrap', 'gap-2', 'border-b', 'pb-3')}>
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -493,14 +527,14 @@ function BannerTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+      <div className={cn('flex', 'items-center', 'justify-between')}>
+        <p className={cn('text-sm', 'text-muted-foreground')}>
           Slides rotate on the landing page hero banner. Hidden slides are saved
           but not shown publicly.
         </p>
         <button
           onClick={addSlide}
-          className="px-3 py-1.5 rounded-md border text-sm hover:bg-muted"
+          className={cn('px-3', 'py-1.5', 'rounded-md', 'border', 'text-sm', 'hover:bg-muted')}
         >
           + Add Slide
         </button>
@@ -512,29 +546,29 @@ function BannerTab({
             key={slide.id}
             className={`border rounded-lg p-4 space-y-3 ${slide.hidden ? "opacity-50" : ""}`}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-mono">
+            <div className={cn('flex', 'items-center', 'justify-between')}>
+              <span className={cn('text-xs', 'text-muted-foreground', 'font-mono')}>
                 Slide {i + 1} — {slide.type}
               </span>
-              <div className="flex gap-2">
+              <div className={cn('flex', 'gap-2')}>
                 <button
                   onClick={() => onHide(slide.id, !slide.hidden)}
-                  className="text-xs px-2 py-1 rounded border hover:bg-muted"
+                  className={cn('text-xs', 'px-2', 'py-1', 'rounded', 'border', 'hover:bg-muted')}
                 >
                   {slide.hidden ? "Show" : "Hide"}
                 </button>
                 <button
                   onClick={() => onDelete(slide.id)}
-                  className="text-xs px-2 py-1 rounded border border-red-300 text-red-500 hover:bg-red-50"
+                  className={cn('text-xs', 'px-2', 'py-1', 'rounded', 'border', 'border-red-300', 'text-red-500', 'hover:bg-red-50')}
                 >
                   Delete
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className={cn('grid', 'grid-cols-2', 'gap-3')}>
               <div>
-                <label className="text-xs text-muted-foreground">
+                <label className={cn('text-xs', 'text-muted-foreground')}>
                   Slide Type
                 </label>
                 <select
@@ -545,7 +579,7 @@ function BannerTab({
                       linkedEventId: undefined,
                     })
                   }
-                  className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+                  className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
                 >
                   <option value="custom">Custom / Ad</option>
                   <option value="event">Link to Event</option>
@@ -553,7 +587,7 @@ function BannerTab({
                 </select>
               </div>
               <div>
-                <label className="text-xs text-muted-foreground">
+                <label className={cn('text-xs', 'text-muted-foreground')}>
                   Expires at (optional — nightly cron hides it)
                 </label>
                 <input
@@ -570,21 +604,21 @@ function BannerTab({
                         : undefined,
                     })
                   }
-                  className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+                  className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
                 />
               </div>
             </div>
 
             {/* Event picker — only shown for type === "event" */}
             {slide.type === "event" && (
-              <div className="p-3 rounded-lg bg-muted border border-border space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <div className={cn('p-3', 'rounded-lg', 'bg-muted', 'border', 'border-border', 'space-y-2')}>
+                <label className={cn('text-xs', 'font-medium', 'text-muted-foreground', 'uppercase', 'tracking-wider')}>
                   Select Event
                 </label>
                 <select
                   value={slide.linkedEventId ?? ""}
                   onChange={(e) => handleEventSelect(slide.id, e.target.value)}
-                  className="w-full rounded border px-2 py-1.5 text-sm bg-background"
+                  className={cn('w-full', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
                 >
                   <option value="">— choose an event —</option>
                   {events.map((ev) => (
@@ -599,9 +633,9 @@ function BannerTab({
                   ))}
                 </select>
                 {slide.linkedEventId && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className={cn('text-xs', 'text-muted-foreground')}>
                     CTA will link to{" "}
-                    <code className="bg-background px-1 rounded">
+                    <code className={cn('bg-background', 'px-1', 'rounded')}>
                       {slide.ctaHref}
                     </code>{" "}
                     and image will be pre-filled from event. You can still
@@ -613,14 +647,14 @@ function BannerTab({
 
             {/* Blog placeholder */}
             {slide.type === "blog" && (
-              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+              <div className={cn('p-3', 'rounded-lg', 'bg-amber-50', 'border', 'border-amber-200', 'text-amber-800', 'text-sm')}>
                 Blog integration coming soon. Use Custom / Ad type for now.
               </div>
             )}
 
             {/* Title + Subtitle — always editable */}
             <div>
-              <label className="text-xs text-muted-foreground">
+              <label className={cn('text-xs', 'text-muted-foreground')}>
                 Title
                 {slide.type === "event" &&
                   " (override event title for marketing)"}
@@ -636,12 +670,12 @@ function BannerTab({
                     ? "e.g. Don't miss LASCADSS 7.0 — Register now"
                     : "Banner headline"
                 }
-                className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+                className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
               />
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground">Subtitle</label>
+              <label className={cn('text-xs', 'text-muted-foreground')}>Subtitle</label>
               <input
                 type="text"
                 value={slide.subtitle ?? ""}
@@ -649,14 +683,14 @@ function BannerTab({
                   updateSlide(slide.id, { subtitle: e.target.value })
                 }
                 placeholder="Supporting text below the title"
-                className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+                className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
               />
             </div>
 
             {/* CTA fields — always editable, pre-filled for events */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className={cn('grid', 'grid-cols-2', 'gap-3')}>
               <div>
-                <label className="text-xs text-muted-foreground">
+                <label className={cn('text-xs', 'text-muted-foreground')}>
                   CTA Button Label
                 </label>
                 <input
@@ -666,11 +700,11 @@ function BannerTab({
                     updateSlide(slide.id, { ctaLabel: e.target.value })
                   }
                   placeholder="Register Now"
-                  className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+                  className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
                 />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground">
+                <label className={cn('text-xs', 'text-muted-foreground')}>
                   CTA Link
                   {slide.type === "event" && " (auto-filled from event)"}
                 </label>
@@ -681,7 +715,7 @@ function BannerTab({
                     updateSlide(slide.id, { ctaHref: e.target.value })
                   }
                   placeholder="/events/my-event"
-                  className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+                  className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
                   readOnly={slide.type === "event" && !!slide.linkedEventId}
                 />
               </div>
@@ -689,32 +723,32 @@ function BannerTab({
 
             {/* Image — portal upload modal */}
             <div>
-              <label className="text-xs text-muted-foreground">
+              <label className={cn('text-xs', 'text-muted-foreground')}>
                 Banner Image
                 {slide.type === "event" && slide.linkedEventId
                   ? " (auto-filled from event — upload to override)"
                   : ""}
               </label>
-              <div className="flex items-center gap-3 mt-1">
+              <div className={cn('flex', 'items-center', 'gap-3', 'mt-1')}>
                 {slide.imageUrl && (
                   <Image
                   width={500}
                   height={300}
                     src={slide.imageUrl}
                     alt=""
-                    className="h-16 w-28 object-cover rounded border"
+                    className={cn('h-16', 'w-28', 'object-cover', 'rounded', 'border')}
                   />
                 )}
                 <button
                   onClick={() => setUploadModalFor(slide.id)}
-                  className="px-3 py-1.5 rounded border text-sm hover:bg-muted"
+                  className={cn('px-3', 'py-1.5', 'rounded', 'border', 'text-sm', 'hover:bg-muted')}
                 >
                   📁 {slide.imageUrl ? "Change Image" : "Upload Image"}
                 </button>
                 {slide.imageUrl && (
                   <button
                     onClick={() => updateSlide(slide.id, { imageUrl: "" })}
-                    className="text-xs text-red-500 hover:underline"
+                    className={cn('text-xs', 'text-red-500', 'hover:underline')}
                   >
                     Remove
                   </button>
@@ -769,48 +803,48 @@ const [uploadOpen, setUploadOpen] = useState(false);
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className={cn('grid', 'grid-cols-2', 'gap-4')}>
         <div>
-          <label className="text-xs text-muted-foreground">Section Title</label>
+          <label className={cn('text-xs', 'text-muted-foreground')}>Section Title</label>
           <input
             type="text"
             value={d.sectionTitle}
             onChange={(e) => onChange({ ...d, sectionTitle: e.target.value })}
             placeholder="LASCADSS Class of 2026"
-            className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+            className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
           />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Year Label</label>
+          <label className={cn('text-xs', 'text-muted-foreground')}>Year Label</label>
           <input
             type="text"
             value={d.yearLabel}
             onChange={(e) => onChange({ ...d, yearLabel: e.target.value })}
             placeholder="2026"
-            className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+            className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
           />
         </div>
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-sm font-medium">Photos (fade carousel)</label>
+        <div className={cn('flex', 'items-center', 'justify-between', 'mb-2')}>
+          <label className={cn('text-sm', 'font-medium')}>Photos (fade carousel)</label>
           <button
             onClick={() => setUploadOpen(true)}
-            className="px-3 py-1.5 rounded border text-sm hover:bg-muted"
+            className={cn('px-3', 'py-1.5', 'rounded', 'border', 'text-sm', 'hover:bg-muted')}
           >
             + Add Photo
           </button>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className={cn('grid', 'grid-cols-3', 'gap-3')}>
           {d.photos.map((photo) => (
-            <div key={photo.id} className="relative group">
+            <div key={photo.id} className={cn('relative', 'group')}>
               <Image
                 width={500}
                 height={300}
                 src={photo.imageUrl}
                 alt={photo.alt ?? ""}
-                className="h-24 w-full object-cover rounded border"
+                className={cn('h-24', 'w-full', 'object-cover', 'rounded', 'border')}
               />
               <button
                 onClick={() =>
@@ -821,7 +855,7 @@ const [uploadOpen, setUploadOpen] = useState(false);
                     ),
                   })
                 }
-                className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs hidden group-hover:flex items-center justify-center"
+                className={cn('absolute', 'top-1', 'right-1', 'bg-red-500', 'text-white', 'rounded-full', 'w-5', 'h-5', 'text-xs', 'hidden', 'group-hover:flex', 'items-center', 'justify-center')}
               >
                 ×
               </button>
@@ -836,14 +870,14 @@ const [uploadOpen, setUploadOpen] = useState(false);
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
         folder="landing/initiative"
-        onUploaded={(url) =>
+        onUploaded={(image) =>
           onChange({
             ...d,
             photos: [
               ...(d.photos ?? []),
               {
                 id: crypto.randomUUID(),
-                imageUrl: url,
+                imageUrl: image.imageUrl,
                 order: d.photos?.length ?? 0,
               },
             ],
@@ -893,10 +927,10 @@ function ValidatorsTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className={cn('flex', 'justify-end')}>
         <button
           onClick={add}
-          className="px-3 py-1.5 rounded-md border text-sm hover:bg-muted"
+          className={cn('px-3', 'py-1.5', 'rounded-md', 'border', 'text-sm', 'hover:bg-muted')}
         >
           + Add Validator
         </button>
@@ -906,7 +940,7 @@ function ValidatorsTab({
         {items.map((v) => (
           <div
             key={v.id}
-            className="border rounded-lg p-3 flex items-center gap-3"
+            className={cn('border', 'rounded-lg', 'p-3', 'flex', 'items-center', 'gap-3')}
           >
             {v.logoUrl && (
               <Image
@@ -914,12 +948,12 @@ function ValidatorsTab({
                 height={300}
                 src={v.logoUrl}
                 alt=""
-                className="h-10 w-10 object-contain rounded border"
+                className={cn('h-10', 'w-10', 'object-contain', 'rounded', 'border')}
               />
             )}
             <button
               onClick={() => setUploadFor(v.id)}
-              className="px-2 py-1 rounded border text-xs hover:bg-muted shrink-0"
+              className={cn('px-2', 'py-1', 'rounded', 'border', 'text-xs', 'hover:bg-muted', 'shrink-0')}
             >
               {v.logoUrl ? "Change Logo" : "Upload Logo"}
             </button>
@@ -928,7 +962,7 @@ function ValidatorsTab({
               value={v.name}
               onChange={(e) => update(v.id, { name: e.target.value })}
               placeholder="Organisation name"
-              className="flex-1 rounded border px-2 py-1.5 text-sm bg-background"
+              className={cn('flex-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
             />
             <select
               value={v.category}
@@ -937,14 +971,14 @@ function ValidatorsTab({
                   category: e.target.value as ValidatorEntry["category"],
                 })
               }
-              className="rounded border px-2 py-1.5 text-sm bg-background"
+              className={cn('rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
             >
               <option value="industry">Industry</option>
               <option value="academia">Academia</option>
             </select>
             <button
               onClick={() => remove(v.id)}
-              className="text-red-500 text-sm px-2"
+              className={cn('text-red-500', 'text-sm', 'px-2')}
             >
               ×
             </button>
@@ -958,8 +992,8 @@ function ValidatorsTab({
         open={uploadFor !== null}
         onClose={() => setUploadFor(null)}
         folder="landing/validators"
-        onUploaded={(url) => {
-          if (uploadFor) update(uploadFor, { logoUrl: url });
+        onUploaded={(image) => {
+          if (uploadFor) update(uploadFor, { logoUrl: image.imageUrl });
           setUploadFor(null);
         }}
       />
@@ -994,54 +1028,54 @@ function MissionTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start gap-4">
+      <div className={cn('flex', 'items-start', 'gap-4')}>
         {d.photoUrl && (
           <Image
             width={500}
             height={300}
             src={d.photoUrl}
             alt=""
-            className="h-24 w-20 object-cover rounded-lg border"
+            className={cn('h-24', 'w-20', 'object-cover', 'rounded-lg', 'border')}
           />
         )}
         <button
           onClick={() => setUploadOpen(true)}
-          className="px-3 py-1.5 rounded border text-sm hover:bg-muted"
+          className={cn('px-3', 'py-1.5', 'rounded', 'border', 'text-sm', 'hover:bg-muted')}
         >
           📁 {d.photoUrl ? "Change Photo" : "Upload Leader Photo"}
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className={cn('grid', 'grid-cols-2', 'gap-4')}>
         <div>
-          <label className="text-xs text-muted-foreground">Name</label>
+          <label className={cn('text-xs', 'text-muted-foreground')}>Name</label>
           <input
             type="text"
             value={d.name}
             onChange={(e) => onChange({ ...d, name: e.target.value })}
             placeholder="Ikechukwu Innocent Umeh"
-            className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+            className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
           />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Title / Role</label>
+          <label className={cn('text-xs', 'text-muted-foreground')}>Title / Role</label>
           <input
             type="text"
             value={d.title}
             onChange={(e) => onChange({ ...d, title: e.target.value })}
             placeholder="Founder & Convener, DIUSCADI"
-            className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+            className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
           />
         </div>
       </div>
 
       <div>
-        <label className="text-xs text-muted-foreground">Writeup / Quote</label>
+        <label className={cn('text-xs', 'text-muted-foreground')}>Writeup / Quote</label>
         <textarea
           rows={5}
           value={d.writeup}
           onChange={(e) => onChange({ ...d, writeup: e.target.value })}
-          className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+          className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
         />
       </div>
 
@@ -1051,7 +1085,7 @@ function MissionTab({
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
         folder="landing/mission"
-        onUploaded={(url) => onChange({ ...d, photoUrl: url })}
+        onUploaded={(image) => onChange({ ...d, photoUrl: image.imageUrl })}
       />
     </div>
   );
@@ -1095,10 +1129,10 @@ function WorkshopTopicsTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className={cn('flex', 'justify-end')}>
         <button
           onClick={add}
-          className="px-3 py-1.5 rounded-md border text-sm hover:bg-muted"
+          className={cn('px-3', 'py-1.5', 'rounded-md', 'border', 'text-sm', 'hover:bg-muted')}
         >
           + Add Topic
         </button>
@@ -1106,58 +1140,58 @@ function WorkshopTopicsTab({
 
       <div className="space-y-3">
         {items.map((w) => (
-          <div key={w.id} className="border rounded-lg p-3 space-y-2">
-            <div className="flex gap-2">
+          <div key={w.id} className={cn('border', 'rounded-lg', 'p-3', 'space-y-2')}>
+            <div className={cn('flex', 'gap-2')}>
               <input
                 type="text"
                 value={w.icon ?? ""}
                 onChange={(e) => update(w.id, { icon: e.target.value })}
                 placeholder="🎓"
-                className="w-12 rounded border px-2 py-1.5 text-sm bg-background text-center"
+                className={cn('w-12', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background', 'text-center')}
               />
               <input
                 type="text"
                 value={w.topic}
                 onChange={(e) => update(w.id, { topic: e.target.value })}
                 placeholder="Topic title"
-                className="flex-1 rounded border px-2 py-1.5 text-sm bg-background"
+                className={cn('flex-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
               />
               <button
                 onClick={() => remove(w.id)}
-                className="text-red-500 px-2"
+                className={cn('text-red-500', 'px-2')}
               >
                 ×
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className={cn('grid', 'grid-cols-2', 'gap-2')}>
               <input
                 type="text"
                 value={w.expertName}
                 onChange={(e) => update(w.id, { expertName: e.target.value })}
                 placeholder="Expert name"
-                className="rounded border px-2 py-1.5 text-sm bg-background"
+                className={cn('rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
               />
               <input
                 type="text"
                 value={w.expertTitle ?? ""}
                 onChange={(e) => update(w.id, { expertTitle: e.target.value })}
                 placeholder="Expert title / organisation"
-                className="rounded border px-2 py-1.5 text-sm bg-background"
+                className={cn('rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
               />
             </div>
-            <div className="flex items-center gap-3">
+            <div className={cn('flex', 'items-center', 'gap-3')}>
               {w.expertPhotoUrl && (
                 <Image
                 width={500}
                 height={300}
                   src={w.expertPhotoUrl}
                   alt=""
-                  className="h-10 w-10 object-cover rounded-full border"
+                  className={cn('h-10', 'w-10', 'object-cover', 'rounded-full', 'border')}
                 />
               )}
               <button
                 onClick={() => setUploadFor(w.id)}
-                className="px-2 py-1 rounded border text-xs hover:bg-muted"
+                className={cn('px-2', 'py-1', 'rounded', 'border', 'text-xs', 'hover:bg-muted')}
               >
                 {w.expertPhotoUrl ? "Change Photo" : "Expert Photo (optional)"}
               </button>
@@ -1172,8 +1206,8 @@ function WorkshopTopicsTab({
         open={uploadFor !== null}
         onClose={() => setUploadFor(null)}
         folder="landing/experts"
-        onUploaded={(url) => {
-          if (uploadFor) update(uploadFor, { expertPhotoUrl: url });
+        onUploaded={(image) => {
+          if (uploadFor) update(uploadFor, { expertPhotoUrl: image.imageUrl });
           setUploadFor(null);
         }}
       />
@@ -1228,11 +1262,11 @@ function TestimonialsTab({
   return (
     <div className="space-y-6">
       {/* Video */}
-      <div className="border rounded-lg p-4 space-y-3">
-        <h3 className="font-medium text-sm">Section Video</h3>
-        <div className="grid grid-cols-2 gap-3">
+      <div className={cn('border', 'rounded-lg', 'p-4', 'space-y-3')}>
+        <h3 className={cn('font-medium', 'text-sm')}>Section Video</h3>
+        <div className={cn('grid', 'grid-cols-2', 'gap-3')}>
           <div>
-            <label className="text-xs text-muted-foreground">Video Type</label>
+            <label className={cn('text-xs', 'text-muted-foreground')}>Video Type</label>
             <select
               value={d.videoType}
               onChange={(e) =>
@@ -1241,20 +1275,20 @@ function TestimonialsTab({
                   videoType: e.target.value as TestimonialsConfig["videoType"],
                 })
               }
-              className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+              className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
             >
               <option value="youtube">YouTube Embed URL</option>
               <option value="cloudinary">Cloudinary Video URL</option>
             </select>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">Video URL</label>
+            <label className={cn('text-xs', 'text-muted-foreground')}>Video URL</label>
             <input
               type="text"
               value={d.videoUrl}
               onChange={(e) => onChange({ ...d, videoUrl: e.target.value })}
               placeholder="https://www.youtube.com/embed/..."
-              className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+              className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
             />
           </div>
         </div>
@@ -1262,36 +1296,36 @@ function TestimonialsTab({
 
       {/* Testimonials list */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-medium text-sm">Testimonials</h3>
+        <div className={cn('flex', 'items-center', 'justify-between', 'mb-3')}>
+          <h3 className={cn('font-medium', 'text-sm')}>Testimonials</h3>
           <button
             onClick={addTestimonial}
-            className="px-3 py-1.5 rounded-md border text-sm hover:bg-muted"
+            className={cn('px-3', 'py-1.5', 'rounded-md', 'border', 'text-sm', 'hover:bg-muted')}
           >
             + Add
           </button>
         </div>
         <div className="space-y-3">
           {d.items.map((t) => (
-            <div key={t.id} className="border rounded-lg p-3 space-y-2">
-              <div className="flex gap-2">
+            <div key={t.id} className={cn('border', 'rounded-lg', 'p-3', 'space-y-2')}>
+              <div className={cn('flex', 'gap-2')}>
                 <input
                   type="text"
                   value={t.name}
                   onChange={(e) => updateItem(t.id, { name: e.target.value })}
                   placeholder="Name"
-                  className="flex-1 rounded border px-2 py-1.5 text-sm bg-background"
+                  className={cn('flex-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
                 />
                 <input
                   type="text"
                   value={t.role ?? ""}
                   onChange={(e) => updateItem(t.id, { role: e.target.value })}
                   placeholder="Role"
-                  className="flex-1 rounded border px-2 py-1.5 text-sm bg-background"
+                  className={cn('flex-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
                 />
                 <button
                   onClick={() => removeItem(t.id)}
-                  className="text-red-500 px-2"
+                  className={cn('text-red-500', 'px-2')}
                 >
                   ×
                 </button>
@@ -1301,21 +1335,21 @@ function TestimonialsTab({
                 value={t.quote}
                 onChange={(e) => updateItem(t.id, { quote: e.target.value })}
                 placeholder="Their testimonial..."
-                className="w-full rounded border px-2 py-1.5 text-sm bg-background"
+                className={cn('w-full', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
               />
-              <div className="flex items-center gap-3">
+              <div className={cn('flex', 'items-center', 'gap-3')}>
                 {t.photoUrl && (
                   <Image
                     width={500}
                     height={300}
                     src={t.photoUrl}
                     alt=""
-                    className="h-8 w-8 rounded-full object-cover border"
+                    className={cn('h-8', 'w-8', 'rounded-full', 'object-cover', 'border')}
                   />
                 )}
                 <button
                   onClick={() => setUploadFor(t.id)}
-                  className="px-2 py-1 rounded border text-xs hover:bg-muted"
+                  className={cn('px-2', 'py-1', 'rounded', 'border', 'text-xs', 'hover:bg-muted')}
                 >
                   {t.photoUrl ? "Change Photo" : "Photo (optional)"}
                 </button>
@@ -1331,8 +1365,8 @@ function TestimonialsTab({
         open={uploadFor !== null}
         onClose={() => setUploadFor(null)}
         folder="landing/testimonials"
-        onUploaded={(url) => {
-          if (uploadFor) updateItem(uploadFor, { photoUrl: url });
+        onUploaded={(image) => {
+          if (uploadFor) updateItem(uploadFor, { photoUrl: image.imageUrl });
           setUploadFor(null);
         }}
       />
@@ -1378,14 +1412,14 @@ function SupportTab({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
+      <p className={cn('text-sm', 'text-muted-foreground')}>
         Select which supporters appear on the landing page. Scope sponsors to a
         specific upcoming event using the linked event ID field.
       </p>
-      <div className="flex justify-end">
+      <div className={cn('flex', 'justify-end')}>
         <button
           onClick={add}
-          className="px-3 py-1.5 rounded-md border text-sm hover:bg-muted"
+          className={cn('px-3', 'py-1.5', 'rounded-md', 'border', 'text-sm', 'hover:bg-muted')}
         >
           + Add Supporter
         </button>
@@ -1393,20 +1427,20 @@ function SupportTab({
 
       <div className="space-y-3">
         {items.map((s) => (
-          <div key={s.id} className="border rounded-lg p-3 space-y-2">
-            <div className="flex items-center gap-3">
+          <div key={s.id} className={cn('border', 'rounded-lg', 'p-3', 'space-y-2')}>
+            <div className={cn('flex', 'items-center', 'gap-3')}>
               {s.logoUrl && (
                 <Image
                   width={500}
                   height={300}
                   src={s.logoUrl}
                   alt=""
-                  className="h-10 w-10 object-contain rounded border"
+                  className={cn('h-10', 'w-10', 'object-contain', 'rounded', 'border')}
                 />
               )}
               <button
                 onClick={() => setUploadFor(s.id)}
-                className="px-2 py-1 rounded border text-xs hover:bg-muted shrink-0"
+                className={cn('px-2', 'py-1', 'rounded', 'border', 'text-xs', 'hover:bg-muted', 'shrink-0')}
               >
                 {s.logoUrl ? "Change Logo" : "Upload Logo"}
               </button>
@@ -1415,14 +1449,14 @@ function SupportTab({
                 value={s.name}
                 onChange={(e) => update(s.id, { name: e.target.value })}
                 placeholder="Organisation name"
-                className="flex-1 rounded border px-2 py-1.5 text-sm bg-background"
+                className={cn('flex-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
               />
               <select
                 value={s.tier}
                 onChange={(e) =>
                   update(s.id, { tier: e.target.value as SupportEntry["tier"] })
                 }
-                className="rounded border px-2 py-1.5 text-sm bg-background"
+                className={cn('rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
               >
                 <option value="headline">Headline</option>
                 <option value="gold">Gold</option>
@@ -1431,14 +1465,14 @@ function SupportTab({
               </select>
               <button
                 onClick={() => remove(s.id)}
-                className="text-red-500 px-2"
+                className={cn('text-red-500', 'px-2')}
               >
                 ×
               </button>
             </div>
-            {/* <div className="grid grid-cols-2 gap-2">
+            {/* <div className={cn('grid', 'grid-cols-2', 'gap-2')}>
               <div>
-                <label className="text-xs text-muted-foreground">
+                <label className={cn('text-xs', 'text-muted-foreground')}>
                   Website URL (optional)
                 </label>
                 <input
@@ -1446,11 +1480,11 @@ function SupportTab({
                   value={s.websiteUrl ?? ""}
                   onChange={(e) => update(s.id, { websiteUrl: e.target.value })}
                   placeholder="https://example.com"
-                  className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+                  className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
                 />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground">
+                <label className={cn('text-xs', 'text-muted-foreground')}>
                   Linked Event ID (optional)
                 </label>
                 <input
@@ -1460,7 +1494,7 @@ function SupportTab({
                     update(s.id, { linkedEventId: e.target.value })
                   }
                   placeholder="event-slug"
-                  className="w-full mt-1 rounded border px-2 py-1.5 text-sm bg-background"
+                  className={cn('w-full', 'mt-1', 'rounded', 'border', 'px-2', 'py-1.5', 'text-sm', 'bg-background')}
                 />
               </div>
             </div> */}
@@ -1474,8 +1508,8 @@ function SupportTab({
         open={uploadFor !== null}
         onClose={() => setUploadFor(null)}
         folder="landing/sponsors"
-        onUploaded={(url) => {
-          if (uploadFor) update(uploadFor, { logoUrl: url });
+        onUploaded={(image) => {
+          if (uploadFor) update(uploadFor, { logoUrl: image.imageUrl });
           setUploadFor(null);
         }}
       />

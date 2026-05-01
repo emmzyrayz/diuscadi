@@ -208,6 +208,7 @@ export const DELETE = withAuth(async (req: AuthenticatedRequest) => {
         );
       }
 
+
       const deleted = await deleteCloudinaryAsset(publicId);
 
       if (deleted) {

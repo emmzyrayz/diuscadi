@@ -55,7 +55,7 @@ interface ImageUploaderProps {
   /** For gallery items: the imageId of the specific item to remove */
   galleryImageId?: string;
   className?: string;
-  shape?: "square" | "circle";
+  shape?: "square" | "circle" | "rect";
   aspectHint?: string;
   label?: string;
   cropLabel?: string;

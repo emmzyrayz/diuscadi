@@ -51,7 +51,15 @@ export interface CommitteeMembership {
 // ── User Preferences (persisted on UserDataDocument) ─────────────────────────
 
 export type ThemeMode = "light" | "dark" | "system";
-export type AccentColor = "orange" | "emerald" | "violet" | "rose" | "amber";
+export type AccentColor =
+  | "orange"
+  | "emerald"
+  | "violet"
+  | "rose"
+  | "amber"
+  | "sky"
+  | "indigo"
+  | "cyan";
 export type NotificationFrequency = "instant" | "daily" | "weekly";
 
 export interface NotificationPreferences {
@@ -116,7 +124,11 @@ export const ACCENT_COLORS: AccentColor[] = [
   "violet",
   "rose",
   "amber",
+  "sky",
+  "indigo",
+  "cyan",
 ];
+
 export const THEME_MODES: ThemeMode[] = ["light", "dark", "system"];
 export const NOTIF_FREQS: NotificationFrequency[] = [
   "instant",

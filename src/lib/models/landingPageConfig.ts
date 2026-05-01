@@ -1,3 +1,4 @@
+import { CloudinaryImage } from "@/types/cloudinary";
 import { ObjectId } from "mongodb";
 
 export type LandingSectionKey =
@@ -12,6 +13,7 @@ export type LandingSectionKey =
 export interface BannerSlide {
   id: string;
   type: "event" | "ad" | "blog" | "custom";
+  image?: CloudinaryImage;
   imageUrl: string;
   title: string;
   subtitle?: string;
@@ -25,6 +27,7 @@ export interface BannerSlide {
 
 export interface InitiativePhoto {
   id: string;
+  image?: CloudinaryImage;
   imageUrl: string;
   alt?: string;
   order: number;
@@ -33,12 +36,14 @@ export interface InitiativePhoto {
 export interface ValidatorEntry {
   id: string;
   name: string;
+  image?: CloudinaryImage;
   logoUrl: string;
   category: "industry" | "academia";
   order: number;
 }
 
 export interface MissionConfig {
+  image?: CloudinaryImage;
   photoUrl: string;
   name: string;
   title: string;
@@ -50,6 +55,7 @@ export interface WorkshopTopic {
   topic: string;
   expertName: string;
   expertTitle?: string;
+  image?: CloudinaryImage;
   expertPhotoUrl?: string;
   icon?: string;
   order: number;
@@ -61,6 +67,7 @@ export interface TestimonialEntry {
   role?: string;
   edition?: string;
   quote: string;
+  image?: CloudinaryImage;
   photoUrl?: string;
   order: number;
 }
@@ -68,6 +75,7 @@ export interface TestimonialEntry {
 export interface SupportEntry {
   id: string;
   name: string;
+  image?: CloudinaryImage;
   logoUrl: string;
   tier: "headline" | "gold" | "silver" | "partner";
   websiteUrl?: string;
@@ -78,6 +86,7 @@ export interface SupportEntry {
 export interface InitiativeConfig {
   sectionTitle: string;
   yearLabel: string;
+  image?: CloudinaryImage;
   photos: InitiativePhoto[];
 }
 

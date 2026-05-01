@@ -248,7 +248,7 @@ export const HomeHeader = ({ user }: HomeHeaderProps) => {
     .toUpperCase();
 
   return (
-    <header className={cn('w-full', 'bg-background', 'border-b', 'border-border', 'sticky', 'top-0', 'z-50')}>
+    <header className={cn('w-full', 'bg-background', 'border-b', 'border-border', 'sticky', 'top-0', 'z-40')}>
       <div className={cn('max-w-7xl', 'mx-auto', 'px-4', 'sm:px-6', 'lg:px-8', 'py-3')}>
         <div className={cn('flex', 'items-center', 'justify-between', 'gap-4')}>
           {/* ── LEFT: Greeting ── */}

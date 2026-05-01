@@ -38,6 +38,7 @@ import {
   isValidUploadType,
   allowedRolesForType,
   deleteCloudinaryAsset,
+  UploadType,
 } from "@/lib/services/CloudinaryService";
 import type { CloudinaryImage } from "@/types/cloudinary";
 
@@ -57,7 +58,7 @@ interface CloudinaryResponse {
 }
 
 interface ConfirmBody extends Partial<CloudinaryResponse> {
-  uploadType?: unknown;
+  uploadType?: UploadType;
   ownerId?: string;
   imageAlt?: string;
 }
@@ -70,6 +71,10 @@ const DEFAULT_ALT: Record<string, string> = {
   "event-gallery": "Event photo",
   "inst-logo": "Institution logo",
   "inst-banner": "Institution banner",
+  "landing-banner": "Landing banner",
+  "landing-initiative": "Initiative photo",
+  "landing-logo": "Organisation logo",
+  "landing-person": "Person photo",
 };
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
@@ -137,9 +142,9 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     }
 
     // Optional — provide fallbacks so confirm never 400s on these
-    const safeSignature = signature ?? "";
-    const safeTimestamp = timestamp ?? Math.floor(Date.now() / 1000);
-    const safeEtag = etag ?? "";
+    // const safeSignature = signature ?? "";
+    // const safeTimestamp = timestamp ?? Math.floor(Date.now() / 1000);
+    // const safeEtag = etag ?? "";
 
     // Basic URL sanity check
     try {
@@ -412,6 +417,18 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         },
       );
 
+      return NextResponse.json({ image: cloudinaryImage });
+    }
+
+    if (
+      uploadType === "landing-banner" ||
+      uploadType === "landing-initiative" ||
+      uploadType === "landing-logo" ||
+      uploadType === "landing-person"
+    ) {
+      // ownerId is the admin's vaultId — used only for publicId scoping in the
+      // sign step. No DB lookup required here since we're not attaching this
+      // image to any specific document.
       return NextResponse.json({ image: cloudinaryImage });
     }
 
