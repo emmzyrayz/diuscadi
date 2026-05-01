@@ -13,18 +13,20 @@ import Azubuike from "@/assets/img/downloads/Azubike-Desiree.webp";
 import networking from "@/assets/img/downloads/networking-diuscadi.webp";
 import type { StaticImageData } from "next/image";
 
-// ─── Unified testimonial shape ────────────────────────────────────────────────
-//
-// TestimonialEntry (from DB) uses `quote`.
-// The static fallback below also uses `quote` — mapped from the old `review`.
-// The component always reads `.quote` so there's no type mismatch.
-
-interface StaticTestimonial extends Omit<TestimonialEntry, "id"> {
+interface StaticTestimonial {
   id: number;
+  name: string;
+  role?: string;
+  quote: string;
+  edition?: string;
+  order: number;
   image: StaticImageData;
 }
 
-// All testimonials are real — sourced from DIUSCADI PDF and actual participants
+function resolvePhotoUrl(photoUrl: string | undefined): string | null {
+  return photoUrl ?? null;
+}
+
 const STATIC_TESTIMONIALS: StaticTestimonial[] = [
   {
     id: 1,
@@ -68,47 +70,32 @@ const STATIC_TESTIMONIALS: StaticTestimonial[] = [
   },
 ];
 
-// ─── Video player ─────────────────────────────────────────────────────────────
-//
-// Detects YouTube URLs (youtube.com/watch, youtu.be, youtube.com/embed)
-// and renders an iframe. All other URLs use a native <video> element.
+// Resolves photoUrl to a plain string regardless of whether it's a string,
+// CloudinaryImage object, or undefined — safe for <Image src>.
 
 function isYouTubeUrl(url: string): boolean {
   return /(?:youtube\.com\/(?:watch|embed)|youtu\.be\/)/.test(url);
 }
 
-/** Convert any YouTube watch/share URL to an embed URL */
 function toYouTubeEmbedUrl(url: string): string {
-  // Already an embed URL
   if (url.includes("youtube.com/embed/")) return url;
-
-  // youtu.be/VIDEO_ID
   const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
   if (shortMatch) return `https://www.youtube.com/embed/${shortMatch[1]}`;
-
-  // youtube.com/watch?v=VIDEO_ID
   const watchMatch = url.match(/[?&]v=([^&]+)/);
   if (watchMatch) return `https://www.youtube.com/embed/${watchMatch[1]}`;
-
-  // fallback — return as-is
   return url;
 }
 
-interface VideoPlayerProps {
+function VideoPlayer({
+  url,
+  inline = false,
+}: {
   url: string;
-  /** When true renders inline; false = inside a modal overlay */
   inline?: boolean;
-}
-
-function VideoPlayer({ url, inline = false }: VideoPlayerProps) {
-  const isYT = isYouTubeUrl(url);
-
-  const containerCls = cn(
-    "w-full rounded-2xl overflow-hidden bg-black",
-    inline ? "aspect-video" : "aspect-video",
-  );
-
-  if (isYT) {
+}) {
+  const containerCls =
+    "w-full rounded-2xl overflow-hidden bg-black aspect-video";
+  if (isYouTubeUrl(url)) {
     return (
       <div className={containerCls}>
         <iframe
@@ -121,7 +108,6 @@ function VideoPlayer({ url, inline = false }: VideoPlayerProps) {
       </div>
     );
   }
-
   return (
     <div className={containerCls}>
       <video
@@ -135,19 +121,17 @@ function VideoPlayer({ url, inline = false }: VideoPlayerProps) {
   );
 }
 
-// ─── Video thumbnail with play button ────────────────────────────────────────
-
-interface VideoThumbnailProps {
+function VideoThumbnail({
+  videoUrl,
+  onClick,
+}: {
   videoUrl: string | null;
   onClick: () => void;
-}
-
-function VideoThumbnail({ videoUrl, onClick }: VideoThumbnailProps) {
+}) {
   return (
     <div
       className={cn(
-        "group relative aspect-video rounded-[2rem] overflow-hidden",
-        "border-4 border-background/10 shadow-2xl",
+        "group relative aspect-video rounded-[2rem] overflow-hidden border-4 border-background/10 shadow-2xl",
         videoUrl ? "cursor-pointer" : "cursor-default",
       )}
       onClick={videoUrl ? onClick : undefined}
@@ -169,30 +153,16 @@ function VideoThumbnail({ videoUrl, onClick }: VideoThumbnailProps) {
       />
       <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
         {videoUrl ? (
-          <div
-            className={cn(
-              "w-20 h-20 bg-primary rounded-full flex items-center justify-center",
-              "shadow-2xl group-hover:scale-110 transition-transform",
-            )}
-          >
+          <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
             <Play className="w-8 h-8 text-background fill-background ml-1" />
           </div>
         ) : (
-          <div
-            className={cn(
-              "w-20 h-20 bg-background/20 rounded-full flex items-center justify-center",
-            )}
-          >
+          <div className="w-20 h-20 bg-background/20 rounded-full flex items-center justify-center">
             <Volume2 className="w-8 h-8 text-background/60" />
           </div>
         )}
       </div>
-      <div
-        className={cn(
-          "absolute bottom-4 left-4 right-4 p-4 rounded-xl",
-          "bg-background/10 backdrop-blur-md border border-background/20",
-        )}
-      >
+      <div className="absolute bottom-4 left-4 right-4 p-4 rounded-xl bg-background/10 backdrop-blur-md border border-background/20">
         <p className="text-sm font-medium">
           {videoUrl ? "Watch the #LASCADSS Highlights" : "Video coming soon"}
         </p>
@@ -201,24 +171,14 @@ function VideoThumbnail({ videoUrl, onClick }: VideoThumbnailProps) {
   );
 }
 
-// ─── Video modal ──────────────────────────────────────────────────────────────
-
-interface VideoModalProps {
-  url: string;
-  onClose: () => void;
-}
-
-function VideoModal({ url, onClose }: VideoModalProps) {
+function VideoModal({ url, onClose }: { url: string; onClose: () => void }) {
   return (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className={cn(
-          "fixed inset-0 z-50 flex items-center justify-center p-4",
-          "bg-black/80 backdrop-blur-sm",
-        )}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
         onClick={onClose}
       >
         <motion.div
@@ -231,12 +191,7 @@ function VideoModal({ url, onClose }: VideoModalProps) {
         >
           <button
             onClick={onClose}
-            className={cn(
-              "absolute -top-12 right-0 w-10 h-10 rounded-full",
-              "bg-background/10 backdrop-blur-sm border border-background/20",
-              "flex items-center justify-center text-background",
-              "hover:bg-background/20 transition-colors",
-            )}
+            className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-background/10 backdrop-blur-sm border border-background/20 flex items-center justify-center text-background hover:bg-background/20 transition-colors"
             aria-label="Close video"
           >
             <X className="w-5 h-5" />
@@ -248,13 +203,10 @@ function VideoModal({ url, onClose }: VideoModalProps) {
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
 export const Testimonials = () => {
   const { config } = useLandingConfig();
   const [videoOpen, setVideoOpen] = useState(false);
 
-  // Normalize DB testimonials (use `quote`) vs static fallback (already uses `quote`)
   const testimonials: Array<StaticTestimonial | TestimonialEntry> = config
     ?.testimonials?.items?.length
     ? config.testimonials.items
@@ -263,121 +215,54 @@ export const Testimonials = () => {
   const videoUrl = config?.testimonials?.videoUrl || null;
 
   return (
-    <section
-      className={cn(
-        "py-24 w-full bg-foreground text-background overflow-hidden rounded-2xl",
-      )}
-    >
-      {/* Video modal */}
+    <section className="py-24 w-full bg-foreground text-background overflow-hidden rounded-2xl">
       {videoOpen && videoUrl && (
         <VideoModal url={videoUrl} onClose={() => setVideoOpen(false)} />
       )}
 
       <div className={cn("container", "mx-auto", "px-6")}>
-        {/* Header */}
-        <div
-          className={cn(
-            "text-center",
-            "max-w-3xl",
-            "mx-auto",
-            "mb-16",
-            "space-y-4",
-          )}
-        >
-          <h4
-            className={cn(
-              "text-primary",
-              "font-bold",
-              "tracking-widest",
-              "uppercase",
-              "text-sm",
-            )}
-          >
+        <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
+          <h4 className="text-primary font-bold tracking-widest uppercase text-sm">
             Real Stories from Real Participants
           </h4>
-          <h2
-            className={cn(
-              "text-3xl",
-              "md:text-5xl",
-              "font-extrabold",
-              "tracking-tight",
-            )}
-          >
+          <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
             5,000+ Lives Shaped.{" "}
             <span className="text-secondary">Yours Could Be Next.</span>
           </h2>
-          <p
-            className={cn(
-              "text-muted-foreground",
-              "text-sm",
-              "max-w-lg",
-              "mx-auto",
-            )}
-          >
+          <p className="text-muted-foreground text-sm max-w-lg mx-auto">
             These testimonials come from real LASCADSS participants — graduates
             who attended, learned, and went on to build careers and businesses.
           </p>
         </div>
 
-        <div
-          className={cn(
-            "grid",
-            "grid-cols-1",
-            "lg:grid-cols-12",
-            "gap-12",
-            "items-start",
-          )}
-        >
-          {/* LEFT: Featured / Video */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className={cn("lg:col-span-5", "space-y-6")}
+            className="lg:col-span-5 space-y-6"
           >
             <VideoThumbnail
               videoUrl={videoUrl}
               onClick={() => setVideoOpen(true)}
             />
 
-            {/* Founder quote */}
-            <div
-              className={cn(
-                "p-6",
-                "bg-background/5",
-                "rounded-2xl",
-                "border",
-                "border-background/10",
-              )}
-            >
-              <div className={cn("flex", "gap-1", "text-secondary", "mb-3")}>
+            <div className="p-6 bg-background/5 rounded-2xl border border-background/10">
+              <div className="flex gap-1 text-secondary mb-3">
                 {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={cn("w-4", "h-4", "fill-secondary")}
-                  />
+                  <Star key={i} className="w-4 h-4 fill-secondary" />
                 ))}
               </div>
-              <p className={cn("text-lg", "italic", "text-slate-300")}>
+              <p className="text-lg italic text-slate-300">
                 &quot;We are not just preparing young people for jobs — we are
                 preparing them for leadership, innovation, and
                 nation-building.&quot;
               </p>
-              <p
-                className={cn(
-                  "text-xs",
-                  "text-primary",
-                  "font-bold",
-                  "mt-3",
-                  "uppercase",
-                  "tracking-widest",
-                )}
-              >
+              <p className="text-xs text-primary font-bold mt-3 uppercase tracking-widest">
                 — Prof. Ikechukwu I. Umeh, Founder
               </p>
             </div>
 
-            {/* PDF testimonials */}
             <div className="space-y-4">
               {[
                 {
@@ -395,36 +280,14 @@ export const Testimonials = () => {
               ].map((t) => (
                 <div
                   key={t.name}
-                  className={cn(
-                    "p-4",
-                    "bg-background/5",
-                    "rounded-2xl",
-                    "border",
-                    "border-background/10",
-                  )}
+                  className="p-4 bg-background/5 rounded-2xl border border-background/10"
                 >
-                  <p
-                    className={cn(
-                      "text-sm",
-                      "italic",
-                      "text-slate-300",
-                      "leading-relaxed",
-                    )}
-                  >
+                  <p className="text-sm italic text-slate-300 leading-relaxed">
                     &quot;{t.quote}&quot;
                   </p>
-                  <p
-                    className={cn(
-                      "text-xs",
-                      "text-primary",
-                      "font-bold",
-                      "mt-2",
-                    )}
-                  >
+                  <p className="text-xs text-primary font-bold mt-2">
                     {t.name}{" "}
-                    <span
-                      className={cn("text-muted-foreground", "font-normal")}
-                    >
+                    <span className="text-muted-foreground font-normal">
                       — {t.edition}
                     </span>
                   </p>
@@ -433,19 +296,13 @@ export const Testimonials = () => {
             </div>
           </motion.div>
 
-          {/* RIGHT: Review cards */}
-          <div
-            className={cn(
-              "lg:col-span-7",
-              "grid",
-              "grid-cols-1",
-              "md:grid-cols-2",
-              "gap-6",
-            )}
-          >
+          <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-6">
             {testimonials.map((t, idx) => {
-              // Resolve image: static entries have `.image`, DB entries have `.photoUrl`
-              const imageSrc = "image" in t ? t.image : (t.photoUrl ?? null);
+              // ✅ Always string | StaticImageData | null — never CloudinaryImage or undefined
+             const imageSrc = (() => {
+               if ("image" in t) return t.image as StaticImageData;
+               return resolvePhotoUrl(t.photoUrl); // now returns string | null
+             })();
 
               return (
                 <motion.div
@@ -454,69 +311,36 @@ export const Testimonials = () => {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.1 }}
-                  className={cn(
-                    "p-8 rounded-3xl bg-background/5 border border-background/10",
-                    "flex flex-col justify-between",
-                    "hover:bg-background/10 transition-colors group",
-                  )}
+                  className="p-8 rounded-3xl bg-background/5 border border-background/10 flex flex-col justify-between hover:bg-background/10 transition-colors group"
                 >
                   <div>
-                    <Quote
-                      className={cn(
-                        "w-8 h-8 text-primary/40 mb-4 group-hover:text-primary transition-colors",
-                      )}
-                    />
-                    <p
-                      className={cn(
-                        "text-slate-300 text-sm leading-relaxed mb-4",
-                      )}
-                    >
+                    <Quote className="w-8 h-8 text-primary/40 mb-4 group-hover:text-primary transition-colors" />
+                    <p className="text-slate-300 text-sm leading-relaxed mb-4">
                       {t.quote}
                     </p>
                     {t.edition && (
-                      <span
-                        className={cn(
-                          "text-[10px] font-black text-primary/60 uppercase tracking-widest",
-                        )}
-                      >
+                      <span className="text-[10px] font-black text-primary/60 uppercase tracking-widest">
                         {t.edition}
                       </span>
                     )}
                   </div>
-                  <div
-                    className={cn(
-                      "flex items-center gap-4 pt-6 border-t border-background/10 mt-4",
-                    )}
-                  >
+                  <div className="flex items-center gap-4 pt-6 border-t border-background/10 mt-4">
                     {imageSrc && (
-                      <div
-                        className={cn(
-                          "relative w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 shrink-0",
-                        )}
-                      >
-                        {typeof imageSrc === "string" ? (
-                          <Image
-                                                width={500}
-                                                height={300}
-                            src={imageSrc}
-                            alt={t.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Image
-                            src={imageSrc}
-                            alt={t.name}
-                            fill
-                            className="object-cover"
-                          />
-                        )}
+                      <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 shrink-0">
+                        {/* string | StaticImageData — both accepted by next/image with fill */}
+                        <Image
+                          src={imageSrc}
+                          alt={t.name}
+                          fill
+                          className="object-cover"
+                        />
                       </div>
                     )}
                     <div>
-                      <h5 className={cn("font-bold text-background text-sm")}>
+                      <h5 className="font-bold text-background text-sm">
                         {t.name}
                       </h5>
-                      <p className={cn("text-xs text-primary font-medium")}>
+                      <p className="text-xs text-primary font-medium">
                         {t.role}
                       </p>
                     </div>

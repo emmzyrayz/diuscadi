@@ -766,9 +766,9 @@ function BannerTab({
         open={uploadModalFor !== null}
         onClose={() => setUploadModalFor(null)}
         folder="landing/banners"
-        onUploaded={(url) => {
+        onUploaded={(image) => {
           if (uploadModalFor) {
-            updateSlide(uploadModalFor, { imageUrl: url });
+            updateSlide(uploadModalFor, { imageUrl: image.imageUrl });
           }
           setUploadModalFor(null);
         }}
