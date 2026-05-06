@@ -1,7 +1,6 @@
-// GET /api/member/[username]
-// Public endpoint. Resolves user by username slug (firstname-lastname or vaultId prefix).
+// GET /api/member/[id]
+// Public endpoint. Resolves user by MongoDB _id.
 // Applies privacy filter based on viewer role from JWT cookie.
-// NEVER returns: cgpa, cgpaScale, gpaRecord, privacySettings, vaultId, signupInviteCode.
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
@@ -40,40 +39,21 @@ type Context = {
 export async function GET(req: Request, context?: Context) {
   try {
     const params = context?.params ? await Promise.resolve(context.params) : {};
-    const username = (params.username as string)?.toLowerCase();
-    if (!username)
-      return NextResponse.json({ error: "Missing username" }, { status: 400 });
+    const id = params.id as string;
+
+    if (!id || !ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { error: "Invalid or missing id" },
+        { status: 400 },
+      );
+    }
 
     const db = await getDb();
 
-    // Resolve user by username slug (firstname-lastname) or vaultId prefix
-    const allUsers = await Collections.userData(db)
-      .find(
-        {},
-        { projection: { fullName: 1, vaultId: 1, membershipStatus: 1 } },
-      )
-      .toArray();
-
-    const match = allUsers.find((u) => {
-      const fn = u.fullName as { firstname?: string; lastname?: string };
-      const slug = `${fn?.firstname ?? ""}-${fn?.lastname ?? ""}`
-        .toLowerCase()
-        .replace(/\s+/g, "-");
-      return (
-        slug === username ||
-        u.vaultId?.toString().slice(-8).toLowerCase() === username
-      );
-    });
-
-    if (!match)
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-
-    // Fetch full profile
     const userData = await Collections.userData(db).findOne(
-      { _id: match._id },
+      { _id: new ObjectId(id) },
       {
         projection: {
-          // Always excluded
           "Institution.cgpa": 0,
           "Institution.cgpaScale": 0,
           "Institution.gpaRecord": 0,
@@ -83,8 +63,10 @@ export async function GET(req: Request, context?: Context) {
         },
       },
     );
-    if (!userData)
+
+    if (!userData) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
     // Determine viewer role from cookie
     let viewerRole: ViewerRole = "public";
@@ -110,9 +92,7 @@ export async function GET(req: Request, context?: Context) {
 
     const fp = userData.preferences?.privacy?.fieldPermissions ?? {};
 
-    // Build response — apply privacy filter per field
     const profile: Record<string, unknown> = {
-      // Always public
       id: userData._id!.toString(),
       fullName: userData.fullName,
       hasAvatar: userData.hasAvatar,
@@ -127,7 +107,6 @@ export async function GET(req: Request, context?: Context) {
       createdAt: userData.createdAt,
     };
 
-    // Privacy-gated fields
     if (canSee(fp.phone ?? "private", viewerRole))
       profile.phone = userData.phone;
     if (canSee(fp.email ?? "members", viewerRole))
@@ -153,7 +132,7 @@ export async function GET(req: Request, context?: Context) {
 
     return NextResponse.json({ profile, viewerRole });
   } catch (err) {
-    console.error("[GET /api/member/[username]]", err);
+    console.error("[GET /api/member/[id]]", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

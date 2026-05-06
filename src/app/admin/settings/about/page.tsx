@@ -1312,10 +1312,10 @@ function TeamTab({
 
   // ✅ New: derive eligible users from context users array
   const eligibleUsers: EligibleUser[] = users
-    .filter((u) => {
-      if (u.role === "admin" || u.role === "webmaster") return true;
-      return isHeadPosition(u.committee);
-    })
+    // .filter((u) => {
+    //   if (u.role === "admin" || u.role === "webmaster") return true;
+    //   return isHeadPosition(u.committee);
+    // })
     .map((u) => ({
       id: u.id,
       fullName: u.fullName,
@@ -1325,14 +1325,23 @@ function TeamTab({
       avatar: u.avatar,
     }));
 
- function openPicker(memberId: string) {
-   setPickerFor(memberId);
-   if (!hasFetched) {
-     loadUsersMultiRole(["admin", "moderator"], token ?? undefined).finally(
-       () => setHasFetched(true),
-     );
-   }
- }
+  function openPicker(memberId: string) {
+    setPickerFor(memberId);
+    if (!hasFetched) {
+      console.log("[TeamTab] triggering loadUsersMultiRole...");
+      loadUsersMultiRole(["admin", "moderator", "webmaster"], token ?? undefined).finally(
+        () => {
+          // console.log("[TeamTab] fetch done, users in context:", users);
+          setHasFetched(true)
+        },
+      );
+    }
+  }
+
+  // Temporary debug log
+  // console.log("[TeamTab] users from context:", users);
+  // console.log("[TeamTab] eligibleUsers mapped:", eligibleUsers);
+  // console.log("[TeamTab] hasFetched:", hasFetched);
 
   // async function fetchEligibleUsers(tkn: string) {
   //   setLoadingUsers(true);

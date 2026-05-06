@@ -541,11 +541,16 @@ export function AdminProvider({
           roles.map((role) =>
             fetch(`/api/admin/users?role=${role}&limit=100&page=1`, {
               headers: { Authorization: `Bearer ${tkn}` },
-            }).then((r) => r.json() as Promise<{ users: AdminUser[] }>),
+            }).then(async (r) => {
+              const json = (await r.json()) as { users: AdminUser[] };
+              // console.log(`[loadUsersMultiRole] role=${role} →`, json); // ✅ add this
+              return json;
+            }),
           ),
         );
 
         const merged = results.flatMap((r) => r.users ?? []);
+        // console.log("[loadUsersMultiRole] merged:", merged);
 
         // Deduplicate by id
         const seen = new Set<string>();
