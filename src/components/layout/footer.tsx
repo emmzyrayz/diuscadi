@@ -42,7 +42,10 @@ export default function Footer() {
         { name: "Home", href: "/" },
         { name: "About Us", href: "/about" },
         { name: "Events", href: "/events" },
-        { name: "Register", href: "/auth" },
+        {
+          name: "Register",
+          href: `/auth?redirect=${encodeURIComponent(pathname ?? "/")}`,
+        },
         { name: "Contact", href: "/contact" },
       ];
 

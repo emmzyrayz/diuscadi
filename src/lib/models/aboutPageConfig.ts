@@ -100,6 +100,7 @@ export interface AboutTeamMember {
   tier: TeamTier;
   visible: boolean; // false = hidden from public, kept in DB for easy restore
   order: number;
+  committee?: string;
 }
 
 // ─── Section data map ──────────────────────────────────────────────────────────

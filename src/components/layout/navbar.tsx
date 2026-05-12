@@ -475,7 +475,7 @@ export default function Navbar() {
             ) : (
               <>
                 <Link
-                  href="/auth"
+                  href={`/auth?redirect=${encodeURIComponent(pathname ?? "/home")}`}
                   className="hidden md:flex items-center px-5 py-2.5 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-foreground transition-all"
                 >
                   Register
@@ -560,7 +560,7 @@ export default function Navbar() {
 
               {!isAuthenticated ? (
                 <Link
-                  href="/auth"
+                  href={`/auth?redirect=${encodeURIComponent(pathname ?? "/home")}`}
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center justify-center w-full py-3 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-foreground transition-all"
                 >

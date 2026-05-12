@@ -23,9 +23,12 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import mentor from "@/assets/img/downloads/Dr-Ikechukwu-Umeh-1440x1920.webp";
 import { AboutTeamMember, TeamTier } from "@/lib/models/aboutPageConfig";
+import { usePathname } from "next/navigation";
 
 // ─── Config shape for fetched data ───────────────────────────────────────────
 interface AboutConfig {
+  hero?: { cta1Href?: string; cta2Href?: string };
+  cta?: { cta1Href?: string; cta2Href?: string };
   team?: { items: AboutTeamMember[] };
 }
 
@@ -223,71 +226,142 @@ function FadeIn({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary/80 mb-3">
-      <span className="w-6 h-px bg-primary/60 rounded-full" />
+    <span className={cn('inline-flex', 'items-center', 'gap-2', 'text-xs', 'font-semibold', 'uppercase', 'tracking-[0.18em]', 'text-primary/80', 'mb-3')}>
+      <span className={cn('w-6', 'h-px', 'bg-primary/60', 'rounded-full')} />
       {children}
-      <span className="w-6 h-px bg-primary/60 rounded-full" />
+      <span className={cn('w-6', 'h-px', 'bg-primary/60', 'rounded-full')} />
     </span>
   );
 }
 
 function TeamCard({ member }: { member: AboutTeamMember }) {
+  const [isHovered, setIsHovered] = React.useState(false);
+
   const inner = (
     <motion.div
-      whileHover={{ y: -3 }}
-      transition={{ type: "spring", stiffness: 300, damping: 22 }}
-      className="glass rounded-2xl p-4 text-center space-y-2 h-full flex flex-col items-center"
-    >
-      {/* Avatar */}
-      <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-muted shrink-0">
-        {member.photoUrl ? (
-          <Image
-            src={member.photoUrl}
-            alt={member.displayName}
-            fill
-            className="object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary text-xl font-black">
-            {member.displayName.charAt(0).toUpperCase()}
-          </div>
-        )}
-      </div>
-
-      {/* Name + title */}
-      <div className="space-y-0.5 flex-1">
-        <p className="text-sm font-bold text-foreground leading-tight">
-          {member.displayName}
-        </p>
-        <p className="text-[10px] text-muted-foreground leading-relaxed">
-          {member.professionalTitle}
-        </p>
-      </div>
-
-      {/* Bio — only shown if non-empty */}
-      {member.shortBio && (
-        <p className="text-[10px] text-muted-foreground/70 leading-relaxed line-clamp-2">
-          {member.shortBio}
-        </p>
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
+      className={cn(
+        "relative w-[300px] group aspect-[3/4] rounded-[2rem] overflow-hidden bg-muted cursor-pointer",
+        "border border-border/50 transition-all duration-500 shadow-sm hover:shadow-xl",
       )}
+    >
+      {/* Background Profile Picture */}
+      {member.photoUrl ? (
+        <Image
+          src={member.photoUrl}
+          alt={member.displayName}
+          fill
+          className={cn(
+            "object-cover transition-transform duration-700",
+            isHovered ? "scale-110 blur-[2px]" : "scale-100",
+          )}
+        />
+      ) : (
+        <div
+          className={cn(
+            "w-full",
+            "h-full",
+            "flex",
+            "items-center",
+            "justify-center",
+            "bg-primary/10",
+            "text-primary",
+            "text-5xl",
+            "font-black",
+          )}
+        >
+          {member.displayName.charAt(0).toUpperCase()}
+        </div>
+      )}
+
+      {/* Gradient Overlay for better text legibility */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+
+      {/* Floating Glass Info Card */}
+      <motion.div
+        initial={false}
+        animate={{
+          height: isHovered ? "auto" : "85px",
+          maxHeight: isHovered ? "80%" : "85px",
+        }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className={cn(
+          "absolute -bottom-[70%] mr-6 inset-x-3 glass glass-shine rounded-[1.5rem] p-4",
+          "flex flex-col justify-start overflow-hidden backdrop-blur-md z-20",
+        )}
+      >
+        <div className="shrink-0">
+          <p
+            className={cn(
+              "text-sm md:text-base font-black text-foreground leading-tight line-clamp-1",
+            )}
+          >
+            {member.displayName}
+          </p>
+          <div className={cn("flex flex-wrap gap-1 mt-1")}>
+            <span
+              className={cn(
+                "text-[9px] font-bold uppercase tracking-wider text-primary",
+              )}
+            >
+              {member.professionalTitle}
+            </span>
+          </div>
+        </div>
+
+        {/* Revealed Content on Hover */}
+        <motion.div
+          animate={{ opacity: isHovered ? 1 : 0 }}
+          className={cn(
+            "mt-3 space-y-3 pt-3 border-t border-border/30 overflow-y-auto no-scrollbar",
+          )}
+        >
+          {member.shortBio && (
+            <p
+              className={cn(
+                "text-[11px] text-muted-foreground leading-relaxed line-clamp-4",
+              )}
+            >
+              {member.shortBio}
+            </p>
+          )}
+
+          <div
+            className={cn(
+              "flex items-center gap-2 text-[10px] font-bold text-primary",
+            )}
+          >
+            View Full Profile <ArrowRight size={12} />
+          </div>
+        </motion.div>
+      </motion.div>
     </motion.div>
   );
 
-  // If linked to a platform user, wrap in a link to their profile page
   if (member.userId) {
     return (
-      <a href={`/users/${member.userId}`} className="block h-full">
+      <a href={`/users/${member.userId}`} className={cn("block h-full")}>
         {inner}
       </a>
     );
   }
+  return <div className="h-full w-full">{inner}</div>;
+}
 
-  return <div className="h-full">{inner}</div>;
+
+function withRedirect(href: string, currentPath: string): string {
+  if (!href || href.startsWith("#")) return href; // anchor links — no redirect needed
+  if (href === "/auth" || href.startsWith("/auth?")) {
+    return `/auth?redirect=${encodeURIComponent(currentPath)}`;
+  }
+  return href;
 }
 
 /* ─── Page ──────────────────────────────────────────────────────────────────── */
 
 export default function AboutPage() {
+  const pathname = usePathname();
   const [config, setConfig] = useState<AboutConfig>({});
 
   useEffect(() => {
@@ -299,14 +373,48 @@ export default function AboutPage() {
 
   const team = config?.team?.items ?? [];
   const visibleTeam = team.filter((m: AboutTeamMember) => m.visible);
-  
+
+  const hero = config?.hero ?? null; // add this
+  const cta = config?.cta ?? null; // add this
+
   return (
-    <main className="min-h-screen pt-28 pb-20 px-4 sm:px-6 max-w-7xl mx-auto space-y-32">
+    <main
+      className={cn(
+        "min-h-screen",
+        "pt-28",
+        "pb-20",
+        "px-4",
+        "sm:px-6",
+        "max-w-7xl",
+        "mx-auto",
+        "space-y-32",
+      )}
+    >
       {/* ── Hero ── */}
-      <section className="relative text-center space-y-6 max-w-4xl mx-auto">
+      <section
+        className={cn(
+          "relative",
+          "text-center",
+          "space-y-6",
+          "max-w-4xl",
+          "mx-auto",
+        )}
+      >
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 w-[520px] h-[520px] rounded-full border border-primary/10 blur-sm"
+          className={cn(
+            "pointer-events-none",
+            "absolute",
+            "-top-16",
+            "left-1/2",
+            "-translate-x-1/2",
+            "w-[520px]",
+            "h-[520px]",
+            "rounded-full",
+            "border",
+            "border-primary/10",
+            "blur-sm",
+          )}
         />
         <motion.div
           initial={{ opacity: 0, scale: 0.92 }}
@@ -314,7 +422,16 @@ export default function AboutPage() {
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
           <SectionLabel>About DIUSCADI</SectionLabel>
-          <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.05] mt-2">
+          <h1
+            className={cn(
+              "text-5xl",
+              "md:text-7xl",
+              "font-black",
+              "tracking-tight",
+              "leading-[1.05]",
+              "mt-2",
+            )}
+          >
             Shaping the Young for{" "}
             <span className="text-primary">Future Career Success</span>
           </h1>
@@ -323,7 +440,14 @@ export default function AboutPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.18, duration: 0.6 }}
-          className="text-muted-foreground text-lg md:text-xl leading-relaxed max-w-2xl mx-auto"
+          className={cn(
+            "text-muted-foreground",
+            "text-lg",
+            "md:text-xl",
+            "leading-relaxed",
+            "max-w-2xl",
+            "mx-auto",
+          )}
         >
           DIUSCADI (Digitized Initiative for Up-Skilling Career Development and
           Innovation) is a non-profit initiative domiciled at Nnamdi Azikiwe
@@ -335,17 +459,48 @@ export default function AboutPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.6 }}
-          className="flex flex-wrap justify-center gap-4 pt-2"
+          className={cn("flex", "flex-wrap", "justify-center", "gap-4", "pt-2")}
         >
           <a
-            href="#mission"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
+            href={withRedirect(
+              hero?.cta1Href ?? "#mission",
+              pathname ?? "/about",
+            )}
+            className={cn(
+              "inline-flex",
+              "items-center",
+              "gap-2",
+              "px-6",
+              "py-3",
+              "rounded-2xl",
+              "bg-primary",
+              "text-primary-foreground",
+              "font-semibold",
+              "text-sm",
+              "hover:opacity-90",
+              "transition-opacity",
+            )}
           >
             Our Mission <ArrowRight size={16} />
           </a>
           <a
-            href="#lascadss"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl glass font-semibold text-sm hover:bg-muted transition-colors"
+            href={withRedirect(
+              hero?.cta2Href ?? "#lascadss",
+              pathname ?? "/about",
+            )}
+            className={cn(
+              "inline-flex",
+              "items-center",
+              "gap-2",
+              "px-6",
+              "py-3",
+              "rounded-2xl",
+              "glass",
+              "font-semibold",
+              "text-sm",
+              "hover:bg-muted",
+              "transition-colors",
+            )}
           >
             LASCADSS Programme
           </a>
@@ -354,16 +509,50 @@ export default function AboutPage() {
 
       {/* ── Stats ── */}
       <FadeIn>
-        <div className="glass rounded-3xl px-6 py-8 grid grid-cols-2 md:grid-cols-4 divide-x divide-border/60">
+        <div
+          className={cn(
+            "glass",
+            "rounded-3xl",
+            "px-6",
+            "py-8",
+            "grid",
+            "grid-cols-2",
+            "md:grid-cols-4",
+            "divide-x",
+            "divide-border/60",
+          )}
+        >
           {stats.map((s, i) => (
             <div
               key={i}
-              className="flex flex-col items-center text-center px-4 gap-1"
+              className={cn(
+                "flex",
+                "flex-col",
+                "items-center",
+                "text-center",
+                "px-4",
+                "gap-1",
+              )}
             >
-              <span className="text-3xl md:text-4xl font-black text-primary">
+              <span
+                className={cn(
+                  "text-3xl",
+                  "md:text-4xl",
+                  "font-black",
+                  "text-primary",
+                )}
+              >
                 {s.value}
               </span>
-              <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
+              <span
+                className={cn(
+                  "text-xs",
+                  "text-muted-foreground",
+                  "font-medium",
+                  "uppercase",
+                  "tracking-widest",
+                )}
+              >
                 {s.label}
               </span>
             </div>
@@ -372,28 +561,37 @@ export default function AboutPage() {
       </FadeIn>
 
       {/* ── Founder & Story ── */}
-      <section className="grid md:grid-cols-2 gap-12 items-center">
+      <section
+        className={cn("grid", "md:grid-cols-2", "gap-12", "items-center")}
+      >
         <FadeIn className="space-y-5">
           <SectionLabel>Our Story</SectionLabel>
-          <h2 className="text-3xl md:text-4xl font-bold leading-tight">
+          <h2
+            className={cn(
+              "text-3xl",
+              "md:text-4xl",
+              "font-bold",
+              "leading-tight",
+            )}
+          >
             Born from a conviction: every graduate deserves to be prepared for
             what comes after school.
           </h2>
-          <p className="text-muted-foreground leading-relaxed">
+          <p className={cn("text-muted-foreground", "leading-relaxed")}>
             DIUSCADI was founded in 2020 by Professor (Chief) Ikechukwu Innocent
             Umeh, FNCS, FIPMD — Head of Department, Information Technology, at
             Nnamdi Azikiwe University, Awka. Driven by the rising unemployment
             rate among Nigerian graduates and a harsh labour market, Prof. Umeh
             established DIUSCADI to change that narrative.
           </p>
-          <p className="text-muted-foreground leading-relaxed">
+          <p className={cn("text-muted-foreground", "leading-relaxed")}>
             Through the Life After School Career Development Seminar Series
             (LASCADSS), DIUSCADI has run 6 editions since 2020, training over
             5,000 graduates from universities and polytechnics across Anambra
             State. We are expanding our reach to include undergraduates before
             they participate in Industrial Training (IT/SIWES).
           </p>
-          <p className="text-muted-foreground leading-relaxed">
+          <p className={cn("text-muted-foreground", "leading-relaxed")}>
             Our programmes focus on career development, digital and
             technological skills, entrepreneurship, sustainable livelihood, and
             leadership development — always with 100% free participation for
@@ -401,25 +599,57 @@ export default function AboutPage() {
           </p>
         </FadeIn>
 
-        <FadeIn delay={0.15} className="relative hidden md:block">
-          <div className="glass rounded-3xl absolute inset-0 rotate-3 opacity-40" />
-          <div className="glass rounded-3xl absolute inset-0 -rotate-2 opacity-60" />
-          <div className="glass glass-shine rounded-3xl absolute inset-0 flex flex-col justify-end p-8 space-y-3 overflow-hidden">
-            <div className="absolute inset-0">
+        <FadeIn delay={0.15} className={cn("relative", "hidden", "md:block")}>
+          <div
+            className={cn(
+              "glass",
+              "rounded-3xl",
+              "absolute",
+              "inset-0",
+              "rotate-3",
+              "opacity-40",
+            )}
+          />
+          <div
+            className={cn(
+              "glass",
+              "rounded-3xl",
+              "absolute",
+              "inset-0",
+              "-rotate-2",
+              "opacity-60",
+            )}
+          />
+          <div
+            className={cn(
+              "glass",
+              "glass-shine",
+              "rounded-3xl",
+              "absolute",
+              "inset-0",
+              "flex",
+              "flex-col",
+              "justify-end",
+              "p-8",
+              "space-y-3",
+              "overflow-hidden",
+            )}
+          >
+            <div className={cn("absolute", "inset-0")}>
               <Image
                 src={mentor}
                 alt="Prof. Chief Ikechukwu I. Umeh"
                 fill
-                className="object-cover opacity-30"
+                className={cn("object-cover", "opacity-30")}
               />
             </div>
-            <div className="relative z-10">
-              <Award size={36} className="text-primary mb-4" />
-              <p className="text-xl font-bold leading-snug">
+            <div className={cn("relative", "z-10")}>
+              <Award size={36} className={cn("text-primary", "mb-4")} />
+              <p className={cn("text-xl", "font-bold", "leading-snug")}>
                 &quot;We are preparing young people for leadership, innovation,
                 and nation-building — not just jobs.&quot;
               </p>
-              <p className="text-sm text-muted-foreground mt-3">
+              <p className={cn("text-sm", "text-muted-foreground", "mt-3")}>
                 — Prof. Chief Ikechukwu I. Umeh, FNCS, FIPMD · Founder, DIUSCADI
                 · HOD Information Technology, UNIZIK
               </p>
@@ -430,25 +660,51 @@ export default function AboutPage() {
 
       {/* ── Mission / Vision / Values ── */}
       <section id="mission" className="space-y-10">
-        <FadeIn className="text-center space-y-2">
+        <FadeIn className={cn("text-center", "space-y-2")}>
           <SectionLabel>What We Stand For</SectionLabel>
-          <h2 className="text-3xl md:text-4xl font-bold">
+          <h2 className={cn("text-3xl", "md:text-4xl", "font-bold")}>
             Mission, Vision & Values
           </h2>
         </FadeIn>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div
+          className={cn("grid", "sm:grid-cols-2", "lg:grid-cols-3", "gap-5")}
+        >
           {values.map((item, i) => (
             <FadeIn key={i} delay={i * 0.07}>
               <motion.div
                 whileHover={{ y: -4, scale: 1.01 }}
                 transition={{ type: "spring", stiffness: 300, damping: 22 }}
-                className="glass glass-shine rounded-3xl p-7 h-full space-y-4"
+                className={cn(
+                  "glass",
+                  "glass-shine",
+                  "rounded-3xl",
+                  "p-7",
+                  "h-full",
+                  "space-y-4",
+                )}
               >
-                <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                <div
+                  className={cn(
+                    "w-11",
+                    "h-11",
+                    "rounded-2xl",
+                    "bg-primary/10",
+                    "flex",
+                    "items-center",
+                    "justify-center",
+                    "text-primary",
+                  )}
+                >
                   <item.icon size={22} />
                 </div>
-                <h3 className="text-lg font-bold">{item.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <h3 className={cn("text-lg", "font-bold")}>{item.title}</h3>
+                <p
+                  className={cn(
+                    "text-sm",
+                    "text-muted-foreground",
+                    "leading-relaxed",
+                  )}
+                >
                   {item.desc}
                 </p>
               </motion.div>
@@ -459,23 +715,61 @@ export default function AboutPage() {
 
       {/* ── Focus Areas ── */}
       <section id="lascadss" className="space-y-10">
-        <FadeIn className="text-center space-y-2">
+        <FadeIn className={cn("text-center", "space-y-2")}>
           <SectionLabel>Programme Focus Areas</SectionLabel>
-          <h2 className="text-3xl md:text-4xl font-bold">What DIUSCADI Does</h2>
-          <p className="text-muted-foreground max-w-xl mx-auto text-sm">
+          <h2 className={cn("text-3xl", "md:text-4xl", "font-bold")}>
+            What DIUSCADI Does
+          </h2>
+          <p
+            className={cn(
+              "text-muted-foreground",
+              "max-w-xl",
+              "mx-auto",
+              "text-sm",
+            )}
+          >
             Our programmes span multiple domains to prepare graduates for every
             path — employment, entrepreneurship, or further education.
           </p>
         </FadeIn>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div
+          className={cn("grid", "sm:grid-cols-2", "lg:grid-cols-3", "gap-5")}
+        >
           {focusAreas.map((area, i) => (
             <FadeIn key={i} delay={i * 0.07}>
-              <div className="glass rounded-3xl p-6 h-full space-y-3 hover:border-primary/30 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <div
+                className={cn(
+                  "glass",
+                  "rounded-3xl",
+                  "p-6",
+                  "h-full",
+                  "space-y-3",
+                  "hover:border-primary/30",
+                  "transition-colors",
+                )}
+              >
+                <div
+                  className={cn(
+                    "w-10",
+                    "h-10",
+                    "rounded-xl",
+                    "bg-primary/10",
+                    "flex",
+                    "items-center",
+                    "justify-center",
+                    "text-primary",
+                  )}
+                >
                   <area.icon size={20} />
                 </div>
-                <h3 className="font-bold text-base">{area.label}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <h3 className={cn("font-bold", "text-base")}>{area.label}</h3>
+                <p
+                  className={cn(
+                    "text-sm",
+                    "text-muted-foreground",
+                    "leading-relaxed",
+                  )}
+                >
                   {area.desc}
                 </p>
               </div>
@@ -486,26 +780,51 @@ export default function AboutPage() {
 
       {/* ── LASCADSS Timeline ── */}
       <section className="space-y-10">
-        <FadeIn className="text-center space-y-2">
+        <FadeIn className={cn("text-center", "space-y-2")}>
           <SectionLabel>LASCADSS History</SectionLabel>
-          <h2 className="text-3xl md:text-4xl font-bold">
+          <h2 className={cn("text-3xl", "md:text-4xl", "font-bold")}>
             Six Editions. One Mission.
           </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto text-sm">
+          <p
+            className={cn(
+              "text-muted-foreground",
+              "max-w-xl",
+              "mx-auto",
+              "text-sm",
+            )}
+          >
             From a single seminar in 2020 to a nationally recognised career
             development platform in 2025.
           </p>
         </FadeIn>
 
-        <div className="relative space-y-0">
-          <div className="absolute left-[calc(50%-1px)] top-0 bottom-0 w-px bg-border hidden md:block" />
+        <div className={cn("relative", "space-y-0")}>
+          <div
+            className={cn(
+              "absolute",
+              "left-[calc(50%-1px)]",
+              "top-0",
+              "bottom-0",
+              "w-px",
+              "bg-border",
+              "hidden",
+              "md:block",
+            )}
+          />
           {milestones.map((m, i) => {
             const isLeft = i % 2 === 0;
             return (
               <FadeIn
                 key={i}
                 delay={i * 0.08}
-                className="md:grid md:grid-cols-2 md:gap-10 relative mb-10 last:mb-0"
+                className={cn(
+                  "md:grid",
+                  "md:grid-cols-2",
+                  "md:gap-10",
+                  "relative",
+                  "mb-10",
+                  "last:mb-0",
+                )}
               >
                 <div
                   className={cn(
@@ -515,19 +834,56 @@ export default function AboutPage() {
                 >
                   <motion.div
                     whileHover={{ scale: 1.02 }}
-                    className="glass rounded-3xl p-6 space-y-2 inline-block w-full"
+                    className={cn(
+                      "glass",
+                      "rounded-3xl",
+                      "p-6",
+                      "space-y-2",
+                      "inline-block",
+                      "w-full",
+                    )}
                   >
-                    <span className="text-xs font-bold text-primary uppercase tracking-widest">
+                    <span
+                      className={cn(
+                        "text-xs",
+                        "font-bold",
+                        "text-primary",
+                        "uppercase",
+                        "tracking-widest",
+                      )}
+                    >
                       {m.year}
                     </span>
-                    <h4 className="text-lg font-bold">{m.title}</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+                    <h4 className={cn("text-lg", "font-bold")}>{m.title}</h4>
+                    <p
+                      className={cn(
+                        "text-sm",
+                        "text-muted-foreground",
+                        "leading-relaxed",
+                      )}
+                    >
                       {m.desc}
                     </p>
                   </motion.div>
                 </div>
-                <div className="absolute left-1/2 top-6 -translate-x-1/2 w-4 h-4 rounded-full bg-primary border-4 border-background hidden md:block z-10" />
-                {isLeft && <div className="hidden md:block" />}
+                <div
+                  className={cn(
+                    "absolute",
+                    "left-1/2",
+                    "top-6",
+                    "-translate-x-1/2",
+                    "w-4",
+                    "h-4",
+                    "rounded-full",
+                    "bg-primary",
+                    "border-4",
+                    "border-background",
+                    "hidden",
+                    "md:block",
+                    "z-10",
+                  )}
+                />
+                {isLeft && <div className={cn("hidden", "md:block")} />}
               </FadeIn>
             );
           })}
@@ -536,34 +892,82 @@ export default function AboutPage() {
 
       {/* ── SDG Alignment ── */}
       <section className="space-y-8">
-        <FadeIn className="text-center space-y-2">
+        <FadeIn className={cn("text-center", "space-y-2")}>
           <SectionLabel>UN Sustainable Development Goals</SectionLabel>
-          <h2 className="text-3xl font-bold">
+          <h2 className={cn("text-3xl", "font-bold")}>
             Driving Sustainable Development
           </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto text-sm">
+          <p
+            className={cn(
+              "text-muted-foreground",
+              "max-w-xl",
+              "mx-auto",
+              "text-sm",
+            )}
+          >
             DIUSCADI&apos;s mission directly aligns with the United Nations SDGs
             by fostering inclusive education, economic empowerment, and
             sustainable community development.
           </p>
         </FadeIn>
         <FadeIn>
-          <div className="glass rounded-3xl p-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className={cn("glass", "rounded-3xl", "p-8")}>
+            <div
+              className={cn(
+                "grid",
+                "grid-cols-1",
+                "sm:grid-cols-2",
+                "md:grid-cols-3",
+                "lg:grid-cols-5",
+                "gap-4",
+              )}
+            >
               {sdgs.map((sdg, i) => (
                 <div
                   key={i}
-                  className="glass-subtle rounded-2xl p-5 text-center space-y-2"
+                  className={cn(
+                    "glass-subtle",
+                    "rounded-2xl",
+                    "p-5",
+                    "text-center",
+                    "space-y-2",
+                  )}
                 >
-                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto">
-                    <span className="text-primary font-black text-xl">
+                  <div
+                    className={cn(
+                      "w-12",
+                      "h-12",
+                      "bg-primary/10",
+                      "rounded-xl",
+                      "flex",
+                      "items-center",
+                      "justify-center",
+                      "mx-auto",
+                    )}
+                  >
+                    <span
+                      className={cn("text-primary", "font-black", "text-xl")}
+                    >
                       {sdg.num}
                     </span>
                   </div>
-                  <p className="text-xs font-bold text-foreground leading-tight">
+                  <p
+                    className={cn(
+                      "text-xs",
+                      "font-bold",
+                      "text-foreground",
+                      "leading-tight",
+                    )}
+                  >
                     {sdg.label}
                   </p>
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  <p
+                    className={cn(
+                      "text-[10px]",
+                      "text-muted-foreground",
+                      "leading-relaxed",
+                    )}
+                  >
                     {sdg.desc}
                   </p>
                 </div>
@@ -575,15 +979,25 @@ export default function AboutPage() {
 
       {/* ── Partners ── */}
       <section className="space-y-8">
-        <FadeIn className="text-center space-y-2">
+        <FadeIn className={cn("text-center", "space-y-2")}>
           <SectionLabel>Partners & Sponsors</SectionLabel>
-          <h2 className="text-3xl font-bold">
+          <h2 className={cn("text-3xl", "font-bold")}>
             Supported by Leading Organisations
           </h2>
         </FadeIn>
         <FadeIn>
-          <div className="glass rounded-3xl p-8">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 items-center text-center">
+          <div className={cn("glass", "rounded-3xl", "p-8")}>
+            <div
+              className={cn(
+                "grid",
+                "grid-cols-2",
+                "sm:grid-cols-3",
+                "md:grid-cols-4",
+                "gap-6",
+                "items-center",
+                "text-center",
+              )}
+            >
               {[
                 "MTN Nigeria",
                 "Airtel Nigeria",
@@ -598,7 +1012,17 @@ export default function AboutPage() {
               ].map((partner, i) => (
                 <div
                   key={i}
-                  className="glass-subtle rounded-2xl px-4 py-4 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                  className={cn(
+                    "glass-subtle",
+                    "rounded-2xl",
+                    "px-4",
+                    "py-4",
+                    "text-xs",
+                    "font-semibold",
+                    "text-muted-foreground",
+                    "hover:text-foreground",
+                    "transition-colors",
+                  )}
                 >
                   {partner}
                 </div>
@@ -611,11 +1035,21 @@ export default function AboutPage() {
       {/* ── Team ── */}
       {visibleTeam.length > 0 && (
         <section className="space-y-10">
-          <FadeIn className="text-center space-y-2">
+          <FadeIn className={cn("text-center", "space-y-2")}>
             <SectionLabel>The People Behind DIUSCADI</SectionLabel>
-            <h2 className="text-3xl md:text-4xl font-bold">Our Team</h2>
-            <p className="text-muted-foreground max-w-xl mx-auto text-sm">
-              The dedicated individuals who make DIUSCADI&apos;s mission a reality.
+            <h2 className={cn("text-3xl", "md:text-4xl", "font-bold")}>
+              Our Team
+            </h2>
+            <p
+              className={cn(
+                "text-muted-foreground",
+                "max-w-xl",
+                "mx-auto",
+                "text-sm",
+              )}
+            >
+              The dedicated individuals who make DIUSCADI&apos;s mission a
+              reality.
             </p>
           </FadeIn>
 
@@ -631,10 +1065,27 @@ export default function AboutPage() {
 
             return (
               <div key={tier} className="space-y-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground pl-1">
+                <h3
+                  className={cn(
+                    "text-sm",
+                    "font-black",
+                    "uppercase",
+                    "tracking-widest",
+                    "text-muted-foreground",
+                    "pl-1",
+                  )}
+                >
                   {tierLabel[tier]}
                 </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <div
+                  className={cn(
+                    "grid",
+                    "grid-cols-2",
+                    "sm:grid-cols-3",
+                    "md:grid-cols-4", // was lg:grid-cols-5
+                    "gap-5",
+                  )}
+                >
                   {members.map((member, i) => (
                     <FadeIn key={member.id} delay={i * 0.05}>
                       <TeamCard member={member} />
@@ -649,31 +1100,100 @@ export default function AboutPage() {
 
       {/* ── CTA ── */}
       <FadeIn>
-        <div className="glass glass-shine rounded-3xl p-10 md:p-14 text-center space-y-5 relative overflow-hidden">
+        <div
+          className={cn(
+            "glass",
+            "glass-shine",
+            "rounded-3xl",
+            "p-10",
+            "md:p-14",
+            "text-center",
+            "space-y-5",
+            "relative",
+            "overflow-hidden",
+          )}
+        >
           <div
             aria-hidden
-            className="pointer-events-none absolute -top-20 -right-20 w-72 h-72 rounded-full bg-primary/10 blur-3xl"
+            className={cn(
+              "pointer-events-none",
+              "absolute",
+              "-top-20",
+              "-right-20",
+              "w-72",
+              "h-72",
+              "rounded-full",
+              "bg-primary/10",
+              "blur-3xl",
+            )}
           />
-          <TrendingUp size={36} className="text-primary mx-auto" />
-          <h3 className="text-3xl md:text-4xl font-black">
+          <TrendingUp size={36} className={cn("text-primary", "mx-auto")} />
+          <h3 className={cn("text-3xl", "md:text-4xl", "font-black")}>
             Ready to shape your future?
           </h3>
-          <p className="text-muted-foreground max-w-lg mx-auto text-sm leading-relaxed">
+          <p
+            className={cn(
+              "text-muted-foreground",
+              "max-w-lg",
+              "mx-auto",
+              "text-sm",
+              "leading-relaxed",
+            )}
+          >
             Join thousands of students and graduates who have transformed their
             academic knowledge into career success through DIUSCADI&apos;s
             programmes. Whether you are a student, graduate, mentor, partner, or
             supporter — DIUSCADI welcomes you.
           </p>
-          <div className="flex flex-wrap justify-center gap-4 pt-2">
+          <div
+            className={cn(
+              "flex",
+              "flex-wrap",
+              "justify-center",
+              "gap-4",
+              "pt-2",
+            )}
+          >
             <a
-              href="/auth"
-              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
+              href={withRedirect(
+                cta?.cta1Href ?? "/auth",
+                pathname ?? "/about",
+              )}
+              className={cn(
+                "inline-flex",
+                "items-center",
+                "gap-2",
+                "px-8",
+                "py-3.5",
+                "rounded-2xl",
+                "bg-primary",
+                "text-primary-foreground",
+                "font-semibold",
+                "text-sm",
+                "hover:opacity-90",
+                "transition-opacity",
+              )}
             >
               Join DIUSCADI <ArrowRight size={16} />
             </a>
             <a
-              href="/contact"
-              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl glass font-semibold text-sm hover:bg-muted transition-colors"
+              href={withRedirect(
+                cta?.cta2Href ?? "/contact",
+                pathname ?? "/about",
+              )}
+              className={cn(
+                "inline-flex",
+                "items-center",
+                "gap-2",
+                "px-8",
+                "py-3.5",
+                "rounded-2xl",
+                "glass",
+                "font-semibold",
+                "text-sm",
+                "hover:bg-muted",
+                "transition-colors",
+              )}
             >
               Partner With Us
             </a>
