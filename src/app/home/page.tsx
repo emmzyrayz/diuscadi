@@ -14,6 +14,8 @@ import {
   getStaticAnnouncements,
   getStaticActivities,
   getStaticContinueItems,
+  fetchUserActivity,
+  fetchUserAnnouncements,
 } from "@/lib/homeData";
 import { cn } from "@/lib/utils";
 
@@ -44,23 +46,31 @@ export default async function HomePage() {
 
   const vaultId = new ObjectId(auth.vaultId);
 
-  const [homeUser, featuredEvent, upcomingEvents] = await Promise.all([
-    fetchHomeUser(),
-    fetchFeaturedEvent(),
-    fetchUpcomingEvents(vaultId),
-  ]);
+ const [
+   homeUser,
+   featuredEvent,
+   upcomingEvents,
+   activities,
+   announcementsData,
+ ] = await Promise.all([
+   fetchHomeUser(),
+   fetchFeaturedEvent(),
+   fetchUpcomingEvents(vaultId),
+   fetchUserActivity(vaultId),
+   fetchUserAnnouncements(vaultId),
+ ]);
 
-  const recommendations = homeUser
-    ? await fetchRecommendations({
-        skills: homeUser.skills,
-        eduStatus: homeUser.eduStatus,
-      })
-    : [];
+  // const recommendations = homeUser
+  //   ? await fetchRecommendations({
+  //       skills: homeUser.skills,
+  //       eduStatus: homeUser.eduStatus,
+  //     })
+  //   : [];
 
   const quickActions = getStaticQuickActions();
   const announcements = getStaticAnnouncements();
-  const activities = getStaticActivities();
-  const continueItems = getStaticContinueItems();
+  // const activities = getStaticActivities();
+  // const continueItems = getStaticContinueItems();
 
   // const headerUser = homeUser
   //   ? {
@@ -107,14 +117,14 @@ export default async function HomePage() {
     nextStep: completionNextStep, // passed to HomeHero for the hint text
   };
 
-  const mappedRecommendations = recommendations.map((r, i) => ({
-    id: i,
-    type: r.type,
-    title: r.title,
-    meta: r.meta,
-    tag: r.tag,
-    href: `/events/${r.slug}`,
-  }));
+  // const mappedRecommendations = recommendations.map((r, i) => ({
+  //   id: i,
+  //   type: r.type,
+  //   title: r.title,
+  //   meta: r.meta,
+  //   tag: r.tag,
+  //   href: `/events/${r.slug}`,
+  // }));
 
   const mappedEvents = upcomingEvents.map((e) => ({
     id: e.id,
@@ -148,14 +158,14 @@ export default async function HomePage() {
       <HomeHeader />
       <HomeHero featuredEvent={heroEvent} currentTask={currentTask} />
       <QuickActions actions={quickActions} />
-      <ContinueSection items={continueItems} />
-      <RecommendedSection
-        recommendations={mappedRecommendations}
-        userInterests={homeUser?.skills.join(" & ") ?? "General"}
-      />
+      <ContinueSection items={[]} />
+      <RecommendedSection recommendations={[]} />
       <UpcomingEvents events={mappedEvents} />
       <RecentActivity activities={activities} />
-      <Announcements announcements={announcements} />
+      <Announcements
+        announcements={announcementsData.announcements}
+        unreadCount={announcementsData.unreadCount}
+      />
       <HomeCTAOptional />
     </main>
   );

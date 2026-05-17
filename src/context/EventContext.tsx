@@ -11,10 +11,11 @@ import React, {
   useState,
   useCallback,
   ReactNode,
+  useEffect,
 } from "react";
 import { useAuth } from "@/context/AuthContext";
 
-const IS_DEV = process.env.NODE_ENV === "development";
+// const IS_DEV = process.env.NODE_ENV === "development";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -187,6 +188,13 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
     [isAuthenticated],
   );
 
+  // ── Auto-load feed on auth ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadFeed(1);
+    }
+  }, [isAuthenticated, loadFeed]);
+
   const refreshFeed = useCallback(
     () => loadFeed(currentFeedPage),
     [loadFeed, currentFeedPage],
@@ -205,9 +213,11 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
       if (!res.ok) throw new Error(data.error ?? "Failed to load events");
 
       // LOGIC: Fallback handling
-        setPublicEvents(data.events);
+      setPublicEvents(data.events);
     } catch (err) {
-      setPublicEventsError(err instanceof Error ? err.message : "Failed to load events");
+      setPublicEventsError(
+        err instanceof Error ? err.message : "Failed to load events",
+      );
     } finally {
       setPublicEventsLoading(false);
     }
@@ -373,7 +383,7 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </EventContext.Provider>
   );
-};
+};;
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 

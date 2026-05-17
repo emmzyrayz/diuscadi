@@ -93,3 +93,9 @@ export function withAuth(handler: RouteHandler) {
     }
   };
 }
+
+export async function resolveParams(context?: {
+  params?: Promise<Record<string, string>> | Record<string, string>;
+}): Promise<Record<string, string>> {
+  return (await context?.params) ?? {};
+}

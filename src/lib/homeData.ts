@@ -469,3 +469,198 @@ export function getStaticContinueItems(): ContinueItem[] {
     },
   ];
 }
+
+// Add to your existing homeData.ts
+
+export interface HomeActivity {
+  id: string;
+  type: "registration" | "check-in" | "application" | "points" | "blog" | "learning";
+  content: string;
+  target: string;
+  targetHref?: string;
+  meta?: string;
+  time: string; // ISO string
+}
+
+export async function fetchUserActivity(
+  vaultId: ObjectId,
+  limit = 8,
+): Promise<HomeActivity[]> {
+  try {
+    const db = await getDb();
+
+    // Mirror the route logic directly — no HTTP round-trip needed server-side
+    const userData = await Collections.userData(db).findOne(
+      { vaultId },
+      { projection: { _id: 1 } },
+    );
+    if (!userData) return [];
+
+    const userId = userData._id!;
+    const activities: (HomeActivity & { timestamp: Date })[] = [];
+
+    // Event registrations
+    const registrations = await Collections.eventRegistrations(db)
+      .find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .toArray();
+
+    if (registrations.length > 0) {
+      const eventIds = [...new Set(registrations.map((r) => r.eventId))];
+      const events = await Collections.events(db)
+        .find({ _id: { $in: eventIds } }, { projection: { _id: 1, title: 1, slug: 1 } })
+        .toArray();
+      const eventMap = new Map(events.map((e) => [e._id!.toString(), e]));
+
+      for (const reg of registrations) {
+        const event = eventMap.get(reg.eventId.toString());
+        const eventTitle = event?.title ?? "an event";
+        const eventSlug = event?.slug;
+
+        activities.push({
+          id: `reg-${reg._id!.toString()}`,
+          type: "registration",
+          content: "You registered for",
+          target: eventTitle,
+          targetHref: eventSlug ? `/events/${eventSlug}` : undefined,
+          meta: reg.status === "cancelled" ? "Cancelled" : "Confirmed",
+          time: reg.registeredAt.toISOString(),
+          timestamp: reg.registeredAt,
+        });
+
+        if (reg.status === "checked-in" && reg.checkedInAt) {
+          activities.push({
+            id: `checkin-${reg._id!.toString()}`,
+            type: "check-in",
+            content: "You attended",
+            target: eventTitle,
+            targetHref: eventSlug ? `/events/${eventSlug}` : undefined,
+            time: reg.checkedInAt.toISOString(),
+            timestamp: reg.checkedInAt,
+          });
+        }
+      }
+    }
+
+    // Applications
+    const applications = await Collections.applications(db)
+      .find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .toArray();
+
+    const typeLabel: Record<string, string> = {
+      membership: "Membership Application",
+      committee: "Committee Application",
+      skills: "Skills Verification",
+      program: "Program Application",
+      writer: "Blog Contributor Application",
+      sponsorship: "Sponsorship Application",
+    };
+
+    for (const app of applications) {
+      activities.push({
+        id: `app-${app._id!.toString()}`,
+        type: "application",
+        content: "You submitted a",
+        target: typeLabel[app.type] ?? "Application",
+        targetHref: "/profile/applications",
+        meta: app.status === "pending"
+          ? "Pending review"
+          : app.status === "approved"
+            ? "Approved"
+            : "Not approved",
+        time: app.createdAt.toISOString(),
+        timestamp: app.createdAt,
+      });
+    }
+
+    activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return activities.slice(0, limit).map(({ timestamp: _ts, ...rest }) => rest);
+  } catch {
+    return [];
+  }
+}
+
+// Add to homeData.ts
+
+export interface HomeAnnouncement {
+  id: string;
+  title: string;
+  desc: string;
+  type: string;
+  audience: string;
+  ctaLabel: string | null;
+  ctaHref: string | null;
+  publishedAt: string | null;
+  expiresAt: string | null;
+  isRead: boolean;
+}
+
+export async function fetchUserAnnouncements(
+  vaultId: ObjectId,
+): Promise<{ announcements: HomeAnnouncement[]; unreadCount: number }> {
+  try {
+    const db = await getDb();
+    const now = new Date();
+
+    const userData = await Collections.userData(db).findOne(
+      { vaultId },
+      { projection: { _id: 1, eduStatus: 1, membershipStatus: 1, committeeMembership: 1 } },
+    );
+    if (!userData) return { announcements: [], unreadCount: 0 };
+
+    const userId = userData._id!;
+    const orClauses: Record<string, unknown>[] = [{ audience: "global" }];
+    if (userData.eduStatus === "STUDENT") orClauses.push({ audience: "students" });
+    if (userData.eduStatus === "GRADUATE") orClauses.push({ audience: "graduates" });
+    if (userData.membershipStatus === "approved") orClauses.push({ audience: "members" });
+    const committee = userData.committeeMembership?.committee;
+    if (committee) orClauses.push({ audience: "committee", targetCommittee: committee });
+
+    const filter = {
+      published: true,
+      $or: orClauses,
+      $and: [
+        { $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }, { expiresAt: { $gt: now } }] },
+      ],
+    };
+
+    const announcements = await Collections.announcements(db)
+      .find(filter)
+      .sort({ publishedAt: -1 })
+      .limit(20)
+      .toArray();
+
+    if (announcements.length === 0) return { announcements: [], unreadCount: 0 };
+
+    const ids = announcements.map((a) => a._id!);
+    const reads = await Collections.announcementReads(db)
+      .find({ userId, announcementId: { $in: ids } })
+      .project({ announcementId: 1 })
+      .toArray();
+
+    const readIds = new Set(reads.map((r) => r.announcementId.toString()));
+
+    const result = announcements.map((a) => ({
+      id: a._id!.toString(),
+      title: a.title,
+      desc: a.desc,
+      type: a.type,
+      audience: a.audience,
+      ctaLabel: a.ctaLabel ?? null,
+      ctaHref: a.ctaHref ?? null,
+      publishedAt: a.publishedAt?.toISOString() ?? null,
+      expiresAt: a.expiresAt?.toISOString() ?? null,
+      isRead: readIds.has(a._id!.toString()),
+    }));
+
+    return {
+      announcements: result,
+      unreadCount: result.filter((a) => !a.isRead).length,
+    };
+  } catch {
+    return { announcements: [], unreadCount: 0 };
+  }
+}

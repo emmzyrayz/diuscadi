@@ -20,6 +20,7 @@ import {
   LuChevronRight,
   LuLayoutTemplate, // ← Landing Page
   LuInfo, // ← About Page
+  LuMegaphone,
 } from "react-icons/lu";
 import { toast } from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,12 @@ const SUB_PAGES = [
     icon: LuInfo,
     path: "/admin/settings/about",
     desc: "Manage about page sections and content",
+  },
+  {
+    label: "Announcements",
+    icon: LuMegaphone,
+    path: "/admin/settings/announcements",
+    desc: "Create and manage platform announcements",
   },
   {
     label: "Faculties",
