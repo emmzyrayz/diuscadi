@@ -92,6 +92,12 @@ const DEFAULT_CROPS: Record<UploadType, PercentCrop> = {
   "landing-initiative": { unit: "%", x: 0, y: 12.5, width: 100, height: 75 },
   "landing-logo": { unit: "%", x: 12.5, y: 12.5, width: 75, height: 75 },
   "landing-person": { unit: "%", x: 12.5, y: 12.5, width: 75, height: 75 },
+  "gallery-event": { unit: "%", x: 0, y: 12.5, width: 100, height: 75 },
+  "gallery-meeting": { unit: "%", x: 0, y: 12.5, width: 100, height: 75 },
+  "gallery-outing": { unit: "%", x: 0, y: 12.5, width: 100, height: 75 },
+  "gallery-conference": { unit: "%", x: 0, y: 12.5, width: 100, height: 75 },
+  "gallery-workshop": { unit: "%", x: 0, y: 12.5, width: 100, height: 75 },
+  "gallery-celebration": { unit: "%", x: 0, y: 12.5, width: 100, height: 75 },
 };
 
 // ─── Aspect ratios ────────────────────────────────────────────────────────────
@@ -104,10 +110,16 @@ export const CROP_ASPECT: Record<UploadType, number> = {
   "event-banner": 1200 / 630, // ~1.905:1
   "inst-banner": 1200 / 400, // 3:1
   "event-gallery": 1200 / 900, // 4:3
-  "landing-banner":    1920 / 1080,  // 16/9
-  "landing-initiative":4 / 3,
-  "landing-logo":      1,
-  "landing-person":    1,
+  "landing-banner": 1920 / 1080, // 16/9
+  "landing-initiative": 4 / 3,
+  "landing-logo": 1,
+  "landing-person": 1,
+  "gallery-event": 1200 / 900, // 4:3
+  "gallery-meeting": 1200 / 900,
+  "gallery-outing": 1200 / 900,
+  "gallery-conference": 1200 / 900,
+  "gallery-workshop": 1200 / 900,
+  "gallery-celebration": 1200 / 900,
 };
 
 // ─── Output canvas dimensions ─────────────────────────────────────────────────
@@ -122,10 +134,16 @@ const OUTPUT_DIMS: Record<UploadType, { width: number; height: number }> = {
   "event-banner": { width: 1200, height: 630 },
   "inst-banner": { width: 1200, height: 400 },
   "event-gallery": { width: 1200, height: 900 },
-  "landing-banner":     { width: 1920, height: 1080 },
-  "landing-initiative": { width: 1200, height: 900  },
-  "landing-logo":       { width: 400,  height: 400  },
-  "landing-person":     { width: 400,  height: 400  },
+  "landing-banner": { width: 1920, height: 1080 },
+  "landing-initiative": { width: 1200, height: 900 },
+  "landing-logo": { width: 400, height: 400 },
+  "landing-person": { width: 400, height: 400 },
+  "gallery-event": { width: 1200, height: 900 },
+  "gallery-meeting": { width: 1200, height: 900 },
+  "gallery-outing": { width: 1200, height: 900 },
+  "gallery-conference": { width: 1200, height: 900 },
+  "gallery-workshop": { width: 1200, height: 900 },
+  "gallery-celebration": { width: 1200, height: 900 },
 };
 
 // ─── Types that use a white background fill ───────────────────────────────────
