@@ -13,6 +13,20 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      // 1. Add standard YouTube thumbnail domain
+      {
+        protocol: "https",
+        hostname: "img.youtube.com",
+        port: "",
+        pathname: "/**",
+      },
+      // 2. Add alternate YouTube thumbnail domain (fallback insurance)
+      {
+        protocol: "https",
+        hostname: "i.ytimg.com",
+        port: "",
+        pathname: "/**",
+      },
       {
         protocol: "https",
         hostname: "diuscadi.org.ng",
