@@ -1,395 +1,517 @@
 "use client";
-// app/gallery/page.tsx
-// Shows concluded (past) events as gallery items.
-// Strategy:
-//   1. Call loadPublicEvents(50) on mount
-//   2. Filter publicEvents to events where eventDate < today
-//   3. If zero past events found → fall back to MOCK_EVENTS
-//   4. In dev, EventContext already falls back to DUMMY_EVENTS on API failure,
-//      so the gallery will always have something to show
-
-import React, { useState, useCallback, useEffect } from "react";
-import Link from "next/link";
+import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Calendar, Tag } from "lucide-react";
+import {
+  ChevronLeft, ChevronRight, X, Play, ExternalLink,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEvents } from "@/context/EventContext";
+import type { GalleryCategory } from "@/lib/models/Gallery";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-export interface GalleryEvent {
+interface GalleryItem {
   id: string;
-  slug: string;
-  title: string;
-  overview: string;
-  category: string;
-  image: string;
-  eventDate: string;
+  mediaType: "image" | "video";
+  imageUrl: string | null;
+  youtubeId: string | null;
+  category: GalleryCategory;
+  caption: string | null;
+  eventId: string | null;
+  featured: boolean;
+  createdAt: string;
 }
 
+const CATEGORY_LABELS: Record<GalleryCategory, string> = {
+  event: "Events",
+  meeting: "Meetings",
+  outing: "Outings",
+  conference: "Conferences",
+  workshop: "Workshops",
+  celebration: "Celebrations",
+};
 
+// ── Lightbox ──────────────────────────────────────────────────────────────────
 
-// ─── Mock fallback ────────────────────────────────────────────────────────────
+function Lightbox({
+  items,
+  activeIndex,
+  onClose,
+  onPrev,
+  onNext,
+}: {
+  items: GalleryItem[];
+  activeIndex: number;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const item = items[activeIndex];
 
-const MOCK_EVENTS: GalleryEvent[] = [
-  {
-    id: "1",
-    slug: "global-tech-summit-2024",
-    title: "Global Tech Summit",
-    overview: "Keynote sessions on AI, Web3, and decentralised platforms.",
-    category: "Conferences",
-    image:
-      "https://images.unsplash.com/photo-1540575861501-7cf05a4b125a?w=900&q=80",
-    eventDate: "2024-11-15",
-  },
-  {
-    id: "2",
-    slug: "networking-mixer-2024",
-    title: "Networking Mixer",
-    overview: "Connect with industry leaders and fellow DIUSCADI members.",
-    category: "Community",
-    image:
-      "https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=900&q=80",
-    eventDate: "2024-09-22",
-  },
-  {
-    id: "3",
-    slug: "hackathon-2025",
-    title: "Hackathon 2025",
-    overview: "48 hours of pure building, innovation, and collaboration.",
-    category: "Workshops",
-    image:
-      "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=900&q=80",
-    eventDate: "2024-01-18",
-  },
-  {
-    id: "4",
-    slug: "ux-design-workshop",
-    title: "UI/UX Deep Dive",
-    overview: "Glassmorphism, modern design trends, and prototyping tools.",
-    category: "Workshops",
-    image:
-      "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=900&q=80",
-    eventDate: "2024-10-05",
-  },
-  {
-    id: "5",
-    slug: "annual-board-meet-2024",
-    title: "Annual Board Meet",
-    overview: "Planning the roadmap and strategy for the next quarter.",
-    category: "Community",
-    image:
-      "https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=900&q=80",
-    eventDate: "2024-08-30",
-  },
-  {
-    id: "6",
-    slug: "product-launch-2024",
-    title: "Product Launch",
-    overview: "Unveiling the new DIUSCADI member dashboard and mobile app.",
-    category: "Conferences",
-    image:
-      "https://images.unsplash.com/photo-1556761175-b413da4baf72?w=900&q=80",
-    eventDate: "2024-02-10",
-  },
-];
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") onPrev();
+      if (e.key === "ArrowRight") onNext();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose, onPrev, onNext]);
 
-const PAGE_SIZE = 6;
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+  if (!item) return null; // ← now after all hooks
 
-function isPast(eventDate: string): boolean {
-  return new Date(eventDate) < new Date();
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+      onClick={onClose}
+    >
+      {/* Close */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors z-10"
+      >
+        <X className="w-5 h-5" />
+      </button>
+
+      {/* Counter */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/60 text-sm font-bold">
+        {activeIndex + 1} / {items.length}
+      </div>
+
+      {/* Prev */}
+      {activeIndex > 0 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onPrev();
+          }}
+          className="absolute left-4 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors z-10"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* Next */}
+      {activeIndex < items.length - 1 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onNext();
+          }}
+          className="absolute right-4 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors z-10"
+        >
+          <ChevronRight className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* Media */}
+      <motion.div
+        key={item.id}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="relative max-w-5xl max-h-[80vh] w-full mx-16"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {item.mediaType === "image" && item.imageUrl ? (
+          <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden">
+            <Image
+              src={item.imageUrl}
+              alt={item.caption ?? "Gallery photo"}
+              fill
+              className="object-contain"
+              sizes="(max-width: 1024px) 100vw, 80vw"
+            />
+          </div>
+        ) : item.youtubeId ? (
+          <div className="relative w-full aspect-video rounded-2xl overflow-hidden">
+            <iframe
+              src={`https://www.youtube.com/embed/${item.youtubeId}?autoplay=1`}
+              className="w-full h-full"
+              allow="autoplay; fullscreen"
+              allowFullScreen
+            />
+          </div>
+        ) : null}
+
+        {/* Caption + event link */}
+        {(item.caption || item.eventId) && (
+          <div className="mt-4 flex items-center justify-between gap-4">
+            {item.caption && (
+              <p className="text-white/80 text-sm font-medium">
+                {item.caption}
+              </p>
+            )}
+            {item.eventId && (
+              <a
+                href={`/events/${item.eventId}`}
+                className="flex items-center gap-1.5 text-primary text-xs font-bold hover:underline shrink-0"
+              >
+                View Event <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
 }
 
-// ─── Gallery card ─────────────────────────────────────────────────────────────
+// ── Gallery card ──────────────────────────────────────────────────────────────
 
 function GalleryCard({
-  event,
+  item,
+  onClick,
   className,
 }: {
-  event: GalleryEvent;
+  item: GalleryItem;
+  onClick: () => void;
   className?: string;
 }) {
   const [hovered, setHovered] = useState(false);
+  const thumbnailUrl = item.mediaType === "image"
+    ? item.imageUrl
+    : item.youtubeId
+      ? `https://img.youtube.com/vi/${item.youtubeId}/mqdefault.jpg`
+      : null;
+
+  if (!thumbnailUrl) return null;
 
   return (
-    <Link
-      href={`/events/${event.slug}`}
+    <motion.div
+      whileHover={{ scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 300, damping: 22 }}
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       className={cn(
-        "group relative block overflow-hidden rounded-[1.25rem] bg-muted cursor-pointer",
+        "group relative overflow-hidden rounded-[1.25rem] bg-muted cursor-pointer",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
         className,
       )}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
     >
       <Image
-        src={event.image}
-        alt={event.title}
+        src={thumbnailUrl}
+        alt={item.caption ?? item.category}
         fill
-        sizes="(max-width: 768px) 100vw, 50vw"
+        sizes="(max-width: 768px) 50vw, 33vw"
         className={cn(
-          "object-cover transition-transform duration-700 ease-out",
-          hovered ? "scale-105" : "scale-100",
+          "object-cover transition-transform duration-700",
+          hovered && "scale-105",
         )}
       />
 
-      <div className={cn('absolute', 'inset-0', 'bg-gradient-to-t', 'from-black/40', 'via-transparent', 'to-transparent', 'pointer-events-none')} />
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
 
+      {/* Play button for videos */}
+      {item.mediaType === "video" && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30 group-hover:scale-110 transition-transform">
+            <Play className="w-6 h-6 text-white fill-white ml-1" />
+          </div>
+        </div>
+      )}
+
+      {/* Featured badge */}
+      {item.featured && (
+        <div className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-amber-500 rounded-full text-[9px] font-black text-white uppercase tracking-widest">
+          Featured
+        </div>
+      )}
+
+      {/* Hover info */}
       <AnimatePresence>
         {hovered && (
           <motion.div
-            key="overlay"
             initial={{ y: "100%", opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}
             transition={{ type: "spring", stiffness: 340, damping: 32 }}
-            className={cn('absolute', 'inset-x-0', 'bottom-0', 'p-5', 'bg-black/50', 'backdrop-blur-md', 'border-t', 'border-white/10')}
+            className="absolute inset-x-0 bottom-0 p-4 bg-black/50 backdrop-blur-md border-t border-white/10"
           >
-            <div className={cn('flex', 'items-center', 'gap-3', 'mb-2')}>
-              <span className={cn('flex', 'items-center', 'gap-1', 'text-[9px]', 'font-black', 'uppercase', 'tracking-widest', 'text-white/60')}>
-                <Tag className={cn('w-2.5', 'h-2.5')} />
-                {event.category}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[9px] font-black uppercase tracking-widest text-white/60">
+                {CATEGORY_LABELS[item.category]}
               </span>
-              <span className={cn('flex', 'items-center', 'gap-1', 'text-[9px]', 'font-black', 'uppercase', 'tracking-widest', 'text-white/60')}>
-                <Calendar className={cn('w-2.5', 'h-2.5')} />
-                {new Date(event.eventDate).toLocaleDateString("en-US", {
-                  month: "short",
-                  year: "numeric",
-                })}
-              </span>
+              {item.eventId && (
+                <span className="text-[9px] font-black uppercase tracking-widest text-primary">
+                  · Event
+                </span>
+              )}
             </div>
-            <p className={cn('text-[13px]', 'font-black', 'text-white', 'tracking-tight', 'leading-tight', 'mb-1')}>
-              {event.title}
-            </p>
-            <p className={cn('text-[10px]', 'text-white/70', 'font-medium', 'leading-relaxed', 'line-clamp-2')}>
-              {event.overview}
-            </p>
+            {item.caption && (
+              <p className="text-[12px] font-bold text-white line-clamp-2 leading-tight">
+                {item.caption}
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
-
-      <div className={cn('absolute', 'top-3', 'left-3', 'z-10')}>
-        <span className={cn('text-[9px]', 'font-black', 'uppercase', 'tracking-widest', 'px-2.5', 'py-1', 'rounded-full', 'bg-black/30', 'backdrop-blur-md', 'text-white/90', 'border', 'border-white/15')}>
-          {event.category}
-        </span>
-      </div>
-    </Link>
+    </motion.div>
   );
 }
 
-// ─── Gallery grid ─────────────────────────────────────────────────────────────
+// ── Masonry-ish grid layout ───────────────────────────────────────────────────
 
-function GalleryGrid({ events }: { events: GalleryEvent[] }) {
-  const top = events.slice(0, 3);
-  const bottom = events.slice(3, 6);
+function GalleryGrid({
+  items,
+  onItemClick,
+}: {
+  items: GalleryItem[];
+  onItemClick: (index: number) => void;
+}) {
+  // Alternate between 3-col and mixed-width layouts per 6-item group
+  const groups: GalleryItem[][] = [];
+  for (let i = 0; i < items.length; i += 6) {
+    groups.push(items.slice(i, i + 6));
+  }
+
+  let globalIndex = 0;
 
   return (
     <div className="space-y-3">
-      <div className={cn('grid', 'grid-cols-3', 'gap-3')}>
-        {top.map((event) => (
-          <GalleryCard
-            key={event.id}
-            event={event}
-            className={cn('h-[220px]', 'sm:h-[260px]')}
-          />
-        ))}
-      </div>
-      {bottom.length > 0 && (
-        <div className={cn('grid', 'grid-cols-12', 'gap-3')}>
-          {bottom[0] && (
-            <GalleryCard
-              event={bottom[0]}
-              className={cn('col-span-5', 'h-[220px]', 'sm:h-[260px]')}
-            />
-          )}
-          {bottom[1] && (
-            <GalleryCard
-              event={bottom[1]}
-              className={cn('col-span-4', 'h-[220px]', 'sm:h-[260px]')}
-            />
-          )}
-          {bottom[2] && (
-            <GalleryCard
-              event={bottom[2]}
-              className={cn('col-span-3', 'h-[220px]', 'sm:h-[260px]')}
-            />
-          )}
-        </div>
-      )}
+      {groups.map((group, gi) => {
+        const top = group.slice(0, 3);
+        const bottom = group.slice(3, 6);
+        const topStartIndex = globalIndex;
+        globalIndex += top.length;
+        const bottomStartIndex = globalIndex;
+        globalIndex += bottom.length;
+
+        return (
+          <div key={gi} className="space-y-3">
+            {/* Top row — 3 equal columns */}
+            {top.length > 0 && (
+              <div className="grid grid-cols-3 gap-3">
+                {top.map((item, i) => (
+                  <GalleryCard
+                    key={item.id}
+                    item={item}
+                    onClick={() => onItemClick(topStartIndex + i)}
+                    className="h-[200px] sm:h-[250px]"
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Bottom row — asymmetric widths */}
+            {bottom.length > 0 && (
+              <div className="grid grid-cols-12 gap-3">
+                {bottom[0] && (
+                  <GalleryCard
+                    item={bottom[0]}
+                    onClick={() => onItemClick(bottomStartIndex)}
+                    className="col-span-5 h-[200px] sm:h-[250px]"
+                  />
+                )}
+                {bottom[1] && (
+                  <GalleryCard
+                    item={bottom[1]}
+                    onClick={() => onItemClick(bottomStartIndex + 1)}
+                    className="col-span-4 h-[200px] sm:h-[250px]"
+                  />
+                )}
+                {bottom[2] && (
+                  <GalleryCard
+                    item={bottom[2]}
+                    onClick={() => onItemClick(bottomStartIndex + 2)}
+                    className="col-span-3 h-[200px] sm:h-[250px]"
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
+// ── Skeleton ──────────────────────────────────────────────────────────────────
 
 function GallerySkeleton() {
   return (
     <div className="space-y-3">
-      <div className={cn('grid', 'grid-cols-3', 'gap-3')}>
+      <div className="grid grid-cols-3 gap-3">
         {[...Array(3)].map((_, i) => (
-          <div
-            key={i}
-            className={cn('h-[260px]', 'rounded-[1.25rem]', 'bg-muted', 'animate-pulse')}
-          />
+          <div key={i} className="h-[250px] rounded-[1.25rem] bg-muted animate-pulse" />
         ))}
       </div>
-      <div className={cn('grid', 'grid-cols-12', 'gap-3')}>
-        <div className={cn('col-span-5', 'h-[260px]', 'rounded-[1.25rem]', 'bg-muted', 'animate-pulse')} />
-        <div className={cn('col-span-4', 'h-[260px]', 'rounded-[1.25rem]', 'bg-muted', 'animate-pulse')} />
-        <div className={cn('col-span-3', 'h-[260px]', 'rounded-[1.25rem]', 'bg-muted', 'animate-pulse')} />
+      <div className="grid grid-cols-12 gap-3">
+        <div className="col-span-5 h-[250px] rounded-[1.25rem] bg-muted animate-pulse" />
+        <div className="col-span-4 h-[250px] rounded-[1.25rem] bg-muted animate-pulse" />
+        <div className="col-span-3 h-[250px] rounded-[1.25rem] bg-muted animate-pulse" />
       </div>
     </div>
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 24;
 
 export default function GalleryPage() {
-  const { publicEvents, publicEventsLoading, loadPublicEvents } = useEvents();
-
-  const [activeCategory, setActiveCategory] = useState("All Projects");
+  const [items, setItems] = useState<GalleryItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [category, setCategory] = useState<GalleryCategory | "all">("all");
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  // Load a large batch on mount so we have plenty of events to filter
-  useEffect(() => {
-    loadPublicEvents(50, undefined);
-  }, [loadPublicEvents]);
-
-  // ── Derive source ─────────────────────────────────────────────────────────
-  // Filter real events to only past ones.
-  // Fall back to MOCK_EVENTS when:
-  //   - publicEvents is still loading (show skeleton instead)
-  //   - publicEvents loaded but zero are in the past
-  const pastEvents: GalleryEvent[] = publicEvents
-    .filter((e) => isPast(e.eventDate))
-    .map((e) => ({
-      id: e.id,
-      slug: e.slug,
-      title: e.title,
-      overview: e.overview ?? "",
-      category: e.category,
-      image: e.image ?? "",
-      eventDate: e.eventDate,
-    }));
-
-  // Condition: use real past events if any exist, otherwise use mock fallback
-  const usingMock = !publicEventsLoading && pastEvents.length === 0;
-  const allEvents = usingMock ? MOCK_EVENTS : pastEvents;
-
-  // ── Dynamic categories from actual data ───────────────────────────────────
-  const categories = [
-    "All Projects",
-    ...Array.from(new Set(allEvents.map((e) => e.category))),
-  ];
-
-  // ── Filter ────────────────────────────────────────────────────────────────
-  const filtered =
-    activeCategory === "All Projects"
-      ? allEvents
-      : allEvents.filter((e) => e.category === activeCategory);
-
-  // ── Paginate ──────────────────────────────────────────────────────────────
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const handleCategory = useCallback((cat: string) => {
-    setActiveCategory(cat);
-    setPage(1);
+  const load = useCallback(async (cat: GalleryCategory | "all", pg: number) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(pg), limit: String(PAGE_SIZE) });
+      if (cat !== "all") params.set("category", cat);
+      const res = await fetch(`/api/public/gallery?${params}`);
+      const data = await res.json();
+      setItems(data.items ?? []);
+      setTotalPages(data.pagination?.totalPages ?? 1);
+    } catch {
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return (
-    <main className={cn('min-h-screen', 'w-full', 'mt-[50px]', 'pt-24', 'pb-20', 'px-5', 'sm:px-8', 'max-w-7xl', 'mx-auto')}>
-      {/* Mock data notice */}
-      {usingMock && (
-        <div className={cn('mb-6', 'px-4', 'py-2.5', 'bg-amber-50', 'border', 'border-amber-100', 'rounded-2xl', 'flex', 'items-center', 'gap-3')}>
-          <div className={cn('w-1.5', 'h-1.5', 'rounded-full', 'bg-amber-500', 'shrink-0')} />
-          <p className={cn('text-[10px]', 'font-black', 'text-amber-700', 'uppercase', 'tracking-widest')}>
-            Showing sample data — no concluded events found yet
-          </p>
-        </div>
-      )}
+  useEffect(() => {
+    load(category, page);
+  }, [category, page, load]);
 
-      {/* ── Header bar ── */}
-      <div className={cn('flex', 'flex-wrap', 'items-center', 'justify-between', 'gap-4', 'mb-8')}>
-        <div className={cn('flex', 'flex-wrap', 'items-center', 'gap-3')}>
-          <h1 className={cn('text-2xl', 'font-black', 'text-foreground', 'tracking-tight', 'mr-2')}>
+  const handleCategory = (cat: GalleryCategory | "all") => {
+    setCategory(cat);
+    setPage(1);
+  };
+
+  const openLightbox = useCallback((index: number) => {
+    setLightboxIndex(index);
+  }, []);
+
+  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
+
+  const prevItem = useCallback(() => {
+    setLightboxIndex((i) => (i !== null && i > 0 ? i - 1 : i));
+  }, []);
+
+  const nextItem = useCallback(() => {
+    setLightboxIndex((i) => (i !== null && i < items.length - 1 ? i + 1 : i));
+  }, [items.length]);
+
+  return (
+    <main className="min-h-screen w-full mt-[50px] pt-24 pb-20 px-5 sm:px-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-black text-foreground tracking-tight mr-2">
             Gallery
           </h1>
-          <div className={cn('flex', 'items-center', 'gap-1.5', 'flex-wrap')}>
-            {categories.map((cat) => (
+
+          {/* Category filters */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {(
+              [
+                "all",
+                ...(Object.keys(CATEGORY_LABELS) as GalleryCategory[]),
+              ] as const
+            ).map((cat) => (
               <button
                 key={cat}
                 onClick={() => handleCategory(cat)}
                 className={cn(
                   "px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer",
-                  activeCategory === cat
+                  category === cat
                     ? "bg-foreground text-background shadow-sm"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
                 )}
               >
-                {cat}
+                {cat === "all"
+                  ? "All"
+                  : CATEGORY_LABELS[cat as GalleryCategory]}
               </button>
             ))}
           </div>
         </div>
 
-        <div className={cn('flex', 'items-center', 'gap-2')}>
-          <span className={cn('text-[11px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'mr-1')}>
-            {page} of {totalPages}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            aria-label="Previous page"
-            className={cn(
-              "w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer bg-muted border border-border",
-              page === 1
-                ? "opacity-40 cursor-not-allowed"
-                : "hover:bg-foreground hover:text-background hover:border-foreground",
-            )}
-          >
-            <ChevronLeft className={cn('w-4', 'h-4')} />
-          </button>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            aria-label="Next page"
-            className={cn(
-              "w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer bg-foreground text-background border border-foreground",
-              page === totalPages
-                ? "opacity-40 cursor-not-allowed"
-                : "hover:opacity-90",
-            )}
-          >
-            <ChevronRight className={cn('w-4', 'h-4')} />
-          </button>
-        </div>
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest mr-1">
+              {page} of {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer bg-muted border border-border",
+                page === 1
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:bg-foreground hover:text-background",
+              )}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer bg-foreground text-background border border-foreground",
+                page === totalPages
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:opacity-90",
+              )}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* ── Grid ── */}
+      {/* Grid */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={activeCategory + page}
+          key={category + page}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         >
-          {publicEventsLoading && pastEvents.length === 0 ? (
+          {loading ? (
             <GallerySkeleton />
-          ) : paginated.length > 0 ? (
-            <GalleryGrid events={paginated} />
-          ) : (
-            <div className={cn('flex', 'flex-col', 'items-center', 'justify-center', 'py-28', 'text-center')}>
-              <p className={cn('text-[11px]', 'font-black', 'uppercase', 'tracking-widest', 'text-muted-foreground')}>
-                No events in this category yet
+          ) : items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-28 text-center">
+              <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
+                No gallery items yet
               </p>
             </div>
+          ) : (
+            <GalleryGrid items={items} onItemClick={openLightbox} />
           )}
         </motion.div>
+      </AnimatePresence>
+
+      {/* Lightbox */}
+      <AnimatePresence>
+        {lightboxIndex !== null && (
+          <Lightbox
+            items={items}
+            activeIndex={lightboxIndex}
+            onClose={closeLightbox}
+            onPrev={prevItem}
+            onNext={nextItem}
+          />
+        )}
       </AnimatePresence>
     </main>
   );

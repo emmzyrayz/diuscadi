@@ -34,6 +34,7 @@ import {
   AnnouncementDocument,
   AnnouncementReadDocument,
 } from "@/lib/models/Announcement";
+import { GalleryDocument } from "../models/Gallery";
 
 export const Collections = {
   vault: (db: Db) => db.collection<VaultDocument>("vault"),
@@ -79,7 +80,8 @@ export const Collections = {
   aboutPageConfig: (db: Db) =>
     db.collection<AboutPageConfigDocument>("aboutPageConfig"),
   announcements: (db: Db) =>
-  db.collection<AnnouncementDocument>("announcements"),
-announcementReads: (db: Db) =>
-  db.collection<AnnouncementReadDocument>("announcementReads"),
+    db.collection<AnnouncementDocument>("announcements"),
+  announcementReads: (db: Db) =>
+    db.collection<AnnouncementReadDocument>("announcementReads"),
+  gallery: (db: Db) => db.collection<GalleryDocument>("gallery"),
 };

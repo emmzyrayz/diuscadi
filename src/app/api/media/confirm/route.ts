@@ -432,6 +432,66 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       return NextResponse.json({ image: cloudinaryImage });
     }
 
+    // ── gallery-* ─────────────────────────────────────────────────────────────
+    // Gallery items are stored in the dedicated gallery collection,
+    // not embedded in any parent document.
+    // The ownerId carries a JSON-encoded metadata payload from the bulk uploader.
+    if (
+      uploadType === "gallery-event" ||
+      uploadType === "gallery-meeting" ||
+      uploadType === "gallery-outing" ||
+      uploadType === "gallery-conference" ||
+      uploadType === "gallery-workshop" ||
+      uploadType === "gallery-celebration"
+    ) {
+      // ownerId encodes the gallery item metadata as a JSON string so the
+      // bulk uploader can pass caption, eventId, featured, published, order
+      // through the existing sign → confirm pipeline without a schema change.
+      // Shape: { caption?, eventId?, featured, published, order }
+      let galleryMeta: {
+        caption?: string;
+        eventId?: string;
+        featured?: boolean;
+        published?: boolean;
+        order?: number;
+      } = {};
+
+      if (ownerId) {
+        try {
+          galleryMeta = JSON.parse(ownerId);
+        } catch {
+          // ownerId may just be a plain string if called outside bulk uploader
+          galleryMeta = {};
+        }
+      }
+
+      const category = uploadType.replace(
+        "gallery-",
+        "",
+      ) as import("@/lib/models/Gallery").GalleryCategory;
+
+      const doc: import("@/lib/models/Gallery").GalleryDocument = {
+        mediaType: "image",
+        imageUrl: secure_url,
+        imagePublicId: public_id,
+        imageCloudName: cloudName,
+        category,
+        caption: galleryMeta.caption?.trim() || undefined,
+        eventId: galleryMeta.eventId
+          ? new ObjectId(galleryMeta.eventId)
+          : undefined,
+        featured: galleryMeta.featured ?? false,
+        published: galleryMeta.published ?? false,
+        order: galleryMeta.order ?? 0,
+        createdBy: new ObjectId(req.auth.vaultId),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await Collections.gallery(db).insertOne(doc);
+      return NextResponse.json({ image: cloudinaryImage });
+    }
+
     return NextResponse.json(
       { error: "Unhandled uploadType" },
       { status: 400 },
@@ -444,3 +504,4 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     );
   }
 });
+

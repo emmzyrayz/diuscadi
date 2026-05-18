@@ -119,6 +119,36 @@ const TRANSFORM_PRESETS: Record<UploadType, UploadPreset> = {
     folder: "diuscadi/landing/people",
     maxFileSize: 5 * 1024 * 1024,
   },
+  "gallery-event": {
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/gallery/event",
+    maxFileSize: 15 * 1024 * 1024,
+  },
+  "gallery-meeting": {
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/gallery/meeting",
+    maxFileSize: 15 * 1024 * 1024,
+  },
+  "gallery-outing": {
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/gallery/outing",
+    maxFileSize: 15 * 1024 * 1024,
+  },
+  "gallery-conference": {
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/gallery/conference",
+    maxFileSize: 15 * 1024 * 1024,
+  },
+  "gallery-workshop": {
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/gallery/workshop",
+    maxFileSize: 15 * 1024 * 1024,
+  },
+  "gallery-celebration": {
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/gallery/celebration",
+    maxFileSize: 15 * 1024 * 1024,
+  },
 };
 
 // ─── Public ID generator ──────────────────────────────────────────────────────
@@ -253,6 +283,12 @@ export function allowedRolesForType(type: UploadType): string[] {
     case "landing-initiative":
     case "landing-logo":
     case "landing-person":
+    case "gallery-event":
+    case "gallery-meeting":
+    case "gallery-outing":
+    case "gallery-conference":
+    case "gallery-workshop":
+    case "gallery-celebration":
       return ["admin", "webmaster"];
   }
 }

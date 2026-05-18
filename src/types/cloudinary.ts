@@ -19,7 +19,13 @@ export type ImageTag =
   | "landing-banner"
   | "landing-initiative"
   | "landing-logo"
-  | "landing-person";
+  | "landing-person"
+  | "gallery-event"
+  | "gallery-meeting"
+  | "gallery-outing"
+  | "gallery-conference"
+  | "gallery-workshop"
+  | "gallery-celebration";
 
 /**
  * Subset of Cloudinary's signed upload response that we persist.
