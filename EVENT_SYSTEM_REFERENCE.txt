@@ -1,0 +1,2136 @@
+================================================================================
+                    DIUSCADI EVENT SYSTEM REFERENCE GUIDE
+              Complete Project Structure & Cloudinary Upload Pipeline
+================================================================================
+
+Generated: May 21, 2026
+Repository: emmzyrayz/diuscadi
+Language: TypeScript 99.4% | Other 0.6%
+
+DOCUMENT PURPOSE:
+  This reference document contains the complete code for all Event Management
+  and Cloudinary Upload pipeline components. Use this to understand the full
+  flow and pass to external assistants for adding Speakers, Sponsors, and
+  Schedule management tabs to the admin modal.
+
+================================================================================
+SECTION 1: SYSTEM ARCHITECTURE OVERVIEW
+================================================================================
+
+The Event Management System is built on three interconnected layers:
+
+1. DATA LAYER (MongoDB)
+   - EventDocument: Core event record with metadata, media flags, rich content
+   - TicketTypeDocument: Pricing tiers per event
+   - EventRegistrationDocument: User registrations with check-in tracking
+
+2. API LAYER (Next.js Route Handlers)
+   - Public APIs: /api/events/public, /api/events/past, /api/events/[slug]
+   - Auth APIs: /api/events/feed, /api/events/register, /api/events/check-in
+   - Admin APIs: /api/admin/events (CRUD), /api/admin/events/[id] (PATCH/DELETE)
+   - Media APIs: /api/media/sign, /api/media/confirm, /api/media/remove
+
+3. UI LAYER (React Components)
+   - Admin Dashboard: /admin/events (page.tsx)
+   - Admin Modal: AEEditModal.tsx (multi-step wizard)
+   - Public Display: EventSchedule, SpeakersSection, SponsorsSection
+   - Cloudinary Service: Handles upload signing & validation
+
+UPLOAD PIPELINE FLOW:
+  [Client] → POST /api/media/sign (get signed params)
+           → Direct upload to Cloudinary
+           → POST /api/media/confirm (persist to MongoDB)
+           → CloudinaryService validates & stores CloudinaryImage
+
+KEY DESIGN PATTERNS:
+  • Speakers, Sponsors, Schedules: Free-text inline storage (NOT linked to users)
+  • Media: Stored as CloudinaryImage objects with publicId for cleanup
+  • Admin Modal: 5-step wizard (Basics → Details → Media → Rich Content → Publish)
+  • Role-based Access: Admin/Webmaster only for event management
+
+================================================================================
+SECTION 2: DATABASE SCHEMA
+================================================================================
+
+FILE: src/lib/models/Events.ts
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/models/Event.ts
+import { ObjectId } from "mongodb";
+import { CloudinaryImage } from "@/types/cloudinary";
+
+export type EventFormat = "physical" | "virtual" | "hybrid";
+export type EventStatus = "draft" | "published" | "cancelled";
+export type EventLevel = "Beginner" | "Intermediate" | "Advanced";
+export type LocationScope = "local" | "state" | "national";
+export type TargetEduStatus = "STUDENT" | "GRADUATE" | "ALL";
+
+  
+// ─── Sub-document types ──────────────────────────────────────────────────────
+
+export interface EventSpeaker {
+  name:        string;
+  title?:      string;        // e.g. "Senior Engineer at Google"
+  organisation?: string;
+  bio?:        string;
+  avatarUrl?:  string;        // plain URL — speakers use external images for now
+  socialUrl?:  string;        // LinkedIn or personal site
+}
+  
+export interface EventScheduleItem {
+  time:        string;        // e.g. "09:00 AM"
+  title:       string;        // e.g. "Opening Ceremony"
+  description?: string;
+  speaker?:    string;        // speaker name only — denormalised for display
+  type:        "session" | "break" | "workshop" | "keynote" | "networking";
+}
+  
+export interface EventSponsor {
+  name:        string;
+  logoUrl?:    string;        // plain URL — sponsor logos are external
+  tier?:       "gold" | "silver" | "bronze" | "partner";
+  website?:    string;
+}
+  
+export interface EventFAQ {
+  question:    string;
+  answer:      string;
+}
+
+// ─── Main document ────────────────────────────────────────────────────────
+
+export interface EventDocument {
+  _id?: ObjectId;
+
+  // ── Identity ──────────────────────────────────────────────────────────
+  slug: string; // e.g. "summit-2026" — unique, URL-safe
+  title: string;
+  overview: string;
+  learningOutcomes: string[];
+
+  // ── Classification ────────────────────────────────────────────────────
+  category: string;
+  tags: string[];
+  level?: EventLevel;
+  description: string;
+  shortDescription: string;
+
+  // ── Targeting (personalized feed filtering) ───────────────────────────
+  requiredSkills: string[]; // matched against user.skills
+  targetEduStatus: TargetEduStatus; // "student" | "graduate" | "all"
+  locationScope: LocationScope; // "local" | "state" | "national"
+
+  // ── Speaker / instructor ──────────────────────────────────────────────
+  instructor?: string;
+
+  // ── Format + location ─────────────────────────────────────────────────
+  format: EventFormat;
+  location?: {
+    venue?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+  };
+
+  // ── Scheduling ─────────────────────────────────────────────────────
+  eventDate: Date;
+  endDate?: Date;
+  registrationDeadline: Date;
+  duration?: string; // e.g. "2 hours", "3 days"
+
+  // ── Capacity ──────────────────────────────────────────────────────
+  // slotsRemaining is NOT stored — calculated dynamically via aggregation.
+  capacity: number;
+
+  // ── Media ─────────────────────────────────────────────────────────
+  /**
+   * Primary event identity image (square / round logo).
+   * Optional — some events may be created before assets are ready.
+   */
+  hasEventLogo: boolean;
+  eventLogo?: CloudinaryImage; // tag: "event-logo"
+
+  /**
+   * Wide hero / cover image shown at the top of the event page.
+   * Optional — limited or low-budget events may skip this.
+   */
+  hasEventBanner: boolean;
+  eventBanner?: CloudinaryImage; // tag: "event-banner"
+
+  /**
+   * Photo gallery for the event (before, during, or after shots).
+   * Optional array — may be empty or absent for future/draft events.
+   */
+  hasEventGallery: boolean;
+  eventGallery?: CloudinaryImage[]; // tag: "event-gallery" on each item
+
+  // ── Rich content (managed by admin after event creation) ──────────────
+
+  /**
+   * Speakers and facilitators.
+   * Empty array = not yet announced. Shown as placeholder UI until populated.
+   */
+  speakers?: EventSpeaker[];
+
+  /**
+   * Agenda / schedule items ordered chronologically.
+   * Empty array = not yet published. Shown as placeholder UI until populated.
+   */
+  schedule?: EventScheduleItem[];
+
+  /**
+   * Sponsors for this specific event.
+   * Empty array = none yet confirmed.
+   */
+  sponsors?: EventSponsor[];
+
+  /**
+   * Per-event FAQs. When empty, the component falls back to
+   * platform-level default FAQs so the section is never blank.
+   */
+  faqs?: EventFAQ[];
+
+  // ── Status ──────────────────────────────────────────────────────────
+  status: EventStatus;
+
+  // ── Ownership ─────────────────────────────────────────────────────────
+  createdBy: ObjectId; // → Vault._id of admin who created it
+
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+
+================================================================================
+SECTION 3: CLOUDINARY TYPES & SERVICE
+================================================================================
+
+FILE: src/types/cloudinary.ts
+────────────────────────────────────────────────────────────────────────────────
+
+// /types/cloudinary.ts
+// ────────────────────────────────────────────────────────────────
+// Canonical Cloudinary image type used across all DIUSCADI models.
+// Replace every `string | StaticImageData` image field with `CloudinaryImage`
+// or `CloudinaryImage | null` (optional slots) as documented per model.
+// ────────────────────────────��───────────────────────────────────
+
+/**
+ * The role / slot this image fills in its parent document.
+ * Extend the union as new upload contexts are added.
+ */
+export type ImageTag =
+  | "avatar" // UserData: profile picture
+  | "event-logo" // Event: primary square/round identity image
+  | "event-banner" // Event: wide hero / cover image
+  | "event-gallery" // Event: gallery item
+  | "inst-logo" // Institution: square logo
+  | "inst-banner" // Institution: wide banner / cover
+  | "landing-banner"
+  | "landing-initiative"
+  | "landing-logo"
+  | "landing-person"
+  | "gallery-event"
+  | "gallery-meeting"
+  | "gallery-outing"
+  | "gallery-conference"
+  | "gallery-workshop"
+  | "gallery-celebration";
+
+/**
+ * Subset of Cloudinary's signed upload response that we persist.
+ * All fields come directly from the response body — no derivation needed.
+ */
+export interface CloudinaryUploadMetadata {
+  /** HMAC-SHA1 signature returned by Cloudinary — use to verify authenticity. */
+  signature: string;
+
+  /** Unix timestamp (seconds) at the moment of upload. */
+  timestamp: number;
+
+  /** MIME-derived format: "jpg" | "png" | "webp" | "gif" etc. */
+  format: string;
+
+  /** File size in bytes. */
+  bytes: number;
+
+  /** Pixel width of the original upload. */
+  width: number;
+
+  /** Pixel height of the original upload. */
+  height: number;
+
+  /** Cloudinary ISO-8601 created_at string, e.g. "2026-03-16T10:00:00Z". */
+  createdAt: string;
+
+  /** Content hash (ETag) — useful for deduplication. */
+  etag: string;
+}
+
+/**
+ * A fully structured Cloudinary image record.
+ * Stored inline inside parent documents — no separate collection.
+ *
+ * Deriving the delivery URL at runtime:
+ *   `https://res.cloudinary.com/${cloudName}/image/upload/${publicId}`
+ * Apply transformations by injecting a transformation string before the publicId.
+ */
+export interface CloudinaryImage {
+  // ── Cloudinary identifiers ────────────────────────────────────────────────
+
+  /** Opaque asset ID assigned by Cloudinary (e.g. "a1b2c3d4e5f6..."). */
+  imageId: string;
+
+  /**
+   * Public ID used in delivery URLs and transformation pipelines.
+   * Includes folder path if one was used, e.g. "diuscadi/avatars/user_123".
+   */
+  imagePublicId: string;
+
+  /**
+   * Your Cloudinary cloud name — kept here so each image is self-contained
+   * and the URL can be reconstructed without reaching for env vars.
+   */
+  imageCloudName: string;
+
+  // ── Delivery ──────────────────────────────────────────────────────────
+
+  /**
+   * Full optimised delivery URL as returned by Cloudinary after upload.
+   * Stored for zero-cost reads; regenerate from publicId when transformations change.
+   */
+  imageUrl: string;
+
+  /** Alt text for accessibility. Should always be provided before storing. */
+  imageAlt: string;
+
+  // ── Slot / usage tag ──────────────────────────────────────────────────────
+
+  /**
+   * Semantic tag that identifies which slot this image fills.
+   * Used by UI components and profile-completion checks.
+   */
+  tag: ImageTag;
+
+  // ── Upload metadata ───────────────────────────────────────────────────────
+
+  /** Subset of Cloudinary's signed upload response, persisted for verification & display. */
+  metadata: CloudinaryUploadMetadata;
+}
+
+// ────────────────────────────────────────────────────────────────
+// Utility helpers (pure — no DB or API calls)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Build a base Cloudinary delivery URL from a CloudinaryImage.
+ * Pass a transformation string to inject it before the public ID.
+ *
+ * @example
+ * buildCloudinaryUrl(avatar)
+ * // → "https://res.cloudinary.com/mycloud/image/upload/diuscadi/avatars/user_123"
+ *
+ * buildCloudinaryUrl(avatar, "w_200,h_200,c_fill,q_auto,f_auto")
+ * // → "https://res.cloudinary.com/mycloud/image/upload/w_200,h_200,c_fill,q_auto,f_auto/diuscadi/avatars/user_123"
+ */
+export function buildCloudinaryUrl(
+  image: CloudinaryImage,
+  transformation?: string,
+): string {
+  const base = `https://res.cloudinary.com/${image.imageCloudName}/image/upload`;
+  return transformation
+    ? `${base}/${transformation}/${image.imagePublicId}`
+    : `${base}/${image.imagePublicId}`;
+}
+
+
+FILE: src/lib/services/CloudinaryService.ts
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/services/CloudinaryService.ts
+//
+// Server-only. Never import this in client components.
+//
+// Upload flow:
+//   1. Client calls POST /api/media/sign  → signed params from server
+//   2. Client POSTs directly to Cloudinary using those params
+//   3. Cloudinary returns its full response payload
+//   4. Client calls POST /api/media/confirm with the raw Cloudinary response
+//   5. confirm route assembles CloudinaryImage and persists it to MongoDB
+//
+// The context (MediaContext) owns steps 1–4 as a pipeline.
+// The confirm route owns step 5 entirely — context never touches the DB.
+
+import crypto from "crypto";
+import type { ImageTag } from "@/types/cloudinary";
+
+// ─── Types ───────────────────────────────────────────────────────────
+
+/**
+ * UploadType mirrors ImageTag exactly — every tag has a corresponding
+ * upload config. Kept as a separate alias so CloudinaryService remains
+ * decoupled from the domain type layer.
+ */
+export type UploadType = ImageTag;
+
+export interface SignedUploadParams {
+  signature: string;
+  timestamp: number;
+  apiKey: string;
+  cloudName: string;
+  folder: string;
+  publicId: string;
+  eager: string;
+  maxFileSize: number; // bytes — enforced by Cloudinary
+  uploadType: UploadType; // echoed back so the client knows which type was signed
+}
+
+// ─── Env validation ────────────────────────────────────────────────────────
+
+function requireEnv(key: string): string {
+  const val = process.env[key];
+  if (!val) throw new Error(`Missing env var: ${key}`);
+  return val;
+}
+
+// ─── Transformation presets ───────────────────────────────────────────────────
+// eager transforms are applied by Cloudinary server-side after upload.
+// The client crops before uploading — these are a server-side safety net.
+
+interface UploadPreset {
+  eager: string; // Cloudinary eager transformation string
+  folder: string; // Storage folder in Cloudinary
+  maxFileSize: number; // bytes
+}
+
+const TRANSFORM_PRESETS: Record<UploadType, UploadPreset> = {
+  // ── User ───────────────────────────────────────────────────────────
+  avatar: {
+    eager: "c_fill,g_face,w_400,h_400,f_webp,q_auto:good",
+    folder: "diuscadi/avatars",
+    maxFileSize: 5 * 1024 * 1024, // 5 MB
+  },
+
+  // ── Event ───────────────────────────────────────────────────────────
+  "event-logo": {
+    // Square crop, face-aware — used as the event's primary identity badge
+    eager: "c_fill,g_auto,w_400,h_400,f_webp,q_auto:good",
+    folder: "diuscadi/events/logos",
+    maxFileSize: 5 * 1024 * 1024, // 5 MB
+  },
+  "event-banner": {
+    // 1200×630 (OG image ratio) — wide hero / cover image
+    eager: "c_fill,w_1200,h_630,f_webp,q_auto:good",
+    folder: "diuscadi/events/banners",
+    maxFileSize: 10 * 1024 * 1024, // 10 MB
+  },
+  "event-gallery": {
+    // 1200×900 (4:3) — gallery photos, multiple per event
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/events/gallery",
+    maxFileSize: 15 * 1024 * 1024, // 15 MB — allows short video clips too
+  },
+
+  // ── Institution ─────────────────────────────────────────────────────────
+  "inst-logo": {
+    // Pad (no crop) preserves logo aspect ratio, white bg, square output
+    eager: "c_pad,w_400,h_400,b_white,f_webp,q_auto:good",
+    folder: "diuscadi/institutions/logos",
+    maxFileSize: 3 * 1024 * 1024, // 3 MB
+  },
+  "inst-banner": {
+    // Wide banner for institution profile pages
+    eager: "c_fill,w_1200,h_400,f_webp,q_auto:good",
+    folder: "diuscadi/institutions/banners",
+    maxFileSize: 10 * 1024 * 1024, // 10 MB
+  },
+
+  // ── Landing Page ─────────────────────────────────────────────────────────
+  "landing-banner": {
+    eager: "c_fill,w_1920,h_1080,f_webp,q_auto:good",
+    folder: "diuscadi/landing/banners",
+    maxFileSize: 10 * 1024 * 1024, // 10 MB
+  },
+  "landing-initiative": {
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/landing/initiative",
+    maxFileSize: 8 * 1024 * 1024,
+  },
+  "landing-logo": {
+    // For validators, sponsors, supporters — pad preserves logo aspect ratio
+    eager: "c_pad,w_400,h_400,b_white,f_webp,q_auto:good",
+    folder: "diuscadi/landing/logos",
+    maxFileSize: 3 * 1024 * 1024,
+  },
+  "landing-person": {
+    // Expert photos, testimonial avatars, leader photo
+    eager: "c_fill,g_face,w_400,h_400,f_webp,q_auto:good",
+    folder: "diuscadi/landing/people",
+    maxFileSize: 5 * 1024 * 1024,
+  },
+  "gallery-event": {
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/gallery/event",
+    maxFileSize: 15 * 1024 * 1024,
+  },
+  "gallery-meeting": {
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/gallery/meeting",
+    maxFileSize: 15 * 1024 * 1024,
+  },
+  "gallery-outing": {
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/gallery/outing",
+    maxFileSize: 15 * 1024 * 1024,
+  },
+  "gallery-conference": {
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/gallery/conference",
+    maxFileSize: 15 * 1024 * 1024,
+  },
+  "gallery-workshop": {
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/gallery/workshop",
+    maxFileSize: 15 * 1024 * 1024,
+  },
+  "gallery-celebration": {
+    eager: "c_fill,w_1200,h_900,f_webp,q_auto:good",
+    folder: "diuscadi/gallery/celebration",
+    maxFileSize: 15 * 1024 * 1024,
+  },
+};
+
+// ─── Public ID generator ──────────────────────────────────────────────────────
+// Deterministic per owner so re-uploads overwrite the previous asset.
+// Timestamp suffix busts CDN cache on re-upload.
+// Pattern: {folder}/{ownerId}_{timestamp}
+
+function buildPublicId(type: UploadType, ownerId: string): string {
+  // Don't include the folder — Cloudinary prepends it from the `folder` param
+  return `${ownerId}_${Date.now()}`;
+}
+
+// ─── Signature ─────────────────────────────────────────────────────────
+// SHA1( sorted_params_string + API_SECRET )
+
+function sign(
+  params: Record<string, string | number>,
+  apiSecret: string,
+): string {
+  const sorted = Object.keys(params)
+    .sort()
+    .map((k) => `${k}=${params[k]}`)
+    .join("&");
+
+  return crypto
+    .createHash("sha1")
+    .update(sorted + apiSecret)
+    .digest("hex");
+}
+
+// ─── Main exports ────────────────────────────────────────────────────────
+
+/**
+ * Generate signed upload parameters for a direct client-to-Cloudinary upload.
+ */
+export function generateSignedParams(
+  uploadType: UploadType,
+  ownerId: string,
+): SignedUploadParams {
+  const apiKey = requireEnv("CLOUDINARY_API_KEY");
+  const apiSecret = requireEnv("CLOUDINARY_API_SECRET");
+  const cloudName = requireEnv("NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME");
+
+  const preset = TRANSFORM_PRESETS[uploadType];
+  const timestamp = Math.floor(Date.now() / 1000);
+  const publicId = buildPublicId(uploadType, ownerId);
+
+  const paramsToSign: Record<string, string | number> = {
+    eager: preset.eager,
+    folder: preset.folder,
+    public_id: publicId,
+    timestamp,
+  };
+
+  return {
+    signature: sign(paramsToSign, apiSecret),
+    timestamp,
+    apiKey,
+    cloudName,
+    folder: preset.folder,
+    publicId,
+    eager: preset.eager,
+    maxFileSize: preset.maxFileSize,
+    uploadType, // echoed so confirm route can trust the type without re-deriving it
+  };
+}
+
+/**
+ * Delete a Cloudinary asset by its public_id.
+ * Returns true if deleted, false if not found.
+ */
+export async function deleteCloudinaryAsset(
+  publicId: string,
+  resourceType: "image" | "video" | "raw" = "image",
+): Promise<boolean> {
+  const apiKey = requireEnv("CLOUDINARY_API_KEY");
+  const apiSecret = requireEnv("CLOUDINARY_API_SECRET");
+  const cloudName = requireEnv("NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME");
+
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  const paramsToSign: Record<string, string | number> = {
+    public_id: publicId,
+    timestamp,
+  };
+
+  const signature = sign(paramsToSign, apiSecret);
+
+  const body = new URLSearchParams({
+    public_id: publicId,
+    signature,
+    api_key: apiKey,
+    timestamp: String(timestamp),
+  });
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/destroy`,
+    { method: "POST", body },
+  );
+  const data = (await res.json()) as { result?: string };
+  return data.result === "ok";
+}
+
+// ─── Validation helpers ──────────────────────────────────────────────────────
+
+export const ALL_UPLOAD_TYPES = Object.keys(TRANSFORM_PRESETS) as UploadType[];
+
+export function isValidUploadType(value: unknown): value is UploadType {
+  return (
+    typeof value === "string" && ALL_UPLOAD_TYPES.includes(value as UploadType)
+  );
+}
+
+/**
+ * Returns which roles are allowed to use a given upload type.
+ * Used by sign + confirm routes to enforce access control.
+ */
+export function allowedRolesForType(type: UploadType): string[] {
+  switch (type) {
+    case "avatar":
+      // Any authenticated user — it's their own profile picture
+      return ["participant", "moderator", "admin", "webmaster"];
+    case "event-logo":
+    case "event-banner":
+    case "event-gallery":
+      return ["admin", "webmaster"];
+    case "inst-logo":
+    case "inst-banner":
+      // Institution media is webmaster-only — institutional identity is sensitive
+      return ["webmaster"];
+    case "landing-banner":
+    case "landing-initiative":
+    case "landing-logo":
+    case "landing-person":
+    case "gallery-event":
+    case "gallery-meeting":
+    case "gallery-outing":
+    case "gallery-conference":
+    case "gallery-workshop":
+    case "gallery-celebration":
+      return ["admin", "webmaster"];
+  }
+}
+
+
+================================================================================
+SECTION 4: MEDIA UPLOAD CONFIRMATION ROUTE
+================================================================================
+
+FILE: src/app/api/media/confirm/route.ts
+────────────────────────────────────────────────────────────────────────────────
+
+// app/api/media/confirm/route.ts
+//
+// Called by the client AFTER a successful direct Cloudinary upload.
+// This route:
+//   1. Receives the raw Cloudinary response payload from the client
+//   2. Assembles a CloudinaryImage object server-side
+//   3. Persists it to the correct MongoDB field
+//   4. Returns the assembled CloudinaryImage to the client
+//
+// The client (MediaContext) is a pure pipeline — it never assembles or stores
+// anything. All DB logic lives here.
+//
+// Request body:
+//   {
+//     uploadType:  UploadType,
+//     ownerId?:    string,           // required for non-avatar types
+//     imageAlt?:   string,           // optional alt text — defaults to uploadType label
+//     // Raw Cloudinary response fields:
+//     asset_id:    string,           // Cloudinary's opaque asset id
+//     public_id:   string,
+//     secure_url:  string,
+//     signature:   string,
+//     timestamp:   number,
+//     format:      string,
+//     bytes:       number,
+//     width:       number,
+//     height:      number,
+//     created_at:  string,
+//     etag:        string,
+//   }
+
+import { NextResponse } from "next/server";
+import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
+import { getDb } from "@/lib/mongodb";
+import { Collections } from "@/lib/db/collections";
+import { ObjectId } from "mongodb";
+import {
+  isValidUploadType,
+  allowedRolesForType,
+  deleteCloudinaryAsset,
+  UploadType,
+} from "@/lib/services/CloudinaryService";
+import type { CloudinaryImage } from "@/types/cloudinary";
+
+// ─── Raw Cloudinary response shape (subset we care about) ─────────────────────
+interface CloudinaryResponse {
+  asset_id: string;
+  public_id: string;
+  secure_url: string;
+  signature: string;
+  timestamp: number;
+  format: string;
+  bytes: number;
+  width: number;
+  height: number;
+  created_at: string;
+  etag: string;
+}
+
+interface ConfirmBody extends Partial<CloudinaryResponse> {
+  uploadType?: UploadType;
+  ownerId?: string;
+  imageAlt?: string;
+}
+
+// ─── Default alt text per upload type ────────────────────────────────────────
+const DEFAULT_ALT: Record<string, string> = {
+  avatar: "Profile picture",
+  "event-logo": "Event logo",
+  "event-banner": "Event banner",
+  "event-gallery": "Event photo",
+  "inst-logo": "Institution logo",
+  "inst-banner": "Institution banner",
+  "landing-banner": "Landing banner",
+  "landing-initiative": "Initiative photo",
+  "landing-logo": "Organisation logo",
+  "landing-person": "Person photo",
+};
+
+export const POST = withAuth(async (req: AuthenticatedRequest) => {
+  try {
+    const body = (await req.json()) as ConfirmBody;
+    const {
+      uploadType,
+      ownerId,
+      imageAlt,
+      asset_id,
+      public_id,
+      secure_url,
+      signature,
+      timestamp,
+      format,
+      bytes,
+      width,
+      height,
+      created_at,
+      etag,
+    } = body;
+
+    // ── Validate uploadType ───────────────────────────────────────────────────
+    if (!isValidUploadType(uploadType)) {
+      return NextResponse.json(
+        { error: "Invalid or missing uploadType" },
+        { status: 400 },
+      );
+    }
+
+    // ── Validate required Cloudinary fields ───────────────────────────────────
+    if (
+      !asset_id ||
+      !public_id ||
+      !secure_url ||
+      !signature ||
+      !timestamp ||
+      !format ||
+      !bytes ||
+      !width ||
+      !height ||
+      !created_at ||
+      !etag
+    ) {
+      return NextResponse.json(
+        { error: "Missing required Cloudinary response fields" },
+        { status: 400 },
+      );
+    }
+
+    // Basic URL sanity check
+    try {
+      new URL(secure_url);
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid secure_url" },
+        { status: 400 },
+      );
+    }
+
+    const db = await getDb();
+    const vault = await Collections.vault(db).findOne({
+      _id: new ObjectId(req.auth.vaultId),
+    });
+
+    if (!vault) {
+      return NextResponse.json({ error: "Account not found" }, { status: 404 });
+    }
+
+    // ── Role guard ────────────────────────────────────────────────────────
+    const allowed = allowedRolesForType(uploadType);
+    if (!allowed.includes(vault.role as string)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // ── Assemble CloudinaryImage ──────────────────────────────────────────────
+    // Done server-side so the DB always receives a fully validated, typed object.
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "";
+
+    const cloudinaryImage: CloudinaryImage = {
+      imageId: asset_id,
+      imagePublicId: public_id,
+      imageCloudName: cloudName,
+      imageUrl: secure_url,
+      imageAlt: imageAlt?.trim() || DEFAULT_ALT[uploadType],
+      tag: uploadType,
+      metadata: {
+        signature,
+        timestamp,
+        format,
+        bytes,
+        width,
+        height,
+        createdAt: created_at,
+        etag,
+      },
+    };
+
+    // ── Persist to correct DB field ───────────────────────────────────────────
+
+    // ── avatar ──────────────────────────────────────────────────────────
+    if (uploadType === "avatar") {
+      const userData = await Collections.userData(db).findOne({
+        vaultId: new ObjectId(req.auth.vaultId),
+      });
+
+      // Delete old Cloudinary asset before replacing — no orphaned files
+      if (userData?.avatar?.imagePublicId) {
+        await deleteCloudinaryAsset(userData.avatar.imagePublicId).catch(() =>
+          console.warn(
+            "[media/confirm] Failed to delete old avatar:",
+            userData.avatar!.imagePublicId,
+          ),
+        );
+      }
+
+      await Collections.userData(db).updateOne(
+        { vaultId: new ObjectId(req.auth.vaultId) },
+        {
+          $set: {
+            hasAvatar: true,
+            avatar: cloudinaryImage,
+            updatedAt: new Date(),
+          },
+        },
+      );
+
+      return NextResponse.json({ image: cloudinaryImage });
+    }
+
+    // ── event-logo ────────────────────────────────────────────────────────
+    if (uploadType === "event-logo") {
+      if (!ownerId) {
+        return NextResponse.json(
+          { error: "ownerId required for event-logo" },
+          { status: 400 },
+        );
+      }
+
+      const query = ObjectId.isValid(ownerId)
+        ? { _id: new ObjectId(ownerId) }
+        : { slug: ownerId };
+
+      const event = await Collections.events(db).findOne(query);
+      if (!event) {
+        return NextResponse.json({ error: "Event not found" }, { status: 404 });
+      }
+
+      if (event.eventLogo?.imagePublicId) {
+        await deleteCloudinaryAsset(event.eventLogo.imagePublicId).catch(() =>
+          console.warn(
+            "[media/confirm] Failed to delete old event logo:",
+            event.eventLogo!.imagePublicId,
+          ),
+        );
+      }
+
+      await Collections.events(db).updateOne(query, {
+        $set: {
+          hasEventLogo: true,
+          eventLogo: cloudinaryImage,
+          updatedAt: new Date(),
+        },
+      });
+
+      return NextResponse.json({ image: cloudinaryImage });
+    }
+
+    // ── event-banner ────────────────────────────────────────────────────────
+    if (uploadType === "event-banner") {
+      if (!ownerId) {
+        return NextResponse.json(
+          { error: "ownerId required for event-banner" },
+          { status: 400 },
+        );
+      }
+
+      const query = ObjectId.isValid(ownerId)
+        ? { _id: new ObjectId(ownerId) }
+        : { slug: ownerId };
+
+      const event = await Collections.events(db).findOne(query);
+      if (!event) {
+        return NextResponse.json({ error: "Event not found" }, { status: 404 });
+      }
+
+      if (event.eventBanner?.imagePublicId) {
+        await deleteCloudinaryAsset(event.eventBanner.imagePublicId).catch(() =>
+          console.warn(
+            "[media/confirm] Failed to delete old event banner:",
+            event.eventBanner!.imagePublicId,
+          ),
+        );
+      }
+
+      await Collections.events(db).updateOne(query, {
+        $set: {
+          hasEventBanner: true,
+          eventBanner: cloudinaryImage,
+          updatedAt: new Date(),
+        },
+      });
+
+      return NextResponse.json({ image: cloudinaryImage });
+    }
+
+    // ── event-gallery ───────────────────────────────────────────────────────
+    // Gallery is append-only via confirm — individual items removed via /remove.
+    if (uploadType === "event-gallery") {
+      if (!ownerId) {
+        return NextResponse.json(
+          { error: "ownerId required for event-gallery" },
+          { status: 400 },
+        );
+      }
+
+      const query = ObjectId.isValid(ownerId)
+        ? { _id: new ObjectId(ownerId) }
+        : { slug: ownerId };
+
+      const event = await Collections.events(db).findOne(query);
+      if (!event) {
+        return NextResponse.json({ error: "Event not found" }, { status: 404 });
+      }
+
+      await Collections.events(db).updateOne(query, {
+        $set: { hasEventGallery: true, updatedAt: new Date() },
+        $push: { eventGallery: cloudinaryImage },
+      });
+
+      return NextResponse.json({ image: cloudinaryImage });
+    }
+
+    // [... inst-logo, inst-banner, landing-*, gallery-* handlers omitted for brevity ...]
+    // Full file available at: src/app/api/media/confirm/route.ts
+
+    return NextResponse.json(
+      { error: "Unhandled uploadType" },
+      { status: 400 },
+    );
+  } catch (err) {
+    console.error("[POST /api/media/confirm]", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+});
+
+
+================================================================================
+SECTION 5: ADMIN DASHBOARD PAGE
+================================================================================
+
+FILE: src/app/admin/events/page.tsx
+────────────────────────────────────────────────────────────────────────────────
+
+"use client";
+import React, { useEffect, useState, useTransition } from "react";
+import { useAdmin } from "@/context/AdminContext";
+import { useAuth } from "@/context/AuthContext";
+import { useEvents } from "@/context/EventContext";
+import { useSearchParams } from "next/navigation";
+import { AdminEventsHeader } from "@/components/sections/admin/events/AEHeader";
+import { AdminEventsToolbar } from "@/components/sections/admin/events/AEToolbar";
+import { AdminEventsTable } from "@/components/sections/admin/events/AETable";
+import { AdminEventsPagination } from "@/components/sections/admin/events/AEPagination";
+import { AdminEventsEmptyState } from "@/components/sections/admin/events/AEEmptyState";
+import { AdminEventModal } from "@/components/sections/admin/events/modals/AEEditModal";
+import { LuLoader } from "react-icons/lu";
+import type { AdminEvent } from "@/context/AdminContext";
+import { cn } from "../../../lib/utils";
+
+const PAGE_SIZE = 10;
+
+// ── Timezone helper (mirrored from AEEditModal) ───────────────────────────────
+function isoToLocalDatetime(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(new Date(iso).getTime() + 60 * 60 * 1000);
+  return d.toISOString().slice(0, 16);
+}
+
+export default function EventsManagementPage() {
+  const { token } = useAuth();
+  const { refreshFeed } = useEvents();
+  const searchParams = useSearchParams();
+  const {
+    adminEvents,
+    adminEventsPagination,
+    loadingAdminEvents,
+    loadAdminEvents,
+  } = useAdmin();
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [editingEvent, setEditingEvent] = useState<AdminEvent | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!token) return;
+    loadAdminEvents(
+      {
+        page: currentPage,
+        search: search || undefined,
+        status: status || undefined,
+      },
+      token,
+    );
+  }, [token, currentPage, search, status, loadAdminEvents]);
+
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (!editId || adminEvents.length === 0) return;
+    const found = adminEvents.find((e) => e.id === editId);
+    if (!found) return;
+    startTransition(() => {
+      setEditingEvent(found);
+      setEditModalOpen(true);
+    });
+  }, [searchParams, adminEvents]);
+
+  const handleMutation = () => {
+    if (!token) return;
+    loadAdminEvents({ page: currentPage }, token);
+    refreshFeed();
+  };
+
+  const handleEditModalClose = () => {
+    setEditModalOpen(false);
+    setEditingEvent(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("edit");
+    window.history.replaceState({}, "", url.toString());
+  };
+
+  // ── Map AdminEvent → EventFormData ─────────────────────────────────────────
+  function buildInitialData(event: AdminEvent) {
+    const eventDateWat = event.eventDate
+      ? isoToLocalDatetime(event.eventDate)
+      : "";
+    const [datePart, timePart] = eventDateWat.split("T");
+
+    const rawStatus =
+      (event as unknown as { status?: string }).status ?? "published";
+
+    // Visibility mapping:
+    //   "published"  → "Public"       (live)
+    //   "cancelled"  → "Public"       (default so saving republishes it;
+    //                                  admin can switch to Invite-Only on Step 5)
+    //   "draft"      → "Invite-Only"  (was intentionally hidden)
+    const visibility: "Public" | "Invite-Only" =
+      rawStatus === "draft" ? "Invite-Only" : "Public";
+
+    return {
+      title: event.title ?? "",
+      category: event.category ?? "Technology",
+      description: (event as unknown as { overview?: string }).overview ?? "",
+      date: datePart ?? "",
+      startTime: timePart ?? "",
+      type:
+        event.format === "virtual"
+          ? ("Virtual" as const)
+          : event.format === "hybrid"
+            ? ("Hybrid" as const)
+            : ("Physical" as const),
+      venueName:
+        (event as unknown as { location?: { venue?: string } }).location
+          ?.venue ?? "",
+      maxCapacity: event.capacity ?? 100,
+      ticketPrice:
+        (event as unknown as { ticketPrice?: number }).ticketPrice ?? 0,
+      registrationDeadline: event.registrationDeadline
+        ? isoToLocalDatetime(event.registrationDeadline)
+        : "",
+      visibility,
+      // Passed through to AEEditModal so PublishStep can show a
+      // "republishing a cancelled event" callout on Step 5.
+      _originalStatus: rawStatus,
+    };
+  }
+
+  if (loadingAdminEvents && adminEvents.length === 0) {
+    return (
+      <div className={cn('flex', 'items-center', 'justify-center', 'min-h-[60vh]', 'w-full', 'md:mt-20', 'mt-10')}>
+        <LuLoader className={cn('w-8', 'h-8', 'text-primary', 'animate-spin')} />
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('space-y-6', 'w-full', 'md:mt-20', 'mt-10', 'p-6')}>
+      <AdminEventsHeader onMutation={handleMutation} />
+
+      {adminEvents.length === 0 && !loadingAdminEvents ? (
+        <AdminEventsEmptyState
+          onCreateClick={() =>
+            window.dispatchEvent(new CustomEvent("open-create-event"))
+          }
+        />
+      ) : (
+        <div className={cn('animate-in', 'fade-in', 'slide-in-from-bottom-4', 'duration-700')}>
+          <AdminEventsToolbar
+            onSearchChange={setSearch}
+            onStatusChange={setStatus}
+          />
+          <AdminEventsTable
+            events={adminEvents}
+            onMutation={handleMutation}
+            onEditRequest={(event) => {
+              setEditingEvent(event);
+              setEditModalOpen(true);
+            }}
+          />
+          {adminEventsPagination && adminEventsPagination.totalPages > 1 && (
+            <AdminEventsPagination
+              currentPage={currentPage}
+              totalPages={adminEventsPagination.totalPages}
+              totalResults={adminEventsPagination.total}
+              pageSize={PAGE_SIZE}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </div>
+      )}
+
+      <AdminEventModal
+        isOpen={editModalOpen}
+        onClose={handleEditModalClose}
+        onSuccess={() => {
+          handleEditModalClose();
+          handleMutation();
+        }}
+        eventId={editingEvent?.id}
+        initialData={editingEvent ? buildInitialData(editingEvent) : undefined}
+      />
+    </div>
+  );
+}
+
+
+================================================================================
+SECTION 6: PUBLIC EVENT UI COMPONENTS
+================================================================================
+
+FILE: src/components/sections/events/event/eSchedule.tsx
+────────────────────────────────────────────────────────────────────────────────
+
+"use client";
+import React from "react";
+import { motion } from "framer-motion";
+import {
+  LuCalendarClock,
+  LuLock,
+  LuCoffee,
+  LuUsers,
+  LuMic,
+  LuWrench,
+  LuNetwork,
+} from "react-icons/lu";
+import { cn } from "@/lib/utils";
+import type { EventDetail } from "@/app/events/[slug]/page";
+
+const TYPE_ICON: Record<string, React.ReactNode> = {
+  session: <LuCalendarClock className={cn("w-4", "h-4")} />,
+  break: <LuCoffee className={cn("w-4", "h-4")} />,
+  workshop: <LuWrench className={cn("w-4", "h-4")} />,
+  keynote: <LuMic className={cn("w-4", "h-4")} />,
+  networking: <LuNetwork className={cn("w-4", "h-4")} />,
+};
+
+const TYPE_COLOR: Record<string, string> = {
+  session: "bg-primary/10 text-primary",
+  break: "bg-amber-100 text-amber-700",
+  workshop: "bg-emerald-100 text-emerald-700",
+  keynote: "bg-violet-100 text-violet-700",
+  networking: "bg-sky-100 text-sky-700",
+};
+
+const PLACEHOLDER_ITEMS = [
+  "Opening Ceremony",
+  "Keynote Address",
+  "Workshop Sessions",
+  "Networking Break",
+  "Closing Remarks",
+];
+
+export const EventSchedule = ({ event }: { event: EventDetail }) => {
+  const hasSchedule = event.schedule.length > 0;
+
+  if (!hasSchedule) {
+    return (
+      <section className={cn("w-full", "bg-muted", "py-16")}>
+        <div
+          className={cn("max-w-7xl", "mx-auto", "px-4", "sm:px-6", "lg:px-8")}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className={cn(
+              "flex",
+              "flex-col",
+              "sm:flex-row",
+              "sm:items-center",
+              "justify-between",
+              "gap-6",
+              "mb-10",
+            )}
+          >
+            <div className={cn("flex", "items-center", "gap-3")}>
+              <div className={cn("p-2", "bg-primary/10", "rounded-xl")}>
+                <LuCalendarClock className={cn("w-5", "h-5", "text-primary")} />
+              </div>
+              <h2
+                className={cn(
+                  "text-2xl",
+                  "font-black",
+                  "text-foreground",
+                  "tracking-tight",
+                )}
+              >
+                Event Schedule
+              </h2>
+            </div>
+            <span
+              className={cn(
+                "text-[10px]",
+                "font-black",
+                "uppercase",
+                "tracking-widest",
+                "text-muted-foreground",
+              )}
+            >
+              {event.eventDate}
+            </span>
+          </motion.div>
+          <div
+            className={cn(
+              "relative",
+              "pl-8",
+              "border-l-2",
+              "border-dashed",
+              "border-border",
+              "space-y-6",
+            )}
+          >
+            {PLACEHOLDER_ITEMS.map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -10 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.07 }}
+                className={cn(
+                  "relative",
+                  "flex",
+                  "items-center",
+                  "gap-4",
+                  "p-5",
+                  "bg-background",
+                  "border",
+                  "border-border",
+                  "rounded-2xl",
+                  "opacity-50",
+                )}
+              >
+                <div
+                  className={cn(
+                    "absolute",
+                    "-left-[1.65rem]",
+                    "w-5",
+                    "h-5",
+                    "rounded-full",
+                    "bg-slate-200",
+                    "border-4",
+                    "border-slate-50",
+                  )}
+                />
+                <LuLock
+                  className={cn("w-4", "h-4", "text-slate-300", "shrink-0")}
+                />
+                <div>
+                  <p
+                    className={cn(
+                      "text-sm",
+                      "font-bold",
+                      "text-muted-foreground",
+                    )}
+                  >
+                    {item}
+                  </p>
+                  <p
+                    className={cn(
+                      "text-[10px]",
+                      "font-black",
+                      "uppercase",
+                      "tracking-widest",
+                      "text-slate-300",
+                      "mt-0.5",
+                    )}
+                  >
+                    Schedule TBA
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+          <p
+            className={cn(
+              "mt-8",
+              "text-center",
+              "text-xs",
+              "text-muted-foreground",
+              "font-bold",
+            )}
+          >
+            Full schedule will be published closer to the event date.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className={cn("w-full", "bg-muted", "py-16")}>
+      <div className={cn("max-w-7xl", "mx-auto", "px-4", "sm:px-6", "lg:px-8")}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className={cn(
+            "flex",
+            "flex-col",
+            "sm:flex-row",
+            "sm:items-center",
+            "justify-between",
+            "gap-6",
+            "mb-10",
+          )}
+        >
+          <div className={cn("flex", "items-center", "gap-3")}>
+            <div className={cn("p-2", "bg-primary/10", "rounded-xl")}>
+              <LuCalendarClock className={cn("w-5", "h-5", "text-primary")} />
+            </div>
+            <h2
+              className={cn(
+                "text-2xl",
+                "font-black",
+                "text-foreground",
+                "tracking-tight",
+              )}
+            >
+              Event Schedule
+            </h2>
+          </div>
+          <span
+            className={cn(
+              "text-[10px]",
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              "text-muted-foreground",
+            )}
+          >
+            {event.eventDate}
+          </span>
+        </motion.div>
+
+        <div
+          className={cn(
+            "relative",
+            "pl-8",
+            "border-l-2",
+            "border-border",
+            "space-y-6",
+          )}
+        >
+          {event.schedule.map((item, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -10 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.07 }}
+              className={cn(
+                "relative",
+                "flex",
+                "items-start",
+                "gap-4",
+                "p-5",
+                "bg-background",
+                "border",
+                "border-border",
+                "rounded-2xl",
+                "hover:border-primary/20",
+                "transition-colors",
+              )}
+            >
+              {/* Timeline dot */}
+              <div
+                className={cn(
+                  "absolute",
+                  "-left-[1.65rem]",
+                  "w-5",
+                  "h-5",
+                  "rounded-full",
+                  "bg-primary",
+                  "border-4",
+                  "border-muted",
+                )}
+              />
+
+              {/* Type icon */}
+              <div
+                className={cn(
+                  "p-2",
+                  "rounded-xl",
+                  "shrink-0",
+                  TYPE_COLOR[item.type] ?? "bg-muted text-muted-foreground",
+                )}
+              >
+                {TYPE_ICON[item.type] ?? (
+                  <LuCalendarClock className={cn("w-4", "h-4")} />
+                )}
+              </div>
+
+              <div className={cn("flex-1", "min-w-0")}>
+                <div className={cn("flex", "items-center", "gap-3", "mb-1")}>
+                  <span
+                    className={cn(
+                      "text-[10px]",
+                      "font-black",
+                      "uppercase",
+                      "tracking-widest",
+                      "text-primary",
+                    )}
+                  >
+                    {item.time}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[9px]",
+                      "font-black",
+                      "uppercase",
+                      "tracking-widest",
+                      "px-2",
+                      "py-0.5",
+                      "rounded-full",
+                      TYPE_COLOR[item.type] ?? "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {item.type}
+                  </span>
+                </div>
+                <p className={cn("text-sm", "font-black", "text-foreground")}>
+                  {item.title}
+                </p>
+                {item.speaker && (
+                  <p
+                    className={cn(
+                      "text-[10px]",
+                      "font-bold",
+                      "text-muted-foreground",
+                      "mt-0.5",
+                    )}
+                  >
+                    Speaker: {item.speaker}
+                  </p>
+                )}
+                {item.description && (
+                  <p
+                    className={cn(
+                      "text-xs",
+                      "text-muted-foreground",
+                      "mt-1",
+                      "leading-relaxed",
+                    )}
+                  >
+                    {item.description}
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+
+FILE: src/components/sections/events/event/eSpeaker.tsx
+────────────────────────────────────────────────────────────────────────────────
+
+"use client";
+import React from "react";
+import { motion } from "framer-motion";
+import { LuMic, LuLock, LuExternalLink } from "react-icons/lu";
+import { cn } from "@/lib/utils";
+import Image from "next/image";
+import type { EventDetail } from "@/app/events/[slug]/page";
+
+export const SpeakersSection = ({ event }: { event: EventDetail }) => {
+  const hasSpeakers = event.speakers.length > 0;
+
+  if (!hasSpeakers) {
+    return (
+      <section className={cn("w-full", "py-16")}>
+        <div
+          className={cn("max-w-7xl", "mx-auto", "px-4", "sm:px-6", "lg:px-8")}
+        >
+          <div className={cn("flex", "items-center", "gap-3", "mb-10")}>
+            <div className={cn("p-2", "bg-primary/10", "rounded-xl")}>
+              <LuMic className={cn("w-5", "h-5", "text-primary")} />
+            </div>
+            <h2
+              className={cn(
+                "text-2xl",
+                "font-black",
+                "text-foreground",
+                "tracking-tight",
+              )}
+            >
+              Speakers & Facilitators
+            </h2>
+          </div>
+          <div
+            className={cn(
+              "grid",
+              "grid-cols-2",
+              "sm:grid-cols-3",
+              "lg:grid-cols-4",
+              "gap-4",
+            )}
+          >
+            {Array.from({ length: 4 }).map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.07 }}
+                className={cn(
+                  "flex",
+                  "flex-col",
+                  "items-center",
+                  "gap-3",
+                  "p-6",
+                  "bg-muted",
+                  "border",
+                  "border-border",
+                  "rounded-[2rem]",
+                  "opacity-50",
+                )}
+              >
+                <div
+                  className={cn(
+                    "w-16",
+                    "h-16",
+                    "rounded-full",
+                    "bg-slate-200",
+                    "flex",
+                    "items-center",
+                    "justify-center",
+                  )}
+                >
+                  <LuLock
+                    className={cn("w-5", "h-5", "text-muted-foreground")}
+                  />
+                </div>
+                <div className="text-center">
+                  <div
+                    className={cn(
+                      "h-3",
+                      "w-20",
+                      "bg-slate-200",
+                      "rounded-full",
+                      "mb-2",
+                    )}
+                  />
+                  <div
+                    className={cn(
+                      "h-2",
+                      "w-14",
+                      "bg-slate-100",
+                      "rounded-full",
+                      "mx-auto",
+                    )}
+                  />
+                </div>
+              </motion.div>
+            ))}
+          </div>
+          <p
+            className={cn(
+              "mt-6",
+              "text-center",
+              "text-xs",
+              "text-muted-foreground",
+              "font-bold",
+            )}
+          >
+            Speakers will be announced soon.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className={cn("w-full", "py-16")}>
+      <div className={cn("max-w-7xl", "mx-auto", "px-4", "sm:px-6", "lg:px-8")}>
+        <div className={cn("flex", "items-center", "gap-3", "mb-10")}>
+          <div className={cn("p-2", "bg-primary/10", "rounded-xl")}>
+            <LuMic className={cn("w-5", "h-5", "text-primary")} />
+          </div>
+          <h2
+            className={cn(
+              "text-2xl",
+              "font-black",
+              "text-foreground",
+              "tracking-tight",
+            )}
+          >
+            Speakers & Facilitators
+          </h2>
+        </div>
+
+        <div
+          className={cn(
+            "grid",
+            "grid-cols-2",
+            "sm:grid-cols-3",
+            "lg:grid-cols-4",
+            "gap-6",
+          )}
+        >
+          {event.speakers.map((speaker, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.07 }}
+              className={cn(
+                "flex",
+                "flex-col",
+                "items-center",
+                "gap-3",
+                "p-6",
+                "bg-muted",
+                "border",
+                "border-border",
+                "rounded-[2rem]",
+                "hover:border-primary/20",
+                "transition-colors",
+              )}
+            >
+              <div
+                className={cn(
+                  "w-20",
+                  "h-20",
+                  "rounded-full",
+                  "overflow-hidden",
+                  "bg-slate-200",
+                  "shrink-0",
+                )}
+              >
+                {speaker.avatarUrl ? (
+                  <Image
+                    src={speaker.avatarUrl}
+                    alt={speaker.name}
+                    width={80}
+                    height={80}
+                    className={cn("w-full", "h-full", "object-cover")}
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      "w-full",
+                      "h-full",
+                      "flex",
+                      "items-center",
+                      "justify-center",
+                    )}
+                  >
+                    <LuMic
+                      className={cn("w-8", "h-8", "text-muted-foreground")}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className={cn("text-center", "space-y-1")}>
+                <p className={cn("text-sm", "font-black", "text-foreground")}>
+                  {speaker.name}
+                </p>
+                {speaker.title && (
+                  <p
+                    className={cn(
+                      "text-[10px]",
+                      "font-bold",
+                      "text-muted-foreground",
+                    )}
+                  >
+                    {speaker.title}
+                  </p>
+                )}
+                {speaker.organisation && (
+                  <p className={cn("text-[10px]", "font-bold", "text-primary")}>
+                    {speaker.organisation}
+                  </p>
+                )}
+                {speaker.socialUrl && (
+                  <a
+                    href={speaker.socialUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(
+                      "inline-flex",
+                      "items-center",
+                      "gap-1",
+                      "text-[9px]",
+                      "font-black",
+                      "uppercase",
+                      "tracking-widest",
+                      "text-muted-foreground",
+                      "hover:text-primary",
+                      "transition-colors",
+                    )}
+                  >
+                    Profile <LuExternalLink className={cn("w-2.5", "h-2.5")} />
+                  </a>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+
+FILE: src/components/sections/events/event/eSponsors.tsx
+────────────────────────────────────────────────────────────────────────────────
+
+"use client";
+import React from "react";
+import { motion } from "framer-motion";
+import { LuBuilding2 } from "react-icons/lu";
+import { cn } from "@/lib/utils";
+import Image from "next/image";
+import type { EventDetail } from "@/app/events/[slug]/page";
+
+const TIER_ORDER = ["gold", "silver", "bronze", "partner"];
+
+export const SponsorsSection = ({ event }: { event: EventDetail }) => {
+  const hasSponsors = event.sponsors.length > 0;
+
+  if (!hasSponsors) {
+    return (
+      <section className={cn("w-full", "bg-muted", "py-14")}>
+        <div
+          className={cn(
+            "max-w-7xl",
+            "mx-auto",
+            "px-4",
+            "sm:px-6",
+            "lg:px-8",
+            "text-center",
+          )}
+        >
+          <div
+            className={cn(
+              "flex",
+              "items-center",
+              "justify-center",
+              "gap-3",
+              "mb-8",
+            )}
+          >
+            <LuBuilding2
+              className={cn("w-5", "h-5", "text-muted-foreground")}
+            />
+            <h2
+              className={cn(
+                "text-sm",
+                "font-black",
+                "uppercase",
+                "tracking-widest",
+                "text-muted-foreground",
+              )}
+            >
+              Powered By
+            </h2>
+          </div>
+          <div
+            className={cn(
+              "flex",
+              "flex-wrap",
+              "items-center",
+              "justify-center",
+              "gap-6",
+            )}
+          >
+            {Array.from({ length: 5 }).map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+                className={cn(
+                  "h-8",
+                  "w-24",
+                  "bg-slate-200",
+                  "rounded-lg",
+                  "opacity-40",
+                )}
+              />
+            ))}
+          </div>
+          <p className={cn("mt-6", "text-xs", "text-slate-300", "font-bold")}>
+            Interested in sponsoring {event.title}?{" "}
+            <span className={cn("underline", "cursor-pointer")}>
+              Get in touch
+            </span>
+            .
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  // Group by tier
+  const grouped = TIER_ORDER.reduce<Record<string, typeof event.sponsors>>(
+    (acc, tier) => {
+      const items = event.sponsors.filter(
+        (s) => (s.tier ?? "partner") === tier,
+      );
+      if (items.length > 0) acc[tier] = items;
+      return acc;
+    },
+    {},
+  );
+
+  const TIER_LABEL: Record<string, string> = {
+    gold: "Gold Sponsors",
+    silver: "Silver Sponsors",
+    bronze: "Bronze Sponsors",
+    partner: "Partners",
+  };
+
+  return (
+    <section className={cn("w-full", "bg-muted", "py-14")}>
+      <div className={cn("max-w-7xl", "mx-auto", "px-4", "sm:px-6", "lg:px-8")}>
+        <div
+          className={cn(
+            "flex",
+            "items-center",
+            "justify-center",
+            "gap-3",
+            "mb-10",
+          )}
+        >
+          <LuBuilding2 className={cn("w-5", "h-5", "text-muted-foreground")} />
+          <h2
+            className={cn(
+              "text-sm",
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              "text-muted-foreground",
+            )}
+          >
+            Powered By
+          </h2>
+        </div>
+
+        {Object.entries(grouped).map(([tier, sponsors]) => (
+          <div key={tier} className="mb-8 last:mb-0">
+            <p
+              className={cn(
+                "text-center",
+                "text-[9px]",
+                "font-black",
+                "uppercase",
+                "tracking-widest",
+                "text-muted-foreground/60",
+                "mb-4",
+              )}
+            >
+              {TIER_LABEL[tier]}
+            </p>
+            <div
+              className={cn(
+                "flex",
+                "flex-wrap",
+                "items-center",
+                "justify-center",
+                "gap-6",
+              )}
+            >
+              {sponsors.map((sponsor, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                >
+                  {sponsor.website ? (
+                    <a
+                      href={sponsor.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block hover:opacity-80 transition-opacity"
+                    >
+                      <SponsorLogo sponsor={sponsor} tier={tier} />
+                    </a>
+                  ) : (
+                    <SponsorLogo sponsor={sponsor} tier={tier} />
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <p
+          className={cn(
+            "mt-6",
+            "text-center",
+            "text-xs",
+            "text-slate-400",
+            "font-bold",
+          )}
+        >
+          Interested in sponsoring {event.title}?{" "}
+          <span className={cn("underline", "cursor-pointer")}>
+            Get in touch
+          </span>
+          .
+        </p>
+      </div>
+    </section>
+  );
+};
+
+function SponsorLogo({
+  sponsor,
+  tier,
+}: {
+  sponsor: { name: string; logoUrl?: string };
+  tier: string;
+}) {
+  const sizes: Record<string, { w: number; h: number; cls: string }> = {
+    gold: { w: 140, h: 48, cls: "h-12 w-36" },
+    silver: { w: 112, h: 40, cls: "h-10 w-28" },
+    bronze: { w: 96, h: 32, cls: "h-8  w-24" },
+    partner: { w: 96, h: 32, cls: "h-8  w-24" },
+  };
+  const { w, h, cls } = sizes[tier] ?? sizes.partner;
+
+  if (sponsor.logoUrl) {
+    return (
+      <div className={cn("relative", cls)}>
+        <Image
+          src={sponsor.logoUrl}
+          alt={sponsor.name}
+          width={w}
+          height={h}
+          className="object-contain w-full h-full"
+        />
+      </div>
+    );
+  }
+  return (
+    <div
+      className={cn(
+        "flex",
+        "items-center",
+        "justify-center",
+        cls,
+        "bg-background",
+        "rounded-xl",
+        "border",
+        "border-border",
+        "px-4",
+      )}
+    >
+      <span className={cn("text-xs", "font-black", "text-muted-foreground")}>
+        {sponsor.name}
+      </span>
+    </div>
+  );
+}
+
+
+================================================================================
+SECTION 7: KEY FILES SUMMARY & INTEGRATION GUIDE
+================================================================================
+
+ADMIN MODAL ARCHITECTURE:
+  File: src/components/sections/admin/events/modals/AEEditModal.tsx
+  - 5-step multi-step wizard (Form library)
+  - Current steps: Basics, Details, Media, TBD, Publish
+  - TO ADD: Extract AEEditModal logic, insert Step 4 for Speakers/Sponsors/Schedule
+  - Integration points:
+    * Step 1: title, category, format, venue (basics)
+    * Step 2: location scope, required skills, learning outcomes (details)
+    * Step 3: Logo, banner, gallery media (Cloudinary integration)
+    * Step 4: [NEW] Speakers, Sponsors, Schedule management
+    * Step 5: Visibility/publish status
+
+UPLOAD FLOW INTEGRATION:
+  1. Client: POST /api/media/sign with uploadType + ownerId → get signed params
+  2. Client: Upload directly to Cloudinary
+  3. Client: POST /api/media/confirm → CloudinaryService validates & persists
+  4. Server: /api/media/confirm finds event by ownerId (slug or ObjectId)
+  5. Server: Updates event.eventLogo / event.eventBanner / event.eventGallery[]
+
+COMPONENT RENDER PATHS:
+  Display: event.schedule?.length > 0
+    → EventSchedule renders timeline
+    → Falls back to placeholder if empty
+  Display: event.speakers?.length > 0
+    → SpeakersSection renders grid
+    → Falls back to placeholder if empty
+  Display: event.sponsors?.length > 0
+    → SponsorsSection renders tiered grid
+    → Falls back to placeholder if empty
+
+DATA PERSISTENCE:
+  MongoDB Field: Event.speakers = EventSpeaker[]
+  MongoDB Field: Event.sponsors = EventSponsor[]
+  MongoDB Field: Event.schedule = EventScheduleItem[]
+
+KEY INTEGRATION RULES:
+  • NEVER reference users in speakers/sponsors — inline data only
+  • All media flows through Cloudinary with publicId for cleanup
+  • Roles: admin/webmaster only for event management
+  • Always validate uploadType against ALL_UPLOAD_TYPES
+  • Confirm route handles DB persistence — context does NOT touch DB
+
+
+================================================================================
+SECTION 8: USAGE INSTRUCTIONS FOR EXTERNAL CONTRIBUTORS
+================================================================================
+
+TO ADD SPEAKERS/SPONSORS/SCHEDULE TABS TO ADMIN MODAL:
+
+1. EXTRACT AEEditModal.tsx structure
+   - Identify current steps 1-5
+   - Find form state management
+   - Locate next/prevStep navigation
+
+2. ADD STEP 4: Rich Content
+   - Create three sub-tabs (Speakers, Sponsors, Schedule)
+   - Use the data models from Events.ts:
+     * EventSpeaker: name, title, organisation, bio, avatarUrl, socialUrl
+     * EventSponsor: name, logoUrl, tier (gold/silver/bronze/partner), website
+     * EventScheduleItem: time, title, description, speaker, type
+
+3. IMPLEMENT ADD/EDIT/DELETE for each
+   - Speakers: Add speaker form, edit inline, delete from array
+   - Sponsors: Group by tier, add/edit/delete per tier
+   - Schedule: Timeline builder, drag-to-reorder, add/edit/delete items
+
+4. CONNECT TO PATCH /api/admin/events/[id]
+   - Body includes: speakers[], sponsors[], schedule[]
+   - Update event document in MongoDB
+   - Handle array merges vs overwrites
+
+5. VALIDATE AND TEST
+   - Test Cloudinary avatar uploads in speaker forms
+   - Test image uploads for sponsor logos
+   - Verify schedule items display correctly in eSchedule.tsx
+   - Verify speakers display in eSpeaker.tsx
+   - Verify sponsors display in eSponsors.tsx with tier grouping
+
+TESTING CHECKLIST:
+  ✓ Create event with speakers → Display on public event page
+  ✓ Edit speakers → Changes persist and display
+  ✓ Delete speaker → Array updates
+  ✓ Same for sponsors (with tier filtering)
+  ✓ Same for schedule (with timeline ordering)
+  ✓ Placeholder UI shows when arrays are empty
+  ✓ Media uploads (avatarUrl, logoUrl) work via Cloudinary
+
+
+================================================================================
+END OF REFERENCE GUIDE
+================================================================================
+
+Questions or integration issues? Review:
+  1. src/lib/models/Events.ts for data shapes
+  2. src/types/cloudinary.ts for media handling
+  3. src/app/api/admin/events/route.ts for CRUD patterns
+  4. src/components/sections/events/event/e*.tsx for display patterns
+
+Generated for: emmzyrayz (diuscadi)
+License: Same as parent project
