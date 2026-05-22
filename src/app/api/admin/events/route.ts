@@ -83,6 +83,9 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         eventBannerUrl: e.eventBanner?.imageUrl ?? null,
         hasEventGallery: e.hasEventGallery,
         galleryCount: e.eventGallery?.length ?? 0,
+        speakers: e.speakers ?? [],
+        sponsors: e.sponsors ?? [],
+        schedule: e.schedule ?? [],
       })),
       pagination: {
         page,

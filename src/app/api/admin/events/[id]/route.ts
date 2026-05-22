@@ -42,6 +42,7 @@ export const PATCH = withAuth(
         "title",
         "slug",
         "description",
+        "overview",
         "shortDescription",
         "category",
         "format",
@@ -56,6 +57,9 @@ export const PATCH = withAuth(
         "learningOutcomes",
         "tags",
         "status",
+        "speakers", // ← new
+        "sponsors", // ← new
+        "schedule", // ← new
       ];
       const DATE_FIELDS = ["eventDate", "endDate", "registrationDeadline"];
 

@@ -122,6 +122,9 @@ export default function EventsManagementPage() {
       // Passed through to AEEditModal so PublishStep can show a
       // "republishing a cancelled event" callout on Step 5.
       _originalStatus: rawStatus,
+      speakers: event.speakers ?? [],
+      sponsors: event.sponsors ?? [],
+      schedule: event.schedule ?? [],
     };
   }
 

@@ -11,6 +11,8 @@ import {
   ReactNode,
 } from "react";
 import { CloudinaryImage } from "@/types/cloudinary";
+import type { EventSpeaker, EventSponsor, EventScheduleItem } from "@/lib/models/Events";
+
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -63,6 +65,9 @@ export interface AdminEvent {
   requiredSkills: string[];
   createdAt: string;
   updatedAt: string;
+  speakers?: EventSpeaker[];
+  sponsors?: EventSponsor[];
+  schedule?: EventScheduleItem[];
 }
 
 export interface CreateEventPayload {
