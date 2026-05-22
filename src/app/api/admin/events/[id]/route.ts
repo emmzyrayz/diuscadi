@@ -65,6 +65,7 @@ export const PATCH = withAuth(
         "sponsors",
         "schedule",
         "faqs", // ← add
+        "whatsappGroupLink",
       ];
       const DATE_FIELDS = ["eventDate", "endDate", "registrationDeadline"];
 

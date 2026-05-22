@@ -121,6 +121,7 @@ export default function EventsManagementPage() {
       country: location.country ?? "Nigeria",
       locationScope:
         (raw.locationScope as EventFormData["locationScope"]) ?? "local",
+      whatsappGroupLink: (raw.whatsappGroupLink as string) ?? "",
       targetEduStatus:
         (event.targetEduStatus as EventFormData["targetEduStatus"]) ?? "ALL",
       requiredSkills: event.requiredSkills ?? [],

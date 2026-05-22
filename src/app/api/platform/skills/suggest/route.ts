@@ -64,7 +64,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
           category: "Other",
           source,
           suggestedBy: new ObjectId(req.auth.vaultId),
-          suggestionCount: 1,
+        //   suggestionCount: 1,
           status: "pending",
           createdAt: now,
           updatedAt: now,

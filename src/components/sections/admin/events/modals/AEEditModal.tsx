@@ -108,6 +108,7 @@ interface EventFormData {
   state: string;
   country: string;
   locationScope: "local" | "state" | "national";
+  whatsappGroupLink: string;
 
   // Step 3 — Audience
   targetEduStatus: "ALL" | "STUDENT" | "GRADUATE";
@@ -196,6 +197,7 @@ const DEFAULT_FORM: EventFormData = {
   state: "",
   country: "Nigeria",
   locationScope: "local",
+  whatsappGroupLink: "",
   targetEduStatus: "ALL",
   requiredSkills: [],
   pendingSkills: [],
@@ -237,6 +239,17 @@ function toSlug(title: string): string {
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("diuscadi_token");
+}
+
+function isValidWhatsAppLink(url: string): boolean {
+  return (
+    url.startsWith("https://chat.whatsapp.com/") ||
+    url.startsWith("https://whatsapp.com/channel/")
+  );
+}
+
+function getWhatsAppLinkType(url: string): "group" | "channel" {
+  return url.startsWith("https://whatsapp.com/channel/") ? "channel" : "group";
 }
 
 async function uploadImageForEvent(
@@ -622,12 +635,37 @@ const LogisticsStep: React.FC<StepProps> = ({ formData, setFormData }) => (
     {/* Format picker */}
     <div className="space-y-1.5">
       <FieldLabel required>Event Format</FieldLabel>
-      <div className={cn('flex', 'items-center', 'gap-2', 'p-1.5', 'bg-muted', 'rounded-2xl', 'w-fit', 'border', 'border-border')}>
-        {(["Physical","Virtual","Hybrid"] as const).map((type) => (
+      <div
+        className={cn(
+          "flex",
+          "items-center",
+          "gap-2",
+          "p-1.5",
+          "bg-muted",
+          "rounded-2xl",
+          "w-fit",
+          "border",
+          "border-border",
+        )}
+      >
+        {(["Physical", "Virtual", "Hybrid"] as const).map((type) => (
           <button
             key={type}
             onClick={() => setFormData((p) => ({ ...p, format: type }))}
-            className={cn("px-6","py-2.5","rounded-xl","text-[10px]","font-black","uppercase","tracking-widest","transition-all","cursor-pointer", formData.format === type ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+            className={cn(
+              "px-6",
+              "py-2.5",
+              "rounded-xl",
+              "text-[10px]",
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              "transition-all",
+              "cursor-pointer",
+              formData.format === type
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
             {type}
           </button>
@@ -636,34 +674,89 @@ const LogisticsStep: React.FC<StepProps> = ({ formData, setFormData }) => (
     </div>
 
     {/* Dates row */}
-    <div className={cn('grid', 'grid-cols-1', 'md:grid-cols-3', 'gap-4')}>
+    <div className={cn("grid", "grid-cols-1", "md:grid-cols-3", "gap-4")}>
       <div className="space-y-1.5">
         <FieldLabel required>Event Date & Time (WAT)</FieldLabel>
         <div className="relative">
-          <LuCalendar className={cn('absolute', 'left-4', 'top-1/2', '-translate-y-1/2', 'w-4', 'h-4', 'text-slate-400')} />
+          <LuCalendar
+            className={cn(
+              "absolute",
+              "left-4",
+              "top-1/2",
+              "-translate-y-1/2",
+              "w-4",
+              "h-4",
+              "text-slate-400",
+            )}
+          />
           <input
-            type="datetime-local" value={formData.eventDate}
-            onChange={(e) => setFormData((p) => ({ ...p, eventDate: e.target.value }))}
-            className={cn("w-full","p-4","pl-12","rounded-2xl","text-xs","font-bold","outline-none","border","bg-muted","border-border","text-foreground","focus:border-primary")}
+            type="datetime-local"
+            value={formData.eventDate}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, eventDate: e.target.value }))
+            }
+            className={cn(
+              "w-full",
+              "p-4",
+              "pl-12",
+              "rounded-2xl",
+              "text-xs",
+              "font-bold",
+              "outline-none",
+              "border",
+              "bg-muted",
+              "border-border",
+              "text-foreground",
+              "focus:border-primary",
+            )}
           />
         </div>
       </div>
       <div className="space-y-1.5">
         <FieldLabel>End Date & Time (WAT)</FieldLabel>
         <div className="relative">
-          <LuCalendar className={cn('absolute', 'left-4', 'top-1/2', '-translate-y-1/2', 'w-4', 'h-4', 'text-slate-400')} />
+          <LuCalendar
+            className={cn(
+              "absolute",
+              "left-4",
+              "top-1/2",
+              "-translate-y-1/2",
+              "w-4",
+              "h-4",
+              "text-slate-400",
+            )}
+          />
           <input
-            type="datetime-local" value={formData.endDate}
-            onChange={(e) => setFormData((p) => ({ ...p, endDate: e.target.value }))}
-            className={cn("w-full","p-4","pl-12","rounded-2xl","text-xs","font-bold","outline-none","border","bg-muted","border-border","text-foreground","focus:border-primary")}
+            type="datetime-local"
+            value={formData.endDate}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, endDate: e.target.value }))
+            }
+            className={cn(
+              "w-full",
+              "p-4",
+              "pl-12",
+              "rounded-2xl",
+              "text-xs",
+              "font-bold",
+              "outline-none",
+              "border",
+              "bg-muted",
+              "border-border",
+              "text-foreground",
+              "focus:border-primary",
+            )}
           />
         </div>
       </div>
       <InputGroup
-        label="Duration" icon={LuTimer}
+        label="Duration"
+        icon={LuTimer}
         placeholder="e.g. 2 days, 3 hours"
         value={formData.duration}
-        onChange={(e) => setFormData((p) => ({ ...p, duration: e.target.value }))}
+        onChange={(e) =>
+          setFormData((p) => ({ ...p, duration: e.target.value }))
+        }
         hint="Free text — e.g. '2 days' or '4 hours'"
       />
     </div>
@@ -672,14 +765,48 @@ const LogisticsStep: React.FC<StepProps> = ({ formData, setFormData }) => (
     <div className="space-y-1.5">
       <FieldLabel required>Registration Deadline (WAT)</FieldLabel>
       <div className="relative">
-        <LuClock className={cn('absolute', 'left-4', 'top-1/2', '-translate-y-1/2', 'w-4', 'h-4', 'text-slate-400')} />
+        <LuClock
+          className={cn(
+            "absolute",
+            "left-4",
+            "top-1/2",
+            "-translate-y-1/2",
+            "w-4",
+            "h-4",
+            "text-slate-400",
+          )}
+        />
         <input
-          type="datetime-local" value={formData.registrationDeadline}
-          onChange={(e) => setFormData((p) => ({ ...p, registrationDeadline: e.target.value }))}
-          className={cn("w-full","p-4","pl-12","rounded-2xl","text-xs","font-bold","outline-none","border","bg-muted","border-border","text-foreground","focus:border-primary")}
+          type="datetime-local"
+          value={formData.registrationDeadline}
+          onChange={(e) =>
+            setFormData((p) => ({ ...p, registrationDeadline: e.target.value }))
+          }
+          className={cn(
+            "w-full",
+            "p-4",
+            "pl-12",
+            "rounded-2xl",
+            "text-xs",
+            "font-bold",
+            "outline-none",
+            "border",
+            "bg-muted",
+            "border-border",
+            "text-foreground",
+            "focus:border-primary",
+          )}
         />
       </div>
-      <p className={cn('text-[9px]', 'text-muted-foreground', 'font-bold', 'uppercase', 'tracking-widest')}>
+      <p
+        className={cn(
+          "text-[9px]",
+          "text-muted-foreground",
+          "font-bold",
+          "uppercase",
+          "tracking-widest",
+        )}
+      >
         Registrations close automatically at this time
       </p>
     </div>
@@ -687,62 +814,188 @@ const LogisticsStep: React.FC<StepProps> = ({ formData, setFormData }) => (
     {/* Location scope */}
     <div className="space-y-1.5">
       <FieldLabel>Location Scope</FieldLabel>
-      <div className={cn('flex', 'items-center', 'gap-2', 'p-1.5', 'bg-muted', 'rounded-2xl', 'w-fit', 'border', 'border-border')}>
-        {(["local","state","national"] as const).map((scope) => (
+      <div
+        className={cn(
+          "flex",
+          "items-center",
+          "gap-2",
+          "p-1.5",
+          "bg-muted",
+          "rounded-2xl",
+          "w-fit",
+          "border",
+          "border-border",
+        )}
+      >
+        {(["local", "state", "national"] as const).map((scope) => (
           <button
             key={scope}
             onClick={() => setFormData((p) => ({ ...p, locationScope: scope }))}
-            className={cn("px-5","py-2","rounded-xl","text-[10px]","font-black","uppercase","tracking-widest","transition-all","cursor-pointer", formData.locationScope === scope ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+            className={cn(
+              "px-5",
+              "py-2",
+              "rounded-xl",
+              "text-[10px]",
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              "transition-all",
+              "cursor-pointer",
+              formData.locationScope === scope
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
             {scope}
           </button>
         ))}
       </div>
-      <p className={cn('text-[9px]', 'text-muted-foreground', 'font-bold', 'uppercase', 'tracking-widest')}>
+      <p
+        className={cn(
+          "text-[9px]",
+          "text-muted-foreground",
+          "font-bold",
+          "uppercase",
+          "tracking-widest",
+        )}
+      >
         Used to filter the event feed for relevant users
       </p>
     </div>
 
     {/* Location fields — hidden for Virtual */}
     {formData.format !== "Virtual" && (
-      <div className={cn('space-y-4', 'p-6', 'bg-muted/50', 'rounded-2xl', 'border', 'border-border')}>
-        <p className={cn('text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'text-slate-400', 'flex', 'items-center', 'gap-2')}>
-          <LuMapPin className={cn('w-3.5', 'h-3.5')} /> Venue Details
+      <div
+        className={cn(
+          "space-y-4",
+          "p-6",
+          "bg-muted/50",
+          "rounded-2xl",
+          "border",
+          "border-border",
+        )}
+      >
+        <p
+          className={cn(
+            "text-[10px]",
+            "font-black",
+            "uppercase",
+            "tracking-widest",
+            "text-slate-400",
+            "flex",
+            "items-center",
+            "gap-2",
+          )}
+        >
+          <LuMapPin className={cn("w-3.5", "h-3.5")} /> Venue Details
         </p>
-        <div className={cn('grid', 'grid-cols-1', 'md:grid-cols-2', 'gap-4')}>
+        <div className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-4")}>
           <InputGroup
-            label="Venue Name" icon={LuBuilding2}
+            label="Venue Name"
+            icon={LuBuilding2}
             placeholder="e.g. ASUU Multipurpose Hall"
             value={formData.venue}
-            onChange={(e) => setFormData((p) => ({ ...p, venue: e.target.value }))}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, venue: e.target.value }))
+            }
           />
           <InputGroup
-            label="Street Address" icon={LuMapPin}
+            label="Street Address"
+            icon={LuMapPin}
             placeholder="e.g. Nnamdi Azikiwe University"
             value={formData.address}
-            onChange={(e) => setFormData((p) => ({ ...p, address: e.target.value }))}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, address: e.target.value }))
+            }
           />
           <InputGroup
-            label="City" icon={LuGlobe}
+            label="City"
+            icon={LuGlobe}
             placeholder="e.g. Awka"
             value={formData.city}
-            onChange={(e) => setFormData((p) => ({ ...p, city: e.target.value }))}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, city: e.target.value }))
+            }
           />
           <InputGroup
             label="State"
             placeholder="e.g. Anambra"
             value={formData.state}
-            onChange={(e) => setFormData((p) => ({ ...p, state: e.target.value }))}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, state: e.target.value }))
+            }
           />
           <InputGroup
             label="Country"
             placeholder="Nigeria"
             value={formData.country}
-            onChange={(e) => setFormData((p) => ({ ...p, country: e.target.value }))}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, country: e.target.value }))
+            }
           />
         </div>
       </div>
     )}
+
+    {/* WhatsApp group link */}
+    {/* WhatsApp group / channel link */}
+    <div className="space-y-1.5">
+      <FieldLabel>WhatsApp Group or Channel Link</FieldLabel>
+      <div className="relative">
+        <svg
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500"
+        >
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+        </svg>
+        <input
+          type="url"
+          value={formData.whatsappGroupLink}
+          onChange={(e) =>
+            setFormData((p) => ({ ...p, whatsappGroupLink: e.target.value }))
+          }
+          placeholder="https://chat.whatsapp.com/... or https://whatsapp.com/channel/..."
+          className={cn(
+            "w-full",
+            "p-4",
+            "pl-12",
+            "rounded-2xl",
+            "text-xs",
+            "font-bold",
+            "outline-none",
+            "border",
+            "transition-all",
+            "bg-muted",
+            "border-border",
+            "text-foreground",
+            "focus:border-emerald-500",
+            formData.whatsappGroupLink &&
+              !isValidWhatsAppLink(formData.whatsappGroupLink)
+              ? "border-red-300 focus:border-red-400"
+              : "",
+          )}
+        />
+      </div>
+
+      {formData.whatsappGroupLink &&
+        !isValidWhatsAppLink(formData.whatsappGroupLink) && (
+          <p className="text-[9px] font-black uppercase tracking-widest text-red-500">
+            Must be a WhatsApp group (chat.whatsapp.com/...) or channel
+            (whatsapp.com/channel/...) link
+          </p>
+        )}
+      {formData.whatsappGroupLink &&
+        isValidWhatsAppLink(formData.whatsappGroupLink) && (
+          <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">
+            ✓ Valid WhatsApp {getWhatsAppLinkType(formData.whatsappGroupLink)}{" "}
+            link — sent to registrants with their ticket
+          </p>
+        )}
+      <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">
+        Optional — registrants receive this link alongside their QR code ticket
+      </p>
+    </div>
   </div>
 );
 
@@ -1936,6 +2189,12 @@ const ReviewStep: React.FC<StepProps & { isEditing?: boolean; isRepublishing?: b
         { label: "Speakers",   value: formData.speakers.length > 0 ? `${formData.speakers.length} added` : "None" },
         { label: "Schedule",   value: formData.schedule.length > 0 ? `${formData.schedule.length} items` : "None" },
         { label: "Sponsors",   value: formData.sponsors.length > 0 ? `${formData.sponsors.length} added` : "None" },
+        {
+  label: "WhatsApp",
+  value: formData.whatsappGroupLink
+    ? "Group link set"
+    : "No group link",
+},
         { label: "FAQs",       value: formData.faqs.length > 0 ? `${formData.faqs.length} added` : "Platform default" },
         { label: "Outcomes",   value: formData.learningOutcomes.length > 0 ? `${formData.learningOutcomes.length} listed` : "None" },
       ].map(({ label, value }) => (
@@ -2037,38 +2296,44 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
   // ── Build API payload from form state ─────────────────────────────────────
   function buildPayload() {
     return {
-      title:                formData.title.trim(),
-      slug:                 formData.slug.trim(),
-      overview:             formData.overview,
-      shortDescription:     formData.shortDescription,
-      description:          formData.description,
-      category:             formData.category,
-      tags:                 formData.tags,
-      level:                formData.level || undefined,
-      format:               formData.format.toLowerCase() as "physical" | "virtual" | "hybrid",
-      eventDate:            localDatetimeToIso(formData.eventDate),
-      endDate:              formData.endDate ? localDatetimeToIso(formData.endDate) : undefined,
-      duration:             formData.duration || undefined,
+      title: formData.title.trim(),
+      slug: formData.slug.trim(),
+      overview: formData.overview,
+      shortDescription: formData.shortDescription,
+      description: formData.description,
+      category: formData.category,
+      tags: formData.tags,
+      level: formData.level || undefined,
+      format: formData.format.toLowerCase() as
+        | "physical"
+        | "virtual"
+        | "hybrid",
+      eventDate: localDatetimeToIso(formData.eventDate),
+      endDate: formData.endDate
+        ? localDatetimeToIso(formData.endDate)
+        : undefined,
+      duration: formData.duration || undefined,
       registrationDeadline: localDatetimeToIso(formData.registrationDeadline),
       location: {
-        venue:   formData.venue,
+        venue: formData.venue,
         address: formData.address,
-        city:    formData.city,
-        state:   formData.state,
+        city: formData.city,
+        state: formData.state,
         country: formData.country,
       },
-      locationScope:     formData.locationScope,
-      targetEduStatus:   formData.targetEduStatus,
-      requiredSkills:    formData.requiredSkills,
-      learningOutcomes:  formData.learningOutcomes,
-      instructor:        formData.instructor || undefined,
-      capacity:          formData.maxCapacity,
-      ticketPrice:       formData.ticketPrice,
-      speakers:          formData.speakers,
-      sponsors:          formData.sponsors,
-      schedule:          formData.schedule,
-      faqs:              formData.faqs,
-      status:            formData.visibility === "Public" ? "published" : "draft",
+      locationScope: formData.locationScope,
+      whatsappGroupLink: formData.whatsappGroupLink || undefined,
+      targetEduStatus: formData.targetEduStatus,
+      requiredSkills: formData.requiredSkills,
+      learningOutcomes: formData.learningOutcomes,
+      instructor: formData.instructor || undefined,
+      capacity: formData.maxCapacity,
+      ticketPrice: formData.ticketPrice,
+      speakers: formData.speakers,
+      sponsors: formData.sponsors,
+      schedule: formData.schedule,
+      faqs: formData.faqs,
+      status: formData.visibility === "Public" ? "published" : "draft",
     };
   }
 

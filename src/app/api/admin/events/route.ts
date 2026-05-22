@@ -218,6 +218,9 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       ...(level ? { level } : {}),
       ...(instructor ? { instructor } : {}),
       ...(duration ? { duration } : {}),
+      ...(body.whatsappGroupLink
+        ? { whatsappGroupLink: body.whatsappGroupLink }
+        : {}),
     });
 
     // Create default ticket tier so registration can always resolve ticketTypeId.

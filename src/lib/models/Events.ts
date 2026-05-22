@@ -148,6 +148,13 @@ export interface EventDocument {
   // ── Ownership ─────────────────────────────────────────────────────────────
   createdBy: ObjectId; // → Vault._id of admin who created it
 
+  /**
+   * WhatsApp group invite link for registered attendees.
+   * Sent alongside the ticket confirmation email/QR code after registration.
+   * Optional — not all events will have a WhatsApp group.
+   */
+  whatsappGroupLink?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }
