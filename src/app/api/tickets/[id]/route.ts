@@ -123,6 +123,7 @@ export const GET = withAuth(
             category: event.category,
             instructor: event.instructor ?? null,
             status: event.status,
+            whatsappGroupLink: (event.whatsappGroupLink as string) ?? null,
           },
           ticketType: {
             id: (ticketType._id as ObjectId).toString(),

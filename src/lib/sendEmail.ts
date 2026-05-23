@@ -142,6 +142,7 @@ export async function sendEventRegistrationEmail(
   opts: {
     to: string;
     ticketId: string; // MongoDB _id of the eventRegistration document
+    whatsappGroupLink?: string;
   } & Omit<EventRegistrationEmailOptions, "ticketUrl">,
 ): Promise<void> {
   const ticketUrl = `${APP_URL}/tickets/${opts.ticketId}`;
@@ -153,6 +154,10 @@ export async function sendEventRegistrationEmail(
     console.log(`  Location:    ${opts.eventLocation}`);
     console.log(`  Ticket code: ${opts.ticketCode}`);
     console.log(`  Ticket URL:  ${ticketUrl}`);
+     if (opts.whatsappGroupLink) {
+       // ← add
+       console.log(`  WhatsApp:    ${opts.whatsappGroupLink}`); // ← add
+     }  
     return;
   }
 
@@ -165,6 +170,7 @@ export async function sendEventRegistrationEmail(
     ticketUrl,
     isFree: opts.isFree,
     ticketPrice: opts.ticketPrice,
+    whatsappGroupLink: opts.whatsappGroupLink,
   });
   await prodSend({ to: opts.to, subject, html, text });
 }

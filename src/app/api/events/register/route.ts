@@ -257,6 +257,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
           ticketCode: inviteCode,
           isFree,
           ticketPrice,
+          whatsappGroupLink: (event.whatsappGroupLink as string) ?? undefined,
         });
       } catch (emailErr) {
         // Log but never surface to the user — registration already succeeded

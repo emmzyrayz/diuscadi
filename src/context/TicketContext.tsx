@@ -41,6 +41,7 @@ export interface TicketEventDetail extends TicketEventSummary {
   registrationDeadline: string;
   duration: string | null;
   instructor: string | null;
+  whatsappGroupLink?: string | null;
 }
 
 export interface TicketTypeSummary {

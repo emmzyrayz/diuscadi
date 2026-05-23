@@ -116,6 +116,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
           image: resolveEventImage(event),
           category: event.category,
           status: event.status,
+          whatsappGroupLink: (event.whatsappGroupLink as string) ?? null,
         },
         ticketType: {
           id: (ticketType._id as ObjectId).toString(),

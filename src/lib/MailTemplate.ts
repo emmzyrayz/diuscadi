@@ -313,6 +313,7 @@ export interface EventRegistrationEmailOptions {
   ticketUrl: string; // full URL to /tickets/[ticketId]
   isFree: boolean;
   ticketPrice?: string; // e.g. "₦5,000" — only used if !isFree
+  whatsappGroupLink?: string;
 }
 
 export function eventRegistrationEmail({
@@ -324,6 +325,7 @@ export function eventRegistrationEmail({
   ticketUrl,
   isFree,
   ticketPrice,
+  whatsappGroupLink,
 }: EventRegistrationEmailOptions) {
   const subject = `${APP_NAME} — You're registered for ${eventTitle}`;
   const html = wrapper(`
@@ -360,13 +362,54 @@ export function eventRegistrationEmail({
 
     ${ctaButton("View My Ticket", ticketUrl)}
 
+    ${
+      whatsappGroupLink
+        ? `
+  <div style="text-align: center; margin-top: 12px;">
+    <a
+      href="${whatsappGroupLink}"
+      target="_blank"
+      rel="noopener noreferrer"
+      style="
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: #25D366;
+        color: #ffffff;
+        text-decoration: none;
+        padding: 14px 32px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 700;
+        font-family: Arial, sans-serif;
+        letter-spacing: 0.02em;
+      "
+    >
+      <span style="font-size: 18px;">💬</span>
+      Join the Event WhatsApp Group
+    </a>
+    <p style="
+      margin: 8px 0 0;
+      font-size: 11px;
+      color: #6b7280;
+      font-family: Arial, sans-serif;
+    ">
+      Connect with other attendees before the event
+    </p>
+  </div>
+`
+        : ""
+    }
+
+${whatsappGroupLink ? `\nJoin WhatsApp Group: ${whatsappGroupLink}\n` : ""}
+
     <p style="margin:24px 0 0;font-size:11px;color:#94a3b8;text-align:center;line-height:1.6;">
       You can also find your ticket at any time in <strong>My Tickets</strong> on the platform.
       Present the QR code on your ticket at the event entrance.
     </p>
   `);
 
-  const text = `Hi ${name},\n\nYou're registered for ${eventTitle}!\n\nTicket Code: ${ticketCode}\nDate: ${eventDate}\nLocation: ${eventLocation}\n\nView your ticket: ${ticketUrl}`;
+  const text = `Hi ${name},\n\nYou're registered for ${eventTitle}!\n\nTicket Code: ${ticketCode}\nDate: ${eventDate}\nLocation: ${eventLocation}\n\nView your ticket: ${ticketUrl}${whatsappGroupLink ? `\nJoin WhatsApp: ${whatsappGroupLink}` : ""}`;
 
   return { subject, html, text };
 }

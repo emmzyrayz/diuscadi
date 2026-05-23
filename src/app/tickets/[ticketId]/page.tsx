@@ -149,6 +149,7 @@ export default function TicketDetailPage() {
             eventDate={t.event.eventDate}
             eventLocation={location}
             status={displayStatus}
+            whatsappGroupLink={t.event.whatsappGroupLink ?? null}
           />
         </section>
 
