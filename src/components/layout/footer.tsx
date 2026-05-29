@@ -14,6 +14,7 @@ import {
   LuInstagram,
   LuYoutube,
 } from "react-icons/lu";
+import { FaWhatsapp } from "react-icons/fa6";
 import logo from "@/assets/img/logo.webp";
 
 export default function Footer() {
@@ -64,8 +65,8 @@ export default function Footer() {
         >
           {/* Logo + Description */}
           <div>
-            <Link href={homeHref} className="flex items-center gap-3 w-fit">
-              <Image alt="" src={logo} className="w-7 h-7" />
+            <Link href={homeHref} className={cn('flex', 'items-center', 'gap-3', 'w-fit')}>
+              <Image alt="" src={logo} className={cn('w-7', 'h-7')} />
               <h2 className={cn("text-xl", "font-bold", "text-primary")}>
                 DIUSCADI
               </h2>
@@ -91,11 +92,12 @@ export default function Footer() {
                 },
                 { Icon: LuInstagram, href: "https://instagram.com/diuscadi" },
                 { Icon: LuYoutube, href: "https://youtube.com/@diuscadi" },
+                { Icon: FaWhatsapp, href: "https://whatsapp.com/channel/0029Vb7Irt9EgGfLvCxJ932R" },
               ].map(({ Icon, href }, i) => (
                 <Link
                   key={i}
                   href={href}
-                  className="text-muted-foreground hover:text-primary transition-colors"
+                  className={cn('text-muted-foreground', 'hover:text-primary', 'transition-colors')}
                 >
                   <Icon size={18} />
                 </Link>
@@ -111,7 +113,7 @@ export default function Footer() {
                 <Link
                   key={link.name}
                   href={link.href}
-                  className="block text-muted-foreground hover:text-primary transition-colors"
+                  className={cn('block', 'text-muted-foreground', 'hover:text-primary', 'transition-colors')}
                 >
                   {link.name}
                 </Link>
@@ -150,7 +152,7 @@ export default function Footer() {
               ].map(({ Icon, text }) => (
                 <div
                   key={text}
-                  className="flex items-center gap-3 text-muted-foreground"
+                  className={cn('flex', 'items-center', 'gap-3', 'text-muted-foreground')}
                 >
                   <Icon size={16} className="shrink-0" />
                   <span>{text}</span>
