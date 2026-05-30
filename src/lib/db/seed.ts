@@ -267,6 +267,7 @@ const SEED_COMMITTEE_ROLES: Omit<CommitteeRoleDocument, "_id">[] = [
     slug: "MEMBER",
     name: "Member",
     rank: 1,
+    displayOrder: 1,
     description:
       "Standard committee member. Participates in activities and tasks.",
     isActive: true,
@@ -278,6 +279,7 @@ const SEED_COMMITTEE_ROLES: Omit<CommitteeRoleDocument, "_id">[] = [
     slug: "COORDINATOR",
     name: "Coordinator",
     rank: 2,
+    displayOrder: 2,
     description: "Coordinates sub-teams and activities within the committee.",
     isActive: true,
     createdBy: SYSTEM_ID,
@@ -288,6 +290,7 @@ const SEED_COMMITTEE_ROLES: Omit<CommitteeRoleDocument, "_id">[] = [
     slug: "HEAD",
     name: "Head",
     rank: 3,
+    displayOrder: 3,
     description:
       "Leads the committee. Responsible for all committee operations and reporting.",
     isActive: true,
@@ -299,6 +302,7 @@ const SEED_COMMITTEE_ROLES: Omit<CommitteeRoleDocument, "_id">[] = [
     slug: "ADMIN",
     name: "Admin",
     rank: 4,
+    displayOrder: 4,
     description:
       "Administrative oversight. Can manage committee membership and roles.",
     isActive: true,
@@ -396,6 +400,7 @@ export async function seedPlatformConfig(): Promise<void> {
         $set: {
           name: doc.name,
           rank: doc.rank,
+          displayOrder: doc.displayOrder,
           description: doc.description,
           isActive: doc.isActive,
           updatedAt: now,
