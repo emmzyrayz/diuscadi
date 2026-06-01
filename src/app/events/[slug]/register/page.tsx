@@ -8,7 +8,7 @@ import { ObjectId } from "mongodb";
 import { cn } from "@/lib/utils";
 
 import { AuthRequiredCard } from "@/components/sections/events/tickets/AuthReqCard";
-import { CompleteProfilePrompt } from "@/components/sections/events/tickets/CompleteProfile";
+// import { CompleteProfilePrompt } from "@/components/sections/events/tickets/CompleteProfile";
 import { RegistrationShell } from "@/components/sections/events/tickets/RegistrationShell";
 
 // ── Types exported for child components ──────────────────────────────────────
@@ -198,8 +198,8 @@ export default async function RegisterPage({
   }
 
   const isUnauthenticated = !authUser;
-  const isIncomplete = authUser && !authUser.hasAvatar;
-  const isVerified = authUser && authUser.hasAvatar;
+  // const isIncomplete = false; // Avatar no longer required for event registration
+  const isVerified = !!authUser;
 
   // ── Breadcrumb (shared across all auth states) ────────────────────────────
   const Breadcrumb = (
@@ -246,12 +246,12 @@ export default async function RegisterPage({
         </>
       )}
 
-      {isIncomplete && (
+      {/* {isIncomplete && (
         <>
           {Breadcrumb}
           <CompleteProfilePrompt />
         </>
-      )}
+      )} */}
 
       {isVerified && authUser && (
         <RegistrationShell event={event} user={authUser} />

@@ -13,6 +13,7 @@ import { SaveChangesSection } from "@/components/sections/profile/edit/SaveChang
 import { toast, Toaster } from "react-hot-toast";
 import { cn } from "../../../lib/utils";
 import { useUser } from "@/context/UserContext";
+import { SkillsSection } from "@/components/sections/profile/edit/SkillsSection";
 
 export default function EditProfilePage() {
   const { profile, updateProfile } = useUser();
@@ -173,6 +174,10 @@ export default function EditProfilePage() {
                   setHasChanges(true);
                 }}
               />
+            </div>
+            {/* after the social section div */}
+            <div id="skills" onChange={() => setHasChanges(true)}>
+              <SkillsSection />
             </div>
             <div id="prefs" onChange={() => setHasChanges(true)}>
               <PreferencesSection />

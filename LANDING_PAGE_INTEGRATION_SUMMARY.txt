@@ -1,0 +1,58 @@
+No, it's **not** your Linkserve account password.
+
+The `SMTP_PASS` is the **email account password** — the password you use to **log into the `info@diuscadi.org.ng` email account**.
+
+---
+
+## **How to Find It**
+
+### **Option 1: You Already Created It**
+When you created the `info@diuscadi.org.ng` email account in Linkserve control panel, you set a password for it. That's the one you need.
+
+- **Where to check:** Linkserve control panel → Email Accounts → `info@diuscadi.org.ng` → Password (or reset it if you forgot)
+
+### **Option 2: You Don't Remember It**
+Go to Linkserve control panel and **reset the email account password**:
+
+1. Log in to **Linkserve control panel**
+2. Find **Email Accounts** or **Email Management**
+3. Locate `info@diuscadi.org.ng`
+4. Click **Reset Password** or **Change Password**
+5. Set a new password (use something strong)
+6. Use that new password as your `SMTP_PASS`
+
+---
+
+## **Example**
+
+```bash
+# Linkserve account password (to log into control panel)
+My Account Password: SuperSecret123
+
+# Email account password (for info@diuscadi.org.ng)
+SMTP_PASS: EmailPassword456  ← Different! Use this in .env.local
+```
+
+---
+
+## **What You Need**
+
+| Item | Where From | Example |
+|------|-----------|---------|
+| SMTP_HOST | Linkserve settings | `mail.diuscadi.org.ng` |
+| SMTP_PORT | Linkserve settings | `465` |
+| SMTP_USER | Your email address | `info@diuscadi.org.ng` |
+| **SMTP_PASS** | **Email account password** | `YourEmailPassword123` |
+| EMAIL_FROM | Your email address | `info@diuscadi.org.ng` |
+
+So:
+
+```bash
+SMTP_HOST=mail.diuscadi.org.ng
+SMTP_PORT=465
+SMTP_USER=info@diuscadi.org.ng
+SMTP_PASS=THE_PASSWORD_FOR_THE_INFO_EMAIL_ACCOUNT  ← This one
+EMAIL_FROM=info@diuscadi.org.ng
+```
+
+**If you're unsure, reset the password in Linkserve control panel and use the new password.** ✅
