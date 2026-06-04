@@ -1,23 +1,21 @@
 // src/app/api/admin/tasks/create/route.ts
-// ─── POST /api/admin/tasks/create ────────────────────────────────────────────
-// Creates a committee task.
-//
-// Who can call:
-//   "admin" | "webmaster"  →  can create for any committee
-//   "participant" with committeeMembership.role "HEAD" | "COORDINATOR"
-//                          →  can only create for their own committee
 
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
-import { PRIORITY_WEIGHTS, spawnAssignments } from "@/lib/services/taskService";
+import {
+  PRIORITY_WEIGHTS,
+  spawnAssignments,
+  resolveAssignmentTarget,
+} from "@/lib/services/taskService";
 import type {
   CreateTaskPayload,
   TaskScope,
   TaskPriority,
   TaskStatus,
+  TaskType,
 } from "@/types/tasks";
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
@@ -37,7 +35,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
-    // ── 2. Fetch caller's UserData for role-elevation check ───────────────────
+    // ── 2. Fetch caller's UserData ────────────────────────────────────────────
 
     const userData = await Collections.userData(db).findOne({
       vaultId: new ObjectId(vaultId),
@@ -108,7 +106,38 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
-    // ── 5. Validate committeeSlug exists ──────────────────────────────────────
+    // ── 5. taskType-specific validation ──────────────────────────────────────
+
+    const taskType = (body.taskType ?? "submission") as TaskType;
+
+    if (taskType === "poll") {
+      if (!body.pollConfig?.question?.trim()) {
+        return NextResponse.json(
+          { error: "pollConfig.question is required for poll tasks" },
+          { status: 400 },
+        );
+      }
+      if (
+        !body.pollConfig.options?.length ||
+        body.pollConfig.options.length < 2
+      ) {
+        return NextResponse.json(
+          { error: "pollConfig.options must have at least 2 options" },
+          { status: 400 },
+        );
+      }
+    }
+
+    if (taskType === "survey") {
+      if (!body.surveyConfig?.questions?.length) {
+        return NextResponse.json(
+          { error: "surveyConfig.questions is required for survey tasks" },
+          { status: 400 },
+        );
+      }
+    }
+
+    // ── 6. Validate committeeSlug exists ──────────────────────────────────────
 
     const committee = await Collections.committees(db).findOne({
       slug: body.committeeSlug,
@@ -120,27 +149,37 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
-    // ── 6. Build and insert task document ─────────────────────────────────────
+    // ── 7. Build and insert task document ─────────────────────────────────────
 
     const now = new Date();
+    const priority = (body.priority ?? "medium") as TaskPriority;
+
+    // Resolve the discriminated union → flat DB shape
+    const assignmentTarget = resolveAssignmentTarget(body.assignmentTarget);
+
     const newTask = {
       title: body.title.trim(),
       description: body.description.trim(),
       committeeSlug: body.committeeSlug.trim(),
       createdBy: new ObjectId(vaultId),
-      specificAssignees: (body.specificAssignees ?? []).map(
-        (id) => new ObjectId(id),
-      ),
+      assignmentTarget, // ← replaces specificAssignees
       scope: (body.scope ?? "individual") as TaskScope,
-      priority: (body.priority ?? "medium") as TaskPriority,
-      priorityWeight: PRIORITY_WEIGHTS[body.priority ?? "medium"], // ← add this
+      taskType, // ← new
+      pollConfig: taskType === "poll" ? body.pollConfig : undefined, // ← new
+      surveyConfig: taskType === "survey" ? body.surveyConfig : undefined, // ← new
+      priority,
+      priorityWeight: PRIORITY_WEIGHTS[priority],
       status: (body.publishImmediately ? "active" : "draft") as TaskStatus,
       deadline: deadlineDate,
-      deliverables: body.deliverables ?? [],
+      deliverables: taskType === "submission" ? (body.deliverables ?? []) : [],
       tags: (body.tags ?? []).map((t) => t.toLowerCase().trim()),
       maxScore: body.maxScore ?? 100,
-      autoEvaluate: body.autoEvaluate ?? false,
-      evaluationCriteria: body.evaluationCriteria?.trim() ?? "",
+      autoEvaluate:
+        taskType === "submission" ? (body.autoEvaluate ?? false) : false,
+      evaluationCriteria:
+        taskType === "submission"
+          ? (body.evaluationCriteria?.trim() ?? "")
+          : "",
       isVisible: true,
       createdAt: now,
       updatedAt: now,
@@ -148,7 +187,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
 
     const { insertedId } = await Collections.tasks(db).insertOne(newTask);
 
-    // ── 7. Spawn assignments if publishing immediately ─────────────────────────
+    // ── 8. Spawn assignments if publishing immediately ────────────────────────
 
     let spawnResult = { spawned: 0, skipped: 0 };
     if (body.publishImmediately) {
@@ -156,11 +195,9 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         spawnResult = await spawnAssignments(db, {
           _id: insertedId,
           committeeSlug: newTask.committeeSlug,
-          specificAssignees: newTask.specificAssignees,
+          assignmentTarget: newTask.assignmentTarget, // ← replaces specificAssignees
         });
       } catch (spawnErr) {
-        // Task is already created+active — spawn failure is logged but non-fatal.
-        // An admin can re-trigger spawning via a separate activate endpoint.
         console.error("[tasks/create] assignment spawn error:", spawnErr);
       }
     }

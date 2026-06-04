@@ -11,6 +11,13 @@ export type TaskStatus =
   | "cancelled" // Abandoned without evaluation
   | "archived"; // Completed + moved out of the active view
 
+// src/types/tasks.ts
+export type TaskType =
+  | "submission"      // Current system — deliverables + Gemini evaluation
+  | "poll"            // Committee votes on options → majority decision
+  | "survey"          // Structured questions → collected responses
+  | "acknowledgement" // Read and confirm → binary completion
+
 export type TaskPriority = "low" | "medium" | "high" | "critical";
 
 // individual: one submission per member
@@ -35,6 +42,30 @@ export type BotTrigger =
   | "AUTO_SUBMIT" // Triggered automatically when member submits
   | "MANUAL_TRIGGER" // Admin/head manually fires bot on existing submission
   | "RE_EVALUATE"; // Re-run after criteria change
+
+// Poll config — defined by the task creator
+export interface PollConfig {
+  question: string;
+  options: { id: string; label: string }[];
+  allowMultiple: boolean;       // single choice vs multi-select
+  showResultsBeforeDeadline: boolean;
+  requiresQuorum: boolean;      // minimum % of members must vote for result to be valid
+  quorumPercent?: number;
+}
+
+// Survey config — a structured form
+export interface SurveyQuestion {
+  id: string;
+  label: string;
+  type: "short_text" | "long_text" | "single_choice" | "multi_choice" | "rating";
+  options?: string[];           // for choice types
+  required: boolean;
+}
+
+export interface SurveyConfig {
+  questions: SurveyQuestion[];
+  anonymous: boolean;           // if true, responses aren't linked to userId
+}
 
 // ─── Sub-document Shapes ──────────────────────────────────────────────────────
 
@@ -79,6 +110,12 @@ export interface RevisionHistoryEntry {
   resubmittedAt?: Date; // Populated when member re-submits
 }
 
+// Add to ITask
+export type AssignmentTarget =
+  | { mode: "broadcast" }                    // all approved members
+  | { mode: "specific"; userIds: string[] }  // named individuals
+  | { mode: "role"; roles: string[] }        // e.g. ["HEAD", "COORDINATOR"]
+
 // ─── Primary Document Interfaces ─────────────────────────────────────────────
 
 export interface ITask {
@@ -89,12 +126,15 @@ export interface ITask {
   createdBy: string; // Vault ObjectId of admin / committee HEAD who created
   // If empty array → task is broadcast to ALL approved members of the committee.
   // If populated → task is targeted to specific UserData ObjectIds only.
-  specificAssignees: string[];
+  assignmentTarget: AssignmentTarget;
   scope: TaskScope;
   priority: TaskPriority;
   priorityWeight: number;
   status: TaskStatus;
   deadline: Date;
+  taskType: TaskType;
+  pollConfig?: PollConfig; // only present when taskType === "poll"
+  surveyConfig?: SurveyConfig; // only present when taskType === "survey"
   deliverables: TaskDeliverable[];
   tags: string[];
   maxScore: number; // Ceiling for scoring (default 100)
@@ -121,6 +161,18 @@ export interface IAssignment {
   overriddenDeadline?: Date; // Per-assignment deadline set by admin
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Replaces SubmissionItem for polls
+export interface PollResponse {
+  selectedOptionIds: string[];
+  votedAt: Date;
+}
+
+// Replaces SubmissionItem for surveys  
+export interface SurveyResponse {
+  answers: { questionId: string; value: string | string[] }[];
+  submittedAt: Date;
 }
 
 export interface IBotActionLog {
@@ -153,16 +205,19 @@ export interface CreateTaskPayload {
   title: string;
   description: string;
   committeeSlug: string;
-  specificAssignees?: string[];
+  taskType?: TaskType; // ← add
+  assignmentTarget?: AssignmentTarget; // ← replaces specificAssignees
   scope?: TaskScope;
   priority?: TaskPriority;
-  deadline: string; // ISO date string from client
+  deadline: string;
+  pollConfig?: PollConfig; // ← add
+  surveyConfig?: SurveyConfig; // ← add
   deliverables?: TaskDeliverable[];
   tags?: string[];
   maxScore?: number;
   autoEvaluate?: boolean;
   evaluationCriteria?: string;
-  publishImmediately?: boolean; // If true → status = "active" on creation
+  publishImmediately?: boolean;
 }
 
 export interface SubmitAssignmentPayload {

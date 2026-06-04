@@ -1,5 +1,5 @@
-// src/app/api/member/assignments/[id]/submit/route.ts
-// ─── POST /api/member/assignments/[id]/submit ─────────────────────────────────
+// src/app/api/members/member/assignments/[id]/submit/route.ts
+// ─── POST /api/members/member/assignments/[id]/submit ─────────────────────────────────
 // Submits deliverables for an assignment the authenticated member owns.
 // If the parent task has autoEvaluate=true → Gemini bot fires immediately.
 // Bot failure is non-fatal: assignment stays "submitted", moves to "under_review".
@@ -219,7 +219,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
       evaluationPreview,
     });
   } catch (err) {
-    console.error("[POST /api/member/assignments/[id]/submit]", err);
+    console.error("[POST /api/members/assignments/[id]/submit]", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

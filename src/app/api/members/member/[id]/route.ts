@@ -1,4 +1,4 @@
-// GET /api/member/[id]
+// GET /api/members/member/[id]
 // Public endpoint. Resolves user by MongoDB _id.
 // Applies privacy filter based on viewer role from JWT cookie.
 import { NextResponse } from "next/server";
@@ -7,7 +7,11 @@ import { Collections } from "@/lib/db/collections";
 import { verifyJWT } from "@/lib/auth";
 import { ObjectId } from "mongodb";
 import { cookies } from "next/headers";
-import { DEFAULT_PREFERENCES, UserPreferences, Visibility } from "@/types/domain";
+import {
+  DEFAULT_PREFERENCES,
+  UserPreferences,
+  Visibility,
+} from "@/types/domain";
 
 // type Visibility = "public" | "members" | "private";
 type ViewerRole = "public" | "participant" | "member" | "admin";
@@ -50,12 +54,14 @@ function normalisePrivacy(prefs: UserPreferences) {
 
   // Fallback to legacy migration (using the optional keys we added to the interface)
   return {
-    profileVisibility: (privacy.profilePrivate ? "private" : "members") as Visibility,
+    profileVisibility: (privacy.profilePrivate
+      ? "private"
+      : "members") as Visibility,
     fieldPermissions: {
-      email:    (privacy.showEmail ? "members" : "private") as Visibility,
-      phone:    (privacy.showPhone ? "members" : "private") as Visibility,
+      email: (privacy.showEmail ? "members" : "private") as Visibility,
+      phone: (privacy.showPhone ? "members" : "private") as Visibility,
       location: "private" as Visibility,
-      socials:  "members" as Visibility,
+      socials: "members" as Visibility,
       academic: "private" as Visibility,
     },
   };
@@ -209,7 +215,7 @@ export async function GET(req: Request, context?: Context) {
 
     return NextResponse.json({ profile, viewerRole, isPrivate: false });
   } catch (err) {
-    console.error("[GET /api/member/[id]]", err);
+    console.error("[GET /api/members/member/[id]]", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

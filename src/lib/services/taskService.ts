@@ -2,7 +2,15 @@
 
 import { Db, ObjectId } from "mongodb";
 import { Collections } from "@/lib/db/collections";
-import type { TaskPriority, TaskScope } from "@/types/tasks";
+import type {
+  TaskPriority,
+  TaskScope,
+  TaskType,
+  AssignmentTarget,
+  PollConfig,
+  SurveyConfig,
+  TaskDeliverable,
+} from "@/types/tasks";
 import type { DbTask } from "@/lib/db/dbTypes";
 
 // ─── Weight Map ───────────────────────────────────────────────────────────────
@@ -18,22 +26,27 @@ export interface CreateTaskInput {
   title: string;
   description: string;
   committeeSlug: string;
-  createdBy: string | ObjectId; // ✅ renamed from creatorId
-  scope: TaskScope; // ✅ "individual" | "group" — from types/tasks.ts
+  createdBy: string | ObjectId;
+  scope: TaskScope;
+  taskType: TaskType;
   priority: TaskPriority;
-  deadline: Date; // ✅ renamed from dueDate
+  deadline: Date;
+
+  // ── Replaces specificAssignees ────────────────────────────────────────────
+  // Defaults to broadcast if omitted
+  assignmentTarget?: AssignmentTarget;
+
+  // ── Type-specific config ──────────────────────────────────────────────────
+  pollConfig?: PollConfig;
+  surveyConfig?: SurveyConfig;
+
+  // Only relevant when taskType === "submission"
+  deliverables?: TaskDeliverable[];
   maxScore?: number;
-  specificAssignees?: (string | ObjectId)[];
-  deliverables?: {
-    label: string;
-    description?: string;
-    type: "text" | "url" | "file_url" | "image_url";
-    required: boolean;
-    placeholder?: string;
-  }[];
-  tags?: string[];
   autoEvaluate?: boolean;
   evaluationCriteria?: string;
+
+  tags?: string[];
   status?: "draft" | "active";
 }
 
@@ -44,7 +57,7 @@ export interface SpawnResult {
 }
 
 export interface CreateTaskResult {
-  task: DbTask;
+  task: DbTask & { _id: ObjectId };
   spawnResult?: SpawnResult;
 }
 
@@ -60,31 +73,31 @@ export async function createTask(
       ? new ObjectId(input.createdBy)
       : input.createdBy;
 
-  const specificAssignees =
-    input.specificAssignees?.map((id) =>
-      typeof id === "string" ? new ObjectId(id) : id,
-    ) ?? [];
+  // Normalise AssignmentTarget to the flat DB shape
+  const assignmentTarget = resolveAssignmentTarget(input.assignmentTarget);
 
   const targetStatus = input.status ?? "draft";
 
-  // Every field is explicit — no implicit `any`, no missing required props
   const taskDoc: Omit<DbTask, "_id"> = {
     title: input.title,
     description: input.description,
     committeeSlug: input.committeeSlug,
-    createdBy, // ✅ correct field name
-    specificAssignees,
+    createdBy,
+    assignmentTarget,
     scope: input.scope,
+    taskType: input.taskType,
+    pollConfig: input.pollConfig,
+    surveyConfig: input.surveyConfig,
     priority: input.priority,
-    priorityWeight: PRIORITY_WEIGHTS[input.priority], // ✅ always derived, never drifts
+    priorityWeight: PRIORITY_WEIGHTS[input.priority],
     status: targetStatus,
-    deadline: new Date(input.deadline), // ✅ correct field name
-    deliverables: input.deliverables ?? [], // ✅ was missing
-    tags: input.tags ?? [], // ✅ was missing
-    maxScore: input.maxScore ?? 100, // ✅ was missing
-    autoEvaluate: input.autoEvaluate ?? false, // ✅ was missing
-    evaluationCriteria: input.evaluationCriteria ?? "", // ✅ was missing
-    isVisible: true, // ✅ was missing
+    deadline: new Date(input.deadline),
+    deliverables: input.deliverables ?? [],
+    tags: input.tags ?? [],
+    maxScore: input.maxScore ?? 100,
+    autoEvaluate: input.autoEvaluate ?? false,
+    evaluationCriteria: input.evaluationCriteria ?? "",
+    isVisible: true,
     createdAt: now,
     updatedAt: now,
   };
@@ -99,12 +112,36 @@ export async function createTask(
     const spawnResult = await spawnAssignments(db, {
       _id: createdTask._id,
       committeeSlug: createdTask.committeeSlug,
-      specificAssignees: createdTask.specificAssignees,
+      assignmentTarget: createdTask.assignmentTarget,
     });
     return { task: createdTask, spawnResult };
   }
 
   return { task: createdTask };
+}
+
+// ─── resolveAssignmentTarget ──────────────────────────────────────────────────
+// Converts the discriminated union from CreateTaskInput into the flat DB shape.
+// Both arrays are always present; mode determines which one is meaningful.
+export function resolveAssignmentTarget(
+  target?: AssignmentTarget,
+): DbTask["assignmentTarget"] {
+  if (!target || target.mode === "broadcast") {
+    return { mode: "broadcast", userIds: [], roles: [] };
+  }
+  if (target.mode === "specific") {
+    return {
+      mode: "specific",
+      userIds: target.userIds.map((id) => new ObjectId(id)),
+      roles: [],
+    };
+  }
+  // mode === "role"
+  return {
+    mode: "role",
+    userIds: [],
+    roles: target.roles,
+  };
 }
 
 // ─── spawnAssignments ─────────────────────────────────────────────────────────
@@ -113,17 +150,32 @@ export async function spawnAssignments(
   task: {
     _id: ObjectId;
     committeeSlug: string;
-    specificAssignees: (ObjectId | string)[];
+    assignmentTarget: DbTask["assignmentTarget"];
   },
 ): Promise<SpawnResult> {
   const now = new Date();
   let targetIds: ObjectId[];
 
-  if (task.specificAssignees.length > 0) {
-    targetIds = task.specificAssignees.map((id) =>
-      typeof id === "string" ? new ObjectId(id) : id,
-    );
+  const { assignmentTarget } = task;
+
+  if (assignmentTarget.mode === "specific") {
+    // Exact list of user IDs — already ObjectIds from resolveAssignmentTarget
+    targetIds = assignmentTarget.userIds;
+  } else if (assignmentTarget.mode === "role") {
+    // Query only members whose committee role matches
+    const members = await Collections.userData(db)
+      .find(
+        {
+          "committeeMembership.committee": task.committeeSlug,
+          "committeeMembership.role": { $in: assignmentTarget.roles },
+          membershipStatus: "approved",
+        },
+        { projection: { _id: 1 } },
+      )
+      .toArray();
+    targetIds = members.map((m) => m._id as ObjectId);
   } else {
+    // broadcast — all approved members of the committee
     const members = await Collections.userData(db)
       .find(
         {
@@ -185,6 +237,6 @@ export async function activateTask(
   return spawnAssignments(db, {
     _id: task._id as ObjectId,
     committeeSlug: task.committeeSlug,
-    specificAssignees: (task.specificAssignees as ObjectId[]) ?? [],
+    assignmentTarget: task.assignmentTarget,
   });
 }

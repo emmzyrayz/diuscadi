@@ -1,24 +1,41 @@
 // src/lib/models/Task.ts
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
-import type { ITask, TaskDeliverable } from "@/types/tasks";
+import type {
+  ITask,
+  TaskDeliverable,
+  PollConfig,
+  SurveyQuestion,
+  SurveyConfig,
+} from "@/types/tasks";
 
 // ─── Document Interface ───────────────────────────────────────────────────────
-// Omit the fields that differ at the DB layer (ObjectId vs string).
-// ITask keeps string — correct for API responses.
-// TaskDocument overrides them with Types.ObjectId — correct for Mongoose internals.
 export interface TaskDocument
-  extends Omit<ITask, "_id" | "createdBy" | "specificAssignees">,
-    Document {
+  extends Omit<ITask, "_id" | "createdBy" | "assignmentTarget">, Document {
   createdBy: Types.ObjectId;
-  specificAssignees: Types.ObjectId[];
+  // Discriminated union flattened — matches AssignmentTargetSchema exactly.
+  // The TypeScript union lives in ITask (API layer); Mongoose needs a flat shape.
+  assignmentTarget: {
+    mode: "broadcast" | "specific" | "role";
+    userIds: Types.ObjectId[];
+    roles: string[];
+  };
 }
 
-// Add this helper mapping at the top of your model file
+type TaskUpdate = {
+  priority?: TaskDocument["priority"];
+  priorityWeight?: number;
+  $set?: {
+    priority?: TaskDocument["priority"];
+    priorityWeight?: number;
+  };
+};
+
+// ─── Weight Map ───────────────────────────────────────────────────────────────
 export const PRIORITY_WEIGHTS = {
   critical: 4,
   high: 3,
   medium: 2,
-  low: 1
+  low: 1,
 } as const;
 
 // ─── Sub-schemas ──────────────────────────────────────────────────────────────
@@ -35,7 +52,73 @@ const TaskDeliverableSchema = new Schema<TaskDeliverable>(
     required: { type: Boolean, default: true },
     placeholder: { type: String, default: "" },
   },
-  { _id: false }, // embedded subdocument — no separate _id needed
+  { _id: false },
+);
+
+// AssignmentTarget — discriminated union flattened into one sub-document.
+// mode is the discriminator; userIds and roles are conditionally populated.
+const AssignmentTargetSchema = new Schema(
+  {
+    mode: {
+      type: String,
+      enum: ["broadcast", "specific", "role"],
+      required: true,
+    },
+    userIds: [{ type: Schema.Types.ObjectId, ref: "UserData" }], // mode === "specific"
+    roles: [{ type: String }], // mode === "role"
+  },
+  { _id: false },
+);
+
+// Poll sub-schemas
+const PollOptionSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    label: { type: String, required: true },
+  },
+  { _id: false },
+);
+
+const PollConfigSchema = new Schema<PollConfig>(
+  {
+    question: { type: String, required: true },
+    options: { type: [PollOptionSchema], default: [] },
+    allowMultiple: { type: Boolean, default: false },
+    showResultsBeforeDeadline: { type: Boolean, default: false },
+    requiresQuorum: { type: Boolean, default: false },
+    quorumPercent: { type: Number, default: null },
+  },
+  { _id: false },
+);
+
+// Survey sub-schemas
+const SurveyQuestionSchema = new Schema<SurveyQuestion>(
+  {
+    id: { type: String, required: true },
+    label: { type: String, required: true },
+    type: {
+      type: String,
+      enum: [
+        "short_text",
+        "long_text",
+        "single_choice",
+        "multi_choice",
+        "rating",
+      ],
+      required: true,
+    },
+    options: [{ type: String }],
+    required: { type: Boolean, default: true },
+  },
+  { _id: false },
+);
+
+const SurveyConfigSchema = new Schema<SurveyConfig>(
+  {
+    questions: { type: [SurveyQuestionSchema], default: [] },
+    anonymous: { type: Boolean, default: false },
+  },
+  { _id: false },
 );
 
 // ─── Primary Schema ────────────────────────────────────────────────────────────
@@ -53,23 +136,24 @@ const TaskSchema = new Schema<TaskDocument>(
       required: [true, "Task description is required"],
     },
 
-    // Committee scoping — matches CommitteeDocument.slug in platformConfig collection
     committeeSlug: {
       type: String,
       required: [true, "committeeSlug is required"],
       index: true,
     },
 
-    // Vault ObjectId of the admin or committee HEAD who created the task
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "Vault",
       required: true,
     },
 
-    // Empty array = broadcast to all approved members of the committee.
-    // Populated array = targeted assignment to specific UserData ObjectIds.
-    specificAssignees: [{ type: Schema.Types.ObjectId, ref: "UserData" }],
+    // ── Replaces specificAssignees ──────────────────────────────────────────
+    assignmentTarget: {
+      type: AssignmentTargetSchema,
+      required: true,
+      default: () => ({ mode: "broadcast" }),
+    },
 
     scope: {
       type: String,
@@ -77,16 +161,34 @@ const TaskSchema = new Schema<TaskDocument>(
       default: "individual",
     },
 
-    priority: { 
-    type: String, 
-    enum: ["low", "medium", "high", "critical"], 
-    required: true 
-  },
-  priorityWeight: { 
-    type: Number, 
-    required: true, 
-    default: 2 // Defaults to medium weight
-  },
+    // ── Task type discriminator ─────────────────────────────────────────────
+    taskType: {
+      type: String,
+      enum: ["submission", "poll", "survey", "acknowledgement"],
+      required: true,
+      default: "submission",
+    },
+
+    // ── Type-specific config (only one will be populated per task) ──────────
+    pollConfig: {
+      type: PollConfigSchema,
+      default: undefined, // absent unless taskType === "poll"
+    },
+    surveyConfig: {
+      type: SurveyConfigSchema,
+      default: undefined, // absent unless taskType === "survey"
+    },
+
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high", "critical"],
+      required: true,
+    },
+    priorityWeight: {
+      type: Number,
+      required: true,
+      default: 2,
+    },
 
     status: {
       type: String,
@@ -99,6 +201,7 @@ const TaskSchema = new Schema<TaskDocument>(
       required: [true, "Deadline is required"],
     },
 
+    // Only populated when taskType === "submission"
     deliverables: {
       type: [TaskDeliverableSchema],
       default: [],
@@ -106,20 +209,16 @@ const TaskSchema = new Schema<TaskDocument>(
 
     tags: [{ type: String, trim: true, lowercase: true }],
 
+    // Only meaningful when taskType === "submission"
     maxScore: {
       type: Number,
       default: 100,
       min: [1, "maxScore must be at least 1"],
       max: [1000, "maxScore cannot exceed 1000"],
     },
-
-    // When true → the /api/member/bot/evaluate route is auto-called on submission
     autoEvaluate: { type: Boolean, default: false },
-
-    // Plain English criteria — passed verbatim to the Gemini prompt
     evaluationCriteria: { type: String, default: "" },
 
-    // Allows admins to hide a task without cancelling it
     isVisible: { type: Boolean, default: true },
   },
   {
@@ -128,20 +227,35 @@ const TaskSchema = new Schema<TaskDocument>(
   },
 );
 
+function syncPriorityWeight(this: mongoose.Query<unknown, TaskDocument>) {
+  const update = this.getUpdate() as TaskUpdate | undefined;
+  if (!update) return;
+  const priority = update.priority ?? update.$set?.priority;
+  if (priority) {
+    this.set({ priorityWeight: PRIORITY_WEIGHTS[priority] });
+  }
+}
+
+
+// ─── Pre-save hook — keep priorityWeight in sync with priority ────────────────
+TaskSchema.pre("save", function (this: TaskDocument) {
+  this.priorityWeight =
+    PRIORITY_WEIGHTS[this.priority as keyof typeof PRIORITY_WEIGHTS];
+});
+
+TaskSchema.pre("findOneAndUpdate", syncPriorityWeight);
+TaskSchema.pre("updateOne", syncPriorityWeight);
+TaskSchema.pre("updateMany", syncPriorityWeight);
+
+
 // ─── Indexes ──────────────────────────────────────────────────────────────────
-// Primary listing query: "all active tasks for committee X sorted by deadline"
 TaskSchema.index({ committeeSlug: 1, status: 1, deadline: 1 });
-
-// Admin view: "all tasks created by this user across committees"
 TaskSchema.index({ createdBy: 1, committeeSlug: 1 });
-
-// Priority + deadline for urgency-sorted views
 TaskSchema.index({ committeeSlug: 1, priority: 1, deadline: 1 });
-
-TaskSchema.index({ priorityWeight: -1, dueDate: 1 });
+TaskSchema.index({ priorityWeight: -1, deadline: 1 });
+TaskSchema.index({ committeeSlug: 1, taskType: 1, status: 1 }); // filter by type
 
 // ─── Model Export ─────────────────────────────────────────────────────────────
-// Guards against Mongoose "Cannot overwrite model" error in Next.js hot-reload
 const Task: Model<TaskDocument> =
   mongoose.models.Task || mongoose.model<TaskDocument>("Task", TaskSchema);
 

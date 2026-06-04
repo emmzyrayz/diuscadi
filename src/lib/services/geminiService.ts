@@ -9,7 +9,7 @@ import type {
   IAssignment,
 } from "@/types/tasks";
 
-const GEMINI_MODEL = "gemini-1.5-flash";
+const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
 // ─── Prompt Builder ────────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ Required response shape:
     }
   ],
   "flaggedForHumanReview": <true | false>,
-  "reviewNote": <"<brief reason if flagged>" | null>
+  "reviewNote": "string explanation here if flagged, otherwise null"
 }`;
 }
 
@@ -124,7 +124,7 @@ export async function callGeminiEvaluate(
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.2, // Low = consistent, deterministic scoring
-        maxOutputTokens: 1024,
+        maxOutputTokens: 4096,
         responseMimeType: "application/json", // Native JSON mode — Gemini 1.5+
       },
     }),

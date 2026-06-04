@@ -1,5 +1,5 @@
-// src/app/api/member/tasks/route.ts
-// ─── GET /api/member/tasks ────────────────────────────────────────────────────
+// src/app/api/members/member/tasks/route.ts
+// ─── GET /api/members/member/tasks ────────────────────────────────────────────────────
 // Returns tasks for the authenticated member's effective committee,
 // each enriched with that member's own assignment summary.
 //
@@ -160,7 +160,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    console.error("[GET /api/member/tasks]", err);
+    console.error("[GET /api/members/tasks]", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

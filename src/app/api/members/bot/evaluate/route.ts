@@ -1,5 +1,5 @@
-// src/app/api/member/bot/evaluate/route.ts
-// ─── POST /api/member/bot/evaluate ───────────────────────────────────────────
+// src/app/api/members/bot/evaluate/route.ts
+// ─── POST /api/members/bot/evaluate ───────────────────────────────────────────
 // Manually triggers Gemini evaluation on a submitted assignment.
 //
 // Permission matrix:
@@ -157,7 +157,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       assignment: finalAssignment,
     });
   } catch (err) {
-    console.error("[POST /api/member/bot/evaluate]", err);
+    console.error("[POST /api/members/member/bot/evaluate]", err);
     const msg = err instanceof Error ? err.message : "Internal server error";
     const isGeminiErr = msg.toLowerCase().includes("gemini");
     return NextResponse.json(

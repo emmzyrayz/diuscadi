@@ -1,8 +1,8 @@
 // src/lib/services/botEvaluationService.ts
 // ─── Orchestration layer: prompt → Gemini → DB writes → return ───────────────
 // Shared entry-point for both:
-//   POST /api/member/assignments/[id]/submit   (autoEvaluate trigger)
-//   POST /api/member/bot/evaluate              (manual / re-evaluate trigger)
+//   POST /api/members/assignments/[id]/submit   (autoEvaluate trigger)
+//   POST /api/members/bot/evaluate              (manual / re-evaluate trigger)
 //
 // The service is the ONLY code that writes to assignments and bot_action_logs
 // during an evaluation cycle.
@@ -10,10 +10,7 @@
 import { Db, ObjectId, WithId } from "mongodb";
 import { Collections } from "@/lib/db/collections";
 import { buildEvaluationPrompt, callGeminiEvaluate } from "./geminiService";
-import type {
-  EvaluationResult,
-  BotTrigger,
-} from "@/types/tasks";
+import type { EvaluationResult, BotTrigger } from "@/types/tasks";
 import { DbAssignment, DbTask } from "../db/dbTypes";
 
 // ─── Public Interface ──────────────────────────────────────────────────────────

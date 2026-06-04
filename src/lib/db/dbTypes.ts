@@ -8,10 +8,14 @@ import type {
   TaskPriority,
   TaskScope,
   TaskStatus,
+  TaskType,
   AssignmentStatus,
   BotTrigger,
   EvaluatorType,
   SubmissionItem,
+  TaskDeliverable,
+  PollConfig,
+  SurveyConfig,
 } from "@/types/tasks";
 
 export type DbTask = {
@@ -20,23 +24,38 @@ export type DbTask = {
   description: string;
   committeeSlug: string;
   createdBy: ObjectId;
-  specificAssignees: ObjectId[];
+
+  // ── Replaces specificAssignees ──────────────────────────────────────────────
+  // Flattened from the discriminated union in ITask — both arrays always present,
+  // mode is the discriminator for which one is meaningful.
+  assignmentTarget: {
+    mode: "broadcast" | "specific" | "role";
+    userIds: ObjectId[]; // populated when mode === "specific"
+    roles: string[]; // populated when mode === "role"
+  };
+
   scope: TaskScope;
+  taskType: TaskType; // ← new: "submission" | "poll" | "survey" | "acknowledgement"
+
+  // ── Type-specific config — only one present per task ───────────────────────
+  pollConfig?: PollConfig;
+  surveyConfig?: SurveyConfig;
+
   priority: TaskPriority;
-  priorityWeight: number; // ← was missing from collections.ts
+  priorityWeight: number;
   status: TaskStatus;
   deadline: Date;
-  deliverables: {
-    label: string;
-    description?: string;
-    type: "text" | "url" | "file_url" | "image_url";
-    required: boolean;
-    placeholder?: string;
-  }[];
+
+  // Only populated when taskType === "submission"
+  deliverables: TaskDeliverable[];
+
   tags: string[];
+
+  // Only meaningful when taskType === "submission"
   maxScore: number;
   autoEvaluate: boolean;
   evaluationCriteria: string;
+
   isVisible: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -49,7 +68,7 @@ export type DbAssignment = {
   committeeSlug: string;
   status: AssignmentStatus;
   submission?: {
-    items: SubmissionItem[]; // ← was { deliverableLabel: string; type: string; value: string }[]
+    items: SubmissionItem[];
     submittedAt: Date;
     additionalNotes?: string;
   };

@@ -139,7 +139,7 @@ export default function ProfilePage() {
 
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`/api/member/${id}`);
+        const res = await fetch(`/api/members/member/${id}`);
         const data = await res.json();
 
         if (!res.ok) {
