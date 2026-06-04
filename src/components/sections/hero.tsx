@@ -37,8 +37,8 @@ export const Hero = () => {
 
   // Primary CTA text
   const ctaText = event
-    ? `Apply Free — ${event.title}`
-    : "Apply Free — LASCADSS 7.0";
+    ? `Apply Free`
+    : "Apply Free — LASCADSS";
 
   // Floating card status chip
   const floatingStatus =
@@ -268,16 +268,16 @@ export const Hero = () => {
               "-bottom-6",
               "-left-5",
               "lg:-left-12",
-              "p-5",
+              "p-2 lg:p-5",
               "rounded-2xl",
               "transition-all",
               "duration-300",
-              "bg-background/10",
+              "bg-black/20 lg:bg-background/10",
               "backdrop-blur-xl",
               "border",
               "border-background/20",
               "shadow-2xl",
-              "hover:bg-black/40",
+              "hover:bg-black/50 lg:hover:bg-black/40",
               "group-hover:scale-105",
             )}
           >
@@ -307,7 +307,12 @@ export const Hero = () => {
                   {/* Shows "Coming Soon" or "Recently Held" based on event date */}
                   {floatingStatus}
                 </p>
-                <p className={cn("text-background", "font-bold")}>
+                <p
+                  className={cn(
+                    "text-background",
+                    "font-bold text-xs md:text-[16px]",
+                  )}
+                >
                   {floatingLabel}
                 </p>
               </div>

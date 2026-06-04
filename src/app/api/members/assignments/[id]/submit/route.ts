@@ -1,8 +1,15 @@
-// src/app/api/members/member/assignments/[id]/submit/route.ts
-// ─── POST /api/members/member/assignments/[id]/submit ─────────────────────────────────
-// Submits deliverables for an assignment the authenticated member owns.
-// If the parent task has autoEvaluate=true → Gemini bot fires immediately.
-// Bot failure is non-fatal: assignment stays "submitted", moves to "under_review".
+// src/app/api/members/assignments/[id]/submit/route.ts
+// ─── POST /api/members/assignments/[id]/submit ────────────────────────────────
+// Member submits deliverables for an assignment they own.
+//
+// Constraints:
+//   • taskType must be "submission" — poll/survey have separate flows (Phase 1b)
+//   • Member must own the assignment (userId match)
+//   • Submission only valid from: pending | in_progress | revision_requested
+//   • All required deliverables must be present
+//   • Deadline enforced (overriddenDeadline takes precedence over task.deadline)
+//   • If task.autoEvaluate === true → fires Gemini bot immediately (AUTO_SUBMIT)
+//   • Bot failure is NON-FATAL — assignment stays readable, moves to under_review
 
 import { NextResponse } from "next/server";
 import {
@@ -12,9 +19,10 @@ import {
 } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
-import { ObjectId } from "mongodb";
+import { ObjectId, WithId } from "mongodb";
 import { runBotEvaluation } from "@/lib/services/botEvaluationService";
 import type { SubmitAssignmentPayload } from "@/types/tasks";
+import type { DbAssignment, DbTask } from "@/lib/db/dbTypes";
 
 export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
   try {
@@ -35,6 +43,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
     const userData = await Collections.userData(db).findOne({
       vaultId: new ObjectId(vaultId),
     });
+
     if (!userData) {
       return NextResponse.json(
         { error: "User profile not found" },
@@ -43,18 +52,19 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
     }
     if (userData.membershipStatus !== "approved") {
       return NextResponse.json(
-        { error: "Approved membership required" },
+        { error: "Approved membership is required to submit assignments" },
         { status: 403 },
       );
     }
 
     // ── 2. Ownership check ────────────────────────────────────────────────────
-    // userId === userData._id ensures a member can only touch their own assignments
+    // userId must match userData._id — members can never touch another's assignment
 
     const assignment = await Collections.assignments(db).findOne({
       _id: new ObjectId(id),
       userId: userData._id as ObjectId,
     });
+
     if (!assignment) {
       return NextResponse.json(
         { error: "Assignment not found" },
@@ -69,11 +79,13 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
       "in_progress",
       "revision_requested",
     ]);
+
     if (!submittableStatuses.has(assignment.status)) {
       return NextResponse.json(
         {
           error: `Cannot submit from current status: "${assignment.status}"`,
           currentStatus: assignment.status,
+          allowedFrom: [...submittableStatuses],
         },
         { status: 409 },
       );
@@ -84,6 +96,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
     const task = await Collections.tasks(db).findOne({
       _id: assignment.taskId as ObjectId,
     });
+
     if (!task) {
       return NextResponse.json(
         { error: "Parent task not found" },
@@ -91,29 +104,47 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
       );
     }
 
-    // ── 5. Deadline check (overridden deadline takes precedence) ──────────────
+    // ── 5. Task type guard ────────────────────────────────────────────────────
+    // Poll and survey submissions use separate routes (Phase 1b).
+    // Acknowledgement tasks use a dedicated acknowledge endpoint.
+    // This route is exclusively for "submission" type tasks.
 
-    const effectiveDeadline = new Date(
-      assignment.overriddenDeadline ?? task.deadline,
-    );
-    if (new Date() > effectiveDeadline) {
+    if (task.taskType !== "submission") {
       return NextResponse.json(
         {
-          error: "Submission deadline has passed",
-          deadline: effectiveDeadline,
+          error: `This endpoint only handles "submission" type tasks. Task type is "${task.taskType}"`,
+          taskType: task.taskType,
         },
         { status: 422 },
       );
     }
 
-    // ── 6. Parse body ─────────────────────────────────────────────────────────
+    // ── 6. Deadline check ─────────────────────────────────────────────────────
+    // Per-assignment override takes precedence over task-level deadline
+
+    const effectiveDeadline = new Date(
+      assignment.overriddenDeadline ?? task.deadline,
+    );
+
+    if (new Date() > effectiveDeadline) {
+      return NextResponse.json(
+        {
+          error: "Submission deadline has passed",
+          deadline: effectiveDeadline,
+          isOverridden: !!assignment.overriddenDeadline,
+        },
+        { status: 422 },
+      );
+    }
+
+    // ── 7. Parse body ─────────────────────────────────────────────────────────
 
     let body: SubmitAssignmentPayload;
     try {
       body = await req.json();
     } catch {
       return NextResponse.json(
-        { error: "Invalid request body" },
+        { error: "Invalid JSON request body" },
         { status: 400 },
       );
     }
@@ -125,25 +156,32 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
       );
     }
 
-    // ── 7. Required deliverable check ─────────────────────────────────────────
+    // ── 8. Required deliverable validation ────────────────────────────────────
+    // Every deliverable marked required: true must have a matching item in body.items
 
     const requiredLabels = (task.deliverables ?? [])
       .filter((d) => d.required)
       .map((d) => d.label);
+
     const submittedLabels = new Set(body.items.map((i) => i.deliverableLabel));
+
     const missing = requiredLabels.filter((l) => !submittedLabels.has(l));
 
     if (missing.length > 0) {
       return NextResponse.json(
-        { error: "Missing required deliverables", missing },
+        {
+          error: "Missing required deliverables",
+          missing,
+        },
         { status: 422 },
       );
     }
 
-    // ── 8. Write submission ───────────────────────────────────────────────────
+    // ── 9. Write submission ───────────────────────────────────────────────────
 
     const now = new Date();
     const isResubmission = assignment.status === "revision_requested";
+
     const newSubmission = {
       items: body.items,
       submittedAt: now,
@@ -151,7 +189,8 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
     };
 
     // When resubmitting after a revision request, stamp the most recent open
-    // revision history entry with resubmittedAt using an arrayFilter.
+    // revisionHistory entry with resubmittedAt via arrayFilter.
+    // On a first submission the arrayFilter targets no documents — safe no-op.
     await Collections.assignments(db).updateOne(
       { _id: new ObjectId(id) },
       {
@@ -169,20 +208,29 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
         : {},
     );
 
-    // ── 9. Auto-evaluate ──────────────────────────────────────────────────────
+    // ── 10. Auto-evaluate ─────────────────────────────────────────────────────
+    // runBotEvaluation expects WithId<DbAssignment> and WithId<DbTask>.
+    // We reconstruct the assignment with the updated submission before passing it in.
 
     let botTriggered = false;
     let evaluationPreview = null;
 
     if (task.autoEvaluate) {
       try {
+        // Build the updated assignment shape with new submission stamped in.
+        // Casting through unknown is intentional — the DB doc and WithId shape
+        // are structurally identical; we just synthesise the updated submission
+        // rather than doing a redundant findOne round-trip before the bot call.
+        const updatedAssignment: WithId<DbAssignment> = {
+          ...(assignment as WithId<DbAssignment>),
+          status: "submitted",
+          submission: newSubmission,
+          updatedAt: now,
+        };
+
         const result = await runBotEvaluation(db, {
-          assignment: {
-            ...assignment,
-            submission: newSubmission,
-            status: "submitted",
-          },
-          task,
+          assignment: updatedAssignment,
+          task: task as WithId<DbTask>,
           trigger: "AUTO_SUBMIT",
           requestedBy: vaultId,
         });
@@ -193,27 +241,35 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
           maxScore: result.evaluation.maxScore,
           percentage: result.evaluation.percentageScore,
           flaggedForHumanReview: result.flaggedForHumanReview,
-          feedback: result.evaluation.feedback,
+          // Return full feedback only if not flagged — otherwise a human will
+          // write the final feedback and we don't want to bias the member.
+          feedback: result.flaggedForHumanReview
+            ? "Your submission is under review."
+            : result.evaluation.feedback,
         };
       } catch (botErr) {
         // Bot failure is intentionally non-fatal.
-        // runBotEvaluation already moved the assignment to "under_review" and
-        // wrote a failure BotActionLog before throwing.
+        // runBotEvaluation already wrote the failure BotActionLog and moved
+        // the assignment to "under_review" before throwing — nothing more needed here.
         console.error(
-          "[submit] autoEvaluate failed — queued for human review:",
+          "[members/assignments/submit] autoEvaluate failed — queued for human review:",
           botErr,
         );
       }
     }
 
-    // ── 10. Return final state ────────────────────────────────────────────────
+    // ── 11. Fetch and return the final assignment state ───────────────────────
+    // Re-fetch so the response always reflects the true DB state
+    // (bot may have further updated status + evaluation in step 10)
 
     const finalAssignment = await Collections.assignments(db).findOne({
       _id: new ObjectId(id),
     });
 
     return NextResponse.json({
-      message: "Assignment submitted successfully",
+      message: isResubmission
+        ? "Resubmission recorded successfully"
+        : "Assignment submitted successfully",
       assignment: finalAssignment,
       botTriggered,
       evaluationPreview,
