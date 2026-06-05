@@ -7,11 +7,16 @@ import {
   LuUserCheck,
   LuExternalLink,
   LuActivity,
+  LuListTodo,
 } from "react-icons/lu";
 import { motion } from "framer-motion";
-import { cn } from "../../../lib/utils";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { TasksList } from "@/components/sections/tasks/taskList";
 
-// Define the exact structural interface for incoming data streams
+// ─── Types ────────────────────────────────────────────────────────────────────
+// Unchanged from original — no prop signature changes for backward compatibility
+
 interface ApiCommittee {
   id: string;
   slug: string;
@@ -27,6 +32,8 @@ interface PrivateDashboardProps {
   userCommitteeRole: string;
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function PrivateCommitteeDashboard({
   userCommittee,
   userCommitteeRole,
@@ -34,21 +41,19 @@ export default function PrivateCommitteeDashboard({
   const [whatsappLink, setWhatsappLink] = useState<string | null>(null);
   const [committeeName, setCommitteeName] = useState<string>("");
 
+  // Unchanged committee metadata fetch from original
   useEffect(() => {
     async function extractProtectedWorkspace() {
       try {
         const res = await fetch(`/api/platform/committees`);
         const data = await res.json();
-
         if (data.committees && Array.isArray(data.committees)) {
-          // Explicit typing inside the find loop instead of implicit 'any'
-          const matchedDocument = (data.committees as ApiCommittee[]).find(
+          const match = (data.committees as ApiCommittee[]).find(
             (c) => c.slug === userCommittee,
           );
-
-          if (matchedDocument) {
-            setCommitteeName(matchedDocument.name);
-            setWhatsappLink(matchedDocument.whatsappLink || null);
+          if (match) {
+            setCommitteeName(match.name);
+            setWhatsappLink(match.whatsappLink || null);
           }
         }
       } catch (err) {
@@ -60,7 +65,7 @@ export default function PrivateCommitteeDashboard({
 
   return (
     <div className="space-y-6 w-full min-w-0">
-      {/* Verified Workspace Title Card */}
+      {/* ── Title Card — unchanged from original ─────────────────────────── */}
       <div
         className={cn(
           "glass",
@@ -122,6 +127,7 @@ export default function PrivateCommitteeDashboard({
               Clearance: {userCommitteeRole}
             </span>
           </div>
+
           <h1
             className={cn(
               "text-xl",
@@ -152,7 +158,6 @@ export default function PrivateCommitteeDashboard({
           </p>
         </div>
 
-        {/* SECURE HIGH-PRIORITY WHATSAPP ANCHOR ENGINE */}
         {whatsappLink && (
           <motion.a
             whileHover={{ scale: 1.015 }}
@@ -185,14 +190,14 @@ export default function PrivateCommitteeDashboard({
               "select-none",
             )}
           >
-            <LuMessageSquare className={cn("w-4", "h-4")} /> Join Team WhatsApp
-            Group
-            <LuExternalLink className={cn("w-3.5", "h-3.5")} />
+            <LuMessageSquare className="w-4 h-4" />
+            Join Team WhatsApp Group
+            <LuExternalLink className="w-3.5 h-3.5" />
           </motion.a>
         )}
       </div>
 
-      {/* DASHBOARD SYSTEM DATA ROWS */}
+      {/* ── Content Grid ─────────────────────────────────────────────────── */}
       <div
         className={cn(
           "grid",
@@ -202,7 +207,7 @@ export default function PrivateCommitteeDashboard({
           "w-full",
         )}
       >
-        {/* Left Side: Internal Announcements Board */}
+        {/* ── Left: Tabbed content (8 cols) ──────────────────────────────── */}
         <div
           className={cn(
             "col-span-12",
@@ -211,80 +216,143 @@ export default function PrivateCommitteeDashboard({
             "rounded-2xl",
             "p-5",
             "sm:p-6",
-            "space-y-4",
             "w-full",
             "min-w-0",
           )}
         >
-          <h3
-            className={cn(
-              "font-bold",
-              "uppercase",
-              "tracking-wider",
-              "text-xs",
-              "text-muted-foreground",
-              "flex",
-              "items-center",
-              "gap-2",
-              "border-b",
-              "border-border",
-              "pb-3",
-            )}
-          >
-            <LuMegaphone className={cn("w-4", "h-4", "text-primary")} /> Active
-            Workspace Broadcasts
-          </h3>
-
-          <div className="space-y-4 w-full">
-            <div
+          <Tabs defaultValue="tasks" className="w-full">
+            {/* Tab nav */}
+            <TabsList
               className={cn(
-                "border-l-2",
-                "border-primary/40",
-                "pl-4",
-                "py-0.5",
-                "w-full",
-                "min-w-0",
+                "flex",
+                "items-center",
+                "justify-start",
+                "gap-1",
+                "w-auto",
+                "bg-transparent",
+                "p-0",
+                "mb-5",
+                "pb-3",
+                "border-b",
+                "border-border",
+                "h-auto",
               )}
             >
-              <h4
+              <TabsTrigger
+                value="tasks"
                 className={cn(
-                  "text-sm",
-                  "font-bold",
-                  "text-foreground",
-                  "break-words",
-                )}
-              >
-                Structural Setup Completed
-              </h4>
-              <p
-                className={cn(
-                  "text-xs",
-                  "text-muted-foreground",
-                  "mt-1",
-                  "leading-relaxed",
-                  "break-words",
-                )}
-              >
-                Your account is linked to this operational unit. Please join the
-                central communications channel above to map out upcoming
-                milestone deadlines.
-              </p>
-              <span
-                className={cn(
-                  "text-[9px]",
+                  "text-[10px]",
                   "font-mono",
-                  "text-muted-foreground/50",
-                  "mt-2",
-                  "block",
+                  "font-bold",
+                  "uppercase",
+                  "tracking-wider",
+                  "px-3",
+                  "py-1.5",
+                  "rounded-md",
+                  "flex",
+                  "items-center",
+                  "gap-1.5",
+                  "transition-all",
+                  "duration-150",
+                  "data-[state=active]:bg-primary",
+                  "data-[state=active]:text-primary-foreground",
+                  "data-[state=active]:shadow-none",
+                  "data-[state=inactive]:bg-transparent",
+                  "data-[state=inactive]:text-muted-foreground",
+                  "data-[state=inactive]:hover:bg-foreground/5",
                 )}
               >
-                SYSTEM DISPATCH • CORE ENGINE
-              </span>
-            </div>
-          </div>
+                <LuListTodo className="w-3.5 h-3.5" />
+                Tasks
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="broadcasts"
+                className={cn(
+                  "text-[10px]",
+                  "font-mono",
+                  "font-bold",
+                  "uppercase",
+                  "tracking-wider",
+                  "px-3",
+                  "py-1.5",
+                  "rounded-md",
+                  "flex",
+                  "items-center",
+                  "gap-1.5",
+                  "transition-all",
+                  "duration-150",
+                  "data-[state=active]:bg-primary",
+                  "data-[state=active]:text-primary-foreground",
+                  "data-[state=active]:shadow-none",
+                  "data-[state=inactive]:bg-transparent",
+                  "data-[state=inactive]:text-muted-foreground",
+                  "data-[state=inactive]:hover:bg-foreground/5",
+                )}
+              >
+                <LuMegaphone className="w-3.5 h-3.5" />
+                Broadcasts
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Tasks tab */}
+            <TabsContent
+              value="tasks"
+              className="mt-0 focus-visible:outline-none focus-visible:ring-0"
+            >
+              <TasksList />
+            </TabsContent>
+
+            {/* Broadcasts tab — original announcements content preserved */}
+            <TabsContent
+              value="broadcasts"
+              className="mt-0 focus-visible:outline-none focus-visible:ring-0"
+            >
+              <div className="space-y-4 w-full">
+                <div
+                  className={cn(
+                    "border-l-2",
+                    "border-primary/40",
+                    "pl-4",
+                    "py-0.5",
+                    "w-full",
+                    "min-w-0",
+                  )}
+                >
+                  <h4 className="text-sm font-bold text-foreground break-words">
+                    Structural Setup Completed
+                  </h4>
+                  <p
+                    className={cn(
+                      "text-xs",
+                      "text-muted-foreground",
+                      "mt-1",
+                      "leading-relaxed",
+                      "break-words",
+                    )}
+                  >
+                    Your account is linked to this operational unit. Please join
+                    the central communications channel above to map out upcoming
+                    milestone deadlines.
+                  </p>
+                  <span
+                    className={cn(
+                      "text-[9px]",
+                      "font-mono",
+                      "text-muted-foreground/50",
+                      "mt-2",
+                      "block",
+                    )}
+                  >
+                    SYSTEM DISPATCH • CORE ENGINE
+                  </span>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
 
-        {/* Right Side: Deployment & Operational Status */}
+        {/* ── Right: Module status (4 cols) — unchanged from original ────── */}
         <div
           className={cn(
             "col-span-12",
@@ -318,17 +386,10 @@ export default function PrivateCommitteeDashboard({
                 "pb-3",
               )}
             >
-              <LuUserCheck className={cn("w-4", "h-4", "text-primary")} />{" "}
+              <LuUserCheck className="w-4 h-4 text-primary" />
               Module Status
             </h3>
-            <p
-              className={cn(
-                "text-xs",
-                "text-muted-foreground",
-                "leading-relaxed",
-                "break-words",
-              )}
-            >
+            <p className="text-xs text-muted-foreground leading-relaxed break-words">
               Task alignment tools, asset boards, and member rosters are
               currently routing communication dependencies entirely through the
               designated primary external channel.
@@ -349,18 +410,11 @@ export default function PrivateCommitteeDashboard({
               "w-full",
             )}
           >
-            <span className={cn("flex", "items-center", "gap-1.5")}>
-              <LuActivity
-                className={cn(
-                  "w-3.5",
-                  "h-3.5",
-                  "text-emerald-500",
-                  "animate-pulse",
-                )}
-              />
+            <span className="flex items-center gap-1.5">
+              <LuActivity className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
               Channel Sync Active
             </span>
-            <span>V2.0-GLASS</span>
+            <span>V2.1-TASK</span>
           </div>
         </div>
       </div>
