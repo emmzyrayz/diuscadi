@@ -10,7 +10,7 @@ import i1960 from "@/assets/img/logo/1960.webp";
 import codex from "@/assets/img/logo/codex.webp";
 import radopin from "@/assets/img/logo/adopin.jpg";
 import lovebite from "@/assets/img/logo/Lovebite.webp";
-import AICIC from "@/assets/img/logo/AICIC.png";
+import AICIC from "@/assets/img/logo/AICIC.jpg";
 import { cn } from "../../lib/utils";
 import type { StaticImageData } from "next/image";
 

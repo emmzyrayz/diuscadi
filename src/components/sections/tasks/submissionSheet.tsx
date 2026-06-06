@@ -32,16 +32,12 @@ import { EvaluationCard } from "./EvaluationCard";
 import type { EnrichedTask } from "@/context/TaskContext";
 import type { SubmissionItem } from "@/types/tasks";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 const TYPE_ICONS = {
   text: LuType,
   url: LuLink,
   file_url: LuFileText,
   image_url: LuImage,
 } as const;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat("en-US", {
@@ -53,8 +49,6 @@ function formatDate(dateStr: string): string {
   }).format(new Date(dateStr));
 }
 
-// ─── Props ────────────────────────────────────────────────────────────────────
-
 export type SheetMode = "submit" | "view";
 
 interface SubmissionSheetProps {
@@ -64,15 +58,20 @@ interface SubmissionSheetProps {
   mode: SheetMode;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export function SubmissionSheet({
   task,
   open,
   onOpenChange,
   mode,
 }: SubmissionSheetProps) {
-  const { submitAssignment, triggerBotEvaluate } = useTasks();
+  const {
+    submitAssignment,
+    triggerBotEvaluate,
+    selectedAssignment,
+    selectedAssignmentLoading,
+    loadAssignmentDetail,
+    clearSelectedAssignment,
+  } = useTasks();
   const { toast } = useToast();
 
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
@@ -81,20 +80,28 @@ export function SubmissionSheet({
   const [submitting, setSubmitting] = useState(false);
   const [reEvaluating, setReEvaluating] = useState(false);
 
-  // Reset form state whenever the sheet is opened
+  // ── Sheet open/close ────────────────────────────────────────────────────────
+  // Phase 3 change: trigger loadAssignmentDetail on view mode open,
+  // and clear selectedAssignment on close.
+
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (nextOpen) {
         setFieldValues({});
         setAdditionalNotes("");
         setFieldErrors({});
+        // Phase 3: fetch full evaluation breakdown when viewing
+        if (mode === "view" && task?.assignment?._id) {
+          loadAssignmentDetail(task.assignment._id);
+        }
+      } else {
+        clearSelectedAssignment();
       }
       onOpenChange(nextOpen);
     },
-    [onOpenChange],
+    [onOpenChange, mode, task, loadAssignmentDetail, clearSelectedAssignment],
   );
 
-  // Nothing to render if no task is selected
   if (!task) return null;
 
   const assignment = task.assignment;
@@ -102,10 +109,8 @@ export function SubmissionSheet({
   const deadlineStr = assignment?.effectiveDeadline ?? task.deadline;
   const isOverdue = new Date(deadlineStr) < new Date();
 
-  // ── Validation ─────────────────────────────────────────────────────────────
-
-    function validateFields(): boolean {
-      if (!task) return false;
+  function validateFields(): boolean {
+    if (!task) return false;
     const errors: Record<string, string> = {};
     for (const d of task.deliverables) {
       if (d.required && !fieldValues[d.label]?.trim()) {
@@ -115,8 +120,6 @@ export function SubmissionSheet({
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   }
-
-  // ── Submit ──────────────────────────────────────────────────────────────────
 
   async function handleSubmit() {
     if (!task || !assignment || isOverdue) return;
@@ -131,7 +134,6 @@ export function SubmissionSheet({
 
     setSubmitting(true);
 
-    // Build items — only include deliverables that have a value
     const items: SubmissionItem[] = task.deliverables
       .map((d) => ({
         deliverableLabel: d.label,
@@ -156,7 +158,6 @@ export function SubmissionSheet({
       } else {
         description = "Your work has been submitted for review.";
       }
-
       toast({
         title: isResubmission ? "Resubmitted" : "Submitted",
         description,
@@ -171,8 +172,6 @@ export function SubmissionSheet({
       });
     }
   }
-
-  // ── Re-evaluate ─────────────────────────────────────────────────────────────
 
   async function handleReEvaluate() {
     if (!assignment) return;
@@ -194,13 +193,11 @@ export function SubmissionSheet({
     } else {
       toast({
         title: "Re-evaluation Failed",
-        description: result.error ?? "AI service is temporarily unavailable.",
+        description: result.error ?? "AI service temporarily unavailable.",
         variant: "destructive",
       });
     }
   }
-
-  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
@@ -208,7 +205,7 @@ export function SubmissionSheet({
         side="right"
         className="w-full sm:max-w-lg overflow-y-auto flex flex-col gap-0 p-0"
       >
-        {/* ── Header ─────────────────────────────────────────────────────── */}
+        {/* ── Header ──────────────────────────────────────────────────────── */}
         <SheetHeader className="p-6 pb-4 space-y-3 border-b border-border">
           <div className="flex items-center gap-2 flex-wrap">
             <span
@@ -264,11 +261,9 @@ export function SubmissionSheet({
           <SheetTitle className="text-base font-black uppercase tracking-tight leading-snug">
             {task.title}
           </SheetTitle>
-
           <SheetDescription className="text-xs leading-relaxed text-muted-foreground">
             {task.description}
           </SheetDescription>
-
           <div
             className={cn(
               "flex",
@@ -285,26 +280,58 @@ export function SubmissionSheet({
           </div>
         </SheetHeader>
 
-        {/* ── Body ───────────────────────────────────────────────────────── */}
+        {/* ── Body ────────────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* VIEW MODE — evaluated */}
-          {mode === "view" &&
-            assignment?.status === "evaluated" &&
-            assignment.score && (
-              <EvaluationCard
-                evaluation={{
-                  totalScore: assignment.score.total,
-                  maxScore: assignment.score.max,
-                  percentageScore: assignment.score.percentage,
-                  flaggedForHumanReview: assignment.flaggedForHumanReview,
-                  evaluatedAt: assignment.evaluatedAt ?? undefined,
-                  // Full feedback/breakdown requires a separate fetch (Phase 3).
-                  // The task list enrichment only carries the score summary.
-                }}
-              />
-            )}
+          {/* VIEW MODE — evaluated (Phase 3: loads full breakdown) */}
+          {mode === "view" && assignment?.status === "evaluated" && (
+            <>
+              {selectedAssignmentLoading && (
+                <div className="flex items-center justify-center py-12 gap-3">
+                  <LuLoader className="w-5 h-5 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">
+                    Loading evaluation…
+                  </span>
+                </div>
+              )}
 
-          {/* VIEW MODE — submitted (awaiting evaluation) */}
+              {!selectedAssignmentLoading && selectedAssignment?.evaluation && (
+                <EvaluationCard
+                  evaluation={{
+                    totalScore: selectedAssignment.evaluation.totalScore,
+                    maxScore: selectedAssignment.evaluation.maxScore,
+                    percentageScore:
+                      selectedAssignment.evaluation.percentageScore,
+                    feedback: selectedAssignment.evaluation.feedback,
+                    criteriaBreakdown:
+                      selectedAssignment.evaluation.criteriaBreakdown,
+                    evaluatorType: selectedAssignment.evaluation.evaluatorType,
+                    flaggedForHumanReview:
+                      selectedAssignment.evaluation.flaggedForHumanReview,
+                    evaluatedAt: selectedAssignment.evaluation.evaluatedAt,
+                    reviewNote:
+                      selectedAssignment.evaluation.reviewNote ?? undefined,
+                  }}
+                />
+              )}
+
+              {/* Fallback: show score summary if full detail fetch failed */}
+              {!selectedAssignmentLoading &&
+                !selectedAssignment?.evaluation &&
+                assignment.score && (
+                  <EvaluationCard
+                    evaluation={{
+                      totalScore: assignment.score.total,
+                      maxScore: assignment.score.max,
+                      percentageScore: assignment.score.percentage,
+                      flaggedForHumanReview: assignment.flaggedForHumanReview,
+                      evaluatedAt: assignment.evaluatedAt ?? undefined,
+                    }}
+                  />
+                )}
+            </>
+          )}
+
+          {/* VIEW MODE — submitted */}
           {mode === "view" && assignment?.status === "submitted" && (
             <div
               className={cn(
@@ -352,12 +379,8 @@ export function SubmissionSheet({
                 </p>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Your submission is in the manual review queue. This happens when
-                AI evaluation is unavailable or the submission needs human
-                judgment.
+                Your submission is in the manual review queue.
               </p>
-
-              {/* Member can request a re-evaluation */}
               <Button
                 size="sm"
                 variant="outline"
@@ -380,10 +403,9 @@ export function SubmissionSheet({
             </div>
           )}
 
-          {/* SUBMIT MODE ─────────────────────────────────────────────────── */}
+          {/* SUBMIT MODE */}
           {mode === "submit" && (
             <div className="space-y-5">
-              {/* Overdue banner */}
               {isOverdue && (
                 <div
                   className={cn(
@@ -405,7 +427,6 @@ export function SubmissionSheet({
                 </div>
               )}
 
-              {/* Evaluation criteria hint */}
               {task.evaluationCriteria && (
                 <div
                   className={cn(
@@ -435,7 +456,6 @@ export function SubmissionSheet({
                 </div>
               )}
 
-              {/* Deliverable fields */}
               {task.deliverables.length > 0 ? (
                 <div className="space-y-4">
                   {task.deliverables.map((d) => {
@@ -517,7 +537,6 @@ export function SubmissionSheet({
                     );
                   })}
 
-                  {/* Additional notes */}
                   <div className="space-y-1.5">
                     <Label className="text-xs font-bold">
                       Additional Notes{" "}
@@ -543,7 +562,7 @@ export function SubmissionSheet({
           )}
         </div>
 
-        {/* ── Footer ─────────────────────────────────────────────────────── */}
+        {/* ── Footer ──────────────────────────────────────────────────────── */}
         <SheetFooter className="p-6 pt-4 border-t border-border flex flex-row gap-2">
           <SheetClose asChild>
             <Button

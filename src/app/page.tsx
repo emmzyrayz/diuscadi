@@ -56,7 +56,6 @@ export default function LandingPage() {
       <TrustBar />
       <AboutSection />
       <ProgramsSection />
-      <EventSchedule />
       <UpcomingEvent />
       <PastEventsSection />
       <Testimonials />

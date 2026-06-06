@@ -8,14 +8,14 @@ import {
   LuExternalLink,
   LuActivity,
   LuListTodo,
+  LuSettings2,
 } from "react-icons/lu";
 import { motion } from "framer-motion";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { useUser } from "@/context/UserContext";
 import { TasksList } from "@/components/sections/tasks/taskList";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-// Unchanged from original — no prop signature changes for backward compatibility
+import { TaskManagementPanel } from "@/components/sections/committees/TaskManagementPanel";
 
 interface ApiCommittee {
   id: string;
@@ -32,16 +32,15 @@ interface PrivateDashboardProps {
   userCommitteeRole: string;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export default function PrivateCommitteeDashboard({
   userCommittee,
   userCommitteeRole,
 }: PrivateDashboardProps) {
+  const { profile } = useUser();
   const [whatsappLink, setWhatsappLink] = useState<string | null>(null);
   const [committeeName, setCommitteeName] = useState<string>("");
 
-  // Unchanged committee metadata fetch from original
+  // Unchanged committee metadata fetch from Phase 2
   useEffect(() => {
     async function extractProtectedWorkspace() {
       try {
@@ -63,9 +62,15 @@ export default function PrivateCommitteeDashboard({
     extractProtectedWorkspace();
   }, [userCommittee]);
 
+  // Show Manage Tasks tab only for staff roles
+  // Phase 3: HEAD, COORDINATOR, admin, webmaster can manage tasks
+  const canManageTasks =
+    ["HEAD", "COORDINATOR"].includes(userCommitteeRole) ||
+    ["admin", "webmaster"].includes(profile?.role ?? "");
+
   return (
     <div className="space-y-6 w-full min-w-0">
-      {/* ── Title Card — unchanged from original ─────────────────────────── */}
+      {/* ── Title Card (unchanged from Phase 2) ──────────────────────────── */}
       <div
         className={cn(
           "glass",
@@ -207,7 +212,7 @@ export default function PrivateCommitteeDashboard({
           "w-full",
         )}
       >
-        {/* ── Left: Tabbed content (8 cols) ──────────────────────────────── */}
+        {/* ── Left: Tabbed content (8 cols) ─────────────────────────────── */}
         <div
           className={cn(
             "col-span-12",
@@ -221,7 +226,6 @@ export default function PrivateCommitteeDashboard({
           )}
         >
           <Tabs defaultValue="tasks" className="w-full">
-            {/* Tab nav */}
             <TabsList
               className={cn(
                 "flex",
@@ -262,8 +266,7 @@ export default function PrivateCommitteeDashboard({
                   "data-[state=inactive]:hover:bg-foreground/5",
                 )}
               >
-                <LuListTodo className="w-3.5 h-3.5" />
-                Tasks
+                <LuListTodo className="w-3.5 h-3.5" /> Tasks
               </TabsTrigger>
 
               <TabsTrigger
@@ -290,12 +293,40 @@ export default function PrivateCommitteeDashboard({
                   "data-[state=inactive]:hover:bg-foreground/5",
                 )}
               >
-                <LuMegaphone className="w-3.5 h-3.5" />
-                Broadcasts
+                <LuMegaphone className="w-3.5 h-3.5" /> Broadcasts
               </TabsTrigger>
+
+              {/* Phase 3: Manage Tasks tab — only visible to HEAD/COORDINATOR/admin */}
+              {canManageTasks && (
+                <TabsTrigger
+                  value="manage"
+                  className={cn(
+                    "text-[10px]",
+                    "font-mono",
+                    "font-bold",
+                    "uppercase",
+                    "tracking-wider",
+                    "px-3",
+                    "py-1.5",
+                    "rounded-md",
+                    "flex",
+                    "items-center",
+                    "gap-1.5",
+                    "transition-all",
+                    "duration-150",
+                    "data-[state=active]:bg-primary",
+                    "data-[state=active]:text-primary-foreground",
+                    "data-[state=active]:shadow-none",
+                    "data-[state=inactive]:bg-transparent",
+                    "data-[state=inactive]:text-muted-foreground",
+                    "data-[state=inactive]:hover:bg-foreground/5",
+                  )}
+                >
+                  <LuSettings2 className="w-3.5 h-3.5" /> Manage
+                </TabsTrigger>
+              )}
             </TabsList>
 
-            {/* Tasks tab */}
             <TabsContent
               value="tasks"
               className="mt-0 focus-visible:outline-none focus-visible:ring-0"
@@ -303,7 +334,6 @@ export default function PrivateCommitteeDashboard({
               <TasksList />
             </TabsContent>
 
-            {/* Broadcasts tab — original announcements content preserved */}
             <TabsContent
               value="broadcasts"
               className="mt-0 focus-visible:outline-none focus-visible:ring-0"
@@ -349,10 +379,20 @@ export default function PrivateCommitteeDashboard({
                 </div>
               </div>
             </TabsContent>
+
+            {/* Phase 3: Manage Tasks tab content */}
+            {canManageTasks && (
+              <TabsContent
+                value="manage"
+                className="mt-0 focus-visible:outline-none focus-visible:ring-0"
+              >
+                <TaskManagementPanel committeeSlug={userCommittee} />
+              </TabsContent>
+            )}
           </Tabs>
         </div>
 
-        {/* ── Right: Module status (4 cols) — unchanged from original ────── */}
+        {/* ── Right: Module status (4 cols, unchanged) ──────────────────── */}
         <div
           className={cn(
             "col-span-12",
@@ -386,8 +426,7 @@ export default function PrivateCommitteeDashboard({
                 "pb-3",
               )}
             >
-              <LuUserCheck className="w-4 h-4 text-primary" />
-              Module Status
+              <LuUserCheck className="w-4 h-4 text-primary" /> Module Status
             </h3>
             <p className="text-xs text-muted-foreground leading-relaxed break-words">
               Task alignment tools, asset boards, and member rosters are
@@ -414,7 +453,7 @@ export default function PrivateCommitteeDashboard({
               <LuActivity className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
               Channel Sync Active
             </span>
-            <span>V2.1-TASK</span>
+            <span>V3.0-TASK</span>
           </div>
         </div>
       </div>

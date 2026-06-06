@@ -1,12 +1,7 @@
 "use client";
-// context/TaskContext.tsx
-//
-// Owns task feed and assignment submission for the authenticated approved member.
-// Pattern: follows EventContext.tsx exactly — lazy loading, useCallback, same
-// authHeaders() helper, same loading/error state shape, same hook export guard.
-//
-// Does NOT re-fetch committee data — reads committeeSlug from useUser().
-// TaskProvider is mounted inside AuthenticatedProviders so auth is always ready.
+// context/TaskContext.tsx — Phase 3 update
+// Adds: FullAssignmentDetail type, loadAssignmentDetail(), selectedAssignment
+// state, clearSelectedAssignment(). Everything else unchanged from Phase 2.
 
 import React, {
   createContext,
@@ -19,9 +14,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useUser } from "@/context/UserContext";
 import type { SubmitAssignmentPayload, BotTrigger } from "@/types/tasks";
 
-// ─── Client-side types ────────────────────────────────────────────────────────
-// These are the shapes returned by the API — string IDs, not ObjectId.
-// They mirror the route response contracts from Phase 1.
+// ─── Phase 2 types (unchanged) ────────────────────────────────────────────────
 
 export interface TaskAssignmentSummary {
   _id: string;
@@ -110,9 +103,76 @@ export interface BotEvaluateResult {
   };
 }
 
+// ─── Phase 3 types (new) ──────────────────────────────────────────────────────
+
+export interface FullCriteriaScore {
+  criterion: string;
+  awarded: number;
+  maximum: number;
+  rationale: string;
+}
+
+export interface FullEvaluation {
+  totalScore: number;
+  maxScore: number;
+  percentageScore: number;
+  feedback: string;
+  criteriaBreakdown: FullCriteriaScore[];
+  evaluatorId: string;
+  evaluatorType: "GEMINI_BOT" | "MANUAL" | "HYBRID";
+  evaluatedAt: string;
+  flaggedForHumanReview: boolean;
+  reviewNote?: string | null;
+}
+
+export interface FullSubmissionItem {
+  deliverableLabel: string;
+  type: "text" | "url" | "file_url" | "image_url";
+  value: string;
+}
+
+export interface FullRevisionEntry {
+  requestedAt: string;
+  requestedBy: string;
+  reason: string;
+  resubmittedAt?: string;
+}
+
+export interface FullAssignmentDetail {
+  _id: string;
+  taskId: string;
+  userId: string;
+  committeeSlug: string;
+  status: string;
+  submission?: {
+    items: FullSubmissionItem[];
+    submittedAt: string;
+    additionalNotes?: string;
+  };
+  evaluation?: FullEvaluation;
+  revisionHistory: FullRevisionEntry[];
+  overriddenDeadline?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // Populated by the API from the parent task
+  task?: {
+    _id: string;
+    title: string;
+    description: string;
+    committeeSlug: string;
+    deliverables: TaskDeliverableClient[];
+    maxScore: number;
+    evaluationCriteria: string;
+    autoEvaluate: boolean;
+    deadline: string;
+    taskType: string;
+  };
+}
+
 // ─── Context type ──────────────────────────────────────────────────────────────
 
 interface TaskContextType {
+  // Task feed (Phase 2)
   tasks: EnrichedTask[];
   pagination: TaskPagination | null;
   committee: CommitteeMeta | null;
@@ -132,13 +192,20 @@ interface TaskContextType {
     trigger?: BotTrigger,
   ) => Promise<BotEvaluateResult>;
   clearErrors: () => void;
+
+  // Full assignment detail (Phase 3)
+  selectedAssignment: FullAssignmentDetail | null;
+  selectedAssignmentLoading: boolean;
+  selectedAssignmentError: string | null;
+  loadAssignmentDetail: (assignmentId: string) => Promise<void>;
+  clearSelectedAssignment: () => void;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
 
-// ─── Helpers (identical pattern to EventContext + UserContext) ────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -154,9 +221,6 @@ function authHeaders(): HeadersInit {
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
-// Accept token prop to match AuthenticatedProviders composition pattern
-// (ApplicationProvider, AdminProvider both take token). We read from
-// localStorage rather than the prop — same as EventContext.
 
 interface TaskProviderProps {
   children: ReactNode;
@@ -167,6 +231,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
   const { isAuthenticated } = useAuth();
   const { profile } = useUser();
 
+  // Phase 2 state
   const [tasks, setTasks] = useState<EnrichedTask[]>([]);
   const [pagination, setPagination] = useState<TaskPagination | null>(null);
   const [committee, setCommittee] = useState<CommitteeMeta | null>(null);
@@ -175,11 +240,19 @@ export function TaskProvider({ children }: TaskProviderProps) {
   const [activeStatus, setActiveStatus] = useState("active");
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Phase 3 state
+  const [selectedAssignment, setSelectedAssignment] =
+    useState<FullAssignmentDetail | null>(null);
+  const [selectedAssignmentLoading, setSelectedAssignmentLoading] =
+    useState(false);
+  const [selectedAssignmentError, setSelectedAssignmentError] = useState<
+    string | null
+  >(null);
+
   // ── Load tasks ─────────────────────────────────────────────────────────────
 
   const loadTasks = useCallback(
     async (status = "active", page = 1) => {
-      // Guards match EventContext pattern — check auth + membership before fetch
       if (!isAuthenticated) return;
       if (profile?.membershipStatus !== "approved") return;
 
@@ -216,8 +289,6 @@ export function TaskProvider({ children }: TaskProviderProps) {
     [isAuthenticated, profile?.membershipStatus],
   );
 
-  // ── Refresh ────────────────────────────────────────────────────────────────
-
   const refreshTasks = useCallback(
     () => loadTasks(activeStatus, currentPage),
     [loadTasks, activeStatus, currentPage],
@@ -241,12 +312,9 @@ export function TaskProvider({ children }: TaskProviderProps) {
         );
         const data = await res.json();
 
-        if (!res.ok) {
+        if (!res.ok)
           return { success: false, error: data.error ?? "Submission failed" };
-        }
 
-        // Optimistic update — patch the assignment summary inside the task list
-        // so the UI reflects the new status without a full reload
         setTasks((prev) =>
           prev.map((task) => {
             if (task.assignment?._id !== assignmentId) return task;
@@ -258,7 +326,6 @@ export function TaskProvider({ children }: TaskProviderProps) {
                 submittedAt:
                   data.assignment?.submission?.submittedAt ??
                   new Date().toISOString(),
-                // If bot evaluated, carry through the score summary
                 score: data.evaluationPreview
                   ? {
                       total: data.evaluationPreview.score,
@@ -304,14 +371,9 @@ export function TaskProvider({ children }: TaskProviderProps) {
         });
         const data = await res.json();
 
-        if (!res.ok) {
-          return {
-            success: false,
-            error: data.error ?? "Evaluation failed",
-          };
-        }
+        if (!res.ok)
+          return { success: false, error: data.error ?? "Evaluation failed" };
 
-        // Update the task's assignment with new status + score from evaluation
         setTasks((prev) =>
           prev.map((task) => {
             if (task.assignment?._id !== assignmentId) return task;
@@ -352,7 +414,38 @@ export function TaskProvider({ children }: TaskProviderProps) {
     [],
   );
 
-  // ── Clear errors ───────────────────────────────────────────────────────────
+  // ── Load full assignment detail (Phase 3) ──────────────────────────────────
+
+  const loadAssignmentDetail = useCallback(async (assignmentId: string) => {
+    setSelectedAssignmentLoading(true);
+    setSelectedAssignmentError(null);
+
+    try {
+      const res = await fetch(`/api/members/assignments/${assignmentId}`, {
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error ?? "Failed to load assignment");
+
+      // Merge task summary into the assignment object for convenience
+      setSelectedAssignment({
+        ...data.assignment,
+        task: data.task ?? undefined,
+      });
+    } catch (err) {
+      setSelectedAssignmentError(
+        err instanceof Error ? err.message : "Failed to load assignment",
+      );
+    } finally {
+      setSelectedAssignmentLoading(false);
+    }
+  }, []);
+
+  const clearSelectedAssignment = useCallback(() => {
+    setSelectedAssignment(null);
+    setSelectedAssignmentError(null);
+  }, []);
 
   const clearErrors = useCallback(() => setTasksError(null), []);
 
@@ -371,14 +464,17 @@ export function TaskProvider({ children }: TaskProviderProps) {
         submitAssignment,
         triggerBotEvaluate,
         clearErrors,
+        selectedAssignment,
+        selectedAssignmentLoading,
+        selectedAssignmentError,
+        loadAssignmentDetail,
+        clearSelectedAssignment,
       }}
     >
       {children}
     </TaskContext.Provider>
   );
 }
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useTasks(): TaskContextType {
   const ctx = useContext(TaskContext);

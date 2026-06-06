@@ -1,5 +1,5 @@
-// src/app/api/admin/tasks/[id]/activate/route.ts
-// ─── POST /api/admin/tasks/[id]/activate ─────────────────────────────────────
+// src/app/api/admin/tasks/task/[id]/activate/route.ts
+// ─── POST /api/admin/tasks/task/[id]/activate ─────────────────────────────────────
 // Transitions a draft task → active and spawns its assignment documents.
 //
 // This is the explicit "Publish" endpoint that pairs with the
@@ -135,7 +135,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
       alreadyActive: false,
     });
   } catch (err) {
-    console.error("[POST /api/admin/tasks/[id]/activate]", err);
+    console.error("[POST /api/admin/tasks/task/[id]/activate]", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

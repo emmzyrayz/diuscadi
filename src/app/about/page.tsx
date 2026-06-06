@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import mentor from "@/assets/img/downloads/Dr-Ikechukwu-Umeh-1440x1920.jpg";
+import mentor from "@/assets/img/downloads/Dr-Ikechukwu-Umeh-1440x1920.png";
 import { AboutTeamMember, TeamTier } from "@/lib/models/aboutPageConfig";
 import { usePathname } from "next/navigation";
 

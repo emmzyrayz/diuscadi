@@ -3,7 +3,7 @@ import { cn } from "../../lib/utils";
 import { motion, Variants } from "framer-motion";
 import Image from "next/image";
 import { Target, Rocket, BookOpen, Globe, ArrowUpRight } from "lucide-react";
-import mentor from "@/assets/img/downloads/Dr-Ikechukwu-Umeh-1440x1920.jpg";
+import mentor from "@/assets/img/downloads/Dr-Ikechukwu-Umeh-1440x1920.png";
 
 const CARD_DATA = [
   {
@@ -86,11 +86,11 @@ export const AboutSection = () => {
               <p className="text-white font-bold text-lg leading-tight">
                 Prof. Ikechukwu Umeh
               </p>
+              <p className="text-white/50 text-xs mt-1">
+                Professor of Information Technology and Data Science, UNIZIK
+              </p>
               <p className="text-white/70 text-sm mt-1">
                 FNCS, FIPMD · Founder & Convener, DIUSCADI
-              </p>
-              <p className="text-white/50 text-xs mt-1">
-                HOD, Information Technology, UNIZIK
               </p>
               <div className="mt-3 h-1 w-12 bg-primary rounded-full" />
             </div>
