@@ -945,7 +945,7 @@ const LogisticsStep: React.FC<StepProps> = ({ formData, setFormData }) => (
         <svg
           viewBox="0 0 24 24"
           fill="currentColor"
-          className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500"
+          className={cn('absolute', 'left-4', 'top-1/2', '-translate-y-1/2', 'w-4', 'h-4', 'text-emerald-500')}
         >
           <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
         </svg>
@@ -980,19 +980,19 @@ const LogisticsStep: React.FC<StepProps> = ({ formData, setFormData }) => (
 
       {formData.whatsappGroupLink &&
         !isValidWhatsAppLink(formData.whatsappGroupLink) && (
-          <p className="text-[9px] font-black uppercase tracking-widest text-red-500">
+          <p className={cn('text-[9px]', 'font-black', 'uppercase', 'tracking-widest', 'text-red-500')}>
             Must be a WhatsApp group (chat.whatsapp.com/...) or channel
             (whatsapp.com/channel/...) link
           </p>
         )}
       {formData.whatsappGroupLink &&
         isValidWhatsAppLink(formData.whatsappGroupLink) && (
-          <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">
+          <p className={cn('text-[9px]', 'font-black', 'uppercase', 'tracking-widest', 'text-emerald-600')}>
             ✓ Valid WhatsApp {getWhatsAppLinkType(formData.whatsappGroupLink)}{" "}
             link — sent to registrants with their ticket
           </p>
         )}
-      <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">
+      <p className={cn('text-[9px]', 'text-muted-foreground', 'font-bold', 'uppercase', 'tracking-widest')}>
         Optional — registrants receive this link alongside their QR code ticket
       </p>
     </div>
@@ -2365,9 +2365,13 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
 
   // ── Update ────────────────────────────────────────────────────────────────
   const handleUpdate = async () => {
+    console.log("UPDATE CLICKED");
+    console.log({ token, eventId });
+    
     if (!token || !eventId) return;
-    const err = validate();
-    if (err) { toast.error(err); return; }
+    console.log("Validation:", validate());
+    // const err = validate();
+    // if (err) { toast.error(err); return; }
     setSubmitting(true);
     try {
       const res = await fetch(`/api/admin/events/${eventId}`, {
@@ -2403,9 +2407,29 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className={cn('fixed', 'inset-0', 'z-[100]', 'flex', 'items-center', 'justify-center', 'p-4')}>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={handleClose} className={cn('absolute', 'inset-0', 'bg-foreground/80', 'backdrop-blur-md')} />
+        <div
+          className={cn(
+            "fixed",
+            "inset-0",
+            "z-[100]",
+            "flex",
+            "items-center",
+            "justify-center",
+            "p-4",
+          )}
+        >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleClose}
+            className={cn(
+              "absolute",
+              "inset-0",
+              "bg-foreground/80",
+              "backdrop-blur-md",
+            )}
+          />
 
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -2413,77 +2437,357 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             onClick={(e) => e.stopPropagation()}
-            className={cn('relative', 'w-full', 'max-w-4xl', 'bg-background', 'rounded-[3rem]', 'shadow-2xl', 'overflow-hidden', 'flex', 'flex-col', 'max-h-[90vh]')}
+            className={cn(
+              "relative",
+              "w-full",
+              "max-w-4xl",
+              "bg-background",
+              "rounded-[3rem]",
+              "shadow-2xl",
+              "overflow-hidden",
+              "flex",
+              "flex-col",
+              "max-h-[90vh]",
+            )}
           >
             {/* Header */}
-            <div className={cn('px-10', 'py-7', 'border-b', 'border-border', 'flex', 'items-center', 'justify-between', 'bg-background', 'sticky', 'top-0', 'z-10')}>
+            <div
+              className={cn(
+                "px-10",
+                "py-7",
+                "border-b",
+                "border-border",
+                "flex",
+                "items-center",
+                "justify-between",
+                "bg-background",
+                "sticky",
+                "top-0",
+                "z-10",
+              )}
+            >
               <div>
-                <h2 className={cn('text-2xl', 'font-black', 'text-foreground', 'tracking-tighter', 'uppercase', 'flex', 'items-center', 'gap-3')}>
-                  {isRepublishing && <span className={cn('inline-flex', 'items-center', 'justify-center', 'w-8', 'h-8', 'rounded-xl', 'bg-emerald-500/10', 'text-emerald-600')}><LuRefreshCcw className={cn('w-4', 'h-4')} /></span>}
-                  {!isRepublishing && isEditing && <span className={cn('inline-flex', 'items-center', 'justify-center', 'w-8', 'h-8', 'rounded-xl', 'bg-primary/10', 'text-primary')}><LuPencil className={cn('w-4', 'h-4')} /></span>}
-                  {isRepublishing ? "Republish Event" : isEditing ? "Edit Event" : "Create New Event"}
+                <h2
+                  className={cn(
+                    "text-2xl",
+                    "font-black",
+                    "text-foreground",
+                    "tracking-tighter",
+                    "uppercase",
+                    "flex",
+                    "items-center",
+                    "gap-3",
+                  )}
+                >
+                  {isRepublishing && (
+                    <span
+                      className={cn(
+                        "inline-flex",
+                        "items-center",
+                        "justify-center",
+                        "w-8",
+                        "h-8",
+                        "rounded-xl",
+                        "bg-emerald-500/10",
+                        "text-emerald-600",
+                      )}
+                    >
+                      <LuRefreshCcw className={cn("w-4", "h-4")} />
+                    </span>
+                  )}
+                  {!isRepublishing && isEditing && (
+                    <span
+                      className={cn(
+                        "inline-flex",
+                        "items-center",
+                        "justify-center",
+                        "w-8",
+                        "h-8",
+                        "rounded-xl",
+                        "bg-primary/10",
+                        "text-primary",
+                      )}
+                    >
+                      <LuPencil className={cn("w-4", "h-4")} />
+                    </span>
+                  )}
+                  {isRepublishing
+                    ? "Republish Event"
+                    : isEditing
+                      ? "Edit Event"
+                      : "Create New Event"}
                 </h2>
-                <p className={cn('text-[10px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'mt-1')}>
+                <p
+                  className={cn(
+                    "text-[10px]",
+                    "font-bold",
+                    "text-muted-foreground",
+                    "uppercase",
+                    "tracking-widest",
+                    "mt-1",
+                  )}
+                >
                   Step {currentStep} of 5 — {STEPS[currentStep - 1].label}
-                  {isRepublishing && <span className={cn('ml-2', 'text-emerald-600')}>· Republishing</span>}
-                  {isEditing && !isRepublishing && <span className={cn('ml-2', 'text-primary')}>· Editing</span>}
+                  {isRepublishing && (
+                    <span className={cn("ml-2", "text-emerald-600")}>
+                      · Republishing
+                    </span>
+                  )}
+                  {isEditing && !isRepublishing && (
+                    <span className={cn("ml-2", "text-primary")}>
+                      · Editing
+                    </span>
+                  )}
                 </p>
               </div>
-              <button onClick={handleClose} className={cn('p-3', 'hover:bg-muted', 'rounded-2xl', 'text-muted-foreground', 'transition-colors', 'cursor-pointer')}>
-                <LuX className={cn('w-6', 'h-6')} />
+              <button
+                onClick={handleClose}
+                className={cn(
+                  "p-3",
+                  "hover:bg-muted",
+                  "rounded-2xl",
+                  "text-muted-foreground",
+                  "transition-colors",
+                  "cursor-pointer",
+                )}
+              >
+                <LuX className={cn("w-6", "h-6")} />
               </button>
             </div>
 
             {/* Step indicator */}
-            <div className={cn('px-10', 'py-5', 'bg-muted/50', 'flex', 'items-center', 'justify-between', 'border-b', 'border-border')}>
+            <div
+              className={cn(
+                "px-10",
+                "py-5",
+                "bg-muted/50",
+                "flex",
+                "items-center",
+                "justify-between",
+                "border-b",
+                "border-border",
+              )}
+            >
               {STEPS.map((step) => (
                 <React.Fragment key={step.id}>
-                  <div className={cn('flex', 'items-center', 'gap-2.5')}>
-                    <div className={cn("w-8","h-8","rounded-lg","flex","items-center","justify-center","text-[10px]","font-black","transition-all","duration-300", currentStep >= step.id ? "bg-primary text-foreground shadow-lg shadow-primary/20" : "bg-slate-200 text-muted-foreground")}>
-                      {currentStep > step.id ? <LuCheck className={cn('w-4', 'h-4')} /> : step.id}
+                  <div className={cn("flex", "items-center", "gap-2.5")}>
+                    <div
+                      className={cn(
+                        "w-8",
+                        "h-8",
+                        "rounded-lg",
+                        "flex",
+                        "items-center",
+                        "justify-center",
+                        "text-[10px]",
+                        "font-black",
+                        "transition-all",
+                        "duration-300",
+                        currentStep >= step.id
+                          ? "bg-primary text-foreground shadow-lg shadow-primary/20"
+                          : "bg-slate-200 text-muted-foreground",
+                      )}
+                    >
+                      {currentStep > step.id ? (
+                        <LuCheck className={cn("w-4", "h-4")} />
+                      ) : (
+                        step.id
+                      )}
                     </div>
-                    <span className={cn("text-[9px]","font-black","uppercase","tracking-widest","hidden","md:block","transition-colors", currentStep >= step.id ? "text-foreground" : "text-slate-300")}>
+                    <span
+                      className={cn(
+                        "text-[9px]",
+                        "font-black",
+                        "uppercase",
+                        "tracking-widest",
+                        "hidden",
+                        "md:block",
+                        "transition-colors",
+                        currentStep >= step.id
+                          ? "text-foreground"
+                          : "text-slate-300",
+                      )}
+                    >
                       {step.label}
                     </span>
                   </div>
                   {step.id !== 5 && (
-                    <div className={cn("h-[2px]","w-8","mx-2","hidden","lg:block", currentStep > step.id ? "bg-primary" : "bg-muted")} />
+                    <div
+                      className={cn(
+                        "h-[2px]",
+                        "w-8",
+                        "mx-2",
+                        "hidden",
+                        "lg:block",
+                        currentStep > step.id ? "bg-primary" : "bg-muted",
+                      )}
+                    />
                   )}
                 </React.Fragment>
               ))}
             </div>
 
             {/* Content */}
-            <div className={cn('flex-1', 'overflow-y-auto', 'p-10')}>
+            <div className={cn("flex-1", "overflow-y-auto", "p-10")}>
               <AnimatePresence mode="wait">
-                <motion.div key={currentStep} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.18 }}>
-                  {currentStep === 1 && <IdentityStep  formData={formData} setFormData={setFormData} ownerId={ownerId} />}
-                  {currentStep === 2 && <LogisticsStep formData={formData} setFormData={setFormData} />}
-                  {currentStep === 3 && <AudienceStep  formData={formData} setFormData={setFormData} />}
-                  {currentStep === 4 && <ContentStep   formData={formData} setFormData={setFormData} ownerId={ownerId} />}
-                  {currentStep === 5 && <ReviewStep    formData={formData} setFormData={setFormData} isEditing={isEditing} isRepublishing={isRepublishing} />}
+                <motion.div
+                  key={currentStep}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  {currentStep === 1 && (
+                    <IdentityStep
+                      formData={formData}
+                      setFormData={setFormData}
+                      ownerId={ownerId}
+                    />
+                  )}
+                  {currentStep === 2 && (
+                    <LogisticsStep
+                      formData={formData}
+                      setFormData={setFormData}
+                    />
+                  )}
+                  {currentStep === 3 && (
+                    <AudienceStep
+                      formData={formData}
+                      setFormData={setFormData}
+                    />
+                  )}
+                  {currentStep === 4 && (
+                    <ContentStep
+                      formData={formData}
+                      setFormData={setFormData}
+                      ownerId={ownerId}
+                    />
+                  )}
+                  {currentStep === 5 && (
+                    <ReviewStep
+                      formData={formData}
+                      setFormData={setFormData}
+                      isEditing={isEditing}
+                      isRepublishing={isRepublishing}
+                    />
+                  )}
                 </motion.div>
               </AnimatePresence>
             </div>
 
             {/* Footer */}
-            <div className={cn('px-10', 'py-7', 'border-t', 'border-border', 'flex', 'items-center', 'justify-between', 'bg-background', 'sticky', 'bottom-0', 'z-10')}>
-              <button onClick={prevStep} disabled={currentStep === 1}
-                className={cn("flex","items-center","gap-2","px-6","py-3","rounded-xl","text-[10px]","font-black","uppercase","tracking-widest","transition-all", currentStep === 1 ? "opacity-0 pointer-events-none" : "text-muted-foreground hover:text-foreground cursor-pointer")}>
-                <LuChevronLeft className={cn('w-4', 'h-4')} /> Previous
+            <div
+              className={cn(
+                "px-10",
+                "py-7",
+                "border-t",
+                "border-border",
+                "flex",
+                "items-center",
+                "justify-between",
+                "bg-background",
+                "sticky",
+                "bottom-0",
+                "z-10",
+              )}
+            >
+              <button
+                onClick={prevStep}
+                disabled={currentStep === 1}
+                className={cn(
+                  "flex",
+                  "items-center",
+                  "gap-2",
+                  "px-6",
+                  "py-3",
+                  "rounded-xl",
+                  "text-[10px]",
+                  "font-black",
+                  "uppercase",
+                  "tracking-widest",
+                  "transition-all",
+                  currentStep === 1
+                    ? "opacity-0 pointer-events-none"
+                    : "text-muted-foreground hover:text-foreground cursor-pointer",
+                )}
+              >
+                <LuChevronLeft className={cn("w-4", "h-4")} /> Previous
               </button>
-              <div className={cn('flex', 'items-center', 'gap-4')}>
-                <button onClick={handleClose} className={cn('text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'text-rose-500', 'px-6', 'cursor-pointer')}>
+              <div className={cn("flex", "items-center", "gap-4")}>
+                <button
+                  onClick={handleClose}
+                  className={cn(
+                    "text-[10px]",
+                    "font-black",
+                    "uppercase",
+                    "tracking-widest",
+                    "text-rose-500",
+                    "px-6",
+                    "cursor-pointer",
+                  )}
+                >
                   Cancel
                 </button>
                 {currentStep < 5 ? (
-                  <button onClick={nextStep} className={cn("flex","items-center","gap-2","px-8","py-4","bg-foreground","text-background","rounded-2xl","text-[11px]","font-black","uppercase","tracking-widest","hover:bg-primary","hover:text-foreground","transition-colors","shadow-xl","shadow-foreground/10","cursor-pointer")}>
-                    Continue <LuChevronRight className={cn('w-4', 'h-4')} />
+                  <button
+                    onClick={nextStep}
+                    className={cn(
+                      "flex",
+                      "items-center",
+                      "gap-2",
+                      "px-8",
+                      "py-4",
+                      "bg-foreground",
+                      "text-background",
+                      "rounded-2xl",
+                      "text-[11px]",
+                      "font-black",
+                      "uppercase",
+                      "tracking-widest",
+                      "hover:bg-primary",
+                      "hover:text-foreground",
+                      "transition-colors",
+                      "shadow-xl",
+                      "shadow-foreground/10",
+                      "cursor-pointer",
+                    )}
+                  >
+                    Continue <LuChevronRight className={cn("w-4", "h-4")} />
                   </button>
                 ) : (
-                  <button onClick={handleSubmit} disabled={submitting}
-                    className={cn("flex","items-center","gap-2","px-8","py-4","rounded-2xl","text-[11px]","font-black","uppercase","tracking-widest","transition-all","shadow-xl","disabled:opacity-60","cursor-pointer", isRepublishing ? "bg-emerald-500 text-white shadow-emerald-500/20" : "bg-primary text-foreground shadow-primary/20")}>
-                    {submitting ? <LuLoader className={cn('w-4', 'h-4', 'animate-spin')} /> : isRepublishing ? <LuRefreshCcw className={cn('w-4', 'h-4')} /> : <LuCheck className={cn('w-4', 'h-4')} />}
+                  <button
+                    onClick={() => {
+                      console.log("SAVE BUTTON CLICKED");
+                      handleSubmit();
+                    }}
+                    disabled={submitting}
+                    className={cn(
+                      "flex",
+                      "items-center",
+                      "gap-2",
+                      "px-8",
+                      "py-4",
+                      "rounded-2xl",
+                      "text-[11px]",
+                      "font-black",
+                      "uppercase",
+                      "tracking-widest",
+                      "transition-all",
+                      "shadow-xl",
+                      "disabled:opacity-60",
+                      "cursor-pointer",
+                      isRepublishing
+                        ? "bg-emerald-500 text-white shadow-emerald-500/20"
+                        : "bg-primary text-foreground shadow-primary/20",
+                    )}
+                  >
+                    {submitting ? (
+                      <LuLoader className={cn("w-4", "h-4", "animate-spin")} />
+                    ) : isRepublishing ? (
+                      <LuRefreshCcw className={cn("w-4", "h-4")} />
+                    ) : (
+                      <LuCheck className={cn("w-4", "h-4")} />
+                    )}
                     {submitLabel()}
                   </button>
                 )}

@@ -103,6 +103,11 @@ const routeConfigs: Record<string, LayoutConfig> = {
     showFooter: false,
     showAds: false,
   },
+  "/event-landing": {
+    showNavbar: false,
+    showFooter: false,
+    showAds: false,
+  },
 
   // ============================================
   // CHECKOUT/PAYMENT - Minimal layout
