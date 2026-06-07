@@ -845,3 +845,161 @@ export function contactAutoReplyEmail({
 
   return { subject: emailSubject, html, text };
 }
+
+// ─── 12. Guest Registration — OTP Verification ───────────────────────────────
+ 
+export interface GuestVerificationEmailOptions {
+  name: string;
+  code: string;
+  eventTitle: string;
+  verifyUrl: string;
+}
+ 
+export function guestVerificationEmail({
+  name,
+  code,
+  eventTitle,
+  verifyUrl,
+}: GuestVerificationEmailOptions) {
+  const subject = `${APP_NAME} — Verify your guest registration for ${eventTitle}`;
+  const html = wrapper(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:900;color:${PRIMARY_COLOR};text-transform:uppercase;letter-spacing:-0.02em;">
+      Verify Your Registration
+    </h1>
+    <p style="margin:0 0 4px;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;">
+      Hi, ${name}
+    </p>
+    <p style="margin:20px 0;font-size:13px;color:#475569;line-height:1.7;">
+      Thank you for registering for <strong>${eventTitle}</strong> as a guest.
+      Enter the 6-digit code below to verify your email and complete your registration.
+      This code expires in <strong>15 minutes</strong>.
+    </p>
+    ${otpBlock(code)}
+    <div style="text-align:center;margin:8px 0 20px;">
+      <div style="font-size:9px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;margin-bottom:16px;">
+        — or verify instantly —
+      </div>
+    </div>
+    ${ctaButton("Verify My Registration", verifyUrl)}
+    <p style="margin:24px 0 0;font-size:11px;color:#94a3b8;text-align:center;line-height:1.6;">
+      If you did not attempt to register for this event, you can safely ignore this email.
+      Your spot will not be reserved until the code is entered.
+    </p>
+  `);
+ 
+  const text = `Hi ${name},\n\nYour DIUSCADI guest registration verification code for ${eventTitle} is: ${code}\n\nOr verify instantly here: ${verifyUrl}\n\nExpires in 15 minutes.\n\nIf you did not register for this event, ignore this email.`;
+ 
+  return { subject, html, text };
+}
+ 
+// ─── 13. Guest Registration — Confirmation (post-OTP) ────────────────────────
+ 
+export interface GuestConfirmationEmailOptions {
+  name: string;
+  eventTitle: string;
+  eventDate: string;      // pre-formatted display string
+  eventLocation: string;  // venue name, city, or "Virtual / Online"
+  ticketCode: string;     // the inviteCode
+  ticketUrl: string;      // full URL to /tickets/[registrationId]
+  isFree: boolean;
+  ticketPrice?: string;   // e.g. "₦5,000" — only used if !isFree
+  whatsappGroupLink?: string;
+  registrationType: "Guest"; // always "Guest" for this template
+}
+ 
+export function guestConfirmationEmail({
+  name,
+  eventTitle,
+  eventDate,
+  eventLocation,
+  ticketCode,
+  ticketUrl,
+  isFree,
+  ticketPrice,
+  whatsappGroupLink,
+  registrationType,
+}: GuestConfirmationEmailOptions) {
+  const subject = `${APP_NAME} — You're registered (guest) for ${eventTitle}`;
+  const html = wrapper(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:900;color:${PRIMARY_COLOR};text-transform:uppercase;letter-spacing:-0.02em;">
+      Registration Confirmed
+    </h1>
+    <p style="margin:0 0 4px;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;">
+      You're all set, ${name}
+    </p>
+    <p style="margin:20px 0;font-size:13px;color:#475569;line-height:1.7;">
+      Your guest spot at <strong>${eventTitle}</strong> has been confirmed.
+      Keep this email — your ticket code is below and you'll need it to check in.
+    </p>
+ 
+    <!-- Ticket code block -->
+    <div style="margin:28px 0;text-align:center;">
+      <div style="display:inline-block;background:#f8fafc;border:2px solid #e2e8f0;border-radius:16px;padding:20px 32px;">
+        <div style="font-size:9px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.25em;margin-bottom:8px;">
+          Ticket Code
+        </div>
+        <div style="font-size:28px;font-weight:900;color:${PRIMARY_COLOR};letter-spacing:0.25em;font-family:monospace;">
+          ${ticketCode}
+        </div>
+      </div>
+    </div>
+ 
+    <!-- Event details -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+      ${detailRow("Event", eventTitle)}
+      ${detailRow("Date & Time", eventDate)}
+      ${detailRow("Location", eventLocation)}
+      ${detailRow("Registration Type", registrationType)}
+      ${detailRow("Ticket", isFree ? "Free Admission" : (ticketPrice ?? "Paid"))}
+    </table>
+ 
+    ${ctaButton("View My Ticket", ticketUrl)}
+ 
+    ${
+      whatsappGroupLink
+        ? `
+    <div style="text-align: center; margin-top: 12px;">
+      <a
+        href="${whatsappGroupLink}"
+        target="_blank"
+        rel="noopener noreferrer"
+        style="
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background-color: #25D366;
+          color: #ffffff;
+          text-decoration: none;
+          padding: 14px 32px;
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 700;
+          font-family: Arial, sans-serif;
+          letter-spacing: 0.02em;
+        "
+      >
+        <span style="font-size: 18px;">💬</span>
+        Join the Event WhatsApp Group
+      </a>
+      <p style="
+        margin: 8px 0 0;
+        font-size: 11px;
+        color: #6b7280;
+        font-family: Arial, sans-serif;
+      ">
+        Connect with other attendees before the event
+      </p>
+    </div>`
+        : ""
+    }
+ 
+    <p style="margin:24px 0 0;font-size:11px;color:#94a3b8;text-align:center;line-height:1.6;">
+      Present the ticket code above at the event entrance for check-in.
+      You do not need a platform account to attend — this email is your proof of registration.
+    </p>
+  `);
+ 
+  const text = `Hi ${name},\n\nYou're registered as a guest for ${eventTitle}!\n\nTicket Code: ${ticketCode}\nDate: ${eventDate}\nLocation: ${eventLocation}\nRegistration Type: ${registrationType}\nTicket: ${isFree ? "Free Admission" : (ticketPrice ?? "Paid")}\n\nView your ticket: ${ticketUrl}${whatsappGroupLink ? `\nJoin WhatsApp: ${whatsappGroupLink}` : ""}`;
+ 
+  return { subject, html, text };
+}

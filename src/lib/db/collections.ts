@@ -37,6 +37,7 @@ import {
 import { GalleryDocument } from "../models/Gallery";
 import { SkillSuggestionDocument } from "../models/SkillSuggestion";
 import type { DbTask, DbAssignment, DbBotActionLog } from "@/lib/db/dbTypes";
+import { IGuestEventRegistrationDocument } from "../models/GuestEventRegistration";
 
 
 export const Collections = {
@@ -92,4 +93,6 @@ export const Collections = {
   tasks: (db: Db) => db.collection<DbTask>("tasks"),
   assignments: (db: Db) => db.collection<DbAssignment>("assignments"),
   botActionLogs: (db: Db) => db.collection<DbBotActionLog>("bot_action_logs"),
+  guestEventRegistrations: (db: Db) =>
+    db.collection<IGuestEventRegistrationDocument>("guestEventRegistrations"),
 };

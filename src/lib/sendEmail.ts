@@ -14,10 +14,14 @@ import {
   eventReminderEmail,
   applicationStatusEmail,
   membershipWelcomeEmail,
+  guestVerificationEmail,
+  guestConfirmationEmail,
   type EventRegistrationEmailOptions,
   type EventReminderEmailOptions,
   type ApplicationStatusEmailOptions,
   type MembershipWelcomeEmailOptions,
+  type GuestVerificationEmailOptions,
+  type GuestConfirmationEmailOptions,
 } from "@/lib/MailTemplate";
 
 const IS_DEV =
@@ -323,6 +327,83 @@ export async function sendContactAutoReplyEmail(opts: {
     enquiryType: opts.enquiryType,
     subject: opts.subject,
     message: opts.message,
+  });
+  await prodSend({ to: opts.to, subject, html, text });
+}
+
+ 
+// ─── 11. Guest registration — OTP verification email ─────────────────────────
+//
+// Sent immediately after POST /api/events/register-guest.
+// Contains the 6-digit OTP and a magic verify link.
+// Registration is NOT complete until the guest verifies.
+ 
+export async function sendGuestVerificationEmail(opts: {
+  to: string;
+  name: string;
+  code: string;
+  eventTitle: string;
+  verifyUrl: string;
+}): Promise<void> {
+  if (IS_DEV) {
+    console.log(`[DEV EMAIL] Guest verification → ${opts.to}`);
+    console.log(`  Name:       ${opts.name}`);
+    console.log(`  Event:      ${opts.eventTitle}`);
+    console.log(`  OTP:        ${opts.code}`);
+    console.log(`  Verify URL: ${opts.verifyUrl}`);
+    return;
+  }
+ 
+  const { subject, html, text } = guestVerificationEmail({
+    name: opts.name,
+    code: opts.code,
+    eventTitle: opts.eventTitle,
+    verifyUrl: opts.verifyUrl,
+  });
+  await prodSend({ to: opts.to, subject, html, text });
+}
+ 
+// ─── 12. Guest registration — confirmation email (post-OTP) ──────────────────
+//
+// Sent after POST /api/events/verify-guest successfully marks verifiedAt.
+// Mirrors sendEventRegistrationEmail but labels the registration as "Guest"
+// and does not assume a platform account exists.
+ 
+export async function sendGuestConfirmationEmail(
+  opts: {
+    to: string;
+    ticketId: string; // MongoDB _id of the guestEventRegistration document
+    whatsappGroupLink?: string;
+  } & Omit<GuestConfirmationEmailOptions, "ticketUrl">,
+): Promise<void> {
+  const ticketUrl = `${APP_URL}/tickets/${opts.ticketId}`;
+ 
+  if (IS_DEV) {
+    console.log(`[DEV EMAIL] Guest confirmation → ${opts.to}`);
+    console.log(`  Name:            ${opts.name}`);
+    console.log(`  Event:           ${opts.eventTitle}`);
+    console.log(`  Date:            ${opts.eventDate}`);
+    console.log(`  Location:        ${opts.eventLocation}`);
+    console.log(`  Ticket code:     ${opts.ticketCode}`);
+    console.log(`  Registration:    ${opts.registrationType}`);
+    console.log(`  Ticket URL:      ${ticketUrl}`);
+    if (opts.whatsappGroupLink) {
+      console.log(`  WhatsApp:        ${opts.whatsappGroupLink}`);
+    }
+    return;
+  }
+ 
+  const { subject, html, text } = guestConfirmationEmail({
+    name: opts.name,
+    eventTitle: opts.eventTitle,
+    eventDate: opts.eventDate,
+    eventLocation: opts.eventLocation,
+    ticketCode: opts.ticketCode,
+    ticketUrl,
+    isFree: opts.isFree,
+    ticketPrice: opts.ticketPrice,
+    whatsappGroupLink: opts.whatsappGroupLink,
+    registrationType: opts.registrationType,
   });
   await prodSend({ to: opts.to, subject, html, text });
 }

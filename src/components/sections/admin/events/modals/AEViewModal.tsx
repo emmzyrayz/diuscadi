@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import type { AdminEvent } from "@/context/AdminContext";
+import { GuestLandingSection } from "@/components/sections/admin/events/Guestlanding"; // ← ADDED
 
 interface ViewModalProps {
   isOpen: boolean;
@@ -227,6 +228,11 @@ export const AdminViewEventModal: React.FC<ViewModalProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* ── Guest Landing Page Section ── ADDED */}
+              <div className="pt-2 border-t border-border">
+                <GuestLandingSection event={event} />
+              </div>
 
               {/* Timestamps */}
               <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
