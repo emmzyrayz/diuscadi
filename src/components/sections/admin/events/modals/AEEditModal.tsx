@@ -224,11 +224,33 @@ function localDatetimeToIso(value: string): string {
   return new Date(`${value}:00+01:00`).toISOString();
 }
 
-// function isoToLocalDatetime(iso: string): string {
-//   if (!iso) return "";
-//   const d = new Date(new Date(iso).getTime() + 60 * 60 * 1000);
-//   return d.toISOString().slice(0, 16);
-// }
+/// Restore this — it IS needed for edit mode to display dates correctly
+function isoToLocalDatetime(iso: string | Date | undefined): string {
+  if (!iso) return "";
+  const str = typeof iso === "string" ? iso : iso.toISOString();
+  // Already in datetime-local format (no timezone suffix)
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(str)) return str;
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return "";
+  // Shift to WAT (UTC+1) for the datetime-local input
+  return new Date(d.getTime() + 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 16);
+}
+
+// Extend the type to accept the raw EventDocument shape that gets passed in
+type RawInitialData = Partial<EventFormData> & {
+  // EventDocument fields that don't match form field names
+  location?: {
+    venue?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+  };
+  capacity?: number;           // DB uses capacity, form uses maxCapacity
+  status?: string;             // DB uses status, form uses visibility
+};
 
 function toSlug(title: string): string {
   return title.trim().toLowerCase()
@@ -2255,25 +2277,119 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
   const [submitting,  setSubmitting]  = useState(false);
 
   // ── Map initialData into full EventFormData ───────────────────────────────
-  function buildFormFromInitial(init: Partial<EventFormData>): EventFormData {
-    return {
-      ...DEFAULT_FORM,
-      ...init,
-      // Arrays — ensure they default to [] if init doesn't have them
-      tags:             init.tags             ?? [],
-      learningOutcomes: init.learningOutcomes ?? [],
-      requiredSkills:   init.requiredSkills   ?? [],
-      pendingSkills:    [],
-      speakers:         (init as EventFormData).speakers ?? [],
-      sponsors:         (init as EventFormData).sponsors ?? [],
-      schedule:         (init as EventFormData).schedule ?? [],
-      faqs:             (init as EventFormData).faqs     ?? [],
-      // String fields with defaults
-      tagInput:         "",
-      outcomeInput:     "",
-      slugManuallyEdited: Boolean(init.slug),
-    };
+ function buildFormFromInitial(init: RawInitialData): EventFormData {
+   // Unwrap nested location — DB stores it nested, form keeps it flat
+   const loc = init.location ?? {};
+
+   // Map DB status → form visibility
+   const visibility: "Public" | "Invite-Only" =
+     init.status === "published" ? "Public" : (init.visibility ?? "Public");
+
+   return {
+     ...DEFAULT_FORM,
+     ...init,
+
+     // ── Identity (these map 1:1 but need explicit fallbacks) ──────────────
+     title: init.title ?? "",
+     slug: init.slug ?? "",
+     category: init.category ?? "Seminar",
+     level: init.level ?? "",
+     tags: init.tags ?? [],
+     shortDescription: init.shortDescription ?? "",
+     overview: init.overview ?? "",
+     description: init.description ?? "",
+     slugManuallyEdited: Boolean(init.slug),
+
+     // ── Logistics — date strings need format conversion ────────────────────
+     format: (init.format as EventFormData["format"]) ?? "Physical",
+     eventDate: isoToLocalDatetime(init.eventDate as string | undefined),
+     endDate: isoToLocalDatetime(init.endDate as string | undefined),
+     registrationDeadline: isoToLocalDatetime(
+       init.registrationDeadline as string | undefined,
+     ),
+     duration: init.duration ?? "",
+
+     // ── Location — unwrap from nested object ──────────────────────────────
+     venue: init.venue ?? loc.venue ?? "",
+     address: init.address ?? loc.address ?? "",
+     city: init.city ?? loc.city ?? "",
+     state: init.state ?? loc.state ?? "",
+     country: init.country ?? loc.country ?? "Nigeria",
+
+     locationScope:
+       (init.locationScope as EventFormData["locationScope"]) ?? "local",
+     whatsappGroupLink: init.whatsappGroupLink ?? "",
+
+     // ── Audience ──────────────────────────────────────────────────────────
+     targetEduStatus:
+       (init.targetEduStatus as EventFormData["targetEduStatus"]) ?? "ALL",
+     requiredSkills: init.requiredSkills ?? [],
+     pendingSkills: [], // always reset — not stored in DB
+     learningOutcomes: init.learningOutcomes ?? [],
+     instructor: init.instructor ?? "",
+
+     // ── Capacity — DB uses `capacity`, form uses `maxCapacity` ────────────
+     maxCapacity: init.maxCapacity ?? init.capacity ?? 100,
+     ticketPrice: init.ticketPrice ?? 0, // not in EventDocument, default 0
+     enableWaitlist: init.enableWaitlist ?? false, // not in EventDocument
+
+     // ── Content ───────────────────────────────────────────────────────────
+     speakers: init.speakers ?? [],
+     sponsors: init.sponsors ?? [],
+     schedule: init.schedule ?? [],
+     faqs: init.faqs ?? [],
+
+     // ── Review ────────────────────────────────────────────────────────────
+     visibility,
+     _originalStatus: init.status ?? init._originalStatus,
+
+     // ── Scratch fields — always reset ─────────────────────────────────────
+     tagInput: "",
+     outcomeInput: "",
+     bannerBlob: null,
+     bannerPreviewUrl: null,
+   };
+ }
+
+ // Add a loading state next to your other state declarations
+const [fetchingEvent, setFetchingEvent] = useState(false);
+
+// Replace the existing useEffect with this:
+useEffect(() => {
+  if (!isOpen) return;
+
+  // Reset to step 1 every time the modal opens
+  setCurrentStep(1);
+
+  if (!eventId || !token) {
+    // Creating a new event — just reset the form
+    setFormData(buildFormFromInitial(initialData ?? {}));
+    return;
   }
+
+  // Editing — fetch the full EventDocument from the admin endpoint
+  // so we get shortDescription, description, speakers, sponsors, etc.
+  // which are absent from EventSummary list items
+  setFetchingEvent(true);
+  fetch(`/api/admin/events/${eventId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      // data.event is the full EventDocument shape
+      const fullEvent = data.event ?? data; 
+      setFormData(buildFormFromInitial({
+        ...initialData,  // keeps _originalStatus etc. passed by caller
+        ...fullEvent,    // overwrites with complete DB fields
+      }));
+    })
+    .catch(() => {
+      // Network failure — fall back to whatever initialData has
+      toast.error("Could not load full event data, some fields may be incomplete");
+      setFormData(buildFormFromInitial(initialData ?? {}));
+    })
+    .finally(() => setFetchingEvent(false));
+}, [isOpen, eventId, token, initialData]);
 
   const [formData, setFormData] = useState<EventFormData>(
     () => buildFormFromInitial(initialData ?? {}),
@@ -2338,14 +2454,17 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
   }
 
   function validate(): string | null {
-    if (!formData.title.trim())            return "Event title is required";
-    if (!formData.slug.trim())             return "URL slug is required";
-    if (!formData.eventDate)               return "Event date is required";
-    if (!formData.registrationDeadline)    return "Registration deadline is required";
-    if (!formData.shortDescription.trim()) return "Short description is required";
-    if (!formData.overview.trim())         return "Overview is required";
-    return null;
+  if (!formData.title.trim())            return "Event title is required";
+  if (!formData.slug.trim())             return "URL slug is required";
+  if (!formData.shortDescription.trim()) return "Short description is required";
+  if (!formData.overview.trim())         return "Overview is required";
+  if (!isEditing) {
+    // Only enforce dates on create — edit keeps whatever was set
+    if (!formData.eventDate)            return "Event date is required";
+    if (!formData.registrationDeadline) return "Registration deadline is required";
   }
+  return null;
+}
 
   // ── Create ────────────────────────────────────────────────────────────────
   const handleCreate = async () => {
@@ -2370,8 +2489,8 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
     
     if (!token || !eventId) return;
     console.log("Validation:", validate());
-    // const err = validate();
-    // if (err) { toast.error(err); return; }
+    const err = validate();
+    if (err) { toast.error(err); return; }
     setSubmitting(true);
     try {
       const res = await fetch(`/api/admin/events/${eventId}`, {
@@ -2629,50 +2748,78 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
 
             {/* Content */}
             <div className={cn("flex-1", "overflow-y-auto", "p-10")}>
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentStep}
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.18 }}
+              {fetchingEvent ? (
+                <div
+                  className={cn(
+                    "flex",
+                    "flex-col",
+                    "items-center",
+                    "justify-center",
+                    "h-64",
+                    "gap-4",
+                  )}
                 >
-                  {currentStep === 1 && (
-                    <IdentityStep
-                      formData={formData}
-                      setFormData={setFormData}
-                      ownerId={ownerId}
-                    />
-                  )}
-                  {currentStep === 2 && (
-                    <LogisticsStep
-                      formData={formData}
-                      setFormData={setFormData}
-                    />
-                  )}
-                  {currentStep === 3 && (
-                    <AudienceStep
-                      formData={formData}
-                      setFormData={setFormData}
-                    />
-                  )}
-                  {currentStep === 4 && (
-                    <ContentStep
-                      formData={formData}
-                      setFormData={setFormData}
-                      ownerId={ownerId}
-                    />
-                  )}
-                  {currentStep === 5 && (
-                    <ReviewStep
-                      formData={formData}
-                      setFormData={setFormData}
-                      isEditing={isEditing}
-                      isRepublishing={isRepublishing}
-                    />
-                  )}
-                </motion.div>
-              </AnimatePresence>
+                  <LuLoader
+                    className={cn("w-8", "h-8", "animate-spin", "text-primary")}
+                  />
+                  <p
+                    className={cn(
+                      "text-[10px]",
+                      "font-black",
+                      "uppercase",
+                      "tracking-widest",
+                      "text-muted-foreground",
+                    )}
+                  >
+                    Loading event data…
+                  </p>
+                </div>
+              ) : (
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentStep}
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    {currentStep === 1 && (
+                      <IdentityStep
+                        formData={formData}
+                        setFormData={setFormData}
+                        ownerId={ownerId}
+                      />
+                    )}
+                    {currentStep === 2 && (
+                      <LogisticsStep
+                        formData={formData}
+                        setFormData={setFormData}
+                      />
+                    )}
+                    {currentStep === 3 && (
+                      <AudienceStep
+                        formData={formData}
+                        setFormData={setFormData}
+                      />
+                    )}
+                    {currentStep === 4 && (
+                      <ContentStep
+                        formData={formData}
+                        setFormData={setFormData}
+                        ownerId={ownerId}
+                      />
+                    )}
+                    {currentStep === 5 && (
+                      <ReviewStep
+                        formData={formData}
+                        setFormData={setFormData}
+                        isEditing={isEditing}
+                        isRepublishing={isRepublishing}
+                      />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              )}
             </div>
 
             {/* Footer */}
@@ -2756,11 +2903,8 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
                   </button>
                 ) : (
                   <button
-                    onClick={() => {
-                      console.log("SAVE BUTTON CLICKED");
-                      handleSubmit();
-                    }}
-                    disabled={submitting}
+                    onClick={handleSubmit}
+                    disabled={submitting || fetchingEvent}
                     className={cn(
                       "flex",
                       "items-center",

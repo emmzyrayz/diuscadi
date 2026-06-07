@@ -1,9 +1,5 @@
 "use client";
 // src/components/sections/admin/events/GuestLandingSection.tsx
-//
-// Displays the guest landing page URL + QR code for an event inside
-// AEViewModal. Allows the admin to copy the URL, download the QR as PNG,
-// and download a one-page PDF share sheet — all client-side, nothing stored.
 
 import React, { useRef, useState, useCallback } from "react";
 import {
@@ -14,11 +10,13 @@ import {
   LuQrCode,
   LuGlobe,
   LuLock,
+  LuShare2,
   LuFileDown,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import { QRCode } from "@/components/ui/QRCode";
+import { shareUrl } from "@/lib/shareUtils";
 import type { AdminEvent } from "@/context/AdminContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -48,9 +46,8 @@ export function GuestLandingSection({ event }: GuestLandingSectionProps) {
 
   const [copied, setCopied] = useState(false);
   const [downloadingPng, setDownloadingPng] = useState(false);
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
-  // Ref wrapping the QR card — captured by html2canvas for downloads
+  // Ref wrapping the QR card — captured by html2canvas for PNG download
   const qrCardRef = useRef<HTMLDivElement>(null);
 
   // ── Copy URL ───────────────────────────────────────────────────────────────
@@ -65,7 +62,18 @@ export function GuestLandingSection({ event }: GuestLandingSectionProps) {
     }
   }, [landingUrl]);
 
+  // ── Share (Web Share API → clipboard fallback) ─────────────────────────────
+  const handleShare = useCallback(async () => {
+    await shareUrl({
+      title: `${event.title} — Guest Registration`,
+      url: landingUrl,
+      text: `Register as a guest for ${event.title} on DIUSCADI`,
+    });
+  }, [event.title, landingUrl]);
+
   // ── PNG download ───────────────────────────────────────────────────────────
+  // Uses html2canvas (already installed) to capture the QR card div.
+  // withLogo={false} on QRCode avoids the missing /images/logo-qr.png fetch.
   const handleDownloadPng = useCallback(async () => {
     if (!qrCardRef.current) return;
     setDownloadingPng(true);
@@ -101,65 +109,82 @@ export function GuestLandingSection({ event }: GuestLandingSectionProps) {
     }
   }, [event.slug]);
 
-  // ── PDF download ───────────────────────────────────────────────────────────
-  // Strategy: html2canvas → canvas → jsPDF single A4 page centred
-  const handleDownloadPdf = useCallback(async () => {
-    if (!qrCardRef.current) return;
-    setDownloadingPdf(true);
-    const toastId = toast.loading("Preparing PDF…");
+  // ── PDF download via window.print() ──────────────────────────────────────
+  // Strategy: inject a <style> into <head> that hides everything except the
+  // QR card when printing, then call window.print(). No jsPDF needed.
+  const handleDownloadPdf = useCallback(() => {
+    const styleId = "guest-landing-print-style";
 
-    try {
-      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf"),
-      ]);
+    // Remove any previous injection
+    document.getElementById(styleId)?.remove();
 
-      const canvas = await html2canvas(qrCardRef.current, {
-        backgroundColor: "#ffffff",
-        scale: 3,
-        useCORS: true,
-        logging: false,
-      });
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.innerHTML = `
+      @media print {
+        body > * { display: none !important; }
+        #guest-qr-print-root { display: flex !important; }
+      }
+    `;
+    document.head.appendChild(style);
 
-      const imgData = canvas.toDataURL("image/png");
+    // Create a temporary full-page print container
+    const printRoot = document.createElement("div");
+    printRoot.id = "guest-qr-print-root";
+    printRoot.style.cssText = `
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: white;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 24px;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      z-index: 99999;
+    `;
 
-      // A4 in mm: 210 × 297
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-
-      // Scale the card image to fit within A4 with 20 mm margins
-      const margin = 20;
-      const maxW = pageW - margin * 2;
-      const maxH = pageH - margin * 2;
-
-      const imgW = canvas.width / 3; // px → mm @ 96dpi≈3.78 px/mm; close enough for centering
-      const imgH = canvas.height / 3;
-      const ratio = Math.min(maxW / imgW, maxH / imgH);
-
-      const finalW = imgW * ratio;
-      const finalH = imgH * ratio;
-      const x = (pageW - finalW) / 2;
-      const y = (pageH - finalH) / 2;
-
-      pdf.addImage(imgData, "PNG", x, y, finalW, finalH);
-      pdf.save(`guest-landing-${event.slug}.pdf`);
-
-      toast.success("PDF downloaded", { id: toastId });
-    } catch {
-      toast.error("PDF export failed", { id: toastId });
-    } finally {
-      setDownloadingPdf(false);
+    // Clone the QR card into the print root so it renders at full size
+    if (qrCardRef.current) {
+      const clone = qrCardRef.current.cloneNode(true) as HTMLElement;
+      clone.style.transform = "scale(2)";
+      clone.style.transformOrigin = "center center";
+      clone.style.margin = "80px auto";
+      printRoot.appendChild(clone);
     }
-  }, [event.slug]);
+
+    // Event title + URL below the QR
+    const caption = document.createElement("div");
+    caption.style.cssText = "text-align:center; margin-top: 120px;";
+    caption.innerHTML = `
+      <p style="font-size:18px; font-weight:900; color:#0f172a; letter-spacing:-0.02em; margin:0 0 8px;">
+        ${event.title}
+      </p>
+      <p style="font-size:11px; font-weight:700; color:#64748b; font-family:monospace; margin:0;">
+        ${landingUrl}
+      </p>
+      <p style="font-size:9px; font-weight:700; color:#94a3b8; letter-spacing:0.15em; text-transform:uppercase; margin:8px 0 0;">
+        Guest Registration · DIUSCADI
+      </p>
+    `;
+    printRoot.appendChild(caption);
+
+    document.body.appendChild(printRoot);
+
+    // Give browser one frame to render, then print
+    requestAnimationFrame(() => {
+      window.print();
+
+      // Clean up after print dialog closes
+      setTimeout(() => {
+        printRoot.remove();
+        document.getElementById(styleId)?.remove();
+      }, 1000);
+    });
+  }, [event.title, landingUrl]);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Render — disabled state when not published
+  // Render
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
@@ -196,13 +221,12 @@ export function GuestLandingSection({ event }: GuestLandingSectionProps) {
             {landingUrl}
           </p>
 
-          {/* Copy button */}
+          {/* Copy */}
           <button
             onClick={handleCopy}
             disabled={!isPublished}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5",
-              "rounded-xl border border-border bg-background",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background",
               "text-[9px] font-black uppercase tracking-widest",
               "hover:bg-primary hover:text-background hover:border-primary",
               "transition-all active:scale-95 cursor-pointer",
@@ -227,8 +251,7 @@ export function GuestLandingSection({ event }: GuestLandingSectionProps) {
             rel="noopener noreferrer"
             aria-disabled={!isPublished}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5",
-              "rounded-xl border border-border bg-background",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background",
               "text-[9px] font-black uppercase tracking-widest",
               "hover:bg-foreground hover:text-background hover:border-foreground",
               "transition-all active:scale-95 cursor-pointer",
@@ -241,15 +264,19 @@ export function GuestLandingSection({ event }: GuestLandingSectionProps) {
 
         {/* QR + actions */}
         <div className="p-6 flex flex-col sm:flex-row items-center gap-6">
-          {/* QR card — this div is what html2canvas captures */}
+          {/* QR card — captured by html2canvas */}
           <div
             ref={qrCardRef}
             className="bg-white rounded-2xl p-5 flex flex-col items-center gap-3 border border-border shrink-0"
             style={{ minWidth: 180 }}
           >
-            <QRCode value={landingUrl} size={140} withLogo={true} />
+            {/*
+              withLogo={false} — avoids fetching /images/logo-qr.png which
+              does not exist in /public. QR still scans at level "M" error
+              correction without the logo overlay.
+            */}
+            <QRCode value={landingUrl} size={140} withLogo={false} />
 
-            {/* Caption inside the captured card */}
             <div className="text-center space-y-0.5">
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
                 Guest Registration
@@ -263,9 +290,8 @@ export function GuestLandingSection({ event }: GuestLandingSectionProps) {
             </div>
           </div>
 
-          {/* Right side — event meta + download buttons */}
+          {/* Right side */}
           <div className="flex-1 space-y-4 w-full">
-            {/* Event info pills */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="px-2.5 py-1 bg-muted rounded-xl text-[9px] font-black uppercase tracking-widest text-muted-foreground">
@@ -278,21 +304,20 @@ export function GuestLandingSection({ event }: GuestLandingSectionProps) {
                   {event.registered}/{event.capacity} registered
                 </span>
               </div>
-
               <p className="text-[10px] font-bold text-muted-foreground leading-relaxed">
                 Scan or share this QR code to let guests register without a
                 platform account.
               </p>
             </div>
 
-            {/* Download buttons */}
+            {/* Action buttons */}
             <div className="flex flex-wrap gap-2">
+              {/* PNG */}
               <button
                 onClick={handleDownloadPng}
                 disabled={!isPublished || downloadingPng}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2.5",
-                  "bg-foreground text-background rounded-xl",
+                  "flex items-center gap-2 px-4 py-2.5 bg-foreground text-background rounded-xl",
                   "text-[9px] font-black uppercase tracking-widest",
                   "hover:bg-primary transition-all active:scale-95 cursor-pointer",
                   "disabled:opacity-40 disabled:cursor-not-allowed",
@@ -302,19 +327,34 @@ export function GuestLandingSection({ event }: GuestLandingSectionProps) {
                 {downloadingPng ? "Exporting…" : "PNG"}
               </button>
 
+              {/* PDF via print */}
               <button
                 onClick={handleDownloadPdf}
-                disabled={!isPublished || downloadingPdf}
+                disabled={!isPublished}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2.5",
-                  "border-2 border-border bg-background text-foreground rounded-xl",
+                  "flex items-center gap-2 px-4 py-2.5 border-2 border-border bg-background text-foreground rounded-xl",
                   "text-[9px] font-black uppercase tracking-widest",
                   "hover:bg-muted transition-all active:scale-95 cursor-pointer",
                   "disabled:opacity-40 disabled:cursor-not-allowed",
                 )}
               >
                 <LuFileDown className="w-3.5 h-3.5" />
-                {downloadingPdf ? "Exporting…" : "PDF"}
+                PDF
+              </button>
+
+              {/* Share */}
+              <button
+                onClick={handleShare}
+                disabled={!isPublished}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 border-2 border-border bg-background text-foreground rounded-xl",
+                  "text-[9px] font-black uppercase tracking-widest",
+                  "hover:bg-muted transition-all active:scale-95 cursor-pointer",
+                  "disabled:opacity-40 disabled:cursor-not-allowed",
+                )}
+              >
+                <LuShare2 className="w-3.5 h-3.5" />
+                Share
               </button>
             </div>
           </div>
