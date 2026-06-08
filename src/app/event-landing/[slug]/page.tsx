@@ -4,6 +4,7 @@ import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { CloudinaryImage } from "@/types/cloudinary";
 import RegistrationForm from "./registrationForm";
+import Image from "next/image";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -311,8 +312,7 @@ export default async function EventLandingPage({ params }: PageProps) {
       `}</style>
 
       {event.eventBanner?.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <Image
           src={event.eventBanner.imageUrl}
           alt={event.eventBanner.imageAlt || `${event.title} banner`}
           className="landing-banner"
