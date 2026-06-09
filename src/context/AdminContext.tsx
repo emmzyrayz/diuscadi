@@ -61,6 +61,7 @@ export interface AdminEvent {
   registrationDeadline: string;
   capacity: number;
   registered: number;
+  guestRegistered?: number; // ← ADD
   targetEduStatus: string;
   requiredSkills: string[];
   createdAt: string;
@@ -157,6 +158,9 @@ export interface Analytics {
     thisMonth: number;
     checkedIn: number;
     attendanceRate: number;
+    guestTotal?: number; // ← ADD
+    guestThisMonth?: number; // ← ADD
+    guestCheckedIn?: number; // ← ADD
   };
   topEvents: Array<{
     eventId: string;
@@ -254,6 +258,32 @@ export interface AdminTicketSummary {
   createdAt: string;
 }
 
+export interface AdminGuestRegistration {
+  id: string;
+  registrationType: "Guest";
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: { countryCode: number; phoneNumber: number };
+  inviteCode: string;
+  status: string;
+  registeredAt: string;
+  checkedInAt: string | null;
+  verifiedAt: string;
+  eventId: string;
+  eventTitle: string;
+  eventSlug: string;
+  eventDate: string | null;
+  eventFormat: string;
+}
+
+export interface GuestStats {
+  total: number;
+  registered: number;
+  checkedIn: number;
+  cancelled: number;
+}
+
 export interface TicketStats {
   total: number;
   active: number;
@@ -302,6 +332,12 @@ interface AdminState {
   ticketsPagination: Pagination | null;
   ticketStats: TicketStats | null;
   loadingTickets: boolean;
+
+  // Guest registrations
+  guests: AdminGuestRegistration[];
+  guestsPagination: Pagination | null;
+  guestStats: GuestStats | null;
+  loadingGuests: boolean;
 
   // Shared
   error: string | null;
@@ -423,6 +459,17 @@ interface AdminContextValue extends AdminState {
     token?: string,
   ) => Promise<void>;
 
+  loadGuests: (
+    opts?: {
+      search?: string;
+      status?: string;
+      eventId?: string;
+      page?: number;
+      limit?: number;
+    },
+    token?: string,
+  ) => Promise<void>;
+
   // ── Shared ─────────────────────────────────────────────────────────────────
   reset: () => void;
   clearError: () => void;
@@ -472,6 +519,10 @@ const INITIAL_STATE: AdminState = {
   ticketsPagination: null,
   ticketStats: null,
   loadingTickets: false,
+  guests: [],
+  guestsPagination: null,
+  guestStats: null,
+  loadingGuests: false,
   error: null,
   submitting: false,
 };
@@ -1067,6 +1118,56 @@ export function AdminProvider({
     [token],
   );
 
+  const loadGuests = useCallback(
+    async (
+      opts: {
+        search?: string;
+        status?: string;
+        eventId?: string;
+        page?: number;
+        limit?: number;
+      } = {},
+      tkn = token ?? "",
+    ) => {
+      if (!tkn) return;
+      setState((s) => ({ ...s, loadingGuests: true, error: null }));
+      try {
+        const params = new URLSearchParams();
+        if (opts.search) params.set("search", opts.search);
+        if (opts.status) params.set("status", opts.status);
+        if (opts.eventId) params.set("eventId", opts.eventId);
+        if (opts.page) params.set("page", String(opts.page));
+        if (opts.limit) params.set("limit", String(opts.limit));
+
+        const res = await fetch(`/api/admin/guests?${params}`, {
+          headers: { Authorization: `Bearer ${tkn}` },
+        });
+        const data = await handleResponse<{
+          guests: AdminGuestRegistration[];
+          stats: GuestStats;
+          pagination: Pagination;
+        }>(res);
+        setState((s) => ({
+          ...s,
+          guests: data.guests,
+          guestStats: data.stats,
+          guestsPagination: data.pagination,
+          loadingGuests: false,
+        }));
+      } catch (err) {
+        setState((s) => ({
+          ...s,
+          loadingGuests: false,
+          error:
+            err instanceof Error
+              ? err.message
+              : "Failed to load guest registrations",
+        }));
+      }
+    },
+    [token],
+  );
+
   const loadUserTickets = useCallback(
     async (userId: string, page = 1, tkn = token ?? "") => {
       if (!tkn) return null;
@@ -1166,6 +1267,7 @@ export function AdminProvider({
         loadInvites,
         generateInvites,
         loadTickets,
+        loadGuests,
         reset,
         clearError,
         updateVerifiedSkills,

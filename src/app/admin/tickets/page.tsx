@@ -17,6 +17,7 @@ import { AdminTicketsPagination } from "@/components/sections/admin/tickets/ATPa
 import { AdminTicketsEmptyState } from "@/components/sections/admin/tickets/ATEmptyState";
 import { TicketScannerModal } from "@/components/sections/admin/tickets/modal/TicketScannerModal";
 import { LuLoader } from "react-icons/lu";
+import { cn } from "@/lib/utils";
 
 // Shape returned by GET /api/admin/tickets
 export interface AdminTicket {
@@ -32,6 +33,7 @@ export interface AdminTicket {
   eventDate: string;
   checkedInAt: string | null;
   createdAt: string;
+  registrationType?: "Account" | "Guest";
 }
 
 interface TicketStats {
@@ -56,6 +58,7 @@ export default function TicketManagementPage() {
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
   const [stats, setStats] = useState<TicketStats | null>(null);
   const [pagination, setPagination] = useState<TicketPagination | null>(null);
+  const [ticketType, setTicketType] = useState<"" | "account" | "guest">("");
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -80,6 +83,7 @@ export default function TicketManagementPage() {
       });
       if (search) params.set("search", search);
       if (status) params.set("status", status);
+      if (ticketType) params.set("type", ticketType);
 
       const res = await fetch(`/api/admin/tickets?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -94,7 +98,7 @@ export default function TicketManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, currentPage, search, status]);
+  }, [token, currentPage, search, status, ticketType]);
 
   useEffect(() => {
     fetchTickets();
@@ -120,11 +124,38 @@ export default function TicketManagementPage() {
       <AdminTicketsHeader
         activeTickets={stats?.active ?? 0}
         onScanClick={() => setIsScannerOpen(true)}
-        onExportClick={() => triggerExport({ search, status })}
+        onExportClick={() =>
+          triggerExport({ search, status, type: ticketType })
+        }
         exporting={exporting}
       />
 
       <AdminTicketsStats stats={stats} />
+
+      {/* ── Type filter tabs ── */}
+      <div className="flex gap-2 p-1 bg-muted border border-border rounded-2xl w-fit">
+        {[
+          { id: "" as const, label: "All Tickets" },
+          { id: "account" as const, label: "Account" },
+          { id: "guest" as const, label: "Guest" },
+        ].map(({ id, label }) => (
+          <button
+            key={id === "" ? "all" : id}
+            onClick={() => {
+              setTicketType(id);
+              setCurrentPage(1);
+            }}
+            className={cn(
+              "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
+              ticketType === id
+                ? "bg-background text-foreground shadow"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <AdminTicketsToolbar
         onSearchChange={setSearch}

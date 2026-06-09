@@ -22,6 +22,7 @@ import {
   type MembershipWelcomeEmailOptions,
   type GuestVerificationEmailOptions,
   type GuestConfirmationEmailOptions,
+  migrationWelcomeEmail,
 } from "@/lib/MailTemplate";
 
 const IS_DEV =
@@ -404,6 +405,54 @@ export async function sendGuestConfirmationEmail(
     ticketPrice: opts.ticketPrice,
     whatsappGroupLink: opts.whatsappGroupLink,
     registrationType: opts.registrationType,
+  });
+  await prodSend({ to: opts.to, subject, html, text });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADD TO src/lib/sendEmail.ts
+//
+// Step 1: Add to the import block at the top of sendEmail.ts:
+//
+//   import {
+//     ...existing imports...,
+//     migrationWelcomeEmail,
+//     type MigrationWelcomeEmailOptions,
+//   } from "@/lib/MailTemplate";
+//
+// Step 2: Paste the function below at the bottom of sendEmail.ts
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── 13. Guest → Account migration welcome ───────────────────────────────────
+//
+// Sent after POST /api/auth/migrate-guest successfully creates the account.
+// Contains the temporary password and a direct link to the reset page.
+// This email is the ONLY place the temp password is ever transmitted.
+
+export async function sendMigrationWelcomeEmail(opts: {
+  to: string;
+  name: string;
+  tempPassword: string;
+  loginUrl: string;
+  resetUrl: string;
+  eventsCount: number;
+}): Promise<void> {
+  if (IS_DEV) {
+    console.log(`[DEV EMAIL] Migration welcome → ${opts.to}`);
+    console.log(`  Name:          ${opts.name}`);
+    console.log(`  Temp password: ${opts.tempPassword}`);
+    console.log(`  Login URL:     ${opts.loginUrl}`);
+    console.log(`  Reset URL:     ${opts.resetUrl}`);
+    console.log(`  Tickets:       ${opts.eventsCount} migrated`);
+    return;
+  }
+
+  const { subject, html, text } = migrationWelcomeEmail({
+    name: opts.name,
+    tempPassword: opts.tempPassword,
+    loginUrl: opts.loginUrl,
+    resetUrl: opts.resetUrl,
+    eventsCount: opts.eventsCount,
   });
   await prodSend({ to: opts.to, subject, html, text });
 }

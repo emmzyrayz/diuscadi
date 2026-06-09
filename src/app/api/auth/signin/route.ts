@@ -157,6 +157,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ── Requires password reset (migrated guest account) ─────────────────────────
+    const vaultExt = vault as typeof vault & {
+      requiresPasswordReset?: boolean;
+    };
+    if (vaultExt.requiresPasswordReset) {
+      return NextResponse.json(
+        {
+          requiresPasswordReset: true,
+          redirectTo: "/auth/forgot-password",
+        },
+        { status: 403 },
+      );
+    }
+
     // ── Session upsert ────────────────────────────────────────────────────────
     // One session per device (userAgent). Same device re-login → update existing
     // session with fresh token + expiry. New device → insert, then prune if over cap.

@@ -313,6 +313,8 @@ export default async function EventLandingPage({ params }: PageProps) {
 
       {event.eventBanner?.imageUrl ? (
         <Image
+          width={500}
+          height={300}
           src={event.eventBanner.imageUrl}
           alt={event.eventBanner.imageAlt || `${event.title} banner`}
           className="landing-banner"

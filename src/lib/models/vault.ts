@@ -43,8 +43,8 @@ export interface VaultDocument {
 
   // ── Security ──────────────────────────────────────────────────────────────
   tokenVersion: number;
+  requiresPasswordReset?: boolean;
   lastLoginAt?: Date;
-
   verificationResendCount: number;
   verificationResendLastAt?: Date;
 

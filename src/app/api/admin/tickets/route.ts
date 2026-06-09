@@ -1,7 +1,6 @@
 // GET /api/admin/tickets
-// Admin/webmaster only. Returns paginated ticket list with stats.
-// Tickets are stored in "eventRegistrations" collection.
-// Query: ?page= &limit= &search= &status= &eventId= &export=csv
+// Admin/webmaster only. Returns paginated ticket list (account + guest) with stats.
+// Query: ?page= &limit= &search= &status= &eventId= &type=all|account|guest &export=csv
 
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
@@ -24,137 +23,217 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const search = searchParams.get("search") ?? "";
     const status = searchParams.get("status") ?? "";
     const eventId = searchParams.get("eventId") ?? "";
+    const typeFilter = searchParams.get("type") ?? ""; // "account" | "guest" | ""
     const exportCsv = searchParams.get("export") === "csv";
     const skip = (page - 1) * limit;
 
     const db = await getDb();
 
-    // ── Base match ────────────────────────────────────────────────────────────
-    const match: Record<string, unknown> = {};
-    if (status) match.status = status;
-    if (eventId) {
-      try {
-        match.eventId = new ObjectId(eventId);
-      } catch {
-        /* ignore */
-      }
+    // ── Shared match conditions ───────────────────────────────────────────────
+    const accountMatch: Record<string, unknown> = {};
+    const guestMatch: Record<string, unknown> = {
+      verifiedAt: { $exists: true },
+    };
+
+    if (status) {
+      accountMatch.status = status;
+      guestMatch.status = status;
+    }
+    if (eventId && ObjectId.isValid(eventId)) {
+      const eid = new ObjectId(eventId);
+      accountMatch.eventId = eid;
+      guestMatch.eventId = eid;
     }
 
-    // ── Pipeline with user + event joins ──────────────────────────────────────
-    const pipeline: object[] = [
-      { $match: match },
+    // ── Normalize pipelines ───────────────────────────────────────────────────
+    // Both pipelines project to the SAME field names so $unionWith works cleanly.
+
+    const accountNormPipeline: object[] = [
+      { $match: accountMatch },
       {
         $lookup: {
           from: "userData",
           localField: "userId",
           foreignField: "_id",
-          as: "_user",
+          as: "_u",
         },
       },
-      { $unwind: { path: "$_user", preserveNullAndEmptyArrays: true } },
+      { $unwind: { path: "$_u", preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
           from: "events",
           localField: "eventId",
           foreignField: "_id",
-          as: "_event",
+          as: "_e",
         },
       },
-      { $unwind: { path: "$_event", preserveNullAndEmptyArrays: true } },
+      { $unwind: { path: "$_e", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          inviteCode: 1,
+          status: 1,
+          userId: { $toString: "$userId" },
+          eventId: { $toString: "$eventId" },
+          checkedInAt: 1,
+          createdAt: 1,
+          registeredAt: 1,
+          registrationType: { $literal: "Account" },
+          userName: {
+            $trim: {
+              input: {
+                $concat: [
+                  { $ifNull: ["$_u.fullName.firstname", ""] },
+                  " ",
+                  { $ifNull: ["$_u.fullName.lastname", ""] },
+                ],
+              },
+            },
+          },
+          userEmail: { $ifNull: ["$_u.email", ""] },
+          userAvatar: { $ifNull: ["$_u.avatar.imageUrl", null] },
+          eventTitle: { $ifNull: ["$_e.title", "Unknown Event"] },
+          eventDate: { $ifNull: ["$_e.eventDate", null] },
+          institution: { $ifNull: ["$_u.Institution.name", ""] },
+          institutionAbbr: { $ifNull: ["$_u.Institution.abbreviation", ""] },
+          faculty: { $ifNull: ["$_u.Institution.faculty", ""] },
+          department: { $ifNull: ["$_u.Institution.department", ""] },
+          level: { $ifNull: ["$_u.Institution.level", ""] },
+        },
+      },
     ];
 
-    // Search across invite code, name, email, event title
-    if (search) {
-      pipeline.push({
-        $match: {
-          $or: [
-            { inviteCode: { $regex: search, $options: "i" } },
-            { "_user.email": { $regex: search, $options: "i" } },
-            { "_user.fullName.firstname": { $regex: search, $options: "i" } },
-            { "_user.fullName.lastname": { $regex: search, $options: "i" } },
-            { "_event.title": { $regex: search, $options: "i" } },
-          ],
+    const guestNormPipeline: object[] = [
+      { $match: guestMatch },
+      {
+        $lookup: {
+          from: "events",
+          localField: "eventId",
+          foreignField: "_id",
+          as: "_e",
         },
-      });
-    }
+      },
+      { $unwind: { path: "$_e", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          inviteCode: 1,
+          status: 1,
+          userId: { $literal: null },
+          eventId: { $toString: "$eventId" },
+          checkedInAt: 1,
+          createdAt: 1,
+          registeredAt: 1,
+          registrationType: { $literal: "Guest" },
+          userName: {
+            $trim: {
+              input: {
+                $concat: [
+                  { $ifNull: ["$fullName.firstname", ""] },
+                  " ",
+                  { $ifNull: ["$fullName.lastname", ""] },
+                ],
+              },
+            },
+          },
+          userEmail: { $ifNull: ["$email", ""] },
+          userAvatar: { $literal: null },
+          eventTitle: { $ifNull: ["$_e.title", "Unknown Event"] },
+          eventDate: { $ifNull: ["$_e.eventDate", null] },
+          institution: { $literal: "" },
+          institutionAbbr: { $literal: "" },
+          faculty: { $literal: "" },
+          department: { $literal: "" },
+          level: { $literal: "" },
+        },
+      },
+    ];
 
-    // ── Shared $project shape ─────────────────────────────────────────────────
-    const projectStage = {
+    // ── Search stage (applied after normalization / union) ────────────────────
+    const searchStage = search
+      ? [
+          {
+            $match: {
+              $or: [
+                { inviteCode: { $regex: search, $options: "i" } },
+                { userEmail: { $regex: search, $options: "i" } },
+                { userName: { $regex: search, $options: "i" } },
+                { eventTitle: { $regex: search, $options: "i" } },
+              ],
+            },
+          },
+        ]
+      : [];
+
+    // ── Final project ─────────────────────────────────────────────────────────
+    const finalProject = {
       $project: {
         _id: 0,
         id: { $toString: "$_id" },
         inviteCode: 1,
         status: 1,
-        userId: { $toString: "$userId" },
-        eventId: { $toString: "$eventId" },
+        userId: 1,
+        eventId: 1,
         checkedInAt: 1,
         createdAt: 1,
         registeredAt: 1,
-        userName: {
-          $trim: {
-            input: {
-              $concat: [
-                { $ifNull: ["$_user.fullName.firstname", ""] },
-                " ",
-                { $ifNull: ["$_user.fullName.lastname", ""] },
-              ],
-            },
-          },
-        },
-        userEmail: { $ifNull: ["$_user.email", ""] },
-        userAvatar: { $ifNull: ["$_user.avatar", null] },
-        eventTitle: { $ifNull: ["$_event.title", "Unknown Event"] },
-        eventDate: { $ifNull: ["$_event.eventDate", null] },
-        // Institution fields — included in export, optional in JSON response
-        institution: { $ifNull: ["$_user.Institution.name", ""] },
-        institutionAbbr: {
-          $ifNull: ["$_user.Institution.abbreviation", ""],
-        },
-        faculty: { $ifNull: ["$_user.Institution.faculty", ""] },
-        department: { $ifNull: ["$_user.Institution.department", ""] },
-        level: { $ifNull: ["$_user.Institution.level", ""] },
+        registrationType: 1,
+        userName: 1,
+        userEmail: 1,
+        userAvatar: 1,
+        eventTitle: 1,
+        eventDate: 1,
+        institution: 1,
+        institutionAbbr: 1,
+        faculty: 1,
+        department: 1,
+        level: 1,
       },
     };
 
-    // ── CSV export branch ─────────────────────────────────────────────────────
-    // No pagination — fetch everything that matches the current filters.
-    // Capped at 10,000 rows to prevent runaway memory use.
+    // ── Build main pipeline based on type filter ───────────────────────────────
+    let basePipeline: object[];
+    let baseCollection: ReturnType<
+      | typeof Collections.eventRegistrations
+      | typeof Collections.guestEventRegistrations
+    >;
+
+    if (typeFilter === "guest") {
+      baseCollection = Collections.guestEventRegistrations(db);
+      basePipeline = [...guestNormPipeline, ...searchStage];
+    } else if (typeFilter === "account") {
+      baseCollection = Collections.eventRegistrations(db);
+      basePipeline = [...accountNormPipeline, ...searchStage];
+    } else {
+      // "all" — union both collections
+      baseCollection = Collections.eventRegistrations(db);
+      basePipeline = [
+        ...accountNormPipeline,
+        {
+          $unionWith: {
+            coll: "guestEventRegistrations",
+            pipeline: guestNormPipeline,
+          },
+        },
+        ...searchStage,
+      ];
+    }
+
+    // ── CSV export ────────────────────────────────────────────────────────────
     if (exportCsv) {
-      const exportPipeline = [
-        ...pipeline,
-        { $sort: { createdAt: -1 } },
-        { $limit: 10000 },
-        projectStage,
-      ];
-
-      const rows = await Collections.eventRegistrations(db)
-        .aggregate(exportPipeline)
+      const rows = await baseCollection
+        .aggregate([
+          ...basePipeline,
+          { $sort: { createdAt: -1 } },
+          { $limit: 10_000 },
+          finalProject,
+        ])
         .toArray();
-
-      const headers = [
-        "Ticket Code",
-        "Status",
-        "User Name",
-        "User Email",
-        "Event",
-        "Event Date",
-        "Registered At",
-        "Checked In At",
-        "Institution",
-        "Abbreviation",
-        "Faculty",
-        "Department",
-        "Level",
-      ];
 
       const escape = (v: unknown): string => {
         const s = v == null ? "" : String(v);
-        // Wrap in quotes if value contains comma, newline, or quote
         return s.includes(",") || s.includes("\n") || s.includes('"')
           ? `"${s.replace(/"/g, '""')}"`
           : s;
       };
-
       const formatDate = (d: unknown): string => {
         if (!d) return "";
         try {
@@ -171,11 +250,29 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         }
       };
 
+      const headers = [
+        "Ticket Code",
+        "Registration Type",
+        "Status",
+        "User Name",
+        "User Email",
+        "Event",
+        "Event Date",
+        "Registered At",
+        "Checked In At",
+        "Institution",
+        "Abbreviation",
+        "Faculty",
+        "Department",
+        "Level",
+      ];
+
       const csvLines = [
         headers.join(","),
         ...rows.map((r) =>
           [
             escape(r.inviteCode),
+            escape(r.registrationType),
             escape(r.status),
             escape(r.userName),
             escape(r.userEmail),
@@ -194,67 +291,86 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
       const csv = csvLines.join("\n");
       const filename = `diuscadi-tickets-${new Date().toISOString().slice(0, 10)}.csv`;
-
       return new NextResponse(csv, {
         status: 200,
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
           "Content-Disposition": `attachment; filename="${filename}"`,
-          // Prevent Next.js / CDN from caching the export
           "Cache-Control": "no-store",
         },
       });
     }
 
-    // ── JSON response (paginated) ─────────────────────────────────────────────
-
-    // Count total before pagination
-    const countPipeline = [...pipeline, { $count: "total" }];
-    const [countResult] = await Collections.eventRegistrations(db)
-      .aggregate(countPipeline)
+    // ── Paginated JSON ────────────────────────────────────────────────────────
+    const [countResult] = await baseCollection
+      .aggregate([...basePipeline, { $count: "total" }])
       .toArray();
-    const total = countResult?.total ?? 0;
+    const total = (countResult?.total as number) ?? 0;
 
-    pipeline.push(
-      { $sort: { createdAt: -1 } },
-      { $skip: skip },
-      { $limit: limit },
-      projectStage,
-    );
-
-    const tickets = await Collections.eventRegistrations(db)
-      .aggregate(pipeline)
-      .toArray();
-
-    // ── Stats — counts across entire collection, ignoring current filters ─────
-    const [statsResult] = await Collections.eventRegistrations(db)
+    const tickets = await baseCollection
       .aggregate([
-        {
-          $group: {
-            _id: null,
-            total: { $sum: 1 },
-            active: {
-              $sum: { $cond: [{ $eq: ["$status", "registered"] }, 1, 0] },
-            },
-            checkedIn: {
-              $sum: { $cond: [{ $eq: ["$status", "checked-in"] }, 1, 0] },
-            },
-            invalidated: {
-              $sum: { $cond: [{ $in: ["$status", ["cancelled"]] }, 1, 0] },
-            },
-          },
-        },
+        ...basePipeline,
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        finalProject,
       ])
       .toArray();
 
-    const stats = statsResult
-      ? {
-          total: statsResult.total,
-          active: statsResult.active,
-          checkedIn: statsResult.checkedIn,
-          invalidated: statsResult.invalidated,
-        }
-      : { total: 0, active: 0, checkedIn: 0, invalidated: 0 };
+    // ── Stats — always across BOTH collections regardless of type filter ───────
+    const [accountStats, guestStats] = await Promise.all([
+      Collections.eventRegistrations(db)
+        .aggregate([
+          {
+            $group: {
+              _id: null,
+              total: { $sum: 1 },
+              active: {
+                $sum: { $cond: [{ $eq: ["$status", "registered"] }, 1, 0] },
+              },
+              checkedIn: {
+                $sum: { $cond: [{ $eq: ["$status", "checked-in"] }, 1, 0] },
+              },
+              invalidated: {
+                $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] },
+              },
+            },
+          },
+        ])
+        .toArray(),
+      Collections.guestEventRegistrations(db)
+        .aggregate([
+          { $match: { verifiedAt: { $exists: true } } },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: 1 },
+              active: {
+                $sum: { $cond: [{ $eq: ["$status", "registered"] }, 1, 0] },
+              },
+              checkedIn: {
+                $sum: { $cond: [{ $eq: ["$status", "checked-in"] }, 1, 0] },
+              },
+              invalidated: {
+                $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] },
+              },
+            },
+          },
+        ])
+        .toArray(),
+    ]);
+
+    const a = accountStats[0];
+    const g = guestStats[0];
+
+    const stats = {
+      total: (a?.total ?? 0) + (g?.total ?? 0),
+      active: (a?.active ?? 0) + (g?.active ?? 0),
+      checkedIn: (a?.checkedIn ?? 0) + (g?.checkedIn ?? 0),
+      invalidated: (a?.invalidated ?? 0) + (g?.invalidated ?? 0),
+      accountTotal: a?.total ?? 0,
+      guestTotal: g?.total ?? 0,
+    };
 
     return NextResponse.json({
       tickets,

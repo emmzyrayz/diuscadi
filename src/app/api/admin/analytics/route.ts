@@ -48,6 +48,9 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       dropoffEmailUnverified,
       dropoffProfileIncomplete,
       profileCompleted,
+      guestTotal, // ← ADD
+      guestThisMonth, // ← ADD
+      guestCheckedIn, // ← ADD
     ] = await Promise.all([
       // Users
       Collections.userData(db).countDocuments(),
@@ -193,6 +196,17 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
       // Profile completion: total users with avatar
       Collections.userData(db).countDocuments({ hasAvatar: true }),
+
+      Collections.guestEventRegistrations(db).countDocuments({
+        verifiedAt: { $exists: true },
+      }),
+      Collections.guestEventRegistrations(db).countDocuments({
+        verifiedAt: { $exists: true },
+        registeredAt: { $gte: thirtyDaysAgo },
+      }),
+      Collections.guestEventRegistrations(db).countDocuments({
+        status: "checked-in",
+      }),
     ]);
 
     const hourlyVisitMap = Object.fromEntries(
@@ -236,6 +250,9 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
           totalRegistrations > 0
             ? Math.round((checkedInCount / totalRegistrations) * 100)
             : 0,
+        guestTotal, // ← ADD
+        guestThisMonth, // ← ADD
+        guestCheckedIn, // ← ADD
       },
       topEvents: topEvents.map((e) => ({
         eventId: e.eventId.toString(),

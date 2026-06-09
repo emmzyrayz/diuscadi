@@ -45,14 +45,31 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
     // Attach registration counts via aggregation — avoids N+1 queries
     const eventIds = events.map((e) => e._id!);
-    const regCounts = await Collections.eventRegistrations(db)
-      .aggregate([
-        { $match: { eventId: { $in: eventIds }, status: "registered" } },
-        { $group: { _id: "$eventId", count: { $sum: 1 } } },
-      ])
-      .toArray();
+    const [regCounts, guestRegCounts] = await Promise.all([
+      Collections.eventRegistrations(db)
+        .aggregate([
+          { $match: { eventId: { $in: eventIds }, status: "registered" } },
+          { $group: { _id: "$eventId", count: { $sum: 1 } } },
+        ])
+        .toArray(),
+      Collections.guestEventRegistrations(db)
+        .aggregate([
+          {
+            $match: {
+              eventId: { $in: eventIds },
+              status: "registered",
+              verifiedAt: { $exists: true },
+            },
+          },
+          { $group: { _id: "$eventId", count: { $sum: 1 } } },
+        ])
+        .toArray(),
+    ]);
     const countMap = new Map(
       regCounts.map((r) => [r._id.toString(), r.count as number]),
+    );
+    const guestCountMap = new Map(
+      guestRegCounts.map((r) => [r._id.toString(), r.count as number]),
     );
 
     return NextResponse.json({
@@ -68,6 +85,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         registrationDeadline: e.registrationDeadline.toISOString(),
         capacity: e.capacity,
         registered: countMap.get(e._id!.toString()) ?? 0,
+        guestRegistered: guestCountMap.get(e._id!.toString()) ?? 0, // ← ADD
         targetEduStatus: e.targetEduStatus,
         requiredSkills: e.requiredSkills ?? [],
         createdAt: e.createdAt.toISOString(),

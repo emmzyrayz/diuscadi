@@ -1003,3 +1003,100 @@ export function guestConfirmationEmail({
  
   return { subject, html, text };
 }
+
+
+// ─── 14. Guest → Account Migration Welcome ───────────────────────────────────
+ 
+export interface MigrationWelcomeEmailOptions {
+  name: string;
+  tempPassword: string;   // plaintext temp password shown once in the email
+  loginUrl: string;       // /auth
+  resetUrl: string;       // /auth/forgot-password
+  eventsCount: number;    // number of guest tickets migrated
+}
+ 
+export function migrationWelcomeEmail({
+  name,
+  tempPassword,
+  loginUrl,
+  resetUrl,
+  eventsCount,
+}: MigrationWelcomeEmailOptions) {
+  const subject = `${APP_NAME} — Your account is ready, ${name}`;
+  const html = wrapper(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:900;color:${PRIMARY_COLOR};text-transform:uppercase;letter-spacing:-0.02em;">
+      Welcome to DIUSCADI
+    </h1>
+    <p style="margin:0 0 4px;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;">
+      Hi, ${name}
+    </p>
+ 
+    ${accentBanner(
+      "🎉",
+      "Account Created",
+      "Your guest registrations have been migrated to your new account.",
+      "#166534",
+      "#f0fdf4",
+    )}
+ 
+    <p style="margin:20px 0;font-size:13px;color:#475569;line-height:1.7;">
+      Your DIUSCADI account has been created using your guest registration details.
+      ${eventsCount > 0
+        ? `<strong>${eventsCount} event ticket${eventsCount === 1 ? "" : "s"}</strong> from your guest registrations have been carried over to your new account.`
+        : ""}
+    </p>
+ 
+    <!-- Temp password block -->
+    <div style="margin:28px 0;background:#fefce8;border:2px solid #fde047;border-radius:16px;padding:20px 28px;">
+      <div style="font-size:9px;font-weight:900;color:#92400e;text-transform:uppercase;letter-spacing:0.25em;margin-bottom:8px;">
+        Your Temporary Password
+      </div>
+      <div style="font-size:24px;font-weight:900;color:${PRIMARY_COLOR};letter-spacing:0.2em;font-family:monospace;">
+        ${tempPassword}
+      </div>
+      <p style="margin:10px 0 0;font-size:11px;color:#92400e;font-weight:700;">
+        ⚠ You will be prompted to reset this password on your first login.
+        Do not share it with anyone.
+      </p>
+    </div>
+ 
+    <!-- What to do next -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;">
+      ${[
+        ["1️⃣", "Log in using your email and the temporary password above"],
+        ["2️⃣", "You will be redirected to reset your password immediately"],
+        ["3️⃣", "Complete your profile to unlock full platform features"],
+      ]
+        .map(
+          ([icon, text]) => `
+        <tr>
+          <td style="padding:8px 0;vertical-align:top;width:28px;">
+            <span style="font-size:16px;">${icon}</span>
+          </td>
+          <td style="padding:8px 0 8px 8px;vertical-align:top;">
+            <span style="font-size:12px;font-weight:600;color:#475569;">${text}</span>
+          </td>
+        </tr>`,
+        )
+        .join("")}
+    </table>
+ 
+    ${ctaButton("Log In to DIUSCADI", loginUrl)}
+ 
+    <div style="text-align:center;margin:8px 0 20px;">
+      <div style="font-size:9px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;margin-bottom:16px;">
+        — forgot your password already? —
+      </div>
+      ${ctaButton("Reset Password", resetUrl)}
+    </div>
+ 
+    <p style="margin:24px 0 0;font-size:11px;color:#94a3b8;text-align:center;line-height:1.6;">
+      Your ticket codes remain valid and unchanged. You can find all your tickets
+      under <strong>My Tickets</strong> after logging in.
+    </p>
+  `);
+ 
+  const text = `Hi ${name},\n\nYour DIUSCADI account has been created.\n\nTemporary Password: ${tempPassword}\n\nLog in here: ${loginUrl}\n\nYou will be asked to reset your password on first login.\n${eventsCount > 0 ? `\n${eventsCount} ticket${eventsCount === 1 ? "" : "s"} from your guest registrations have been migrated to your account.\n` : ""}\nIf you need to reset your password: ${resetUrl}`;
+ 
+  return { subject, html, text };
+}

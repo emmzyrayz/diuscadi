@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import MigrateCTA from "./MigrateCTA";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -224,6 +225,45 @@ export default function RegistrationForm({
       const data: unknown = await res.json();
 
       if (!res.ok) {
+        // On 409, probe guest-status to route to the correct step
+        // instead of showing a flat error
+        if (res.status === 409) {
+          try {
+            const statusRes = await fetch(
+              `/api/events/guest-status?email=${encodeURIComponent(
+                form.email.trim().toLowerCase(),
+              )}&eventId=${eventId}`,
+            );
+            const statusData = (await statusRes.json()) as {
+              status: "verified" | "pending" | "none";
+              registrationId?: string;
+              inviteCode?: string;
+              firstName?: string;
+            };
+
+            if (statusData.status === "verified" && statusData.inviteCode) {
+              setInviteCode(statusData.inviteCode);
+              if (statusData.registrationId)
+                setRegistrationId(statusData.registrationId);
+              setStep("success");
+              return;
+            }
+
+            if (statusData.status === "pending" && statusData.registrationId) {
+              setRegistrationId(statusData.registrationId);
+              const [local, domain] = form.email.split("@");
+              setMaskedEmail(
+                `${local.slice(0, 1)}${"*".repeat(Math.max(local.length - 1, 2))}@${domain}`,
+              );
+              startCooldown(60);
+              setStep("otp");
+              return;
+            }
+          } catch {
+            // status check failed — fall through to generic error
+          }
+        }
+
         setError(
           isApiError(data)
             ? data.error
@@ -298,46 +338,44 @@ export default function RegistrationForm({
 
   // ── Resend OTP ─────────────────────────────────────────────────────────────
   const handleResend = async () => {
-    if (resendCooldown > 0) return;
+    if (resendCooldown > 0 || !registrationId) return;
     setError(null);
     setOtp("");
     setLoading(true);
 
     try {
-      const res = await fetch("/api/events/register-guest", {
+      const res = await fetch("/api/events/resend-guest-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          eventId,
-          ticketTypeId: form.ticketTypeId,
-          firstName: form.firstName.trim(),
-          lastName: form.lastName.trim(),
+          registrationId,
           email: form.email.trim().toLowerCase(),
-          ...(form.referralCode.trim() && {
-            referralCodeUsed: form.referralCode.trim(),
-          }),
         }),
       });
 
       const data: unknown = await res.json();
 
-      if (!res.ok && isApiError(data)) {
-        // If they're already verified, nudge them forward gracefully
-        if (res.status === 409 && data.error.includes("already registered")) {
-          setError(data.error);
+      if (!res.ok) {
+        if (
+          res.status === 429 &&
+          typeof data === "object" &&
+          data !== null &&
+          "cooldownSeconds" in data
+        ) {
+          startCooldown((data as { cooldownSeconds: number }).cooldownSeconds);
           return;
         }
-        setError(data.error);
+        setError(
+          isApiError(data)
+            ? data.error
+            : "Failed to resend code. Please try again.",
+        );
         return;
       }
 
-      if (res.ok) {
-        const { registrationId: newRegId } = data as { registrationId: string };
-        setRegistrationId(newRegId);
-        startCooldown(60);
-      }
+      startCooldown(60);
     } catch {
-      setError("Failed to resend code. Please try again.");
+      setError("Network error. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -1025,6 +1063,10 @@ export default function RegistrationForm({
                 Present this code at the event entrance. You can also find it in
                 your confirmation email. Keep it safe!
               </p>
+              <MigrateCTA
+                registrationId={registrationId}
+                email={form.email.trim().toLowerCase()}
+              />
             </>
           )}
         </div>

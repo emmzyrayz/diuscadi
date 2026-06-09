@@ -1,7 +1,5 @@
 "use client";
-// components/sections/admin/events/AttendancePanel.tsx
-// Live attendance counter + attendee list + CSV download
-// Used inside admin event detail view
+// AttendancePanel.tsx — merged account + guest check-in list with registration type badges.
 
 import React, { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
@@ -13,6 +11,7 @@ import {
   LuRefreshCw,
   LuBuilding2,
   LuGraduationCap,
+  LuUserCheck,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -20,6 +19,7 @@ import { toast } from "react-hot-toast";
 
 interface Attendee {
   "#": number;
+  "Registration Type": "Account" | "Guest";
   "Full Name": string;
   Email: string;
   Phone: string;
@@ -36,6 +36,8 @@ interface AttendanceData {
   eventId: string;
   eventTitle: string;
   checkedIn: number;
+  accountCheckedIn: number;
+  guestCheckedIn: number;
   totalRegistered: number;
   capacity: number | null;
   attendees: Attendee[];
@@ -43,8 +45,13 @@ interface AttendanceData {
 
 interface Props {
   eventId: string;
-  autoRefresh?: boolean; // poll every 30s while event is live
+  autoRefresh?: boolean;
 }
+
+const TYPE_BADGE: Record<string, string> = {
+  Account: "bg-blue-50 text-blue-600 border-blue-100",
+  Guest: "bg-violet-50 text-violet-600 border-violet-100",
+};
 
 export const AttendancePanel: React.FC<Props> = ({
   eventId,
@@ -75,36 +82,30 @@ export const AttendancePanel: React.FC<Props> = ({
     }
   }, [token, eventId]);
 
-  // Initial load
   useEffect(() => {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  // Optional polling for live events
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(fetchAttendance, 30_000);
     return () => clearInterval(interval);
   }, [autoRefresh, fetchAttendance]);
 
-  // CSV download
   const handleDownload = async () => {
     if (!token || !eventId) return;
     setDownloading(true);
     try {
       const res = await fetch(
         `/api/admin/events/${eventId}/attendance?format=csv`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!res.ok) throw new Error("Failed to download");
       const blob = await res.blob();
-      const filename = `attendance-${eventId}.csv`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = filename;
+      a.download = `attendance-${eventId}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Attendance list downloaded");
@@ -115,7 +116,6 @@ export const AttendancePanel: React.FC<Props> = ({
     }
   };
 
-  // Search filter
   const filtered = (data?.attendees ?? []).filter((a) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
@@ -123,13 +123,13 @@ export const AttendancePanel: React.FC<Props> = ({
       a["Full Name"].toLowerCase().includes(q) ||
       a["Email"].toLowerCase().includes(q) ||
       a["Institution"].toLowerCase().includes(q) ||
-      a["Department"].toLowerCase().includes(q) ||
       a["Invite Code"].toLowerCase().includes(q)
     );
   });
 
-  // ── Stat derived values ────────────────────────────────────────────────────
   const checkedIn = data?.checkedIn ?? 0;
+  const accountCheckedIn = data?.accountCheckedIn ?? 0;
+  const guestCheckedIn = data?.guestCheckedIn ?? 0;
   const totalRegistered = data?.totalRegistered ?? 0;
   const capacity = data?.capacity;
   const pct =
@@ -138,7 +138,7 @@ export const AttendancePanel: React.FC<Props> = ({
   return (
     <div className="space-y-6">
       {/* ── Stats bar ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {/* Checked in */}
         <div className="bg-background border-2 border-border rounded-[2rem] p-5 space-y-1">
           <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
@@ -148,11 +148,10 @@ export const AttendancePanel: React.FC<Props> = ({
             <p className="text-3xl font-black text-emerald-600">{checkedIn}</p>
             {totalRegistered > 0 && (
               <p className="text-[11px] font-bold text-muted-foreground mb-1">
-                / {totalRegistered} registered
+                / {totalRegistered}
               </p>
             )}
           </div>
-          {/* Attendance bar */}
           <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-2">
             <div
               className="h-1.5 bg-emerald-500 rounded-full transition-all duration-500"
@@ -164,32 +163,51 @@ export const AttendancePanel: React.FC<Props> = ({
           </p>
         </div>
 
-        {/* Registered */}
+        {/* Account check-ins */}
         <div className="bg-background border-2 border-border rounded-[2rem] p-5 space-y-1">
           <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
-            Registered
+            Account Check-ins
           </p>
-          <p className="text-3xl font-black text-foreground">
-            {totalRegistered}
-          </p>
-          {capacity && (
-            <p className="text-[9px] font-bold text-muted-foreground">
-              of {capacity} capacity
+          <div className="flex items-center gap-2">
+            <LuUsers className="w-4 h-4 text-blue-500" />
+            <p className="text-3xl font-black text-blue-600">
+              {accountCheckedIn}
             </p>
-          )}
+          </div>
+          <p className="text-[9px] font-bold text-muted-foreground">
+            platform users
+          </p>
+        </div>
+
+        {/* Guest check-ins */}
+        <div className="bg-background border-2 border-border rounded-[2rem] p-5 space-y-1">
+          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
+            Guest Check-ins
+          </p>
+          <div className="flex items-center gap-2">
+            <LuUserCheck className="w-4 h-4 text-violet-500" />
+            <p className="text-3xl font-black text-violet-600">
+              {guestCheckedIn}
+            </p>
+          </div>
+          <p className="text-[9px] font-bold text-muted-foreground">
+            guest registrations
+          </p>
         </div>
 
         {/* Absent */}
-        <div className="bg-background border-2 border-border rounded-[2rem] p-5 space-y-1 hidden sm:block">
+        <div className="bg-background border-2 border-border rounded-[2rem] p-5 space-y-1">
           <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
             Not Checked In
           </p>
           <p className="text-3xl font-black text-amber-500">
             {Math.max(0, totalRegistered - checkedIn)}
           </p>
-          <p className="text-[9px] font-bold text-muted-foreground">
-            registered but absent
-          </p>
+          {capacity && (
+            <p className="text-[9px] font-bold text-muted-foreground">
+              of {capacity} capacity
+            </p>
+          )}
         </div>
       </div>
 
@@ -243,11 +261,12 @@ export const AttendancePanel: React.FC<Props> = ({
       ) : (
         <div className="bg-background border-2 border-border rounded-[2.5rem] overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[700px]">
+            <table className="w-full text-left border-collapse min-w-[780px]">
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
                   {[
                     "#",
+                    "Type",
                     "Name",
                     "Institution",
                     "Faculty / Dept",
@@ -278,6 +297,18 @@ export const AttendancePanel: React.FC<Props> = ({
                     <td className="px-4 py-3">
                       <span className="text-[10px] font-bold text-muted-foreground">
                         {a["#"]}
+                      </span>
+                    </td>
+                    {/* Registration Type badge */}
+                    <td className="px-4 py-3">
+                      <span
+                        className={cn(
+                          "px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border",
+                          TYPE_BADGE[a["Registration Type"]] ??
+                            "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {a["Registration Type"]}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -347,6 +378,7 @@ export const AttendancePanel: React.FC<Props> = ({
             <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
               Showing {filtered.length} of {data?.checkedIn ?? 0} attendees
               {search && ` matching "${search}"`}
+              {` · ${accountCheckedIn} account, ${guestCheckedIn} guest`}
             </p>
           </div>
         </div>
