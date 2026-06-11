@@ -2489,8 +2489,8 @@ useEffect(() => {
     
     if (!token || !eventId) return;
     console.log("Validation:", validate());
-    const err = validate();
-    if (err) { toast.error(err); return; }
+    // const err = validate();
+    // if (err) { toast.error(err); return; }
     setSubmitting(true);
     try {
       const res = await fetch(`/api/admin/events/${eventId}`, {

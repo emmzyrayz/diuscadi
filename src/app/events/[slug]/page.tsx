@@ -117,26 +117,34 @@ async function fetchEventDetail(
   });
   if (!doc) return null;
 
-  const [registered, tickets, relatedDocs] = await Promise.all([
-    Collections.eventRegistrations(db).countDocuments({
-      eventId: doc._id,
-      status: { $ne: "cancelled" },
-    }),
-    Collections.ticketTypes(db)
-      .find({ eventId: doc._id, isActive: true })
-      .sort({ price: 1 })
-      .limit(5)
-      .toArray(),
-    Collections.events(db)
-      .find({
-        status: "published",
-        _id: { $ne: doc._id },
-        category: doc.category,
-      })
-      .sort({ eventDate: 1 })
-      .limit(3)
-      .toArray(),
-  ]);
+  const [accountRegistered, guestRegistered, tickets, relatedDocs] =
+    await Promise.all([
+      Collections.eventRegistrations(db).countDocuments({
+        eventId: doc._id,
+        status: { $ne: "cancelled" },
+      }),
+      Collections.guestEventRegistrations(db).countDocuments({
+        eventId: doc._id,
+        status: { $ne: "cancelled" },
+        verifiedAt: { $exists: true },
+      }),
+      Collections.ticketTypes(db)
+        .find({ eventId: doc._id, isActive: true })
+        .sort({ price: 1 })
+        .limit(5)
+        .toArray(),
+      Collections.events(db)
+        .find({
+          status: "published",
+          _id: { $ne: doc._id },
+          category: doc.category,
+        })
+        .sort({ eventDate: 1 })
+        .limit(3)
+        .toArray(),
+    ]);
+
+    const registered = accountRegistered + guestRegistered;
 
   const cheapest = tickets[0];
   const isFree = !cheapest || cheapest.price === 0;

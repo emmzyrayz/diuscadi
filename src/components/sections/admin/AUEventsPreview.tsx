@@ -104,9 +104,11 @@ export const AdminUpcomingEventsPreview = ({ events }: Props) => {
           </p>
         ) : (
           upcoming.map((event) => {
+            const totalRegistered =
+              event.registered + (event.guestRegistered ?? 0);
             const fillPct =
               event.capacity > 0
-                ? Math.round((event.registered / event.capacity) * 100)
+                ? Math.round((totalRegistered / event.capacity) * 100)
                 : 0;
             const isSoldOut = fillPct >= 100;
             return (
@@ -196,11 +198,16 @@ export const AdminUpcomingEventsPreview = ({ events }: Props) => {
                             "uppercase",
                           )}
                         >
-                          {event.registered}{" "}
+                          {event.registered + (event.guestRegistered ?? 0)}{" "}
                           <span className="text-slate-300">
                             / {event.capacity}
                           </span>
                         </span>
+                        {(event.guestRegistered ?? 0) > 0 && (
+                          <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-violet-50 text-violet-500 border border-violet-100">
+                            +{event.guestRegistered} guest
+                          </span>
+                        )}
                       </div>
                       <span
                         className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${isSoldOut ? "bg-rose-100 text-rose-600" : "bg-emerald-100 text-emerald-600"}`}

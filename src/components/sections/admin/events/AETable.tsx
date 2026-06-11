@@ -121,9 +121,10 @@ const AdminEventRow: React.FC<RowProps> = ({
 
   const isCancelled = event.status === "cancelled";
 
+  const totalRegistered = event.registered + (event.guestRegistered ?? 0);
   const fillPct =
     event.capacity > 0
-      ? Math.round((event.registered / event.capacity) * 100)
+      ? Math.round((totalRegistered / event.capacity) * 100)
       : 0;
 
   const handleDelete = async () => {
@@ -253,11 +254,16 @@ const AdminEventRow: React.FC<RowProps> = ({
               <span
                 className={cn("text-[10px]", "font-black", "text-foreground")}
               >
-                {event.registered}{" "}
+                {totalRegistered}{" "}
                 <span className="text-muted-foreground">
                   / {event.capacity}
                 </span>
               </span>
+              {(event.guestRegistered ?? 0) > 0 && (
+                <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-violet-50 text-violet-500 border border-violet-100 mt-0.5 w-fit">
+                  {event.guestRegistered} guest
+                </span>
+              )}
               <span
                 className={cn(
                   "text-[8px]",
