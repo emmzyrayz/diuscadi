@@ -3,7 +3,7 @@ import { cn } from "../../lib/utils";
 import { motion, Variants } from "framer-motion";
 import Image from "next/image";
 import { Target, Rocket, BookOpen, Globe, ArrowUpRight } from "lucide-react";
-import mentor from "@/assets/img/downloads/Dr-Ikechukwu-Umeh-1440x1920.png";
+import mentor from "@/assets/img/downloads/Dr-Ikechukwu-Umeh-1440x1920-3.png";
 
 const CARD_DATA = [
   {
@@ -78,7 +78,7 @@ export const AboutSection = () => {
                 src={mentor}
                 alt="Prof. Ikechukwu I. Umeh, Founder of DIUSCADI"
                 fill
-                className="object-cover transition-transform duration-700 group-hover:scale-105"
+                className="object-stretch transition-transform duration-700 group-hover:scale-105"
               />
             </div>
 

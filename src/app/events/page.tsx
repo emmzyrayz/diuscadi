@@ -152,11 +152,36 @@ async function fetchEvents(): Promise<{
           as: "regCount",
         },
       },
+      // ── Add this new lookup immediately after ─────────────────────────────────────
+      {
+        $lookup: {
+          from: "guestEventRegistrations",
+          let: { eid: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$eventId", "$$eid"] },
+                    { $ne: ["$status", "cancelled"] },
+                  ],
+                },
+                verifiedAt: { $exists: true },
+              },
+            },
+            { $count: "total" },
+          ],
+          as: "guestRegCount",
+        },
+      },
       {
         $addFields: {
           cheapestTicket: { $arrayElemAt: ["$cheapestTicket", 0] },
           registeredCount: {
-            $ifNull: [{ $arrayElemAt: ["$regCount.total", 0] }, 0],
+            $add: [
+              { $ifNull: [{ $arrayElemAt: ["$regCount.total", 0] }, 0] },
+              { $ifNull: [{ $arrayElemAt: ["$guestRegCount.total", 0] }, 0] },
+            ],
           },
         },
       },
