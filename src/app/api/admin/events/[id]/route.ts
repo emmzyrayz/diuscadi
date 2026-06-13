@@ -66,6 +66,9 @@ export const PATCH = withAuth(
         "schedule",
         "faqs", // ← add
         "whatsappGroupLink",
+        "virtualVenueLink", // ← ADD
+        "whatsappGroupLinkPhysical", // ← ADD
+        "whatsappGroupLinkVirtual", // ← ADD
       ];
       const DATE_FIELDS = ["eventDate", "endDate", "registrationDeadline"];
 

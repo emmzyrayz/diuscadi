@@ -109,6 +109,10 @@ interface EventFormData {
   country: string;
   locationScope: "local" | "state" | "national";
   whatsappGroupLink: string;
+  // Hybrid-specific venue fields — only used when format === "Hybrid"
+  virtualVenueLink: string;          // Zoom/Meet/Teams URL for virtual attendees
+  whatsappGroupLinkPhysical: string; // WhatsApp for physical attendees
+  whatsappGroupLinkVirtual: string;  // WhatsApp for virtual attendees
 
   // Step 3 — Audience
   targetEduStatus: "ALL" | "STUDENT" | "GRADUATE";
@@ -198,6 +202,9 @@ const DEFAULT_FORM: EventFormData = {
   country: "Nigeria",
   locationScope: "local",
   whatsappGroupLink: "",
+  virtualVenueLink: "",
+  whatsappGroupLinkPhysical: "",
+  whatsappGroupLinkVirtual: "",
   targetEduStatus: "ALL",
   requiredSkills: [],
   pendingSkills: [],
@@ -960,64 +967,338 @@ const LogisticsStep: React.FC<StepProps> = ({ formData, setFormData }) => (
     )}
 
     {/* WhatsApp group link */}
-    {/* WhatsApp group / channel link */}
-    <div className="space-y-1.5">
-      <FieldLabel>WhatsApp Group or Channel Link</FieldLabel>
-      <div className="relative">
-        <svg
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          className={cn('absolute', 'left-4', 'top-1/2', '-translate-y-1/2', 'w-4', 'h-4', 'text-emerald-500')}
-        >
-          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-        </svg>
-        <input
-          type="url"
-          value={formData.whatsappGroupLink}
-          onChange={(e) =>
-            setFormData((p) => ({ ...p, whatsappGroupLink: e.target.value }))
-          }
-          placeholder="https://chat.whatsapp.com/... or https://whatsapp.com/channel/..."
+    {/* ── WhatsApp + Virtual link — layout depends on format ─────────────────── */}
+    {formData.format === "Hybrid" ? (
+      <div
+        className={cn(
+          "space-y-4",
+          "p-6",
+          "bg-muted/50",
+          "rounded-2xl",
+          "border",
+          "border-border",
+        )}
+      >
+        <p
           className={cn(
-            "w-full",
-            "p-4",
-            "pl-12",
-            "rounded-2xl",
-            "text-xs",
-            "font-bold",
-            "outline-none",
-            "border",
-            "transition-all",
-            "bg-muted",
-            "border-border",
-            "text-foreground",
-            "focus:border-emerald-500",
-            formData.whatsappGroupLink &&
-              !isValidWhatsAppLink(formData.whatsappGroupLink)
-              ? "border-red-300 focus:border-red-400"
-              : "",
+            "text-[10px]",
+            "font-black",
+            "uppercase",
+            "tracking-widest",
+            "text-slate-400",
+            "flex",
+            "items-center",
+            "gap-2",
           )}
-        />
-      </div>
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className={cn("w-3.5", "h-3.5", "text-emerald-500")}
+          >
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+          </svg>
+          Hybrid Event — Venue Links
+        </p>
 
-      {formData.whatsappGroupLink &&
-        !isValidWhatsAppLink(formData.whatsappGroupLink) && (
-          <p className={cn('text-[9px]', 'font-black', 'uppercase', 'tracking-widest', 'text-red-500')}>
-            Must be a WhatsApp group (chat.whatsapp.com/...) or channel
-            (whatsapp.com/channel/...) link
+        {/* Virtual meeting link */}
+        <div className="space-y-1.5">
+          <FieldLabel>Virtual Meeting Link</FieldLabel>
+          <div className="relative">
+            <LuLink
+              className={cn(
+                "absolute",
+                "left-4",
+                "top-1/2",
+                "-translate-y-1/2",
+                "w-4",
+                "h-4",
+                "text-slate-400",
+              )}
+            />
+            <input
+              type="url"
+              value={formData.virtualVenueLink}
+              onChange={(e) =>
+                setFormData((p) => ({ ...p, virtualVenueLink: e.target.value }))
+              }
+              placeholder="https://zoom.us/j/... or https://meet.google.com/..."
+              className={cn(
+                "w-full",
+                "p-4",
+                "pl-12",
+                "rounded-2xl",
+                "text-xs",
+                "font-bold",
+                "outline-none",
+                "border",
+                "transition-all",
+                "bg-muted",
+                "border-border",
+                "text-foreground",
+                "focus:border-blue-500",
+              )}
+            />
+          </div>
+          <p
+            className={cn(
+              "text-[9px]",
+              "text-muted-foreground",
+              "font-bold",
+              "uppercase",
+              "tracking-widest",
+            )}
+          >
+            Sent only to virtual attendees with their ticket confirmation
           </p>
-        )}
-      {formData.whatsappGroupLink &&
-        isValidWhatsAppLink(formData.whatsappGroupLink) && (
-          <p className={cn('text-[9px]', 'font-black', 'uppercase', 'tracking-widest', 'text-emerald-600')}>
-            ✓ Valid WhatsApp {getWhatsAppLinkType(formData.whatsappGroupLink)}{" "}
-            link — sent to registrants with their ticket
+        </div>
+
+        {/* Physical WhatsApp */}
+        <div className="space-y-1.5">
+          <FieldLabel>WhatsApp — Physical Attendees</FieldLabel>
+          <div className="relative">
+            <svg
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className={cn(
+                "absolute",
+                "left-4",
+                "top-1/2",
+                "-translate-y-1/2",
+                "w-4",
+                "h-4",
+                "text-emerald-500",
+              )}
+            >
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+            </svg>
+            <input
+              type="url"
+              value={formData.whatsappGroupLinkPhysical}
+              onChange={(e) =>
+                setFormData((p) => ({
+                  ...p,
+                  whatsappGroupLinkPhysical: e.target.value,
+                }))
+              }
+              placeholder="https://chat.whatsapp.com/..."
+              className={cn(
+                "w-full",
+                "p-4",
+                "pl-12",
+                "rounded-2xl",
+                "text-xs",
+                "font-bold",
+                "outline-none",
+                "border",
+                "transition-all",
+                "bg-muted",
+                "border-border",
+                "text-foreground",
+                "focus:border-emerald-500",
+                formData.whatsappGroupLinkPhysical &&
+                  !isValidWhatsAppLink(formData.whatsappGroupLinkPhysical)
+                  ? "border-red-300"
+                  : "",
+              )}
+            />
+          </div>
+          {formData.whatsappGroupLinkPhysical &&
+            !isValidWhatsAppLink(formData.whatsappGroupLinkPhysical) && (
+              <p
+                className={cn(
+                  "text-[9px]",
+                  "font-black",
+                  "uppercase",
+                  "tracking-widest",
+                  "text-red-500",
+                )}
+              >
+                Must be a valid WhatsApp group or channel link
+              </p>
+            )}
+          <p
+            className={cn(
+              "text-[9px]",
+              "text-muted-foreground",
+              "font-bold",
+              "uppercase",
+              "tracking-widest",
+            )}
+          >
+            Sent only to physical attendees — leave blank to skip
           </p>
-        )}
-      <p className={cn('text-[9px]', 'text-muted-foreground', 'font-bold', 'uppercase', 'tracking-widest')}>
-        Optional — registrants receive this link alongside their QR code ticket
-      </p>
-    </div>
+        </div>
+
+        {/* Virtual WhatsApp */}
+        <div className="space-y-1.5">
+          <FieldLabel>WhatsApp — Virtual Attendees</FieldLabel>
+          <div className="relative">
+            <svg
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className={cn(
+                "absolute",
+                "left-4",
+                "top-1/2",
+                "-translate-y-1/2",
+                "w-4",
+                "h-4",
+                "text-emerald-500",
+              )}
+            >
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+            </svg>
+            <input
+              type="url"
+              value={formData.whatsappGroupLinkVirtual}
+              onChange={(e) =>
+                setFormData((p) => ({
+                  ...p,
+                  whatsappGroupLinkVirtual: e.target.value,
+                }))
+              }
+              placeholder="https://chat.whatsapp.com/..."
+              className={cn(
+                "w-full",
+                "p-4",
+                "pl-12",
+                "rounded-2xl",
+                "text-xs",
+                "font-bold",
+                "outline-none",
+                "border",
+                "transition-all",
+                "bg-muted",
+                "border-border",
+                "text-foreground",
+                "focus:border-emerald-500",
+                formData.whatsappGroupLinkVirtual &&
+                  !isValidWhatsAppLink(formData.whatsappGroupLinkVirtual)
+                  ? "border-red-300"
+                  : "",
+              )}
+            />
+          </div>
+          {formData.whatsappGroupLinkVirtual &&
+            !isValidWhatsAppLink(formData.whatsappGroupLinkVirtual) && (
+              <p
+                className={cn(
+                  "text-[9px]",
+                  "font-black",
+                  "uppercase",
+                  "tracking-widest",
+                  "text-red-500",
+                )}
+              >
+                Must be a valid WhatsApp group or channel link
+              </p>
+            )}
+          <p
+            className={cn(
+              "text-[9px]",
+              "text-muted-foreground",
+              "font-bold",
+              "uppercase",
+              "tracking-widest",
+            )}
+          >
+            Sent only to virtual attendees — leave blank to skip
+          </p>
+        </div>
+      </div>
+    ) : (
+      // ── Non-hybrid: single WhatsApp link (existing behaviour) ──────────────
+      <div className="space-y-1.5">
+        <FieldLabel>WhatsApp Group or Channel Link</FieldLabel>
+        <div className="relative">
+          <svg
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className={cn(
+              "absolute",
+              "left-4",
+              "top-1/2",
+              "-translate-y-1/2",
+              "w-4",
+              "h-4",
+              "text-emerald-500",
+            )}
+          >
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+          </svg>
+          <input
+            type="url"
+            value={formData.whatsappGroupLink}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, whatsappGroupLink: e.target.value }))
+            }
+            placeholder="https://chat.whatsapp.com/... or https://whatsapp.com/channel/..."
+            className={cn(
+              "w-full",
+              "p-4",
+              "pl-12",
+              "rounded-2xl",
+              "text-xs",
+              "font-bold",
+              "outline-none",
+              "border",
+              "transition-all",
+              "bg-muted",
+              "border-border",
+              "text-foreground",
+              "focus:border-emerald-500",
+              formData.whatsappGroupLink &&
+                !isValidWhatsAppLink(formData.whatsappGroupLink)
+                ? "border-red-300 focus:border-red-400"
+                : "",
+            )}
+          />
+        </div>
+        {formData.whatsappGroupLink &&
+          !isValidWhatsAppLink(formData.whatsappGroupLink) && (
+            <p
+              className={cn(
+                "text-[9px]",
+                "font-black",
+                "uppercase",
+                "tracking-widest",
+                "text-red-500",
+              )}
+            >
+              Must be a WhatsApp group (chat.whatsapp.com/...) or channel
+              (whatsapp.com/channel/...) link
+            </p>
+          )}
+        {formData.whatsappGroupLink &&
+          isValidWhatsAppLink(formData.whatsappGroupLink) && (
+            <p
+              className={cn(
+                "text-[9px]",
+                "font-black",
+                "uppercase",
+                "tracking-widest",
+                "text-emerald-600",
+              )}
+            >
+              ✓ Valid WhatsApp {getWhatsAppLinkType(formData.whatsappGroupLink)}{" "}
+              link — sent to registrants with their ticket
+            </p>
+          )}
+        <p
+          className={cn(
+            "text-[9px]",
+            "text-muted-foreground",
+            "font-bold",
+            "uppercase",
+            "tracking-widest",
+          )}
+        >
+          Optional — registrants receive this link alongside their QR code
+          ticket
+        </p>
+      </div>
+    )}
   </div>
 );
 
@@ -2157,103 +2438,360 @@ const ContentStep: React.FC<StepProps & { ownerId: string }> = ({
 // STEP 5 — REVIEW
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ReviewStep: React.FC<StepProps & { isEditing?: boolean; isRepublishing?: boolean }> = ({
-  formData, setFormData, isEditing, isRepublishing,
-}) => (
+const ReviewStep: React.FC<
+  StepProps & { isEditing?: boolean; isRepublishing?: boolean }
+> = ({ formData, setFormData, isEditing, isRepublishing }) => (
   <div className="space-y-6">
     {isRepublishing && (
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-        className={cn('flex', 'items-start', 'gap-4', 'p-5', 'rounded-2xl', 'bg-emerald-50', 'border', 'border-emerald-200')}>
-        <LuRefreshCcw className={cn('w-5', 'h-5', 'text-emerald-600', 'shrink-0', 'mt-0.5')} />
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn(
+          "flex",
+          "items-start",
+          "gap-4",
+          "p-5",
+          "rounded-2xl",
+          "bg-emerald-50",
+          "border",
+          "border-emerald-200",
+        )}
+      >
+        <LuRefreshCcw
+          className={cn("w-5", "h-5", "text-emerald-600", "shrink-0", "mt-0.5")}
+        />
         <div>
-          <p className={cn('text-[11px]', 'font-black', 'uppercase', 'tracking-widest', 'text-emerald-700')}>Republishing a cancelled event</p>
-          <p className={cn('text-[10px]', 'font-medium', 'text-emerald-600', 'mt-1', 'leading-relaxed')}>
-            Selecting <strong>Public</strong> will make this event live again immediately.
+          <p
+            className={cn(
+              "text-[11px]",
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              "text-emerald-700",
+            )}
+          >
+            Republishing a cancelled event
+          </p>
+          <p
+            className={cn(
+              "text-[10px]",
+              "font-medium",
+              "text-emerald-600",
+              "mt-1",
+              "leading-relaxed",
+            )}
+          >
+            Selecting <strong>Public</strong> will make this event live again
+            immediately.
           </p>
         </div>
       </motion.div>
     )}
 
     {isEditing && !isRepublishing && formData.visibility === "Invite-Only" && (
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-        className={cn('flex', 'items-start', 'gap-4', 'p-5', 'rounded-2xl', 'bg-amber-50', 'border', 'border-amber-200')}>
-        <LuTriangleAlert className={cn('w-5', 'h-5', 'text-amber-600', 'shrink-0', 'mt-0.5')} />
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn(
+          "flex",
+          "items-start",
+          "gap-4",
+          "p-5",
+          "rounded-2xl",
+          "bg-amber-50",
+          "border",
+          "border-amber-200",
+        )}
+      >
+        <LuTriangleAlert
+          className={cn("w-5", "h-5", "text-amber-600", "shrink-0", "mt-0.5")}
+        />
         <div>
-          <p className={cn('text-[11px]', 'font-black', 'uppercase', 'tracking-widest', 'text-amber-700')}>Saving as draft</p>
-          <p className={cn('text-[10px]', 'font-medium', 'text-amber-600', 'mt-1')}>This event will be hidden from public listing.</p>
+          <p
+            className={cn(
+              "text-[11px]",
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              "text-amber-700",
+            )}
+          >
+            Saving as draft
+          </p>
+          <p
+            className={cn(
+              "text-[10px]",
+              "font-medium",
+              "text-amber-600",
+              "mt-1",
+            )}
+          >
+            This event will be hidden from public listing.
+          </p>
         </div>
       </motion.div>
     )}
 
     {/* Status card */}
-    <div className={cn("p-8","rounded-[2.5rem]","border","text-center", isRepublishing ? "bg-emerald-50/50 border-emerald-200" : "bg-primary/10 border-primary/20")}>
-      <div className={cn("w-16","h-16","rounded-2xl","flex","items-center","justify-center","mx-auto","mb-6","shadow-xl", isRepublishing ? "bg-emerald-500 shadow-emerald-500/20" : "bg-primary shadow-primary/20")}>
-        {isRepublishing
-          ? <LuRefreshCcw className={cn('w-8', 'h-8', 'text-white')} />
-          : isEditing ? <LuPencil className={cn('w-8', 'h-8', 'text-foreground')} /> : <LuCircleCheck className={cn('w-8', 'h-8', 'text-foreground')} />
-        }
+    <div
+      className={cn(
+        "p-8",
+        "rounded-[2.5rem]",
+        "border",
+        "text-center",
+        isRepublishing
+          ? "bg-emerald-50/50 border-emerald-200"
+          : "bg-primary/10 border-primary/20",
+      )}
+    >
+      <div
+        className={cn(
+          "w-16",
+          "h-16",
+          "rounded-2xl",
+          "flex",
+          "items-center",
+          "justify-center",
+          "mx-auto",
+          "mb-6",
+          "shadow-xl",
+          isRepublishing
+            ? "bg-emerald-500 shadow-emerald-500/20"
+            : "bg-primary shadow-primary/20",
+        )}
+      >
+        {isRepublishing ? (
+          <LuRefreshCcw className={cn("w-8", "h-8", "text-white")} />
+        ) : isEditing ? (
+          <LuPencil className={cn("w-8", "h-8", "text-foreground")} />
+        ) : (
+          <LuCircleCheck className={cn("w-8", "h-8", "text-foreground")} />
+        )}
       </div>
-      <h3 className={cn('text-xl', 'font-black', 'text-foreground', 'uppercase', 'tracking-tighter')}>
-        {isRepublishing ? "Ready to Republish" : isEditing ? "Ready to Save" : "Ready for Deployment"}
+      <h3
+        className={cn(
+          "text-xl",
+          "font-black",
+          "text-foreground",
+          "uppercase",
+          "tracking-tighter",
+        )}
+      >
+        {isRepublishing
+          ? "Ready to Republish"
+          : isEditing
+            ? "Ready to Save"
+            : "Ready for Deployment"}
       </h3>
     </div>
 
     {/* Summary grid */}
-    <div className={cn('grid', 'grid-cols-2', 'sm:grid-cols-3', 'gap-3', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest')}>
+    <div
+      className={cn(
+        "grid",
+        "grid-cols-2",
+        "sm:grid-cols-3",
+        "gap-3",
+        "text-[10px]",
+        "font-black",
+        "uppercase",
+        "tracking-widest",
+      )}
+    >
       {[
-        { label: "Title",      value: formData.title || "—" },
-        { label: "Category",   value: formData.category },
-        { label: "Format",     value: formData.format },
-        { label: "Date",       value: formData.eventDate ? formData.eventDate.split("T")[0] : "—" },
-        { label: "Capacity",   value: String(formData.maxCapacity) },
-        { label: "Ticket",     value: formData.ticketPrice === 0 ? "Free" : `₦${formData.ticketPrice}` },
-        { label: "Audience",   value: formData.targetEduStatus === "ALL" ? "Everyone" : formData.targetEduStatus === "STUDENT" ? "Students" : "Graduates" },
-        { label: "Speakers",   value: formData.speakers.length > 0 ? `${formData.speakers.length} added` : "None" },
-        { label: "Schedule",   value: formData.schedule.length > 0 ? `${formData.schedule.length} items` : "None" },
-        { label: "Sponsors",   value: formData.sponsors.length > 0 ? `${formData.sponsors.length} added` : "None" },
+        { label: "Title", value: formData.title || "—" },
+        { label: "Category", value: formData.category },
+        { label: "Format", value: formData.format },
         {
-  label: "WhatsApp",
-  value: formData.whatsappGroupLink
-    ? "Group link set"
-    : "No group link",
-},
-        { label: "FAQs",       value: formData.faqs.length > 0 ? `${formData.faqs.length} added` : "Platform default" },
-        { label: "Outcomes",   value: formData.learningOutcomes.length > 0 ? `${formData.learningOutcomes.length} listed` : "None" },
+          label: "Date",
+          value: formData.eventDate ? formData.eventDate.split("T")[0] : "—",
+        },
+        { label: "Capacity", value: String(formData.maxCapacity) },
+        {
+          label: "Ticket",
+          value:
+            formData.ticketPrice === 0 ? "Free" : `₦${formData.ticketPrice}`,
+        },
+        {
+          label: "Audience",
+          value:
+            formData.targetEduStatus === "ALL"
+              ? "Everyone"
+              : formData.targetEduStatus === "STUDENT"
+                ? "Students"
+                : "Graduates",
+        },
+        {
+          label: "Speakers",
+          value:
+            formData.speakers.length > 0
+              ? `${formData.speakers.length} added`
+              : "None",
+        },
+        {
+          label: "Schedule",
+          value:
+            formData.schedule.length > 0
+              ? `${formData.schedule.length} items`
+              : "None",
+        },
+        {
+          label: "Sponsors",
+          value:
+            formData.sponsors.length > 0
+              ? `${formData.sponsors.length} added`
+              : "None",
+        },
+        {
+          label: "WhatsApp",
+          value:
+            formData.format === "Hybrid"
+              ? [
+                  formData.whatsappGroupLinkPhysical ? "Physical ✓" : null,
+                  formData.whatsappGroupLinkVirtual ? "Virtual ✓" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "No hybrid links"
+              : formData.whatsappGroupLink
+                ? "Group link set"
+                : "No group link",
+        },
+        {
+          label: "Virtual Link",
+          value:
+            formData.format === "Hybrid" || formData.format === "Virtual"
+              ? formData.virtualVenueLink
+                ? "Meeting link set"
+                : "Not set"
+              : "N/A",
+        },
+        {
+          label: "FAQs",
+          value:
+            formData.faqs.length > 0
+              ? `${formData.faqs.length} added`
+              : "Platform default",
+        },
+        {
+          label: "Outcomes",
+          value:
+            formData.learningOutcomes.length > 0
+              ? `${formData.learningOutcomes.length} listed`
+              : "None",
+        },
       ].map(({ label, value }) => (
-        <div key={label} className={cn('p-4', 'rounded-2xl', 'bg-muted', 'border', 'border-border')}>
-          <p className={cn('text-muted-foreground', 'text-[9px]', 'mb-1')}>{label}</p>
-          <p className={cn('text-foreground', 'truncate')}>{value}</p>
+        <div
+          key={label}
+          className={cn(
+            "p-4",
+            "rounded-2xl",
+            "bg-muted",
+            "border",
+            "border-border",
+          )}
+        >
+          <p className={cn("text-muted-foreground", "text-[9px]", "mb-1")}>
+            {label}
+          </p>
+          <p className={cn("text-foreground", "truncate")}>{value}</p>
         </div>
       ))}
     </div>
 
     {/* Pending skills notice */}
     {formData.pendingSkills.length > 0 && (
-      <div className={cn('flex', 'items-start', 'gap-3', 'p-4', 'bg-amber-50', 'border', 'border-amber-200', 'rounded-2xl')}>
-        <LuStar className={cn('w-4', 'h-4', 'text-amber-600', 'shrink-0', 'mt-0.5')} />
+      <div
+        className={cn(
+          "flex",
+          "items-start",
+          "gap-3",
+          "p-4",
+          "bg-amber-50",
+          "border",
+          "border-amber-200",
+          "rounded-2xl",
+        )}
+      >
+        <LuStar
+          className={cn("w-4", "h-4", "text-amber-600", "shrink-0", "mt-0.5")}
+        />
         <div>
-          <p className={cn('text-[11px]', 'font-black', 'uppercase', 'tracking-widest', 'text-amber-700')}>Pending skill suggestions</p>
-          <p className={cn('text-[10px]', 'text-amber-600', 'mt-1')}>
-            {formData.pendingSkills.join(", ")} — submitted for webmaster review. The event will save with these noted.
+          <p
+            className={cn(
+              "text-[11px]",
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              "text-amber-700",
+            )}
+          >
+            Pending skill suggestions
+          </p>
+          <p className={cn("text-[10px]", "text-amber-600", "mt-1")}>
+            {formData.pendingSkills.join(", ")} — submitted for webmaster
+            review. The event will save with these noted.
           </p>
         </div>
       </div>
     )}
 
     {/* Visibility picker */}
-    <div className={cn('grid', 'grid-cols-1', 'md:grid-cols-2', 'gap-4')}>
-      {(["Public","Invite-Only"] as const).map((visibility) => (
-        <button key={visibility} onClick={() => setFormData((p) => ({ ...p, visibility }))}
-          className={cn("p-6","rounded-2xl","border-2","flex","items-center","justify-between","transition-all", formData.visibility === visibility ? "bg-muted border-foreground" : "bg-background border-border opacity-50")}>
+    <div className={cn("grid", "grid-cols-1", "md:grid-cols-2", "gap-4")}>
+      {(["Public", "Invite-Only"] as const).map((visibility) => (
+        <button
+          key={visibility}
+          onClick={() => setFormData((p) => ({ ...p, visibility }))}
+          className={cn(
+            "p-6",
+            "rounded-2xl",
+            "border-2",
+            "flex",
+            "items-center",
+            "justify-between",
+            "transition-all",
+            formData.visibility === visibility
+              ? "bg-muted border-foreground"
+              : "bg-background border-border opacity-50",
+          )}
+        >
           <div className="text-left">
-            <span className={cn("font-black","uppercase","tracking-widest","text-sm","block", formData.visibility === visibility ? "text-foreground" : "text-slate-400")}>{visibility}</span>
-            <span className={cn('text-[9px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'mt-0.5', 'block')}>
+            <span
+              className={cn(
+                "font-black",
+                "uppercase",
+                "tracking-widest",
+                "text-sm",
+                "block",
+                formData.visibility === visibility
+                  ? "text-foreground"
+                  : "text-slate-400",
+              )}
+            >
+              {visibility}
+            </span>
+            <span
+              className={cn(
+                "text-[9px]",
+                "font-bold",
+                "text-muted-foreground",
+                "uppercase",
+                "tracking-widest",
+                "mt-0.5",
+                "block",
+              )}
+            >
               {visibility === "Public"
-                ? isRepublishing ? "Make live again" : "Visible to everyone"
+                ? isRepublishing
+                  ? "Make live again"
+                  : "Visible to everyone"
                 : "Save as hidden draft"}
             </span>
           </div>
-          {visibility === "Public" ? <LuEye className={cn('w-4', 'h-4', 'text-muted-foreground')} /> : <LuShield className={cn('w-4', 'h-4', 'text-muted-foreground')} />}
+          {visibility === "Public" ? (
+            <LuEye className={cn("w-4", "h-4", "text-muted-foreground")} />
+          ) : (
+            <LuShield className={cn("w-4", "h-4", "text-muted-foreground")} />
+          )}
         </button>
       ))}
     </div>
@@ -2319,6 +2857,14 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
      locationScope:
        (init.locationScope as EventFormData["locationScope"]) ?? "local",
      whatsappGroupLink: init.whatsappGroupLink ?? "",
+     virtualVenueLink:
+       ((init as Record<string, unknown>).virtualVenueLink as string) ?? "",
+     whatsappGroupLinkPhysical:
+       ((init as Record<string, unknown>)
+         .whatsappGroupLinkPhysical as string) ?? "",
+     whatsappGroupLinkVirtual:
+       ((init as Record<string, unknown>).whatsappGroupLinkVirtual as string) ??
+       "",
 
      // ── Audience ──────────────────────────────────────────────────────────
      targetEduStatus:
@@ -2439,6 +2985,10 @@ useEffect(() => {
       },
       locationScope: formData.locationScope,
       whatsappGroupLink: formData.whatsappGroupLink || undefined,
+      virtualVenueLink: formData.virtualVenueLink || undefined,
+      whatsappGroupLinkPhysical:
+        formData.whatsappGroupLinkPhysical || undefined,
+      whatsappGroupLinkVirtual: formData.whatsappGroupLinkVirtual || undefined,
       targetEduStatus: formData.targetEduStatus,
       requiredSkills: formData.requiredSkills,
       learningOutcomes: formData.learningOutcomes,

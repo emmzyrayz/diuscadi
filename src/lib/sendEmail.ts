@@ -1,7 +1,8 @@
 // lib/sendEmail.ts
 //
 // Dev:  logs to console only — no SMTP env vars required.
-// Prod: sends real emails via nodemailer transporter.
+// Prod: sends real emails via Brevo SMTP relay (transactional)
+//       or Brevo Campaigns API (bulk/broadcast).
 //
 // API routes import ONLY from here — never from MailTemplate.ts or mailer.ts directly.
 
@@ -16,16 +17,16 @@ import {
   membershipWelcomeEmail,
   guestVerificationEmail,
   guestConfirmationEmail,
+  migrationWelcomeEmail,
+  broadcastEmail,
+  eventAnnouncementEmail,
+  platformUpdateEmail,
   type EventRegistrationEmailOptions,
   type EventReminderEmailOptions,
   type ApplicationStatusEmailOptions,
   type MembershipWelcomeEmailOptions,
   type GuestVerificationEmailOptions,
   type GuestConfirmationEmailOptions,
-  migrationWelcomeEmail,
-  broadcastEmail,
-  eventAnnouncementEmail,
-  platformUpdateEmail,
   type BroadcastEmailOptions,
   type EventAnnouncementEmailOptions,
   type PlatformUpdateEmailOptions,
@@ -37,7 +38,7 @@ const IS_DEV =
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 // Lazy-load mailer in production only.
-// mailer.ts throws at module load if SMTP env vars are missing —
+// mailer.ts throws at module load if Brevo env vars are missing —
 // dynamic import keeps dev completely isolated from it.
 async function prodSend(options: {
   to: string;
@@ -145,14 +146,11 @@ export async function sendSchoolVerificationEmail(opts: {
 }
 
 // ─── 5. Event registration confirmation ──────────────────────────────────────
-//
-// Called immediately after a successful event registration.
-// Requires the registration's inviteCode and the ticket's DB ID for the URL.
 
 export async function sendEventRegistrationEmail(
   opts: {
     to: string;
-    ticketId: string; // MongoDB _id of the eventRegistration document
+    ticketId: string;
     whatsappGroupLink?: string;
   } & Omit<EventRegistrationEmailOptions, "ticketUrl">,
 ): Promise<void> {
@@ -165,10 +163,9 @@ export async function sendEventRegistrationEmail(
     console.log(`  Location:    ${opts.eventLocation}`);
     console.log(`  Ticket code: ${opts.ticketCode}`);
     console.log(`  Ticket URL:  ${ticketUrl}`);
-     if (opts.whatsappGroupLink) {
-       // ← add
-       console.log(`  WhatsApp:    ${opts.whatsappGroupLink}`); // ← add
-     }  
+    if (opts.whatsappGroupLink) {
+      console.log(`  WhatsApp:    ${opts.whatsappGroupLink}`);
+    }
     return;
   }
 
@@ -187,10 +184,6 @@ export async function sendEventRegistrationEmail(
 }
 
 // ─── 6. Event reminder ────────────────────────────────────────────────────────
-//
-// Intended to be called by a scheduled job (cron) ~24h before an event.
-// Pass hoursUntil=24 for the standard reminder. The function itself does
-// not schedule — the caller (cron route or job) is responsible for timing.
 
 export async function sendEventReminderEmail(
   opts: {
@@ -221,11 +214,6 @@ export async function sendEventReminderEmail(
 }
 
 // ─── 7. Application status (approved or rejected) ────────────────────────────
-//
-// Generic — works for all 6 application types.
-// Pass status: "approved" | "rejected" and an optional reviewNote.
-// Pass ctaLabel + ctaUrl when there's a meaningful next action (e.g.
-// "View Your Profile" after membership approval, "Browse Events" after skills).
 
 export async function sendApplicationStatusEmail(
   opts: {
@@ -252,12 +240,6 @@ export async function sendApplicationStatusEmail(
 }
 
 // ─── 8. Membership approved welcome ──────────────────────────────────────────
-//
-// Richer, celebratory email sent specifically when a membership application
-// is approved — in addition to the generic application status email.
-// The two can be sent in sequence from the approval route:
-//   1. sendApplicationStatusEmail({ status: "approved", ... })
-//   2. sendMembershipWelcomeEmail({ ... })
 
 export async function sendMembershipWelcomeEmail(
   opts: {
@@ -338,13 +320,8 @@ export async function sendContactAutoReplyEmail(opts: {
   await prodSend({ to: opts.to, subject, html, text });
 }
 
- 
 // ─── 11. Guest registration — OTP verification email ─────────────────────────
-//
-// Sent immediately after POST /api/events/register-guest.
-// Contains the 6-digit OTP and a magic verify link.
-// Registration is NOT complete until the guest verifies.
- 
+
 export async function sendGuestVerificationEmail(opts: {
   to: string;
   name: string;
@@ -360,7 +337,7 @@ export async function sendGuestVerificationEmail(opts: {
     console.log(`  Verify URL: ${opts.verifyUrl}`);
     return;
   }
- 
+
   const { subject, html, text } = guestVerificationEmail({
     name: opts.name,
     code: opts.code,
@@ -369,22 +346,18 @@ export async function sendGuestVerificationEmail(opts: {
   });
   await prodSend({ to: opts.to, subject, html, text });
 }
- 
+
 // ─── 12. Guest registration — confirmation email (post-OTP) ──────────────────
-//
-// Sent after POST /api/events/verify-guest successfully marks verifiedAt.
-// Mirrors sendEventRegistrationEmail but labels the registration as "Guest"
-// and does not assume a platform account exists.
- 
+
 export async function sendGuestConfirmationEmail(
   opts: {
     to: string;
-    ticketId: string; // MongoDB _id of the guestEventRegistration document
+    ticketId: string;
     whatsappGroupLink?: string;
   } & Omit<GuestConfirmationEmailOptions, "ticketUrl">,
 ): Promise<void> {
   const ticketUrl = `${APP_URL}/tickets/${opts.ticketId}`;
- 
+
   if (IS_DEV) {
     console.log(`[DEV EMAIL] Guest confirmation → ${opts.to}`);
     console.log(`  Name:            ${opts.name}`);
@@ -399,7 +372,7 @@ export async function sendGuestConfirmationEmail(
     }
     return;
   }
- 
+
   const { subject, html, text } = guestConfirmationEmail({
     name: opts.name,
     eventTitle: opts.eventTitle,
@@ -415,25 +388,7 @@ export async function sendGuestConfirmationEmail(
   await prodSend({ to: opts.to, subject, html, text });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ADD TO src/lib/sendEmail.ts
-//
-// Step 1: Add to the import block at the top of sendEmail.ts:
-//
-//   import {
-//     ...existing imports...,
-//     migrationWelcomeEmail,
-//     type MigrationWelcomeEmailOptions,
-//   } from "@/lib/MailTemplate";
-//
-// Step 2: Paste the function below at the bottom of sendEmail.ts
-// ─────────────────────────────────────────────────────────────────────────────
-
 // ─── 13. Guest → Account migration welcome ───────────────────────────────────
-//
-// Sent after POST /api/auth/migrate-guest successfully creates the account.
-// Contains the temporary password and a direct link to the reset page.
-// This email is the ONLY place the temp password is ever transmitted.
 
 export async function sendMigrationWelcomeEmail(opts: {
   to: string;
@@ -463,10 +418,11 @@ export async function sendMigrationWelcomeEmail(opts: {
   await prodSend({ to: opts.to, subject, html, text });
 }
 
-// ─── 14. Broadcast email ──────────────────────────────────────────────────────
+// ─── 14. Broadcast email (single recipient, transactional) ───────────────────
 //
 // Wraps admin-authored HTML in the DIUSCADI email shell and sends to one
 // recipient. Called in a loop by the broadcast send route (fire-and-forget).
+// For large audiences, prefer sendBulkBroadcast() below.
 
 export async function sendBroadcastEmail(
   opts: { to: string } & BroadcastEmailOptions,
@@ -475,25 +431,21 @@ export async function sendBroadcastEmail(
     console.log(`[DEV EMAIL] Broadcast → ${opts.to}`);
     console.log(`  Subject:   ${opts.subject}`);
     if (opts.recipientName) console.log(`  Recipient: ${opts.recipientName}`);
-    if (opts.linkedEvent)   console.log(`  Event:     ${opts.linkedEvent.title}`);
+    if (opts.linkedEvent) console.log(`  Event:     ${opts.linkedEvent.title}`);
     return;
   }
 
   const { subject, html, text } = broadcastEmail({
-    subject:       opts.subject,
-    htmlContent:   opts.htmlContent,
-    textContent:   opts.textContent,
+    subject: opts.subject,
+    htmlContent: opts.htmlContent,
+    textContent: opts.textContent,
     recipientName: opts.recipientName,
-    linkedEvent:   opts.linkedEvent,
+    linkedEvent: opts.linkedEvent,
   });
   await prodSend({ to: opts.to, subject, html, text });
 }
 
 // ─── 15. Event announcement email ─────────────────────────────────────────────
-//
-// Structured promotional email for an upcoming event — sent via broadcast
-// when a broadcast is linked to a specific event and the audience needs
-// rich event context rather than raw HTML.
 
 export async function sendEventAnnouncementEmail(
   opts: { to: string } & EventAnnouncementEmailOptions,
@@ -514,18 +466,17 @@ export async function sendEventAnnouncementEmail(
 }
 
 // ─── 16. Platform update / maintenance email ───────────────────────────────────
-//
-// Send ahead of maintenance windows, feature launches, or critical notices.
-// updateType controls icon + colour scheme (see PlatformUpdateType).
 
 export async function sendPlatformUpdateEmail(
   opts: { to: string } & PlatformUpdateEmailOptions,
 ): Promise<void> {
   if (IS_DEV) {
-    console.log(`[DEV EMAIL] Platform update (${opts.updateType}) → ${opts.to}`);
+    console.log(
+      `[DEV EMAIL] Platform update (${opts.updateType}) → ${opts.to}`,
+    );
     console.log(`  Title: ${opts.title}`);
     if (opts.startTime) console.log(`  Start: ${opts.startTime}`);
-    if (opts.endTime)   console.log(`  End:   ${opts.endTime}`);
+    if (opts.endTime) console.log(`  End:   ${opts.endTime}`);
     if (opts.affectedFeatures?.length)
       console.log(`  Affects: ${opts.affectedFeatures.join(", ")}`);
     if (opts.actionRequired) console.log(`  ⚠ Action required`);
@@ -534,4 +485,175 @@ export async function sendPlatformUpdateEmail(
 
   const { subject, html, text } = platformUpdateEmail({ ...opts });
   await prodSend({ to: opts.to, subject, html, text });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BULK / CAMPAIGN SENDS  (Brevo Campaigns API)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// These functions use the Brevo Campaigns API instead of SMTP.
+// Use them for large audiences (newsletters, event announcements to all members,
+// platform-wide maintenance alerts, etc.).
+//
+// Key differences from the single-send helpers above:
+//   • Personalisation  — limited to attributes available in the Brevo template.
+//                        For per-recipient ticket codes, use the loop approach
+//                        with sendBroadcastEmail() instead.
+//   • Scheduling       — pass scheduledAt (ISO-8601) to queue ahead of time.
+//   • Tracking         — opens, clicks, and unsubscribes are tracked by Brevo.
+//   • Rate limits      — no per-email rate limit; Brevo handles queuing.
+//   • Unsubscribes     — Brevo automatically appends a compliant footer with
+//                        an unsubscribe link on every campaign email.
+
+import type { BrevoContact } from "@/utils/mailer";
+
+// ─── 17. Bulk broadcast (admin HTML content to a list of recipients) ──────────
+//
+// The most common bulk helper. Pass the same HTML you'd use in sendBroadcastEmail
+// and a list of {email, name} objects. Brevo will queue and dispatch the campaign.
+//
+// Usage (e.g. from your admin broadcast route):
+//
+//   await sendBulkBroadcast({
+//     campaignName: `Broadcast #${broadcastId}`,
+//     subject: "Important update from DIUSCADI",
+//     htmlContent: compiledHtml,
+//     contacts: members.map(m => ({ email: m.email, name: m.name })),
+//   });
+
+export async function sendBulkBroadcast(opts: {
+  campaignName: string;
+  subject: string;
+  htmlContent: string;
+  textContent?: string;
+  contacts: BrevoContact[];
+  /** ISO-8601 schedule time. Omit to send immediately. */
+  scheduledAt?: string;
+}): Promise<{ campaignId: number }> {
+  if (IS_DEV) {
+    console.log(`[DEV EMAIL] Bulk broadcast campaign`);
+    console.log(`  Campaign:   ${opts.campaignName}`);
+    console.log(`  Subject:    ${opts.subject}`);
+    console.log(`  Recipients: ${opts.contacts.length}`);
+    if (opts.scheduledAt) console.log(`  Scheduled:  ${opts.scheduledAt}`);
+    return { campaignId: 0 };
+  }
+
+  const { sendBulkCampaign } = await import("@/utils/mailer");
+  return sendBulkCampaign({
+    campaignName: opts.campaignName,
+    subject: opts.subject,
+    sender: {
+      name: "DIUSCADI",
+      email: process.env.BREVO_SENDER_EMAIL ?? "info@diuscadi.org.ng",
+    },
+    htmlContent: opts.htmlContent,
+    textContent: opts.textContent,
+    contacts: opts.contacts,
+    scheduledAt: opts.scheduledAt,
+  });
+}
+
+// ─── 18. Bulk event announcement ─────────────────────────────────────────────
+//
+// Send the structured event announcement template to a large audience via
+// the Campaigns API. Unlike sendEventAnnouncementEmail() (which loops over
+// single SMTP sends), this creates one campaign and Brevo handles delivery.
+//
+// Usage:
+//   await sendBulkEventAnnouncement({
+//     eventTitle: "LASCADSS Annual Summit 2025",
+//     eventDate: "Saturday, August 9 • 10:00 AM WAT",
+//     eventLocation: "Main Auditorium, ABSU",
+//     eventDescription: "Join us for the biggest ...",
+//     eventUrl: "https://diuscadi.org.ng/events/summit-2025",
+//     isFree: false,
+//     ticketPrice: "₦2,500",
+//     registrationDeadline: "Friday, August 1",
+//     contacts: allMembers.map(m => ({ email: m.email, name: m.name })),
+//   });
+
+export async function sendBulkEventAnnouncement(
+  opts: Omit<EventAnnouncementEmailOptions, "recipientName"> & {
+    contacts: BrevoContact[];
+    scheduledAt?: string;
+  },
+): Promise<{ campaignId: number }> {
+  if (IS_DEV) {
+    console.log(`[DEV EMAIL] Bulk event announcement`);
+    console.log(`  Event:      ${opts.eventTitle}`);
+    console.log(`  Recipients: ${opts.contacts.length}`);
+    if (opts.scheduledAt) console.log(`  Scheduled:  ${opts.scheduledAt}`);
+    return { campaignId: 0 };
+  }
+
+  // Build a single generic HTML (no per-recipient personalisation for campaigns)
+  const { html, text, subject } = eventAnnouncementEmail({
+    ...opts,
+    recipientName: "Member", // generic salutation for bulk sends
+  });
+
+  const { sendBulkCampaign } = await import("@/utils/mailer");
+  return sendBulkCampaign({
+    campaignName: `Event: ${opts.eventTitle}`,
+    subject,
+    sender: {
+      name: "DIUSCADI",
+      email: process.env.BREVO_SENDER_EMAIL ?? "info@diuscadi.org.ng",
+    },
+    htmlContent: html,
+    textContent: text,
+    contacts: opts.contacts,
+    scheduledAt: opts.scheduledAt,
+  });
+}
+
+// ─── 19. Bulk platform update ─────────────────────────────────────────────────
+//
+// Send a maintenance / feature / critical notice to all users via the
+// Campaigns API.
+//
+// Usage:
+//   await sendBulkPlatformUpdate({
+//     updateType: "maintenance",
+//     title: "Scheduled Maintenance — Sunday 3 AM WAT",
+//     description: "We will be performing ...",
+//     startTime: "Sunday 20 Jul • 3:00 AM WAT",
+//     endTime: "Sunday 20 Jul • 6:00 AM WAT",
+//     affectedFeatures: ["Event registration", "Profile uploads"],
+//     contacts: allUsers.map(u => ({ email: u.email, name: u.name })),
+//   });
+
+export async function sendBulkPlatformUpdate(
+  opts: Omit<PlatformUpdateEmailOptions, "recipientName"> & {
+    contacts: BrevoContact[];
+    scheduledAt?: string;
+  },
+): Promise<{ campaignId: number }> {
+  if (IS_DEV) {
+    console.log(`[DEV EMAIL] Bulk platform update (${opts.updateType})`);
+    console.log(`  Title:      ${opts.title}`);
+    console.log(`  Recipients: ${opts.contacts.length}`);
+    if (opts.scheduledAt) console.log(`  Scheduled:  ${opts.scheduledAt}`);
+    return { campaignId: 0 };
+  }
+
+  const { html, text, subject } = platformUpdateEmail({
+    ...opts,
+    recipientName: undefined, // omit personalisation for bulk
+  });
+
+  const { sendBulkCampaign } = await import("@/utils/mailer");
+  return sendBulkCampaign({
+    campaignName: `Platform update: ${opts.title}`,
+    subject,
+    sender: {
+      name: "DIUSCADI",
+      email: process.env.BREVO_SENDER_EMAIL ?? "info@diuscadi.org.ng",
+    },
+    htmlContent: html,
+    textContent: text,
+    contacts: opts.contacts,
+    scheduledAt: opts.scheduledAt,
+  });
 }
