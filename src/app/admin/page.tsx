@@ -1,5 +1,4 @@
 "use client";
-// app/admin/page.tsx
 import React, { useEffect, useState } from "react";
 import { useAdmin } from "@/context/AdminContext";
 import { useAuth } from "@/context/AuthContext";
@@ -10,7 +9,8 @@ import { AdminStatsOverview } from "@/components/sections/admin/AdminStatsOvervi
 import { AdminQuickActions } from "@/components/sections/admin/AdminQuickActions";
 import { AdminRecentActivity } from "@/components/sections/admin/AdminRecentActivity";
 import { AdminUpcomingEventsPreview } from "@/components/sections/admin/AUEventsPreview";
-import { LuMenu, LuX, LuLoader } from "react-icons/lu";
+import { BroadcastModal } from "@/components/sections/admin/broadcast/BroadcastModal";
+import { LuMenu, LuX, LuLoader, LuMegaphone } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 
 export default function AdminDashboard() {
@@ -24,6 +24,7 @@ export default function AdminDashboard() {
     adminEvents,
   } = useAdmin();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -42,7 +43,7 @@ export default function AdminDashboard() {
     >
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 transform lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:col-span-3`}
+        className={`fixed inset-y-0 left-0 z-50 transform lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:col-span-2`}
       >
         <AdminSidebar />
       </div>
@@ -126,6 +127,29 @@ export default function AdminDashboard() {
             </div>
           ) : (
             <>
+              {/* Broadcast Button */}
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowBroadcastModal(true)}
+                  className={cn(
+                    "flex",
+                    "items-center",
+                    "gap-2",
+                    "px-6",
+                    "py-2",
+                    "bg-primary",
+                    "text-background",
+                    "rounded-lg",
+                    "font-bold",
+                    "hover:opacity-90",
+                    "transition",
+                  )}
+                >
+                  <LuMegaphone className="w-4 h-4" />
+                  Send Broadcast
+                </button>
+              </div>
+
               <AdminStatsOverview analytics={analytics} />
               <AdminQuickActions />
               <div
@@ -150,6 +174,16 @@ export default function AdminDashboard() {
           )}
         </main>
       </div>
+
+      {/* Broadcast Modal */}
+      <BroadcastModal
+        open={showBroadcastModal}
+        onClose={() => setShowBroadcastModal(false)}
+        onSuccess={() => {
+          if (token) loadAnalytics(token);
+        }}
+        token={token ?? undefined}
+      />
     </div>
   );
 }

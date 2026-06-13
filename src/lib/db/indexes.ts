@@ -323,6 +323,14 @@ export async function createIndexes() {
     .collection("applications")
     .createIndex({ requestedCommittee: 1, status: 1 });
 
+  // ── broadcasts ─────────────────────────────────────────────────────────────
+  await db.collection("broadcasts").createIndexes([
+    { key: { status: 1, createdAt: -1 }, name: "broadcasts_status_createdAt" },
+    { key: { createdBy: 1 }, name: "broadcasts_createdBy" },
+    { key: { sentAt: 1 }, name: "broadcasts_sentAt" },
+  ]);
+  console.log("✓ broadcasts");
+
   console.log("\n✅ All indexes created.");
 }
 

@@ -1100,3 +1100,286 @@ export function migrationWelcomeEmail({
  
   return { subject, html, text };
 }
+
+// ─── 15. Broadcast email wrapper ──────────────────────────────────────────────
+//
+// Wraps admin-written HTML content in the DIUSCADI email shell.
+// Used by the broadcast send route for all outgoing platform broadcasts.
+
+export interface BroadcastEmailOptions {
+  subject: string;
+  htmlContent: string;        // Admin-authored HTML (partial, not a full document)
+  textContent?: string;       // Falls back to stripped HTML if omitted
+  recipientName?: string;     // Personalises greeting when available
+  linkedEvent?: {
+    title: string;
+    eventDate: string;        // Pre-formatted display string
+    eventUrl?: string;
+  } | null;
+}
+
+export function broadcastEmail({
+  subject,
+  htmlContent,
+  textContent,
+  recipientName,
+  linkedEvent,
+}: BroadcastEmailOptions) {
+  const emailSubject = subject;
+  const html = wrapper(`
+    <!-- Broadcast badge -->
+    <div style="display:inline-block;background:#f8fafc;border:2px solid #e2e8f0;
+                border-radius:999px;padding:6px 14px;margin-bottom:20px;">
+      <span style="font-size:9px;font-weight:900;color:#64748b;
+                   text-transform:uppercase;letter-spacing:0.2em;">
+        📢 Platform Broadcast
+      </span>
+    </div>
+
+    ${
+      recipientName
+        ? `<p style="margin:0 0 20px;font-size:10px;font-weight:900;
+                     color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;">
+             Hi, ${recipientName}
+           </p>`
+        : ""
+    }
+
+    <!-- Admin content — rendered as-is inside the email shell -->
+    <div style="font-size:13px;color:#475569;line-height:1.8;">
+      ${htmlContent}
+    </div>
+
+    ${
+      linkedEvent
+        ? `
+      <div style="margin:32px 0 0;padding-top:24px;border-top:1px solid #f1f5f9;">
+        ${accentBanner(
+          "📅",
+          linkedEvent.title,
+          linkedEvent.eventDate,
+          PRIMARY_COLOR,
+          "#fefce8",
+        )}
+        ${
+          linkedEvent.eventUrl
+            ? ctaButton("View Event Details", linkedEvent.eventUrl)
+            : ""
+        }
+      </div>
+    `
+        : ""
+    }
+
+    <p style="margin:32px 0 0;font-size:11px;color:#94a3b8;text-align:center;line-height:1.6;">
+      You are receiving this because you have an account on the
+      <strong>${APP_NAME}</strong> platform.
+    </p>
+  `);
+
+  const text =
+    textContent ||
+    `${recipientName ? `Hi ${recipientName},\n\n` : ""}${htmlContent.replace(/<[^>]*>/g, "")}\n\n${
+      linkedEvent ? `Related event: ${linkedEvent.title} — ${linkedEvent.eventDate}` : ""
+    }`;
+
+  return { subject: emailSubject, html, text };
+}
+
+// ─── 16. Event announcement email ─────────────────────────────────────────────
+//
+// Structured event promotion email — used when broadcasting about a specific
+// upcoming event (distinct from the registration confirmation).
+
+export interface EventAnnouncementEmailOptions {
+  recipientName: string;
+  eventTitle: string;
+  eventDate: string;          // Pre-formatted: "Saturday, July 12 • 3:00 PM"
+  eventLocation: string;      // Venue name, city, or "Virtual / Online"
+  eventDescription: string;   // Short promotional blurb
+  eventUrl: string;           // Full URL to the event page
+  registrationDeadline?: string; // Pre-formatted deadline string if applicable
+  isFree: boolean;
+  ticketPrice?: string;       // e.g. "₦2,500" — only used if !isFree
+  ctaLabel?: string;          // Override button label — default "Register Now"
+}
+
+export function eventAnnouncementEmail({
+  recipientName,
+  eventTitle,
+  eventDate,
+  eventLocation,
+  eventDescription,
+  eventUrl,
+  registrationDeadline,
+  isFree,
+  ticketPrice,
+  ctaLabel = "Register Now",
+}: EventAnnouncementEmailOptions) {
+  const subject = `${APP_NAME} — ${eventTitle} is coming up`;
+  const html = wrapper(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:900;color:${PRIMARY_COLOR};
+               text-transform:uppercase;letter-spacing:-0.02em;">
+      New Event
+    </h1>
+    <p style="margin:0 0 4px;font-size:10px;font-weight:900;color:#94a3b8;
+              text-transform:uppercase;letter-spacing:0.2em;">
+      Hi, ${recipientName}
+    </p>
+
+    ${accentBanner("📅", eventTitle, eventDate, PRIMARY_COLOR, "#fefce8")}
+
+    <p style="margin:20px 0;font-size:13px;color:#475569;line-height:1.8;">
+      ${eventDescription}
+    </p>
+
+    <!-- Event details table -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+      ${detailRow("Date & Time", eventDate)}
+      ${detailRow("Location", eventLocation)}
+      ${detailRow("Admission", isFree ? "Free" : (ticketPrice ?? "Paid"))}
+      ${registrationDeadline ? detailRow("Register By", registrationDeadline) : ""}
+    </table>
+
+    ${ctaButton(ctaLabel, eventUrl)}
+
+    <p style="margin:24px 0 0;font-size:11px;color:#94a3b8;text-align:center;line-height:1.6;">
+      Visit the event page for full details, schedule, and registration.
+      Spots are limited — secure yours early.
+    </p>
+  `);
+
+  const text = `Hi ${recipientName},\n\n${eventTitle} is happening!\n\nDate: ${eventDate}\nLocation: ${eventLocation}\nAdmission: ${isFree ? "Free" : (ticketPrice ?? "Paid")}${registrationDeadline ? `\nRegister by: ${registrationDeadline}` : ""}\n\n${eventDescription}\n\nDetails & registration: ${eventUrl}`;
+
+  return { subject, html, text };
+}
+
+// ─── 17. Platform update / maintenance email ───────────────────────────────────
+//
+// Sent ahead of scheduled maintenance windows, feature launches, or
+// critical platform-wide notices. updateType controls the icon and colour theme.
+
+export type PlatformUpdateType = "maintenance" | "feature" | "critical" | "announcement";
+
+export interface PlatformUpdateEmailOptions {
+  recipientName?: string;
+  updateType: PlatformUpdateType;
+  title: string;
+  description: string;            // Main body — what is happening and why
+  startTime?: string;             // Pre-formatted: "Friday 18 Jul • 11:00 PM WAT"
+  endTime?: string;               // Pre-formatted: "Saturday 19 Jul • 3:00 AM WAT"
+  affectedFeatures?: string[];    // e.g. ["Event registration", "Profile uploads"]
+  actionRequired?: boolean;       // true = user needs to do something
+  ctaLabel?: string;
+  ctaUrl?: string;
+}
+
+const UPDATE_META: Record<
+  PlatformUpdateType,
+  { emoji: string; badge: string; color: string; bg: string }
+> = {
+  maintenance:  { emoji: "🔧", badge: "Scheduled Maintenance",  color: "#92400e", bg: "#fffbeb" },
+  feature:      { emoji: "✨", badge: "New Feature",            color: "#166534", bg: "#f0fdf4" },
+  critical:     { emoji: "🚨", badge: "Critical Notice",        color: "#991b1b", bg: "#fff1f2" },
+  announcement: { emoji: "📣", badge: "Platform Announcement",  color: PRIMARY_COLOR, bg: "#fefce8" },
+};
+
+export function platformUpdateEmail({
+  recipientName,
+  updateType,
+  title,
+  description,
+  startTime,
+  endTime,
+  affectedFeatures,
+  actionRequired,
+  ctaLabel,
+  ctaUrl,
+}: PlatformUpdateEmailOptions) {
+  const meta = UPDATE_META[updateType];
+  const subject = `${APP_NAME} — ${meta.badge}: ${title}`;
+
+  const html = wrapper(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:900;color:${PRIMARY_COLOR};
+               text-transform:uppercase;letter-spacing:-0.02em;">
+      ${title}
+    </h1>
+    ${
+      recipientName
+        ? `<p style="margin:0 0 4px;font-size:10px;font-weight:900;color:#94a3b8;
+                     text-transform:uppercase;letter-spacing:0.2em;">
+             Hi, ${recipientName}
+           </p>`
+        : ""
+    }
+
+    ${accentBanner(meta.emoji, meta.badge, title, meta.color, meta.bg)}
+
+    <p style="margin:20px 0;font-size:13px;color:#475569;line-height:1.8;">
+      ${description}
+    </p>
+
+    ${
+      (startTime || endTime)
+        ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+             ${startTime ? detailRow("Starts", startTime) : ""}
+             ${endTime   ? detailRow("Ends",   endTime)   : ""}
+           </table>`
+        : ""
+    }
+
+    ${
+      affectedFeatures && affectedFeatures.length > 0
+        ? `<div style="margin:20px 0;background:#f8fafc;border-left:3px solid ${ACCENT_COLOR};
+                       border-radius:8px;padding:16px 20px;">
+             <div style="font-size:9px;font-weight:900;color:#94a3b8;text-transform:uppercase;
+                         letter-spacing:0.2em;margin-bottom:10px;">
+               Affected Features
+             </div>
+             <ul style="margin:0;padding-left:18px;">
+               ${affectedFeatures
+                 .map(
+                   (f) =>
+                     `<li style="font-size:12px;font-weight:600;color:#475569;padding:3px 0;">${f}</li>`,
+                 )
+                 .join("")}
+             </ul>
+           </div>`
+        : ""
+    }
+
+    ${
+      actionRequired
+        ? `<div style="margin:20px 0;background:#fff1f2;border-radius:12px;
+                       padding:16px 20px;text-align:center;">
+             <p style="margin:0;font-size:12px;font-weight:900;color:#991b1b;">
+               ⚠ Action required — please read the details above carefully.
+             </p>
+           </div>`
+        : ""
+    }
+
+    ${ctaLabel && ctaUrl ? ctaButton(ctaLabel, ctaUrl) : ""}
+
+    <p style="margin:24px 0 0;font-size:11px;color:#94a3b8;text-align:center;line-height:1.6;">
+      We apologise for any inconvenience. The ${APP_NAME} team will keep
+      you updated if the situation changes.
+    </p>
+  `);
+
+  const text = [
+    recipientName ? `Hi ${recipientName},\n` : "",
+    `${meta.badge}: ${title}\n`,
+    `\n${description}`,
+    startTime ? `\nStart: ${startTime}` : "",
+    endTime   ? `\nEnd:   ${endTime}`   : "",
+    affectedFeatures?.length
+      ? `\n\nAffected:\n${affectedFeatures.map((f) => `- ${f}`).join("\n")}`
+      : "",
+    ctaUrl ? `\n\n${ctaLabel ?? "More info"}: ${ctaUrl}` : "",
+  ]
+    .filter(Boolean)
+    .join("");
+
+  return { subject, html, text };
+}

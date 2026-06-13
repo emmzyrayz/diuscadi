@@ -3,11 +3,9 @@ import nodemailer, { Transporter, SendMailOptions } from "nodemailer";
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 const REQUIRED_ENV = [
-  "SMTP_HOST",
-  "SMTP_PORT",
-  "SMTP_USER",
-  "SMTP_PASS",
-  "EMAIL_FROM",
+  "SMTP_USER", // This will be: info.diuscadi@gmail.com
+  "SMTP_PASS", // This will be your 16-character Google App Password
+  "EMAIL_FROM", // E.g., '"DIUSCADI Ecosystem" <info.diuscadi@gmail.com>'
 ] as const;
 
 for (const key of REQUIRED_ENV) {
@@ -19,9 +17,6 @@ for (const key of REQUIRED_ENV) {
 }
 
 // ─── Transporter singleton ────────────────────────────────────────────────────
-//
-// Same hot-reload guard as mongodb.ts — caching on global prevents a new
-// SMTP connection pool being created on every Next.js file-save in dev.
 
 declare global {
   var _smtpTransporter: Transporter | undefined;
@@ -29,18 +24,11 @@ declare global {
 
 function createTransporter(): Transporter {
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    // true for port 465 (SSL), false for port 587 (STARTTLS)
-    secure: Number(process.env.SMTP_PORT) === 465,
+    service: "gmail", // Tells Nodemailer to automatically handle Google's secure defaults
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
-    // Gracefully handle self-signed certs in dev (remove in production)
-    ...(process.env.NODE_ENV === "development" && {
-      tls: { rejectUnauthorized: false },
-    }),
   });
 }
 
@@ -71,7 +59,7 @@ export async function verifySmtpConnection(): Promise<boolean> {
     await transporter.verify();
     return true;
   } catch (err) {
-    console.error("SMTP connection failed:", err);
+    console.error("Gmail SMTP connection failed:", err);
     return false;
   }
 }

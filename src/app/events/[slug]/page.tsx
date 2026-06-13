@@ -106,6 +106,7 @@ const FALLBACK_IMAGE = "/images/events/default.jpg";
 
 // ── Data fetcher ──────────────────────────────────────────────────────────────
 
+
 async function fetchEventDetail(
   slug: string,
 ): Promise<{ detail: EventDetail; related: RelatedEventItem[] } | null> {

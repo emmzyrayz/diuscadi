@@ -23,6 +23,11 @@ interface RegistrationFormProps {
   eventSlug: string;
   eventTitle: string;
   ticketTypes: TicketType[];
+  // Server-detected returning guest — skips the form to the correct step
+  initialEmail?: string;
+  initialRegistrationId?: string;
+  initialStatus?: "pending" | "verified";
+  initialInviteCode?: string;
 }
 
 type Step = "details" | "otp" | "success";
@@ -136,6 +141,10 @@ export default function RegistrationForm({
   eventSlug,
   eventTitle,
   ticketTypes,
+  initialEmail,
+  initialRegistrationId,
+  initialStatus,
+  initialInviteCode,
 }: RegistrationFormProps) {
   const [step, setStep] = useState<Step>("details");
   const [loading, setLoading] = useState(false);
@@ -179,6 +188,62 @@ export default function RegistrationForm({
       if (cooldownRef.current) clearInterval(cooldownRef.current);
     };
   }, []);
+
+  // ── Mount effect: server-detected returning guest ─────────────────────────────
+// Runs once on mount only. Handles two cases:
+//   1. "verified"  — guest already verified, jump straight to success screen
+//   2. "pending"   — guest has an active OTP (possibly undelivered due to spam
+//                    filters), auto-resend a fresh code and jump to OTP screen
+useEffect(() => {
+  if (!initialEmail) return;
+
+  // Pre-fill the email field in case user clicks "← Change my details"
+  setForm((prev) => ({ ...prev, email: initialEmail }));
+
+  if (initialStatus === "verified" && initialInviteCode) {
+    setInviteCode(initialInviteCode);
+    if (initialRegistrationId) setRegistrationId(initialRegistrationId);
+    setStep("success");
+    return;
+  }
+
+  if (initialStatus === "pending" && initialRegistrationId) {
+    const regId = initialRegistrationId;
+
+    // Mask email for OTP screen header
+    const [local, domain] = initialEmail.split("@");
+    setMaskedEmail(
+      `${local.slice(0, 1)}${"*".repeat(Math.max(local.length - 1, 2))}@${domain}`,
+    );
+    setRegistrationId(regId);
+
+    // Auto-resend — the original OTP email was likely blocked as spam.
+    // Fire-and-forget: we always show step 2 regardless of resend outcome.
+    void (async () => {
+      try {
+        const res = await fetch("/api/events/resend-guest-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            registrationId: regId,
+            email: initialEmail,
+          }),
+        });
+        const data = (await res.json()) as { cooldownSeconds?: number };
+        if (res.status === 429 && data.cooldownSeconds) {
+          startCooldown(data.cooldownSeconds);
+        } else {
+          startCooldown(60);
+        }
+      } catch {
+        // Network error — still show the OTP screen, user can retry manually
+        startCooldown(60);
+      }
+    })();
+
+    setStep("otp");
+  }
+}, [initialEmail, initialInviteCode, initialRegistrationId, initialStatus, startCooldown]);
 
   // ── Field helpers ──────────────────────────────────────────────────────────
   const setField = (field: keyof FormState, value: string) => {
@@ -249,16 +314,44 @@ export default function RegistrationForm({
               return;
             }
 
-            if (statusData.status === "pending" && statusData.registrationId) {
-              setRegistrationId(statusData.registrationId);
-              const [local, domain] = form.email.split("@");
-              setMaskedEmail(
-                `${local.slice(0, 1)}${"*".repeat(Math.max(local.length - 1, 2))}@${domain}`,
-              );
-              startCooldown(60);
-              setStep("otp");
-              return;
-            }
+           if (statusData.status === "pending" && statusData.registrationId) {
+             const regId = statusData.registrationId;
+
+             // Mask email for OTP screen header
+             const [local, domain] = form.email.split("@");
+             setMaskedEmail(
+               `${local.slice(0, 1)}${"*".repeat(Math.max(local.length - 1, 2))}@${domain}`,
+             );
+             setRegistrationId(regId);
+
+             // Auto-resend — original email was likely blocked by spam filters.
+             // Fire-and-forget: always show step 2 regardless of resend outcome.
+             void (async () => {
+               try {
+                 const res = await fetch("/api/events/resend-guest-otp", {
+                   method: "POST",
+                   headers: { "Content-Type": "application/json" },
+                   body: JSON.stringify({
+                     registrationId: regId,
+                     email: form.email.trim().toLowerCase(),
+                   }),
+                 });
+                 const data = (await res.json()) as {
+                   cooldownSeconds?: number;
+                 };
+                 if (res.status === 429 && data.cooldownSeconds) {
+                   startCooldown(data.cooldownSeconds);
+                 } else {
+                   startCooldown(60);
+                 }
+               } catch {
+                 startCooldown(60);
+               }
+             })();
+
+             setStep("otp");
+             return;
+           }
           } catch {
             // status check failed — fall through to generic error
           }

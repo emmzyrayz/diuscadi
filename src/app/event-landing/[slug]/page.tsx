@@ -11,7 +11,8 @@ import Image from "next/image";
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface PageProps {
-  params: Promise<{ slug: string }>; // ← was { id: string }
+  params: Promise<{ slug: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 interface SerializableTicketType {
@@ -41,6 +42,72 @@ interface SerializableEvent {
   status: string;
   slug: string;
   eventBanner?: Pick<CloudinaryImage, "imageUrl" | "imageAlt"> | null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Guest status check — runs server-side so the form mounts in the correct step
+// with zero client-side round-trips.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface GuestStatusResult {
+  status: "verified" | "pending" | "none";
+  registrationId?: string;
+  inviteCode?: string;
+}
+
+async function checkGuestStatus(
+  email: string,
+  eventId: string,
+): Promise<GuestStatusResult> {
+  try {
+    const db = await getDb();
+    const { Collections } = await import("@/lib/db/collections");
+    const { ObjectId } = await import("mongodb");
+
+    if (!ObjectId.isValid(eventId)) return { status: "none" };
+
+    const guestReg = await Collections.guestEventRegistrations(db).findOne(
+      {
+        email: email.toLowerCase().trim(),
+        eventId: new ObjectId(eventId),
+        status: { $ne: "cancelled" },
+      },
+      {
+        projection: {
+          _id: 1,
+          inviteCode: 1,
+          verifiedAt: 1,
+          emailVerificationExpires: 1,
+        },
+      },
+    );
+
+    if (!guestReg) return { status: "none" };
+
+    const registrationId = guestReg._id!.toString();
+
+    // Already verified — jump to step 3
+    if (guestReg.verifiedAt) {
+      return {
+        status: "verified",
+        registrationId,
+        inviteCode: String(guestReg.inviteCode),
+      };
+    }
+
+    // OTP expired — treat as fresh (TTL will clean the record, but user can re-register)
+    if (
+      guestReg.emailVerificationExpires &&
+      new Date(guestReg.emailVerificationExpires as Date) < new Date()
+    ) {
+      return { status: "none" };
+    }
+
+    // OTP still valid and pending
+    return { status: "pending", registrationId };
+  } catch {
+    return { status: "none" };
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,8 +150,14 @@ export async function generateMetadata({
 // Page (Server Component)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default async function EventLandingPage({ params }: PageProps) {
-  const { slug } = await params; // ← was id
+export default async function EventLandingPage({
+  params,
+  searchParams,
+}: PageProps) {
+  const { slug } = await params;
+  const resolvedSearch = searchParams ? await searchParams : {};
+  const rawEmail = resolvedSearch.email;
+  const prefilledEmail = typeof rawEmail === "string" ? rawEmail.trim() : "";
 
   if (!slug) notFound();
 
@@ -373,6 +446,16 @@ export default async function EventLandingPage({ params }: PageProps) {
             eventSlug={event.slug}
             eventTitle={event.title}
             ticketTypes={ticketTypes}
+            {...(prefilledEmail
+              ? await checkGuestStatus(prefilledEmail, event._id).then(
+                  (gs) => ({
+                    initialEmail: prefilledEmail,
+                    initialStatus: gs.status === "none" ? undefined : gs.status,
+                    initialRegistrationId: gs.registrationId,
+                    initialInviteCode: gs.inviteCode,
+                  }),
+                )
+              : {})}
           />
         </div>
       </div>

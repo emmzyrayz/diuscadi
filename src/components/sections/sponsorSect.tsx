@@ -179,7 +179,7 @@ export const SponsorSection = () => {
                 {/* ── Layer 2: Name badge ────────────────────────────────── */}
                 <div
                   className={cn(
-                    "px-2 py-2",
+                    "px-2 py-2 w-full h-full",
                     "border-t border-slate-100",
                     "bg-slate-50 group-hover:bg-primary",
                     "transition-colors duration-300",

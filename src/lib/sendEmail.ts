@@ -23,6 +23,12 @@ import {
   type GuestVerificationEmailOptions,
   type GuestConfirmationEmailOptions,
   migrationWelcomeEmail,
+  broadcastEmail,
+  eventAnnouncementEmail,
+  platformUpdateEmail,
+  type BroadcastEmailOptions,
+  type EventAnnouncementEmailOptions,
+  type PlatformUpdateEmailOptions,
 } from "@/lib/MailTemplate";
 
 const IS_DEV =
@@ -454,5 +460,78 @@ export async function sendMigrationWelcomeEmail(opts: {
     resetUrl: opts.resetUrl,
     eventsCount: opts.eventsCount,
   });
+  await prodSend({ to: opts.to, subject, html, text });
+}
+
+// ─── 14. Broadcast email ──────────────────────────────────────────────────────
+//
+// Wraps admin-authored HTML in the DIUSCADI email shell and sends to one
+// recipient. Called in a loop by the broadcast send route (fire-and-forget).
+
+export async function sendBroadcastEmail(
+  opts: { to: string } & BroadcastEmailOptions,
+): Promise<void> {
+  if (IS_DEV) {
+    console.log(`[DEV EMAIL] Broadcast → ${opts.to}`);
+    console.log(`  Subject:   ${opts.subject}`);
+    if (opts.recipientName) console.log(`  Recipient: ${opts.recipientName}`);
+    if (opts.linkedEvent)   console.log(`  Event:     ${opts.linkedEvent.title}`);
+    return;
+  }
+
+  const { subject, html, text } = broadcastEmail({
+    subject:       opts.subject,
+    htmlContent:   opts.htmlContent,
+    textContent:   opts.textContent,
+    recipientName: opts.recipientName,
+    linkedEvent:   opts.linkedEvent,
+  });
+  await prodSend({ to: opts.to, subject, html, text });
+}
+
+// ─── 15. Event announcement email ─────────────────────────────────────────────
+//
+// Structured promotional email for an upcoming event — sent via broadcast
+// when a broadcast is linked to a specific event and the audience needs
+// rich event context rather than raw HTML.
+
+export async function sendEventAnnouncementEmail(
+  opts: { to: string } & EventAnnouncementEmailOptions,
+): Promise<void> {
+  if (IS_DEV) {
+    console.log(`[DEV EMAIL] Event announcement → ${opts.to}`);
+    console.log(`  Event:    ${opts.eventTitle}`);
+    console.log(`  Date:     ${opts.eventDate}`);
+    console.log(`  Location: ${opts.eventLocation}`);
+    console.log(`  Free:     ${opts.isFree}`);
+    if (opts.registrationDeadline)
+      console.log(`  Deadline: ${opts.registrationDeadline}`);
+    return;
+  }
+
+  const { subject, html, text } = eventAnnouncementEmail({ ...opts });
+  await prodSend({ to: opts.to, subject, html, text });
+}
+
+// ─── 16. Platform update / maintenance email ───────────────────────────────────
+//
+// Send ahead of maintenance windows, feature launches, or critical notices.
+// updateType controls icon + colour scheme (see PlatformUpdateType).
+
+export async function sendPlatformUpdateEmail(
+  opts: { to: string } & PlatformUpdateEmailOptions,
+): Promise<void> {
+  if (IS_DEV) {
+    console.log(`[DEV EMAIL] Platform update (${opts.updateType}) → ${opts.to}`);
+    console.log(`  Title: ${opts.title}`);
+    if (opts.startTime) console.log(`  Start: ${opts.startTime}`);
+    if (opts.endTime)   console.log(`  End:   ${opts.endTime}`);
+    if (opts.affectedFeatures?.length)
+      console.log(`  Affects: ${opts.affectedFeatures.join(", ")}`);
+    if (opts.actionRequired) console.log(`  ⚠ Action required`);
+    return;
+  }
+
+  const { subject, html, text } = platformUpdateEmail({ ...opts });
   await prodSend({ to: opts.to, subject, html, text });
 }
