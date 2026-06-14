@@ -266,10 +266,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
         const data = await res.json();
 
+        if (!res.ok) console.log("[signin 403 debug]", res.status, data);
+
         if (res.status === 403 && data.verified === false) {
           router.push(data.redirectTo);
           return;
         }
+
+        if (res.status === 403 && data.requiresPasswordReset) {
+          router.push(data.redirectTo ?? "/auth/forgot-password");
+          return;
+        }
+        
         if (res.status === 429 && data.verified === false) {
           setError({ message: data.error, field: "general" });
           return;

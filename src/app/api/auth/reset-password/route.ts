@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
           resetPasswordExpires: "",
           resetPasswordToken: "",
           resetPasswordTokenExpires: "",
+          requiresPasswordReset: "",
         },
       },
     );
