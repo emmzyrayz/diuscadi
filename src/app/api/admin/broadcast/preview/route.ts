@@ -1,23 +1,15 @@
+// POST /api/admin/broadcast/preview
+// Returns the first 10 matching recipients + total/account/guest counts.
+// Uses resolveRecipients — same logic as the send route.
+
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
-import { Collections } from "@/lib/db/collections";
 import { BroadcastFilter } from "@/types/broadcast";
-import { ObjectId } from "mongodb";
-import {
-  buildAudienceQuery,
-  buildPostLookupMatch,
-} from "@/lib/broadcast/audienceQuery";
+import { resolveRecipients } from "@/lib/broadcast/recipientResolver";
 
 const ALLOWED_ROLES = ["admin", "webmaster"];
 
-interface PreviewDoc {
-  _id: ObjectId;
-  email: string | null;
-  fullName: string;
-}
-
-// ─── POST /api/admin/broadcast/preview ───────────────────────────────────────
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   if (!ALLOWED_ROLES.includes(req.auth.role)) {
     return NextResponse.json(
@@ -38,54 +30,22 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     }
 
     const db = await getDb();
-    const preMatch = buildAudienceQuery(filter);
-    const postMatch = buildPostLookupMatch(filter);
+    const { recipients, accountCount, guestCount, total } =
+      await resolveRecipients(db, filter);
 
-    const pipeline = [
-      { $match: preMatch },
-      {
-        $lookup: {
-          from: "vault",
-          localField: "vaultId",
-          foreignField: "_id",
-          as: "_vault",
-        },
-      },
-      { $unwind: { path: "$_vault", preserveNullAndEmptyArrays: true } },
-      ...(postMatch ? [{ $match: postMatch }] : []),
-      {
-        $project: {
-          _id: 1,
-          email: "$_vault.email",
-          fullName: 1,
-        },
-      },
-      { $limit: 100 },
-    ];
-
-    const users = await Collections.userData(db)
-      .aggregate<PreviewDoc>(pipeline)
-      .toArray();
-
-    const totalCount = await Collections.userData(db).countDocuments(preMatch);
-
-    const preview = users.slice(0, 10).map((u) => ({
-      email: u.email,
-      fullName: u.fullName,
-      userId: u._id.toString(),
-    }));
-
-    const recipients = users.map((u) => ({
-      email: u.email,
-      fullName: u.fullName,
-      userId: u._id.toString(),
+    const preview = recipients.slice(0, 10).map((r) => ({
+      email: r.email,
+      fullName: r.fullName,
+      type: r.type,
+      userId: r.userId ?? null,
     }));
 
     return NextResponse.json({
-      recipients,
-      totalCount,
       preview,
-      isLargeAudience: totalCount > 1000,
+      totalCount: total,
+      accountCount,
+      guestCount,
+      isLargeAudience: total > 1000,
     });
   } catch (err) {
     console.error("[POST /api/admin/broadcast/preview]", err);

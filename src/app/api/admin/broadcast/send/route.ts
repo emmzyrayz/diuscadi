@@ -1,24 +1,23 @@
+// POST /api/admin/broadcast/send
+// Marks broadcast as sent, then fire-and-forgets email dispatch
+// in 50-per-batch chunks to both account + guest recipients.
+
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
-import { ObjectId, Db, WithId } from "mongodb";
+import { Db, ObjectId, WithId } from "mongodb";
 import { BroadcastMessage } from "@/types/broadcast";
 import {
-  buildAudienceQuery,
-  buildPostLookupMatch,
-} from "@/lib/broadcast/audienceQuery";
+  resolveRecipients,
+  ResolvedRecipient,
+} from "@/lib/broadcast/recipientResolver";
 import { sendBroadcastEmail } from "@/lib/sendEmail";
 
 const ALLOWED_ROLES = ["admin", "webmaster"];
+const BATCH_SIZE = 50;
+const BATCH_DELAY_MS = 100;
 
-interface RecipientDoc {
-  _id: ObjectId;
-  email: string | null;
-  fullName: string;
-}
-
-// ─── POST /api/admin/broadcast/send ──────────────────────────────────────────
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   if (!ALLOWED_ROLES.includes(req.auth.role)) {
     return NextResponse.json(
@@ -28,18 +27,19 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
   }
 
   try {
-    const { broadcastId } = await req.json();
+    const body = await req.json();
+    const { broadcastId } = body as { broadcastId: string };
 
-    if (!broadcastId) {
+    if (!broadcastId || !ObjectId.isValid(broadcastId)) {
       return NextResponse.json(
-        { error: "Broadcast ID is required" },
+        { error: "Valid broadcast ID is required" },
         { status: 400 },
       );
     }
 
     const db = await getDb();
     const broadcast = await Collections.broadcasts(db).findOne({
-      _id: new ObjectId(broadcastId as string),
+      _id: new ObjectId(broadcastId),
     });
 
     if (!broadcast) {
@@ -48,6 +48,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         { status: 404 },
       );
     }
+
     if (broadcast.status === "sent") {
       return NextResponse.json(
         { error: "Broadcast already sent" },
@@ -57,17 +58,17 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
 
     const now = new Date();
     await Collections.broadcasts(db).updateOne(
-      { _id: new ObjectId(broadcastId as string) },
+      { _id: new ObjectId(broadcastId) },
       { $set: { status: "sent", sentAt: now, updatedAt: now } },
     );
 
     // Fire-and-forget — response returns immediately
-    sendBroadcastEmails(db, broadcast).catch((err) =>
-      console.error(`[broadcast ${broadcastId}] Send failed:`, err),
+    dispatchBroadcast(db, broadcast).catch((err) =>
+      console.error(`[broadcast:${broadcastId}] Dispatch failed:`, err),
     );
 
     return NextResponse.json({
-      message: "Broadcast sent successfully",
+      message: "Broadcast queued for delivery",
       broadcastId,
     });
   } catch (err) {
@@ -79,85 +80,78 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
   }
 });
 
-// ─── Internal sender ──────────────────────────────────────────────────────────
-async function sendBroadcastEmails(
+// ── Async dispatcher (runs after response) ────────────────────────────────────
+
+async function dispatchBroadcast(
   db: Db,
   broadcast: WithId<BroadcastMessage>,
 ): Promise<void> {
-  const preMatch = buildAudienceQuery(broadcast.filter);
-  const postMatch = buildPostLookupMatch(broadcast.filter);
+  const { recipients, accountCount, guestCount } = await resolveRecipients(
+    db,
+    broadcast.filter,
+  );
 
-  const pipeline = [
-    { $match: preMatch },
-    {
-      $lookup: {
-        from: "vault",
-        localField: "vaultId",
-        foreignField: "_id",
-        as: "_vault",
-      },
-    },
-    { $unwind: { path: "$_vault", preserveNullAndEmptyArrays: true } },
-    // Post-lookup filter (e.g. by_role checks _vault.role)
-    ...(postMatch ? [{ $match: postMatch }] : []),
-    {
-      $project: {
-        _id: 1,
-        email: "$_vault.email",
-        fullName: 1,
-      },
-    },
-  ];
-
-  const users = await Collections.userData(db)
-    .aggregate<RecipientDoc>(pipeline)
-    .toArray();
+  // Prepare linked event display string once (re-used per email)
+  const linkedEvent = broadcast.linkedEvent
+    ? {
+        title: broadcast.linkedEvent.title,
+        eventDate: broadcast.linkedEvent.date.toLocaleDateString("en-NG", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      }
+    : null;
 
   let sent = 0;
   let failed = 0;
 
-  for (const user of users) {
-    if (!user.email) {
-      failed++;
-      continue;
-    }
-    try {
-      await sendBroadcastEmail({
-        to: user.email,
-        subject: broadcast.subject,
-        htmlContent: broadcast.htmlContent,
-        textContent: broadcast.textContent,
-        recipientName: user.fullName,
-        linkedEvent: broadcast.linkedEvent
-          ? {
-              title: broadcast.linkedEvent.title,
-              eventDate: broadcast.linkedEvent.date.toLocaleDateString(
-                "en-NG",
-                {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                },
-              ),
-            }
-          : null,
-      });
-      sent++;
-    } catch (err) {
-      console.error(`[broadcast] Failed to send to ${user.email}:`, err);
-      failed++;
+  // Send in fixed-size batches with a short delay between each
+  for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+    const batch = recipients.slice(i, i + BATCH_SIZE);
+
+    await Promise.allSettled(
+      batch.map(async (r: ResolvedRecipient) => {
+        try {
+          await sendBroadcastEmail({
+            to: r.email,
+            subject: broadcast.subject,
+            htmlContent: broadcast.htmlContent,
+            textContent: broadcast.textContent,
+            recipientName: r.fullName || undefined,
+            linkedEvent,
+          });
+          sent++;
+        } catch (err) {
+          console.error(`[broadcast] Failed → ${r.email}:`, err);
+          failed++;
+        }
+      }),
+    );
+
+    // Throttle between batches to avoid overwhelming SMTP
+    if (i + BATCH_SIZE < recipients.length) {
+      await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
     }
   }
 
+  // Write final stats back to the broadcast document
   await Collections.broadcasts(db).updateOne(
     { _id: broadcast._id },
     {
       $set: {
         sentCount: sent,
         failedCount: failed,
-        totalRecipients: users.length,
+        totalRecipients: recipients.length,
+        updatedAt: new Date(),
       },
     },
+  );
+
+  console.log(
+    `[broadcast:${broadcast._id}] Complete — ` +
+      `${sent} sent, ${failed} failed | ` +
+      `${accountCount} accounts, ${guestCount} guests`,
   );
 }
