@@ -155,6 +155,24 @@ export interface EventDocument {
    */
   whatsappGroupLink?: string;
 
+  /**
+ * Virtual meeting link — Zoom, Google Meet, Teams URL.
+ * Sent to virtual attendees for hybrid or virtual-only events.
+ */
+virtualVenueLink?: string;
+
+/**
+ * WhatsApp group for PHYSICAL attendees (hybrid only).
+ * Falls back to whatsappGroupLink if not set.
+ */
+whatsappGroupLinkPhysical?: string;
+
+/**
+ * WhatsApp group for VIRTUAL attendees (hybrid only).
+ * Falls back to whatsappGroupLink if not set.
+ */
+whatsappGroupLinkVirtual?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }
