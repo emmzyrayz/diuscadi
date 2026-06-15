@@ -114,6 +114,7 @@ interface EventContextType {
     eventId: string,
     ticketTypeId: string,
     referralCode?: string,
+    attendanceType?: "physical" | "virtual",
   ) => Promise<RegisterResult>;
   cancelRegistration: (registrationId: string) => Promise<CancelResult>;
 
@@ -251,6 +252,7 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
       eventId: string,
       ticketTypeId: string,
       referralCode?: string,
+      attendanceType?: "physical" | "virtual",
     ): Promise<RegisterResult> => {
       try {
         const res = await fetch("/api/events/register", {
@@ -260,6 +262,7 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
             eventId,
             ticketTypeId,
             referralCodeUsed: referralCode,
+            ...(attendanceType && { attendanceType }),
           }),
         });
         const data = await res.json();

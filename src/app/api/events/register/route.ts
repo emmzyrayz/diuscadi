@@ -13,7 +13,11 @@ import { sendEventRegistrationEmail } from "@/lib/sendEmail";
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   try {
     const body = await req.json();
-    const { eventId, ticketTypeId, referralCodeUsed } = body;
+    const { eventId, ticketTypeId, referralCodeUsed, attendanceType } = body;
+    const resolvedAttendanceType = attendanceType as
+      | "physical"
+      | "virtual"
+      | undefined;
 
     if (!eventId || !ticketTypeId) {
       return NextResponse.json(
@@ -179,6 +183,11 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       registeredAt: now,
       createdAt: now,
       updatedAt: now,
+      // Only stored for hybrid events
+      ...(resolvedAttendanceType &&
+        event.format === "hybrid" && {
+          attendanceType: resolvedAttendanceType,
+        }),
     };
 
     const { insertedId } =
@@ -234,31 +243,54 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
           });
 
         // Build location string
+        // Resolve location and WhatsApp based on format + attendanceType
         const loc = event.location as Record<string, string> | undefined;
-        const eventLocation = loc
+        const format = String(event.format ?? "");
+        const isVirtual =
+          format === "virtual" ||
+          (format === "hybrid" && resolvedAttendanceType === "virtual");
+
+        const physicalLocation = loc
           ? [loc.venue, loc.city].filter(Boolean).join(", ") ||
             String(event.format)
           : String(event.format ?? "See event details");
 
-        // Determine ticket price display
-        const price = ticketType.price as number | undefined;
-        const isFree = !price || price === 0;
-        const ticketPrice = isFree
-          ? undefined
-          : `₦${price.toLocaleString("en-NG")}`;
+        const eventLocation = isVirtual
+          ? (event.virtualVenueLink as string) || "Virtual — meeting link below"
+          : physicalLocation;
 
-        await sendEventRegistrationEmail({
-          to: vault.email as string,
-          ticketId: insertedId.toString(),
-          name: displayName,
-          eventTitle: String(event.title),
-          eventDate: formattedDate,
-          eventLocation,
-          ticketCode: inviteCode,
-          isFree,
-          ticketPrice,
-          whatsappGroupLink: (event.whatsappGroupLink as string) ?? undefined,
-        });
+        const resolvedWhatsApp = (() => {
+          if (format === "hybrid") {
+            return resolvedAttendanceType === "virtual"
+              ? (event.whatsappGroupLinkVirtual as string) ||
+                  (event.whatsappGroupLink as string) ||
+                  undefined
+              : (event.whatsappGroupLinkPhysical as string) ||
+                  (event.whatsappGroupLink as string) ||
+                  undefined;
+          }
+          return (event.whatsappGroupLink as string) || undefined;
+        })();
+
+        // Determine ticket price display
+       const price = ticketType.price as number | undefined;
+       const isFree = !price || price === 0;
+       const ticketPrice = isFree
+         ? undefined
+         : `₦${price.toLocaleString("en-NG")}`;
+
+       await sendEventRegistrationEmail({
+         to: vault.email as string,
+         ticketId: insertedId.toString(),
+         name: displayName,
+         eventTitle: String(event.title),
+         eventDate: formattedDate,
+         eventLocation,
+         ticketCode: inviteCode,
+         isFree,
+         ticketPrice,
+         whatsappGroupLink: resolvedWhatsApp,
+       });
       } catch (emailErr) {
         // Log but never surface to the user — registration already succeeded
         console.error("[register] Confirmation email failed:", emailErr);

@@ -173,33 +173,63 @@ export async function POST(req: NextRequest) {
           },
         );
 
-        const loc = event.location as
-          | Record<string, string | undefined>
-          | undefined;
-        const eventLocation = loc
-          ? [loc.venue, loc.city].filter(Boolean).join(", ") ||
-            String(event.format)
-          : String(event.format ?? "See event details");
+         const loc = event.location as
+           | Record<string, string | undefined>
+           | undefined;
 
-        const price = ticketType?.price as number | undefined;
-        const isFree = !price || price === 0;
-        const ticketPrice = isFree
-          ? undefined
-          : `₦${price.toLocaleString("en-NG")}`;
+         const format = String(event.format ?? "");
+         const guestAttendanceType = guestReg.attendanceType as
+           | "physical"
+           | "virtual"
+           | undefined;
+         const isVirtual =
+           format === "virtual" ||
+           (format === "hybrid" && guestAttendanceType === "virtual");
 
-        await sendGuestConfirmationEmail({
-          to: guestReg.email,
-          ticketId: regObjId.toString(),
-          name: guestReg.fullName.firstname,
-          eventTitle: String(event.title),
-          eventDate: eventDateFormatted,
-          eventLocation,
-          ticketCode: guestReg.inviteCode,
-          isFree,
-          ticketPrice,
-          whatsappGroupLink: (event.whatsappGroupLink as string) ?? undefined,
-          registrationType: "Guest",
-        });
+         // Resolve location string based on attendance mode
+         const physicalLocation = loc
+           ? [loc.venue, loc.city].filter(Boolean).join(", ") ||
+             String(event.format)
+           : String(event.format ?? "See event details");
+
+         const eventLocation = isVirtual
+           ? (event.virtualVenueLink as string) ||
+             "Virtual — meeting link below"
+           : physicalLocation;
+
+         // Resolve WhatsApp link based on attendance mode
+         const resolvedWhatsApp = (() => {
+           if (format === "hybrid") {
+             return guestAttendanceType === "virtual"
+               ? (event.whatsappGroupLinkVirtual as string) ||
+                   (event.whatsappGroupLink as string) ||
+                   undefined
+               : (event.whatsappGroupLinkPhysical as string) ||
+                   (event.whatsappGroupLink as string) ||
+                   undefined;
+           }
+           return (event.whatsappGroupLink as string) || undefined;
+         })();
+
+         const price = ticketType?.price as number | undefined;
+         const isFree = !price || price === 0;
+         const ticketPrice = isFree
+           ? undefined
+           : `₦${price.toLocaleString("en-NG")}`;
+
+         await sendGuestConfirmationEmail({
+           to: guestReg.email,
+           ticketId: regObjId.toString(),
+           name: guestReg.fullName.firstname,
+           eventTitle: String(event.title),
+           eventDate: eventDateFormatted,
+           eventLocation,
+           ticketCode: guestReg.inviteCode,
+           isFree,
+           ticketPrice,
+           whatsappGroupLink: resolvedWhatsApp,
+           registrationType: "Guest",
+         });
       } catch (emailErr) {
         // Never surface email errors — registration is already complete
         console.error("[verify-guest] Confirmation email failed:", emailErr);

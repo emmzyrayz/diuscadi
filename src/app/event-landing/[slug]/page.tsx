@@ -445,6 +445,7 @@ export default async function EventLandingPage({
             eventId={event._id}
             eventSlug={event.slug}
             eventTitle={event.title}
+            eventFormat={event.format}
             ticketTypes={ticketTypes}
             {...(prefilledEmail
               ? await checkGuestStatus(prefilledEmail, event._id).then(

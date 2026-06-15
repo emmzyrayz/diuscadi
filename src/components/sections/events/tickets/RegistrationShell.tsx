@@ -53,7 +53,12 @@ export const RegistrationShell = ({ event, user }: Props) => {
     setStatus("loading");
     setErrorMsg("");
 
-    const result = await registerForEvent(event.id, selectedTicket?.id ?? "");
+    const result = await registerForEvent(
+      event.id,
+      selectedTicket?.id ?? "",
+      undefined, // referralCode
+      event.format === "hybrid" ? attendanceType : undefined,
+    );
 
     if (result.success) {
       setStatus("success");

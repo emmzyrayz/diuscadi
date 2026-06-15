@@ -239,6 +239,16 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       ...(body.whatsappGroupLink
         ? { whatsappGroupLink: body.whatsappGroupLink }
         : {}),
+      // Hybrid venue fields
+      ...(body.virtualVenueLink
+        ? { virtualVenueLink: body.virtualVenueLink }
+        : {}),
+      ...(body.whatsappGroupLinkPhysical
+        ? { whatsappGroupLinkPhysical: body.whatsappGroupLinkPhysical }
+        : {}),
+      ...(body.whatsappGroupLinkVirtual
+        ? { whatsappGroupLinkVirtual: body.whatsappGroupLinkVirtual }
+        : {}),
     });
 
     // Create default ticket tier so registration can always resolve ticketTypeId.

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import MigrateCTA from "./MigrateCTA";
+import { cn } from "../../../lib/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -23,6 +24,7 @@ interface RegistrationFormProps {
   eventSlug: string;
   eventTitle: string;
   ticketTypes: TicketType[];
+  eventFormat: string;
   // Server-detected returning guest — skips the form to the correct step
   initialEmail?: string;
   initialRegistrationId?: string;
@@ -140,6 +142,7 @@ export default function RegistrationForm({
   eventId,
   eventSlug,
   eventTitle,
+  eventFormat,
   ticketTypes,
   initialEmail,
   initialRegistrationId,
@@ -168,6 +171,10 @@ export default function RegistrationForm({
 
   // Step 3 state
   const [inviteCode, setInviteCode] = useState("");
+  const [attendanceType, setAttendanceType] = useState<"physical" | "virtual">(
+    "physical",
+  );
+  const isHybrid = eventFormat === "hybrid";
 
   // ── Cooldown timer for OTP resend ──────────────────────────────────────────
   const startCooldown = useCallback((seconds = 60) => {
@@ -190,60 +197,66 @@ export default function RegistrationForm({
   }, []);
 
   // ── Mount effect: server-detected returning guest ─────────────────────────────
-// Runs once on mount only. Handles two cases:
-//   1. "verified"  — guest already verified, jump straight to success screen
-//   2. "pending"   — guest has an active OTP (possibly undelivered due to spam
-//                    filters), auto-resend a fresh code and jump to OTP screen
-useEffect(() => {
-  if (!initialEmail) return;
+  // Runs once on mount only. Handles two cases:
+  //   1. "verified"  — guest already verified, jump straight to success screen
+  //   2. "pending"   — guest has an active OTP (possibly undelivered due to spam
+  //                    filters), auto-resend a fresh code and jump to OTP screen
+  useEffect(() => {
+    if (!initialEmail) return;
 
-  // Pre-fill the email field in case user clicks "← Change my details"
-  setForm((prev) => ({ ...prev, email: initialEmail }));
+    // Pre-fill the email field in case user clicks "← Change my details"
+    setForm((prev) => ({ ...prev, email: initialEmail }));
 
-  if (initialStatus === "verified" && initialInviteCode) {
-    setInviteCode(initialInviteCode);
-    if (initialRegistrationId) setRegistrationId(initialRegistrationId);
-    setStep("success");
-    return;
-  }
+    if (initialStatus === "verified" && initialInviteCode) {
+      setInviteCode(initialInviteCode);
+      if (initialRegistrationId) setRegistrationId(initialRegistrationId);
+      setStep("success");
+      return;
+    }
 
-  if (initialStatus === "pending" && initialRegistrationId) {
-    const regId = initialRegistrationId;
+    if (initialStatus === "pending" && initialRegistrationId) {
+      const regId = initialRegistrationId;
 
-    // Mask email for OTP screen header
-    const [local, domain] = initialEmail.split("@");
-    setMaskedEmail(
-      `${local.slice(0, 1)}${"*".repeat(Math.max(local.length - 1, 2))}@${domain}`,
-    );
-    setRegistrationId(regId);
+      // Mask email for OTP screen header
+      const [local, domain] = initialEmail.split("@");
+      setMaskedEmail(
+        `${local.slice(0, 1)}${"*".repeat(Math.max(local.length - 1, 2))}@${domain}`,
+      );
+      setRegistrationId(regId);
 
-    // Auto-resend — the original OTP email was likely blocked as spam.
-    // Fire-and-forget: we always show step 2 regardless of resend outcome.
-    void (async () => {
-      try {
-        const res = await fetch("/api/events/resend-guest-otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            registrationId: regId,
-            email: initialEmail,
-          }),
-        });
-        const data = (await res.json()) as { cooldownSeconds?: number };
-        if (res.status === 429 && data.cooldownSeconds) {
-          startCooldown(data.cooldownSeconds);
-        } else {
+      // Auto-resend — the original OTP email was likely blocked as spam.
+      // Fire-and-forget: we always show step 2 regardless of resend outcome.
+      void (async () => {
+        try {
+          const res = await fetch("/api/events/resend-guest-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              registrationId: regId,
+              email: initialEmail,
+            }),
+          });
+          const data = (await res.json()) as { cooldownSeconds?: number };
+          if (res.status === 429 && data.cooldownSeconds) {
+            startCooldown(data.cooldownSeconds);
+          } else {
+            startCooldown(60);
+          }
+        } catch {
+          // Network error — still show the OTP screen, user can retry manually
           startCooldown(60);
         }
-      } catch {
-        // Network error — still show the OTP screen, user can retry manually
-        startCooldown(60);
-      }
-    })();
+      })();
 
-    setStep("otp");
-  }
-}, [initialEmail, initialInviteCode, initialRegistrationId, initialStatus, startCooldown]);
+      setStep("otp");
+    }
+  }, [
+    initialEmail,
+    initialInviteCode,
+    initialRegistrationId,
+    initialStatus,
+    startCooldown,
+  ]);
 
   // ── Field helpers ──────────────────────────────────────────────────────────
   const setField = (field: keyof FormState, value: string) => {
@@ -281,6 +294,7 @@ useEffect(() => {
           firstName: form.firstName.trim(),
           lastName: form.lastName.trim(),
           email: form.email.trim().toLowerCase(),
+          ...(isHybrid && { attendanceType }),
           ...(form.referralCode.trim() && {
             referralCodeUsed: form.referralCode.trim(),
           }),
@@ -314,44 +328,44 @@ useEffect(() => {
               return;
             }
 
-           if (statusData.status === "pending" && statusData.registrationId) {
-             const regId = statusData.registrationId;
+            if (statusData.status === "pending" && statusData.registrationId) {
+              const regId = statusData.registrationId;
 
-             // Mask email for OTP screen header
-             const [local, domain] = form.email.split("@");
-             setMaskedEmail(
-               `${local.slice(0, 1)}${"*".repeat(Math.max(local.length - 1, 2))}@${domain}`,
-             );
-             setRegistrationId(regId);
+              // Mask email for OTP screen header
+              const [local, domain] = form.email.split("@");
+              setMaskedEmail(
+                `${local.slice(0, 1)}${"*".repeat(Math.max(local.length - 1, 2))}@${domain}`,
+              );
+              setRegistrationId(regId);
 
-             // Auto-resend — original email was likely blocked by spam filters.
-             // Fire-and-forget: always show step 2 regardless of resend outcome.
-             void (async () => {
-               try {
-                 const res = await fetch("/api/events/resend-guest-otp", {
-                   method: "POST",
-                   headers: { "Content-Type": "application/json" },
-                   body: JSON.stringify({
-                     registrationId: regId,
-                     email: form.email.trim().toLowerCase(),
-                   }),
-                 });
-                 const data = (await res.json()) as {
-                   cooldownSeconds?: number;
-                 };
-                 if (res.status === 429 && data.cooldownSeconds) {
-                   startCooldown(data.cooldownSeconds);
-                 } else {
-                   startCooldown(60);
-                 }
-               } catch {
-                 startCooldown(60);
-               }
-             })();
+              // Auto-resend — original email was likely blocked by spam filters.
+              // Fire-and-forget: always show step 2 regardless of resend outcome.
+              void (async () => {
+                try {
+                  const res = await fetch("/api/events/resend-guest-otp", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      registrationId: regId,
+                      email: form.email.trim().toLowerCase(),
+                    }),
+                  });
+                  const data = (await res.json()) as {
+                    cooldownSeconds?: number;
+                  };
+                  if (res.status === 429 && data.cooldownSeconds) {
+                    startCooldown(data.cooldownSeconds);
+                  } else {
+                    startCooldown(60);
+                  }
+                } catch {
+                  startCooldown(60);
+                }
+              })();
 
-             setStep("otp");
-             return;
-           }
+              setStep("otp");
+              return;
+            }
           } catch {
             // status check failed — fall through to generic error
           }
@@ -947,6 +961,59 @@ useEffect(() => {
                   />
                 </div>
 
+                {/* Attendance mode — hybrid events only */}
+                {isHybrid && (
+                  <div className="rf-field">
+                    <span className="rf-label">
+                      How will you attend? <span aria-hidden>*</span>
+                    </span>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: ".6rem",
+                      }}
+                    >
+                      {(["physical", "virtual"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          role="radio"
+                          aria-checked={attendanceType === mode}
+                          disabled={loading}
+                          onClick={() => setAttendanceType(mode)}
+                          className={`rf-ticket-card ${attendanceType === mode ? "selected" : ""}`}
+                          style={{ justifyContent: "center", gap: ".5rem" }}
+                        >
+                          <div className="rf-ticket-radio">
+                            <div className="rf-ticket-radio-dot" />
+                          </div>
+                          <span
+                            className="rf-ticket-name"
+                            style={{ textTransform: "capitalize" }}
+                          >
+                            {mode === "physical"
+                              ? "📍 In-Person"
+                              : "💻 Virtual"}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <p
+                      style={{
+                        marginTop: ".4rem",
+                        fontSize: ".78rem",
+                        color: "var(--rf-muted)",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {attendanceType === "physical"
+                        ? "You'll attend at the physical venue. Venue details will be in your confirmation email."
+                        : "You'll join online. A meeting link will be sent to your email."}
+                    </p>
+                  </div>
+                )}
+
                 {/* Ticket selection */}
                 <div className="rf-field">
                   <span className="rf-label">
@@ -1021,7 +1088,7 @@ useEffect(() => {
 
                 <button
                   type="submit"
-                  className="rf-btn rf-btn-primary"
+                  className={cn("rf-btn", "rf-btn-primary")}
                   disabled={loading}
                 >
                   {loading ? (
@@ -1065,7 +1132,7 @@ useEffect(() => {
 
                 <button
                   type="submit"
-                  className="rf-btn rf-btn-primary"
+                  className={cn("rf-btn", "rf-btn-primary")}
                   disabled={loading || otp.length !== 6}
                 >
                   {loading ? (
@@ -1097,7 +1164,7 @@ useEffect(() => {
               {/* Back link */}
               <button
                 type="button"
-                className="rf-btn rf-btn-ghost"
+                className={cn("rf-btn", "rf-btn-ghost")}
                 onClick={() => {
                   setStep("details");
                   setOtp("");

@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       email,
       phone,
       referralCodeUsed,
+      attendanceType,
     } = body as {
       eventId?: string;
       ticketTypeId?: string;
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
       email?: string;
       phone?: { countryCode: number; phoneNumber: number };
       referralCodeUsed?: string;
+      attendanceType?: "physical" | "virtual";
     };
 
     // ── 1. Required field validation ─────────────────────────────────────────
@@ -326,6 +328,8 @@ export async function POST(req: NextRequest) {
       status: "registered" as const,
       registeredAt: now,
       registrationType: "Guest" as const,
+      // Only stored for hybrid events — drives venue routing in confirmation email
+      ...(attendanceType && event.format === "hybrid" && { attendanceType }),
       createdAt: now,
       updatedAt: now,
     };

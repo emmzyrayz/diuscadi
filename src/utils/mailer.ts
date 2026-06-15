@@ -362,12 +362,16 @@
 // // }
 
 
-// utils/mailer.ts
+// utils/mailer.ts — v3
 //
-// Transactional email via Resend API.
-// API routes import ONLY from lib/sendEmail.ts — never from here directly.
+// Transactional email  → Resend API  (single sends)
+// Bulk / broadcast     → Resend Batch API  (up to 100 per call, chunked for larger lists)
+//
+// API routes import ONLY from lib/sendEmail.ts — never from here directly,
+// EXCEPT for the admin health-check route which may call verifyResendConnection().
 
 import { Resend } from "resend";
+import type { CreateEmailOptions } from "resend";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -382,8 +386,6 @@ for (const key of REQUIRED_ENV) {
 }
 
 // ─── Resend singleton ─────────────────────────────────────────────────────────
-// Hot-module-reload in dev would create a new client on every file change
-// without the global cache — same pattern as the old nodemailer setup.
 
 declare global {
   var _resendClient: Resend | undefined;
@@ -404,7 +406,7 @@ if (process.env.NODE_ENV === "development") {
   resend = createClient();
 }
 
-// ─── Send helper (matches the interface sendEmail.ts expects) ─────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface SendMailOptions {
   to: string;
@@ -414,18 +416,145 @@ export interface SendMailOptions {
   replyTo?: string;
 }
 
+export interface BulkContact {
+  email: string;
+  name?: string;
+}
+
+export interface BulkMailOptions {
+  /** Internal label for logging / tracking */
+  campaignName: string;
+  subject: string;
+  /** Full HTML body — use {{name}} or {{email}} as merge tags if desired */
+  html: string;
+  /** Plain-text fallback */
+  text: string;
+  recipients: BulkContact[];
+  replyTo?: string;
+}
+
+export interface BulkMailResult {
+  /** Total successfully queued */
+  sent: number;
+  /** Any addresses that errored */
+  failed: { email: string; error: string }[];
+}
+
+// ─── Transactional send ───────────────────────────────────────────────────────
+
 export async function sendMail(options: SendMailOptions): Promise<void> {
-  const { error } = await resend.emails.send({
+  const payload: CreateEmailOptions = {
     from: process.env.MAIL_FROM!,
     to: options.to,
     subject: options.subject,
     html: options.html,
     text: options.text,
-    ...(options.replyTo ? { replyTo: options.replyTo } : {}),
-  });
+    ...(options.replyTo ? { reply_to: options.replyTo } : {}),
+  };
+
+  const { error } = await resend.emails.send(payload);
 
   if (error) {
     console.error("[sendMail] Resend error:", error);
     throw new Error(`Email delivery failed: ${error.message}`);
   }
+}
+
+// ─── Health check (replaces verifySmtpConnection) ────────────────────────────
+//
+// Resend has no SMTP STARTTLS handshake to verify. Instead we call the
+// domains list endpoint — a lightweight authenticated request that confirms
+// the API key is valid and the service is reachable.
+
+export async function verifyResendConnection(): Promise<boolean> {
+  try {
+    const { error } = await resend.domains.list();
+    if (error) {
+      console.error("[verifyResendConnection] Resend API error:", error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("[verifyResendConnection] Unexpected error:", err);
+    return false;
+  }
+}
+
+/**
+ * @deprecated Use verifyResendConnection() instead.
+ * Kept as a shim so existing imports of verifySmtpConnection don't break
+ * the build while you migrate call sites.
+ */
+export const verifySmtpConnection = verifyResendConnection;
+
+// ─── Bulk / broadcast send ────────────────────────────────────────────────────
+//
+// Resend's batch endpoint accepts up to 100 emails per call.
+// For larger lists we chunk automatically and fire sequentially so we don't
+// slam the API. Adjust CHUNK_SIZE down if you hit rate limits.
+//
+// Merge tags: {{name}} and {{email}} in html/text are replaced per-recipient.
+
+const CHUNK_SIZE = 100;
+
+function applyMergeTags(
+  template: string,
+  recipient: BulkContact,
+): string {
+  return template
+    .replace(/\{\{name\}\}/g, recipient.name ?? recipient.email.split("@")[0])
+    .replace(/\{\{email\}\}/g, recipient.email);
+}
+
+export async function sendBulkMail(
+  options: BulkMailOptions,
+): Promise<BulkMailResult> {
+  const { recipients, subject, html, text, replyTo, campaignName } = options;
+
+  const result: BulkMailResult = { sent: 0, failed: [] };
+
+  // Split recipients into chunks of CHUNK_SIZE
+  for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
+    const chunk = recipients.slice(i, i + CHUNK_SIZE);
+
+    const batch: CreateEmailOptions[] = chunk.map((r) => ({
+      from: process.env.MAIL_FROM!,
+      to: r.email,
+      subject,
+      html: applyMergeTags(html, r),
+      text: applyMergeTags(text, r),
+      ...(replyTo ? { reply_to: replyTo } : {}),
+    }));
+
+    try {
+      const { data, error } = await resend.batch.send(batch);
+
+      if (error) {
+        // Whole chunk failed — mark all as failed
+        console.error(
+          `[sendBulkMail] Chunk ${i / CHUNK_SIZE + 1} error for "${campaignName}":`,
+          error,
+        );
+        chunk.forEach((r) =>
+          result.failed.push({ email: r.email, error: error.message }),
+        );
+      } else {
+        // data is an array of { id } objects, one per email queued
+        result.sent += data?.data?.length ?? chunk.length;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[sendBulkMail] Unexpected error in chunk ${i / CHUNK_SIZE + 1}:`,
+        message,
+      );
+      chunk.forEach((r) => result.failed.push({ email: r.email, error: message }));
+    }
+  }
+
+  console.info(
+    `[sendBulkMail] "${campaignName}" — sent: ${result.sent}, failed: ${result.failed.length}`,
+  );
+
+  return result;
 }
