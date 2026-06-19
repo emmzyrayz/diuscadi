@@ -120,6 +120,8 @@ interface EventFormData {
   pendingSkills: string[];          // free-text names pending suggestion
   learningOutcomes: string[];
   outcomeInput: string;
+  skillsOffered: string[];  
+  skillsOfferedInput: string;
   instructor: string;
   maxCapacity: number;
   ticketPrice: number;
@@ -210,6 +212,8 @@ const DEFAULT_FORM: EventFormData = {
   pendingSkills: [],
   learningOutcomes: [],
   outcomeInput: "",
+  skillsOffered: [],
+  skillsOfferedInput: "",
   instructor: "",
   maxCapacity: 100,
   ticketPrice: 0,
@@ -1529,6 +1533,19 @@ const AudienceStep: React.FC<StepProps> = ({ formData, setFormData }) => {
     }));
   };
 
+  const addSkillOffered = () => {
+    const skill = formData.skillsOfferedInput.trim();
+    if (!skill || formData.skillsOffered.includes(skill)) {
+      setFormData((p) => ({ ...p, skillsOfferedInput: "" }));
+      return;
+    }
+    setFormData((p) => ({
+      ...p,
+      skillsOffered: [...p.skillsOffered, skill],
+      skillsOfferedInput: "",
+    }));
+  };
+
   return (
     <div className="space-y-6">
       {/* Target edu status */}
@@ -1557,6 +1574,42 @@ const AudienceStep: React.FC<StepProps> = ({ formData, setFormData }) => {
         onChangeSlugs={(slugs) => setFormData((p) => ({ ...p, requiredSkills: slugs }))}
         onChangePending={(skills) => setFormData((p) => ({ ...p, pendingSkills: skills }))}
       />
+
+      {/* Skills offered at this event — what attendees pick during registration */}
+      <div className="space-y-2">
+        <FieldLabel>Skills Offered At This Event</FieldLabel>
+        <p className={cn('text-[9px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
+          Registrants pick from this list when registering — e.g. &ldquo;Tech Up&rdquo;, &ldquo;Panel Discussions&rdquo;
+        </p>
+        <div className={cn('flex', 'gap-2')}>
+          <div className={cn('relative', 'flex-1')}>
+            <LuSparkles className={cn('absolute', 'left-4', 'top-1/2', '-translate-y-1/2', 'w-4', 'h-4', 'text-slate-400')} />
+            <input
+              type="text"
+              value={formData.skillsOfferedInput}
+              onChange={(e) => setFormData((p) => ({ ...p, skillsOfferedInput: e.target.value }))}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSkillOffered(); } }}
+              placeholder="Type a skill or topic and press Enter"
+              className={cn("w-full","p-4","pl-12","rounded-2xl","text-xs","font-bold","outline-none","border","bg-muted","border-border","text-foreground","focus:border-primary")}
+            />
+          </div>
+          <button onClick={addSkillOffered} className={cn('px-4', 'py-2', 'bg-primary', 'text-primary-foreground', 'rounded-2xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'cursor-pointer')}>
+            Add
+          </button>
+        </div>
+        {formData.skillsOffered.length > 0 && (
+          <div className={cn('flex', 'flex-wrap', 'gap-2', 'mt-2')}>
+            {formData.skillsOffered.map((skill) => (
+              <span key={skill} className={cn('flex', 'items-center', 'gap-1.5', 'px-3', 'py-1', 'bg-emerald-50', 'text-emerald-700', 'border', 'border-emerald-100', 'rounded-full', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest')}>
+                {skill}
+                <button onClick={() => setFormData((p) => ({ ...p, skillsOffered: p.skillsOffered.filter((s) => s !== skill) }))} className={cn('hover:text-red-500', 'transition-colors', 'cursor-pointer')}>
+                  <LuX className={cn('w-3', 'h-3')} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Instructor */}
       <InputGroup
@@ -2872,6 +2925,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
      requiredSkills: init.requiredSkills ?? [],
      pendingSkills: [], // always reset — not stored in DB
      learningOutcomes: init.learningOutcomes ?? [],
+     skillsOffered: init.skillsOffered ?? [],
      instructor: init.instructor ?? "",
 
      // ── Capacity — DB uses `capacity`, form uses `maxCapacity` ────────────
@@ -2892,6 +2946,7 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
      // ── Scratch fields — always reset ─────────────────────────────────────
      tagInput: "",
      outcomeInput: "",
+     skillsOfferedInput: "",
      bannerBlob: null,
      bannerPreviewUrl: null,
    };
@@ -2992,6 +3047,7 @@ useEffect(() => {
       targetEduStatus: formData.targetEduStatus,
       requiredSkills: formData.requiredSkills,
       learningOutcomes: formData.learningOutcomes,
+      skillsOffered: formData.skillsOffered,
       instructor: formData.instructor || undefined,
       capacity: formData.maxCapacity,
       ticketPrice: formData.ticketPrice,

@@ -8,6 +8,7 @@ import {
   LuLaptop,
   LuMessageSquare,
   LuTicket,
+  LuGraduationCap,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import type {
@@ -23,6 +24,9 @@ interface TicketFormProps {
   attendanceType: "physical" | "virtual";
   onAttendanceChange: (type: "physical" | "virtual") => void;
   format: string;
+  skillsOffered?: string[];
+  selectedSkills: string[];
+  onSkillsChange: (skills: string[]) => void;
 }
 
 const inputCls =
@@ -40,6 +44,9 @@ export const TicketFormSection = ({
   attendanceType,
   onAttendanceChange,
   format,
+  skillsOffered,
+  selectedSkills,
+  onSkillsChange,
 }: TicketFormProps) => {
   const showAttendanceToggle = format === "hybrid";
 
@@ -253,7 +260,73 @@ export const TicketFormSection = ({
         </div>
       )}
 
-      {/* 4. Special Requests */}
+      {/* 4. Skills/Topics Selection */}
+      {skillsOffered && skillsOffered.length > 0 && (
+        <div className={groupCls}>
+          <div className={cn("flex", "items-center", "gap-3", "mb-2")}>
+            <div
+              className={cn(
+                "p-2",
+                "bg-primary/10",
+                "text-primary",
+                "rounded-xl",
+              )}
+            >
+              <LuGraduationCap className={cn("w-5", "h-5")} />
+            </div>
+            <h3
+              className={cn(
+                "font-black",
+                "text-foreground",
+                "uppercase",
+                "tracking-tighter",
+                "text-lg",
+              )}
+            >
+              What Do You Want to Learn?
+            </h3>
+          </div>
+          <p className={cn("text-xs", "text-muted-foreground", "mb-4")}>
+            Select all the skills or topics you&apos;re interested in for this
+            event.
+          </p>
+          <div className={cn("grid", "grid-cols-2", "gap-3")}>
+            {skillsOffered.map((skill) => {
+              const isSelected = selectedSkills.includes(skill);
+              return (
+                <button
+                  key={skill}
+                  onClick={() =>
+                    onSkillsChange(
+                      isSelected
+                        ? selectedSkills.filter((s) => s !== skill)
+                        : [...selectedSkills, skill],
+                    )
+                  }
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-2xl border-2 transition-all text-left cursor-pointer",
+                    isSelected
+                      ? "border-primary bg-primary/5 shadow-sm shadow-primary/10"
+                      : "border-border hover:border-border",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "font-bold",
+                      "text-sm",
+                      isSelected ? "text-primary" : "text-foreground",
+                    )}
+                  >
+                    {skill}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 5. Special Requests */}
       <div className={groupCls}>
         <div className={cn("flex", "items-center", "gap-3", "mb-2")}>
           <div

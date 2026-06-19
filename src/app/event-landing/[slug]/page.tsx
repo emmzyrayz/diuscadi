@@ -607,6 +607,7 @@ interface SerializableEvent {
   whatsappGroupLink?: string;
   whatsappGroupLinkVirtual?: string;
   whatsappGroupLinkPhysical?: string;
+  skillsOffered?: string[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -742,6 +743,7 @@ export default async function EventLandingPage({
         whatsappGroupLink: 1,
         whatsappGroupLinkVirtual: 1,
         whatsappGroupLinkPhysical: 1,
+        skillsOffered: 1,
       },
     },
   );
@@ -817,6 +819,10 @@ export default async function EventLandingPage({
     ...(rawEvent.whatsappGroupLinkPhysical && {
       whatsappGroupLinkPhysical: String(rawEvent.whatsappGroupLinkPhysical),
     }),
+    ...(Array.isArray(rawEvent.skillsOffered) &&
+      rawEvent.skillsOffered.length > 0 && {
+        skillsOffered: rawEvent.skillsOffered as string[],
+      }),
   };
 
   const ticketTypes: SerializableTicketType[] = rawTickets.map((t) => ({
@@ -1023,6 +1029,7 @@ export default async function EventLandingPage({
             whatsappGroupLink={event.whatsappGroupLink}
             whatsappGroupLinkVirtual={event.whatsappGroupLinkVirtual}
             whatsappGroupLinkPhysical={event.whatsappGroupLinkPhysical}
+            skillsOffered={event.skillsOffered}
             {...(prefilledEmail
               ? await checkGuestStatus(prefilledEmail, event._id).then(
                   (gs) => ({

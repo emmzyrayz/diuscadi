@@ -17,6 +17,12 @@ export interface EventRegistrationDocument {
 
   status: RegistrationStatus;
 
+   // Only set for hybrid events — mirrors GuestEventRegistration
+  attendanceType?: "physical" | "virtual";
+
+  // Skills/topics the registrant wants to learn at this event
+  selectedSkills?: string[];
+
   registeredAt: Date;
   checkedInAt?: Date; // set when status → "checked-in"
 

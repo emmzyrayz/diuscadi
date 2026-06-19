@@ -35,6 +35,7 @@ export const RegistrationShell = ({ event, user }: Props) => {
   const [attendanceType, setAttendanceType] = useState<"physical" | "virtual">(
     "physical",
   );
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedTicketId, setSelectedTicketId] = useState<string>(
     event.ticketTypes[0]?.id ?? "",
   );
@@ -58,6 +59,7 @@ export const RegistrationShell = ({ event, user }: Props) => {
       selectedTicket?.id ?? "",
       undefined, // referralCode
       event.format === "hybrid" ? attendanceType : undefined,
+      selectedSkills.length > 0 ? selectedSkills : undefined,
     );
 
     if (result.success) {
@@ -117,6 +119,9 @@ export const RegistrationShell = ({ event, user }: Props) => {
               attendanceType={attendanceType}
               onAttendanceChange={setAttendanceType}
               format={event.format}
+              skillsOffered={event.skillsOffered}
+              selectedSkills={selectedSkills}
+              onSkillsChange={setSelectedSkills}
             />
 
             {/* Ticket preview — mobile only */}

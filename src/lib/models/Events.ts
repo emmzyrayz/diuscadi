@@ -58,6 +58,7 @@ export interface EventDocument {
   title: string;
   overview: string;
   learningOutcomes: string[];
+  skillsOffered: string[];
 
   // ── Classification ────────────────────────────────────────────────────────
   category: string;

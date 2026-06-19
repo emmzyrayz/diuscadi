@@ -438,6 +438,7 @@ export async function POST(req: NextRequest) {
       phone,
       referralCodeUsed,
       attendanceType,
+      selectedSkills,
     } = body as {
       eventId?: string;
       ticketTypeId?: string;
@@ -447,6 +448,7 @@ export async function POST(req: NextRequest) {
       phone?: { countryCode: number; phoneNumber: number };
       referralCodeUsed?: string;
       attendanceType?: "physical" | "virtual";
+      selectedSkills?: string[];
     };
 
     // ── 1. Required field validation ─────────────────────────────────────────
@@ -605,6 +607,12 @@ export async function POST(req: NextRequest) {
     if (existingGuest) {
       // Already verified — just return their invite code
       if (existingGuest.verifiedAt) {
+        if (Array.isArray(selectedSkills) && selectedSkills.length > 0) {
+          await Collections.guestEventRegistrations(db).updateOne(
+            { _id: existingGuest._id },
+            { $set: { selectedSkills, updatedAt: now } },
+          );
+        }
         return NextResponse.json(
           {
             registrationId: existingGuest._id!.toString(),
@@ -618,7 +626,12 @@ export async function POST(req: NextRequest) {
       await Collections.guestEventRegistrations(db).updateOne(
         { _id: existingGuest._id },
         {
-          $set: { verifiedAt: now, updatedAt: now },
+          $set: {
+            verifiedAt: now,
+            updatedAt: now,
+            ...(Array.isArray(selectedSkills) &&
+              selectedSkills.length > 0 && { selectedSkills }),
+          },
           $unset: { emailVerificationCode: "", emailVerificationExpires: "" },
         },
       );
@@ -745,6 +758,10 @@ export async function POST(req: NextRequest) {
       status: "registered" as const,
       registeredAt: now,
       registrationType: "Guest" as const,
+      ...(Array.isArray(selectedSkills) &&
+        selectedSkills.length > 0 && {
+          selectedSkills,
+        }),
       ...(attendanceType && event.format === "hybrid" && { attendanceType }),
       createdAt: now,
       updatedAt: now,

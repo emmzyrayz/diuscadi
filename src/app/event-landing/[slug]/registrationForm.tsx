@@ -1262,6 +1262,7 @@ interface RegistrationFormProps {
   eventTitle: string;
   ticketTypes: TicketType[];
   eventFormat: string;
+  skillsOffered?: string[];
   // WhatsApp group links — passed from page.tsx
   whatsappGroupLink?: string;
   whatsappGroupLinkVirtual?: string;
@@ -1387,6 +1388,7 @@ export default function RegistrationForm({
   eventTitle,
   eventFormat,
   ticketTypes,
+  skillsOffered,
   whatsappGroupLink,
   whatsappGroupLinkVirtual,
   whatsappGroupLinkPhysical,
@@ -1417,6 +1419,13 @@ export default function RegistrationForm({
 
   // Step 3 state
   const [inviteCode, setInviteCode] = useState("");
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+
+  const toggleSkill = (skill: string) => {
+    setSelectedSkills((prev) =>
+      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill],
+    );
+  };
   const [attendanceType, setAttendanceType] = useState<"physical" | "virtual">(
     "physical",
   );
@@ -1520,10 +1529,19 @@ export default function RegistrationForm({
       setError("Please enter a valid email address.");
       return;
     }
-    if (!form.ticketTypeId) {
-      setError("Please select a ticket type.");
-      return;
-    }
+   if (!form.ticketTypeId) {
+     setError("Please select a ticket type.");
+     return;
+   }
+   if (
+     skillsOffered &&
+     skillsOffered.length > 0 &&
+     selectedSkills.length === 0
+   ) {
+     setError("Please select at least one skill you'd like to learn.");
+     return;
+   }
+
 
     setLoading(true);
 
@@ -1538,6 +1556,7 @@ export default function RegistrationForm({
           lastName: form.lastName.trim(),
           email: form.email.trim().toLowerCase(),
           ...(isHybrid && { attendanceType }),
+          ...(selectedSkills.length > 0 && { selectedSkills }),
           ...(form.referralCode.trim() && {
             referralCodeUsed: form.referralCode.trim(),
           }),
@@ -2264,6 +2283,62 @@ export default function RegistrationForm({
                   </div>
                 )}
 
+                {/* Skills/topics selection */}
+                {skillsOffered && skillsOffered.length > 0 && (
+                  <div className="rf-field">
+                    <span className="rf-label">
+                      What would you like to learn? <span aria-hidden>*</span>
+                    </span>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: ".6rem",
+                      }}
+                    >
+                      {skillsOffered.map((skill) => {
+                        const isSelected = selectedSkills.includes(skill);
+                        return (
+                          <button
+                            key={skill}
+                            type="button"
+                            role="checkbox"
+                            aria-checked={isSelected}
+                            disabled={loading}
+                            onClick={() => toggleSkill(skill)}
+                            className={`rf-ticket-card ${isSelected ? "selected" : ""}`}
+                            style={{
+                              justifyContent: "flex-start",
+                              gap: ".6rem",
+                            }}
+                          >
+                            <div
+                              className="rf-ticket-radio"
+                              style={{ borderRadius: "4px" }}
+                            >
+                              <div
+                                className="rf-ticket-radio-dot"
+                                style={{ borderRadius: "2px" }}
+                              />
+                            </div>
+                            <span className="rf-ticket-name">{skill}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p
+                      style={{
+                        marginTop: ".4rem",
+                        fontSize: ".78rem",
+                        color: "var(--rf-muted)",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      Select all that apply — helps us tailor sessions for you.
+                    </p>
+                  </div>
+                )}
+
                 {/* Ticket selection */}
                 <div className="rf-field">
                   <span className="rf-label">
@@ -2474,7 +2549,9 @@ export default function RegistrationForm({
               {/* WhatsApp Group */}
               {hasWhatsApp && (
                 <div className="rf-whatsapp-section">
-                  <p className="rf-whatsapp-label">💬 Join the WhatsApp Group</p>
+                  <p className="rf-whatsapp-label">
+                    💬 Join the WhatsApp Group
+                  </p>
                   <p className="rf-whatsapp-desc">
                     Stay updated with announcements and connect with other
                     attendees before the event.

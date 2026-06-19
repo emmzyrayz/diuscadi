@@ -13,7 +13,13 @@ import { sendEventRegistrationEmail } from "@/lib/sendEmail";
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   try {
     const body = await req.json();
-    const { eventId, ticketTypeId, referralCodeUsed, attendanceType } = body;
+    const {
+      eventId,
+      ticketTypeId,
+      referralCodeUsed,
+      attendanceType,
+      selectedSkills,
+    } = body;
     const resolvedAttendanceType = attendanceType as
       | "physical"
       | "virtual"
@@ -183,6 +189,10 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       registeredAt: now,
       createdAt: now,
       updatedAt: now,
+      ...(Array.isArray(selectedSkills) &&
+        selectedSkills.length > 0 && {
+          selectedSkills,
+        }),
       // Only stored for hybrid events
       ...(resolvedAttendanceType &&
         event.format === "hybrid" && {

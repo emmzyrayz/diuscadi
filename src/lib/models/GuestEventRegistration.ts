@@ -27,6 +27,7 @@ export interface IGuestEventRegistration {
   inviteCode: string;
   referralCodeUsed: string | null;
   attendanceType?: "physical" | "virtual";
+  selectedSkills?: string[];
 
   // OTP Verification (temporary fields — cleared on verification)
   emailVerificationCode?: string;
@@ -115,6 +116,10 @@ const GuestEventRegistrationSchema =
         type: String,
         enum: ["physical", "virtual"],
         required: false,
+      },
+      selectedSkills: {
+        type: [String],
+        default: [],
       },
 
       // ── OTP Verification ────────────────────────────────────────────────────

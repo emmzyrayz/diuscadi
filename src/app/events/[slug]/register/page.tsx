@@ -29,6 +29,7 @@ export interface RegisterEventData {
   slotsRemaining: number;
   registrationDeadline: string;
   ticketTypes: TicketTypeOption[];
+  skillsOffered?: string[];
 }
 
 export interface TicketTypeOption {
@@ -137,6 +138,10 @@ async function fetchRegisterData(
       currency: t.currency,
       label: fmtPrice(t.price, t.currency),
     })),
+    ...(Array.isArray(doc.skillsOffered) &&
+      doc.skillsOffered.length > 0 && {
+        skillsOffered: doc.skillsOffered as string[],
+      }),
   };
 }
 
