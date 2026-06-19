@@ -57,6 +57,7 @@ export const PATCH = withAuth(
         "targetEduStatus",
         "requiredSkills",
         "learningOutcomes",
+        "skillsOffered",
         "tags",
         "level", // ← add
         "instructor", // ← add
