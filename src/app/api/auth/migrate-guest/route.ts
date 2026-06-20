@@ -3,6 +3,7 @@ import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
 import { verifyJWT, hashPassword, generateInviteCode } from "@/lib/auth";
+import { getLinkedRegistrations } from "@/lib/guestProfile";
 import { DEFAULT_PREFERENCES, EDU_STATUSES } from "@/types/domain";
 import type { VaultDocument } from "@/lib/models/vault";
 import type { UserDataDocument } from "@/lib/models/UserData";
@@ -12,38 +13,34 @@ import { sendMigrationWelcomeEmail } from "@/lib/sendEmail";
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/auth/migrate-guest
 //
-// Public endpoint — no platform auth (guest has no account yet).
-// Executes the full guest → platform account migration.
+// Public — no platform auth (guest has no account yet).
+// Executes the cold-migrate account creation. Identity was already proven by
+// the OTP step (request-otp → verify-otp / resolve-conflicts) that minted
+// this token — this route trusts the token and does not re-verify OTP.
 //
 // Body:
 //   {
-//     migrationToken: string,   // signed JWT from generate-migration-token
+//     migrationToken: string,
 //     phone: { countryCode: number, phoneNumber: number },
 //     eduStatus: "STUDENT" | "GRADUATE"
 //   }
 //
-// Flow:
-//   1.  Verify and decode the migration JWT via verifyJWT from @/lib/auth
-//   2.  Validate purpose claim === "guest-migration"
-//   3.  Re-validate the guest registration still exists and is verified
-//   4.  Guard: email must not already exist in vault
-//   5.  Guard: phone must not already exist in vault
-//   6.  Generate a temporary 8-char password
-//   7.  Create Vault document (isEmailVerified: true, requiresPasswordReset: true)
-//   8.  Create UserData document from guest name/email
-//   9.  Find ALL verified guest registrations for this email
-//  10.  Create EventRegistration records for each guest ticket
-//  11.  Update UserData analytics to reflect migrated counts
-//  12.  Mark all guest records as migrated (set migratedToUserId + migratedAt)
-//  13.  Send welcome email with temp password + reset link (fire-and-forget)
-//  14.  Return { message, ticketsMigrated, loginUrl }
+// CHANGED from the pre-GuestProfile version:
+//   - Token now carries guestProfileId as the primary reference
+//   - Linked tickets resolved via guestProfileId (getLinkedRegistrations),
+//     not a raw email scan — correctly scoped even if two different people
+//     happen to share an email typo across unrelated registrations
+//   - migratedToUserId/migratedAt stamped on BOTH the GuestProfile (canonical
+//     check) and every linked registration (audit trail), not just registrations
+//   - "email already exists" no longer branches on requiresPasswordReset —
+//     single response pointing to forgot-password, which now has its own
+//     cooldown and works for both "temp password never arrived" and
+//     "genuine separate account" cases
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Generate a readable 8-char temp password — no ambiguous chars (0/O, 1/l) */
 function generateTempPassword(): string {
   const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
   const arr = new Uint8Array(8);
-  // Use crypto.getRandomValues equivalent via Node crypto
   for (let i = 0; i < 8; i++) {
     arr[i] = Math.floor(Math.random() * chars.length);
   }
@@ -51,6 +48,8 @@ function generateTempPassword(): string {
     .map((b) => chars[b % chars.length])
     .join("");
 }
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export async function POST(req: NextRequest) {
   try {
@@ -68,7 +67,6 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-
     if (
       !phone ||
       typeof phone.countryCode !== "number" ||
@@ -81,7 +79,6 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-
     if (!eduStatus || !(EDU_STATUSES as string[]).includes(eduStatus)) {
       return NextResponse.json(
         { error: `eduStatus must be one of: ${EDU_STATUSES.join(", ")}` },
@@ -89,8 +86,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 2. Verify migration token via verifyJWT ────────────────────────────
+    // ── 2. Verify migration token ────────────────────────────────────────────
     let tokenPayload: {
+      guestProfileId: string;
       guestRegistrationId: string;
       email: string;
       firstName: string;
@@ -114,7 +112,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 3. Validate purpose claim ──────────────────────────────────────────
     if (tokenPayload.purpose !== "guest-migration") {
       return NextResponse.json(
         { error: "Invalid migration token" },
@@ -123,13 +120,17 @@ export async function POST(req: NextRequest) {
     }
 
     const {
+      guestProfileId,
       guestRegistrationId,
       email: emailLower,
       firstName,
       lastName,
     } = tokenPayload;
 
-    if (!ObjectId.isValid(guestRegistrationId)) {
+    if (
+      !ObjectId.isValid(guestProfileId) ||
+      !ObjectId.isValid(guestRegistrationId)
+    ) {
       return NextResponse.json(
         { error: "Invalid migration token payload" },
         { status: 400 },
@@ -137,39 +138,46 @@ export async function POST(req: NextRequest) {
     }
 
     const db = await getDb();
+    const guestProfileObjId = new ObjectId(guestProfileId);
 
-    // ── 4. Re-validate the source guest registration ───────────────────────
-    const sourceReg = await Collections.guestEventRegistrations(db).findOne(
-      { _id: new ObjectId(guestRegistrationId) },
-      {
-        projection: {
-          _id: 1,
-          email: 1,
-          fullName: 1,
-          verifiedAt: 1,
-          status: 1,
-        },
-      },
-    );
+    // ── 3. Re-validate the GuestProfile (canonical identity check) ─────────
+    const profile = await Collections.guestProfiles(db).findOne({
+      _id: guestProfileObjId,
+    });
 
-    if (!sourceReg || !sourceReg.verifiedAt) {
-      return NextResponse.json(
-        {
-          error:
-            "Guest registration not found or not verified. Please re-verify your email first.",
-        },
-        { status: 404 },
-      );
-    }
-
-    if (sourceReg.email !== emailLower) {
+    if (!profile || profile.email !== emailLower) {
       return NextResponse.json(
         { error: "Invalid migration token" },
         { status: 401 },
       );
     }
 
-    // ── 5. Guard: email must not already exist in vault ────────────────────
+    if (profile.migratedToUserId) {
+      return NextResponse.json(
+        {
+          error: "This guest record has already been migrated to an account.",
+          alreadyMigrated: true,
+        },
+        { status: 409 },
+      );
+    }
+
+    // ── 4. Sanity-check the originating registration still exists ──────────
+    const sourceReg = await Collections.guestEventRegistrations(db).findOne(
+      { _id: new ObjectId(guestRegistrationId) },
+      { projection: { _id: 1, status: 1 } },
+    );
+    if (!sourceReg || sourceReg.status === "cancelled") {
+      return NextResponse.json(
+        { error: "The originating registration is no longer valid." },
+        { status: 404 },
+      );
+    }
+
+    // ── 5. Guard: email must not already exist in vault ─────────────────────
+    // Single response now (no requiresPasswordReset branching) — forgot-password
+    // handles both "temp password never arrived" and "genuine separate
+    // account" cases identically, and now has its own cooldown.
     const existingVault = await Collections.vault(db).findOne(
       { email: emailLower },
       { projection: { _id: 1 } },
@@ -179,19 +187,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "An account already exists for this email. Please log in instead.",
-          alreadyHasAccount: true,
+            "An account already exists for this email. Please reset your password to access it.",
+          existingAccount: true,
+          forgotPasswordUrl: `${APP_URL}/auth/forgot-password?email=${encodeURIComponent(emailLower)}`,
         },
         { status: 409 },
       );
     }
 
-    // ── 6. Guard: phone must not already exist in vault ────────────────────
+    // ── 6. Guard: phone must not already exist in vault ─────────────────────
     const existingPhone = await Collections.vault(db).findOne(
       { "phone.phoneNumber": phone.phoneNumber },
       { projection: { _id: 1 } },
     );
-
     if (existingPhone) {
       return NextResponse.json(
         { error: "Phone number already registered to another account." },
@@ -199,7 +207,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 7. Generate temp password ──────────────────────────────────────────
+    // ── 7. Generate temp password ────────────────────────────────────────────
     const tempPassword = generateTempPassword();
     const passwordHash = await hashPassword(tempPassword);
     const now = new Date();
@@ -211,12 +219,7 @@ export async function POST(req: NextRequest) {
       phoneNumber: phone.phoneNumber,
     };
 
-    // ── 8. Create Vault document ───────────────────────────────────────────
-    // isEmailVerified: true  — guest already verified via OTP
-    // isAccountActive: true  — account is immediately usable
-    // requiresPasswordReset  — forces reset on first signin
-    // Note: requiresPasswordReset is not in VaultDocument interface yet —
-    //       we cast to unknown to allow it. signin/route.ts checks this field.
+    // ── 8. Create Vault document ─────────────────────────────────────────────
     const vaultDoc = {
       _id: vaultId,
       email: emailLower,
@@ -224,7 +227,7 @@ export async function POST(req: NextRequest) {
       phone: phoneData,
       eduStatus: eduStatus as EduStatus,
       role: "participant" as const,
-      isEmailVerified: true,
+      isEmailVerified: true, // OTP already proved this at the migrate step
       isPhoneVerified: false,
       isAccountActive: true,
       requiresPasswordReset: true,
@@ -237,13 +240,13 @@ export async function POST(req: NextRequest) {
 
     await Collections.vault(db).insertOne(vaultDoc as unknown as VaultDocument);
 
-    // ── 9. Create UserData document ────────────────────────────────────────
+    // ── 9. Create UserData document ──────────────────────────────────────────
     const userDataDoc: UserDataDocument = {
       _id: userDataId,
       vaultId,
       fullName: {
-        firstname: (firstName ?? sourceReg.fullName?.firstname ?? "").trim(),
-        lastname: (lastName ?? sourceReg.fullName?.lastname ?? "").trim(),
+        firstname: (firstName ?? profile.fullName.firstname).trim(),
+        lastname: (lastName ?? profile.fullName.lastname).trim(),
       },
       email: emailLower,
       phone: phoneData,
@@ -272,36 +275,15 @@ export async function POST(req: NextRequest) {
 
     await Collections.userData(db).insertOne(userDataDoc);
 
-    // ── 10. Find ALL verified guest registrations for this email ──────────
-    const allGuestRegs = await Collections.guestEventRegistrations(db)
-      .find(
-        {
-          email: emailLower,
-          verifiedAt: { $exists: true },
-          status: { $ne: "cancelled" },
-        },
-        {
-          projection: {
-            _id: 1,
-            eventId: 1,
-            ticketTypeId: 1,
-            inviteCode: 1,
-            referralCodeUsed: 1,
-            status: 1,
-            registeredAt: 1,
-            checkedInAt: 1,
-            reminders: 1,
-          },
-        },
-      )
-      .toArray();
+    // ── 10. Resolve all linked registrations via guestProfileId ─────────────
+    // CHANGED: was a raw email scan; now scoped to this exact profile.
+    const allGuestRegs = await getLinkedRegistrations(db, guestProfileObjId);
 
-    // ── 11. Create EventRegistration records for each guest ticket ─────────
+    // ── 11. Create EventRegistration records for each guest ticket ──────────
     let migratedCount = 0;
 
     for (const guestReg of allGuestRegs) {
       try {
-        // Skip if a registration already exists for this event+user
         const existing = await Collections.eventRegistrations(db).findOne(
           { userId: userDataId, eventId: guestReg.eventId },
           { projection: { _id: 1 } },
@@ -331,7 +313,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 12. Update UserData analytics ─────────────────────────────────────
+    // ── 12. Update UserData analytics ─────────────────────────────────────────
     const checkedInCount = allGuestRegs.filter(
       (r) => r.status === "checked-in",
     ).length;
@@ -347,12 +329,24 @@ export async function POST(req: NextRequest) {
       },
     );
 
-    // ── 13. Mark all guest records as migrated ─────────────────────────────
-    await Collections.guestEventRegistrations(db).updateMany(
+    // ── 13. Dual-stamp migration status ───────────────────────────────────────
+    // On the GuestProfile (canonical check — what request-otp/verify-otp/
+    // session-merge-check all read) AND on each registration (audit trail,
+    // self-contained even if the profile doc is ever touched later).
+    await Collections.guestProfiles(db).updateOne(
+      { _id: guestProfileObjId },
       {
-        email: emailLower,
-        verifiedAt: { $exists: true },
+        $set: {
+          migratedToUserId: userDataId,
+          migratedAt: now,
+          mergeStatus: "migrated",
+          updatedAt: now,
+        },
       },
+    );
+
+    await Collections.guestEventRegistrations(db).updateMany(
+      { guestProfileId: guestProfileObjId },
       {
         $set: {
           migratedToUserId: userDataId,
@@ -362,15 +356,15 @@ export async function POST(req: NextRequest) {
       },
     );
 
-    // ── 14. Send welcome email (fire-and-forget) ───────────────────────────
+    // ── 14. Send welcome email (fire-and-forget) ────────────────────────────
     void (async () => {
       try {
         await sendMigrationWelcomeEmail({
           to: emailLower,
-          name: (firstName ?? sourceReg.fullName?.firstname ?? "").trim(),
+          name: (firstName ?? profile.fullName.firstname).trim(),
           tempPassword,
-          loginUrl: `${process.env.NEXT_PUBLIC_APP_URL}/auth`,
-          resetUrl: `${process.env.NEXT_PUBLIC_APP_URL}/auth/forgot-password`,
+          loginUrl: `${APP_URL}/auth`,
+          resetUrl: `${APP_URL}/auth/forgot-password`,
           eventsCount: migratedCount,
         });
       } catch (emailErr) {
@@ -383,7 +377,7 @@ export async function POST(req: NextRequest) {
         message:
           "Account created successfully. Check your email for your temporary password.",
         ticketsMigrated: migratedCount,
-        loginUrl: `${process.env.NEXT_PUBLIC_APP_URL}/auth`,
+        loginUrl: `${APP_URL}/auth`,
       },
       { status: 201 },
     );

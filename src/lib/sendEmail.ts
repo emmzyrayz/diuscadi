@@ -1229,6 +1229,9 @@ import {
   type BroadcastEmailOptions,
   type EventAnnouncementEmailOptions,
   type PlatformUpdateEmailOptions,
+  GuestConfirmationWithAccountOptions,
+  guestConfirmationWithAccountEmail,
+  migrationOtpEmail,
 } from "@/lib/MailTemplate";
 
 const IS_DEV =
@@ -1835,4 +1838,62 @@ export async function sendBulkPlatformUpdate(
     text,
     recipients: opts.contacts,
   });
+}
+
+// ─── 20. Guest confirmation + existing account notice ─────────────────────────────
+
+export async function sendGuestConfirmationWithAccountEmail(
+  opts: {
+    to: string;
+    ticketId: string;
+    whatsappGroupLink?: string;
+    forgotPasswordUrl: string;
+  } & Omit<GuestConfirmationWithAccountOptions, "ticketUrl">,
+): Promise<void> {
+  const ticketUrl = `${APP_URL}/tickets/${opts.ticketId}`;
+
+  if (IS_DEV) {
+    console.log(`[DEV EMAIL] Guest confirmation + account notice → ${opts.to}`);
+    console.log(`  Event:        ${opts.eventTitle}`);
+    console.log(`  Ticket code:  ${opts.ticketCode}`);
+    console.log(`  Reset URL:    ${opts.forgotPasswordUrl}`);
+    return;
+  }
+
+  const { subject, html, text } = guestConfirmationWithAccountEmail({
+    name: opts.name,
+    eventTitle: opts.eventTitle,
+    eventDate: opts.eventDate,
+    eventLocation: opts.eventLocation,
+    ticketCode: opts.ticketCode,
+    ticketUrl,
+    isFree: opts.isFree,
+    ticketPrice: opts.ticketPrice,
+    whatsappGroupLink: opts.whatsappGroupLink,
+    registrationType: opts.registrationType,
+    forgotPasswordUrl: opts.forgotPasswordUrl,
+  });
+  await prodSend({ to: opts.to, subject, html, text });
+}
+
+
+// ─── 21. Guest confirmation + existing account notice 
+
+export async function sendGuestMigrationOtpEmail(opts: {
+  to: string;
+  name: string;
+  code: string;
+}): Promise<void> {
+  if (IS_DEV) {
+    console.log(`[DEV EMAIL] Guest migration OTP → ${opts.to}`);
+    console.log(`  Name: ${opts.name}`);
+    console.log(`  OTP:  ${opts.code}`);
+    return;
+  }
+
+  const { subject, html, text } = migrationOtpEmail({
+    name: opts.name,
+    code: opts.code,
+  });
+  await prodSend({ to: opts.to, subject, html, text });
 }

@@ -39,6 +39,7 @@ import { SkillSuggestionDocument } from "../models/SkillSuggestion";
 import type { DbTask, DbAssignment, DbBotActionLog } from "@/lib/db/dbTypes";
 import { IGuestEventRegistrationDocument } from "../models/GuestEventRegistration";
 import { BroadcastMessage } from "@/types/broadcast";
+import { GuestProfileDocument } from "../models/GuestProfile";
 
 
 export const Collections = {
@@ -97,4 +98,6 @@ export const Collections = {
   guestEventRegistrations: (db: Db) =>
     db.collection<IGuestEventRegistrationDocument>("guestEventRegistrations"),
   broadcasts: (db: Db) => db.collection<BroadcastMessage>("broadcasts"),
+  guestProfiles: (db: Db) =>
+    db.collection<GuestProfileDocument>("guestProfiles"),
 };

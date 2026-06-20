@@ -331,6 +331,52 @@ export async function createIndexes() {
   ]);
   console.log("✓ broadcasts");
 
+  // ── guestProfiles ──────────────────────────────────────────────────────────
+  await db.collection("guestProfiles").createIndexes([
+    { key: { email: 1 }, unique: true, name: "guestProfiles_email_unique" },
+    {
+      key: { migratedToUserId: 1 },
+      sparse: true,
+      name: "guestProfiles_migratedToUserId",
+    },
+    // Drives the lazy session-merge-check sweep: "pending"/"snoozed" profiles
+    // whose 48hr window or snooze has elapsed, evaluated on login — not a cron.
+    {
+      key: { mergeStatus: 1, firstShownAt: 1 },
+      sparse: true,
+      name: "guestProfiles_mergeStatus_firstShownAt",
+    },
+    {
+      key: { mergeStatus: 1, snoozedUntil: 1 },
+      sparse: true,
+      name: "guestProfiles_mergeStatus_snoozedUntil",
+    },
+    // OTP lookup during cold-migrate verify — sparse since most profiles
+    // never have an active OTP at any given time.
+    {
+      key: { "migrationOtp.code": 1, "migrationOtp.expiresAt": 1 },
+      sparse: true,
+      name: "guestProfiles_otp_lookup",
+    },
+  ]);
+  console.log("✓ guestProfiles");
+
+  // ── guestEventRegistrations (additions for guest profile migration) ───────
+  await db.collection("guestEventRegistrations").createIndexes([
+    { key: { guestProfileId: 1 }, name: "guestReg_guestProfileId" },
+    {
+      key: { matchedUserId: 1 },
+      sparse: true,
+      name: "guestReg_matchedUserId",
+    },
+    {
+      key: { migratedToUserId: 1 },
+      sparse: true,
+      name: "guestReg_migratedToUserId",
+    },
+  ]);
+  console.log("✓ guestEventRegistrations (migration fields)");
+
   console.log("\n✅ All indexes created.");
 }
 

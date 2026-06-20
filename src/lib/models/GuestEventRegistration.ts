@@ -19,6 +19,25 @@ export interface IGuestEventRegistration {
     phoneNumber: number;
   };
 
+  // ── Guest Profile reference (NEW) ──────────────────────────────────────────
+  // Links this registration to the canonical GuestProfile for this person.
+  // Populated at registration time via findOrCreateGuestProfile(). Existing
+  // pre-migration documents won't have this until the backfill script runs.
+  guestProfileId?: mongoose.Types.ObjectId;
+
+  // ── Warm-match (NEW) ─────────────────────────────────────────────────────
+  // Set at registration time if a real Vault account already existed for
+  // this email at the moment of registration. Mirrors GuestProfile.matchedUserId.
+  matchedUserId?: mongoose.Types.ObjectId;
+
+  // ── Migration stamps (NEW — formalizing fields migrate-guest already
+  // writes at runtime but were previously untyped) ───────────────────────────
+  // Set on successful migration (cold or warm). Never cleared — this is the
+  // permanent audit trail, kept alongside the original snapshot data above,
+  // which is never overwritten by migration/conflict-resolution.
+  migratedToUserId?: mongoose.Types.ObjectId;
+  migratedAt?: Date;
+
   // Event Reference
   eventId: mongoose.Types.ObjectId;
   ticketTypeId: mongoose.Types.ObjectId;

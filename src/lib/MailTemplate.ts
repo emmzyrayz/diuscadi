@@ -1383,3 +1383,142 @@ export function platformUpdateEmail({
 
   return { subject, html, text };
 }
+
+// ─── 18. Guest Confirmation + Existing Account Notice ────────────────────────────
+//
+// Sent at registration time when the guest's email matches an existing
+// platform account that has NOT yet registered for this specific event.
+// Combines the standard guest ticket confirmation with a reminder that they
+// already have an account — and a direct reset-password link, since they
+// likely don't remember a password they never knowingly set foot-first into
+// using for this event.
+
+export interface GuestConfirmationWithAccountOptions
+  extends GuestConfirmationEmailOptions {
+  forgotPasswordUrl: string;
+}
+
+export function guestConfirmationWithAccountEmail({
+  name,
+  eventTitle,
+  eventDate,
+  eventLocation,
+  ticketCode,
+  ticketUrl,
+  isFree,
+  ticketPrice,
+  whatsappGroupLink,
+  registrationType,
+  forgotPasswordUrl,
+}: GuestConfirmationWithAccountOptions) {
+  const subject = `${APP_NAME} — You're registered for ${eventTitle} (you have an account!)`;
+  const html = wrapper(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:900;color:${PRIMARY_COLOR};text-transform:uppercase;letter-spacing:-0.02em;">
+      Registration Confirmed
+    </h1>
+    <p style="margin:0 0 4px;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;">
+      You're all set, ${name}
+    </p>
+    <p style="margin:20px 0;font-size:13px;color:#475569;line-height:1.7;">
+      Your guest spot at <strong>${eventTitle}</strong> has been confirmed.
+      Keep this email — your ticket code is below and you'll need it to check in.
+    </p>
+
+    <div style="margin:28px 0;text-align:center;">
+      <div style="display:inline-block;background:#f8fafc;border:2px solid #e2e8f0;border-radius:16px;padding:20px 32px;">
+        <div style="font-size:9px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.25em;margin-bottom:8px;">
+          Ticket Code
+        </div>
+        <div style="font-size:28px;font-weight:900;color:${PRIMARY_COLOR};letter-spacing:0.25em;font-family:monospace;">
+          ${ticketCode}
+        </div>
+      </div>
+    </div>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+      ${detailRow("Event", eventTitle)}
+      ${detailRow("Date & Time", eventDate)}
+      ${detailRow("Location", eventLocation)}
+      ${detailRow("Registration Type", registrationType)}
+      ${detailRow("Ticket", isFree ? "Free Admission" : (ticketPrice ?? "Paid"))}
+    </table>
+
+    ${ctaButton("View My Ticket", ticketUrl)}
+
+    ${
+      whatsappGroupLink
+        ? `
+    <div style="text-align: center; margin-top: 12px;">
+      <a href="${whatsappGroupLink}" target="_blank" rel="noopener noreferrer"
+         style="display:inline-flex;align-items:center;gap:8px;background-color:#25D366;color:#ffffff;
+                text-decoration:none;padding:14px 32px;border-radius:12px;font-size:14px;font-weight:700;
+                font-family:Arial,sans-serif;letter-spacing:0.02em;">
+        <span style="font-size: 18px;">💬</span>
+        Join the Event WhatsApp Group
+      </a>
+    </div>`
+        : ""
+    }
+
+    <!-- Existing account notice -->
+    <div style="margin:32px 0 0;padding-top:24px;border-top:1px solid #f1f5f9;">
+      ${accentBanner(
+        "👋",
+        "You Already Have an Account",
+        `We noticed ${name.split(" ")[0] || "you"} already has a DIUSCADI account under this email.`,
+        PRIMARY_COLOR,
+        "#fefce8",
+      )}
+      <p style="margin:16px 0;font-size:12px;color:#475569;line-height:1.7;text-align:center;">
+        Log in to see all your events and tickets in one place. If you don't
+        remember your password, you can reset it below.
+      </p>
+      ${ctaButton("Reset My Password", forgotPasswordUrl)}
+    </div>
+
+    <p style="margin:24px 0 0;font-size:11px;color:#94a3b8;text-align:center;line-height:1.6;">
+      Present the ticket code above at the event entrance for check-in.
+    </p>
+  `);
+
+  const text = `Hi ${name},\n\nYou're registered as a guest for ${eventTitle}!\n\nTicket Code: ${ticketCode}\nDate: ${eventDate}\nLocation: ${eventLocation}\n\nView your ticket: ${ticketUrl}\n\n— You already have a DIUSCADI account under this email. Reset your password to see all your tickets: ${forgotPasswordUrl}`;
+
+  return { subject, html, text };
+}
+
+// ─── 19. Guest Migration — OTP Verification ───────────────────────────────────────
+//
+// Sent when a guest (with no existing platform account) requests to convert
+// their guest registration(s) into a full account. Distinct from
+// guestVerificationEmail (registration-time OTP — now dead/bypassed).
+
+export interface MigrationOtpEmailOptions {
+  name: string;
+  code: string;
+}
+
+export function migrationOtpEmail({ name, code }: MigrationOtpEmailOptions) {
+  const subject = `${APP_NAME} — Verify your email to create your account`;
+  const html = wrapper(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:900;color:${PRIMARY_COLOR};text-transform:uppercase;letter-spacing:-0.02em;">
+      Verify Your Email
+    </h1>
+    <p style="margin:0 0 4px;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;">
+      Hi, ${name}
+    </p>
+    <p style="margin:20px 0;font-size:13px;color:#475569;line-height:1.7;">
+      You requested to create a full DIUSCADI account from your guest ticket.
+      Enter the 6-digit code below to confirm it's really you — this protects
+      your event history from being claimed by someone else.
+    </p>
+    ${otpBlock(code)}
+    <p style="margin:24px 0 0;font-size:11px;color:#94a3b8;text-align:center;line-height:1.6;">
+      If you didn't request this, you can safely ignore this email.
+      No account will be created without the code.
+    </p>
+  `);
+
+  const text = `Hi ${name},\n\nYour DIUSCADI account creation code is: ${code}\n\nExpires in 15 minutes.\n\nIf you didn't request this, ignore this email.`;
+
+  return { subject, html, text };
+}

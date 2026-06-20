@@ -19,6 +19,7 @@ import type {
 } from "@/types/domain";
 import { DEFAULT_PREFERENCES } from "@/types/domain";
 import type { CloudinaryImage } from "@/types/cloudinary";
+import type { GuestMergeInfo } from "@/components/guest/guestMergePopup";
 
 export type { EduStatus, AccountRole, Committee, CommitteeMembership, Skill };
 
@@ -102,6 +103,9 @@ interface AuthContextType {
   isLoading: boolean;
   sessionStatus: SessionStatus;
   error: AuthError | null;
+
+  guestMergeInfo: GuestMergeInfo | null;
+  clearGuestMergeInfo: () => void;
 
   signin: (
     credentials: SigninCredentials,
@@ -226,6 +230,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const clearError = useCallback(() => setError(null), []);
 
+  const [guestMergeInfo, setGuestMergeInfo] = useState<GuestMergeInfo | null>(
+    null,
+  );
+  const clearGuestMergeInfo = useCallback(() => setGuestMergeInfo(null), []);
+
+  const checkGuestMerge = useCallback(async (tokenForCheck: string) => {
+    try {
+      const { guestMerge } = await apiFetch<{
+        guestMerge: GuestMergeInfo | null;
+      }>("/api/auth/session-merge-check", {}, tokenForCheck);
+      if (guestMerge) setGuestMergeInfo(guestMerge);
+    } catch {
+      // Non-critical — silently skip, popup just won't show this session
+    }
+  }, []);
+
+
   // ── Session restore ────────────────────────────────────────────────────────
   useEffect(() => {
     const restoreSession = async () => {
@@ -243,6 +264,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(parseUserFromMe(vault, userData));
         setToken(storedToken);
         setSessionStatus("restored");
+        setUser(parseUserFromMe(vault, userData));
+        setToken(storedToken);
+        setSessionStatus("restored");
+        void checkGuestMerge(storedToken);
       } catch {
         clearStoredSession();
         setUser(null);
@@ -251,7 +276,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
     restoreSession();
-  }, []);
+  }, [checkGuestMerge]);
+
+  
 
   // ── Signin ─────────────────────────────────────────────────────────────────
   const signin = useCallback(
@@ -294,6 +321,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setToken(data.token);
         setUser(authedUser);
         setSessionStatus("restored");
+        setSessionStatus("restored");
+        void checkGuestMerge(data.token);
 
         // ── Redirect logic ──────────────────────────────────────────────────
       // Priority: explicit redirectTo param → safe ?redirect= in URL → role default
@@ -312,7 +341,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsLoading(false);
       }
     },
-    [router],
+    [checkGuestMerge, router],
   );
 
   // ── Signup ─────────────────────────────────────────────────────────────────
@@ -485,6 +514,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAuthenticated: !!user,
         isLoading,
         sessionStatus,
+        guestMergeInfo,
+        clearGuestMergeInfo,
         error,
         signin,
         signup,

@@ -115,7 +115,7 @@ export const TicketTermsAndAgreement = ({
           "max-w-xl",
         )}
       >
-        <div className={cn("relative", "mt-1")}>
+        <div className={cn("relative ", "mt-1")}>
           <input
             type="checkbox"
             className={cn("peer", "sr-only")}
@@ -127,7 +127,7 @@ export const TicketTermsAndAgreement = ({
               "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
               agreed
                 ? "bg-emerald-500 border-emerald-500"
-                : "bg-background border-border group-hover:border-primary",
+                : "bg-background border-primary/50 group-hover:border-primary",
             )}
           >
             {agreed && (

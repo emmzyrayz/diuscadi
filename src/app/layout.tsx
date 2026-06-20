@@ -7,6 +7,7 @@ import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
 import { ProvidersWrapper } from "./providers";
 import { RouteGuard } from "@/components/RouteGuard";
+import GuestMergeMount from "@/components/guest/GuestMergeMount";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,9 +48,10 @@ export default function RootLayout({
         <ProvidersWrapper>
           <RouteGuard>
             <LayoutWrapper navbar={<Navbar />} footer={<Footer />}>
-                {children}
+              {children}
             </LayoutWrapper>
           </RouteGuard>
+          <GuestMergeMount />
         </ProvidersWrapper>
       </body>
     </html>

@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
         $set: {
           passwordHash,
           tokenVersion: vault.tokenVersion + 1, // invalidate all existing JWTs
+          verificationResendCount: 0,
           updatedAt: new Date(),
         },
         $unset: {
