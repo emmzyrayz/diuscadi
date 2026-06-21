@@ -4,7 +4,7 @@ import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
 
-const MIN_TOKEN_VERSION = 2; // bump this whenever JWT/session shape changes
+// const MIN_TOKEN_VERSION = 2; // bump this whenever JWT/session shape changes
 
 export interface AuthenticatedRequest extends NextRequest {
   auth: JWTPayload;
@@ -77,8 +77,7 @@ export function withAuth(handler: RouteHandler) {
 
       if (
         !vault ||
-        vault.tokenVersion !== payload.tokenVersion ||
-        payload.tokenVersion < MIN_TOKEN_VERSION
+        vault.tokenVersion !== payload.tokenVersion
       ) {
         return unauthorized("Token invalidated");
       }
