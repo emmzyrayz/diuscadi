@@ -159,47 +159,55 @@ export default async function RegisterPage({
   if (event.slotsRemaining === 0) notFound();
 
   let authUser: RegisterUserData | null = null;
+  let staleToken = false;
+
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("diuscadi_token")?.value;
     if (token) {
-      const payload = await verifyJWT(token);
-      if (payload?.vaultId) {
-        const db = await getDb();
-        const userData = await Collections.userData(db).findOne({
-          vaultId: new ObjectId(payload.vaultId),
-        });
-        if (userData) {
-          const vault = await Collections.vault(db).findOne({
-            _id: new ObjectId(payload.vaultId),
+      try {
+        const payload = await verifyJWT(token);
+        if (payload?.vaultId) {
+          const db = await getDb();
+          const userData = await Collections.userData(db).findOne({
+            vaultId: new ObjectId(payload.vaultId),
           });
+          if (userData) {
+            const vault = await Collections.vault(db).findOne({
+              _id: new ObjectId(payload.vaultId),
+            });
 
-          // fullName is now a structured object — build display string
-          const fn = userData.fullName;
-          const name = fn
-            ? [fn.firstname, fn.secondname, fn.lastname]
-                .filter(Boolean)
-                .join(" ")
-            : "";
+            const fn = userData.fullName;
+            const name = fn
+              ? [fn.firstname, fn.secondname, fn.lastname]
+                  .filter(Boolean)
+                  .join(" ")
+              : "";
 
-          // avatar is now a CloudinaryImage — extract URL for the client
-          const avatarUrl = userData.hasAvatar
-            ? (userData.avatar?.imageUrl ?? "")
-            : "";
+            const avatarUrl = userData.hasAvatar
+              ? (userData.avatar?.imageUrl ?? "")
+              : "";
 
-          authUser = {
-            id: userData._id!.toString(),
-            name,
-            email: vault?.email ?? "",
-            avatar: avatarUrl,
-            role: userData.role ?? "participant",
-            hasAvatar: userData.hasAvatar,
-          };
+            authUser = {
+              id: userData._id!.toString(),
+              name,
+              email: vault?.email ?? "",
+              avatar: avatarUrl,
+              role: userData.role ?? "participant",
+              hasAvatar: userData.hasAvatar,
+            };
+          } else {
+            // Token verified but no matching userData — stale/orphaned token
+            staleToken = true;
+          }
         }
+      } catch (err) {
+        console.error("[register/page] stale/invalid token:", err);
+        staleToken = true;
       }
     }
-  } catch {
-    // unauthenticated — authUser stays null
+  } catch (err) {
+    console.error("[register/page] cookie read failed:", err);
   }
 
   const isUnauthenticated = !authUser;
@@ -243,11 +251,18 @@ export default async function RegisterPage({
   );
 
   return (
-    <main className={cn("min-h-screen w-full", "bg-muted/50", "pb-20", "pt-[122px]")}>
+    <main
+      className={cn(
+        "min-h-screen w-full",
+        "bg-muted/50",
+        "pb-20",
+        "pt-[122px]",
+      )}
+    >
       {isUnauthenticated && (
         <>
           {Breadcrumb}
-          <AuthRequiredCard eventSlug={event.slug} />
+          <AuthRequiredCard eventSlug={event.slug} staleToken={staleToken} />
         </>
       )}
 

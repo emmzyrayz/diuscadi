@@ -4,6 +4,8 @@ import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
 
+const MIN_TOKEN_VERSION = 2; // bump this whenever JWT/session shape changes
+
 export interface AuthenticatedRequest extends NextRequest {
   auth: JWTPayload;
 }
@@ -15,12 +17,20 @@ type RouteHandler = (
   },
 ) => Promise<NextResponse>;
 
-/**
- * Higher-order function that wraps a route handler with JWT + session validation.
- *
- * Usage:
- *   export const GET = withAuth(async (req) => { ... req.auth.vaultId ... });
- */
+// Builds a 401 response and clears the stale cookie in one place,
+// so every rejection branch below stays consistent.
+function unauthorized(message: string): NextResponse {
+  const response = NextResponse.json({ error: message }, { status: 401 });
+  response.cookies.set("diuscadi_token", "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+  return response;
+}
+
 export function withAuth(handler: RouteHandler) {
   return async (
     req: NextRequest,
@@ -31,9 +41,6 @@ export function withAuth(handler: RouteHandler) {
     try {
       const authHeader = req.headers.get("authorization");
       const cookieToken = req.cookies.get("diuscadi_token")?.value;
-      if (!authHeader?.startsWith("Bearer ")) {
-        return NextResponse.json({ error: "Missing token" }, { status: 401 });
-      }
 
       let token = "";
       if (authHeader?.startsWith("Bearer ")) {
@@ -45,39 +52,35 @@ export function withAuth(handler: RouteHandler) {
       if (!token) {
         return NextResponse.json({ error: "Missing token" }, { status: 401 });
       }
-      let payload: JWTPayload;
 
+      let payload: JWTPayload;
       try {
         payload = verifyJWT(token);
       } catch {
-        return NextResponse.json(
-          { error: "Invalid or expired token" },
-          { status: 401 },
-        );
+        return unauthorized("Invalid or expired token");
       }
 
       const db = await getDb();
 
-      // Validate session exists
       const session = await Collections.sessions(db).findOne({
         _id: new ObjectId(payload.sessionId),
         vaultId: new ObjectId(payload.vaultId),
       });
 
       if (!session || session.expiresAt < new Date()) {
-        return NextResponse.json({ error: "Session expired" }, { status: 401 });
+        return unauthorized("Session expired");
       }
 
-      // Validate tokenVersion (catches invalidated sessions after password reset)
       const vault = await Collections.vault(db).findOne({
         _id: new ObjectId(payload.vaultId),
       });
 
-      if (!vault || vault.tokenVersion !== payload.tokenVersion) {
-        return NextResponse.json(
-          { error: "Token invalidated" },
-          { status: 401 },
-        );
+      if (
+        !vault ||
+        vault.tokenVersion !== payload.tokenVersion ||
+        payload.tokenVersion < MIN_TOKEN_VERSION
+      ) {
+        return unauthorized("Token invalidated");
       }
 
       const authedReq = req as AuthenticatedRequest;
