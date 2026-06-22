@@ -90,6 +90,7 @@ export interface CreateEventPayload {
   targetEduStatus?: string;
   requiredSkills?: string[];
   learningOutcomes?: string[];
+  skillsOffered?: string[];
   tags?: string[];
   level?: string;
   instructor?: string;
