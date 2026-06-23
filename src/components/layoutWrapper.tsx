@@ -42,16 +42,6 @@ const routeConfigs: Record<string, LayoutConfig> = {
     showFooter: false,
     showAds: false,
   },
-  "/login": {
-    showNavbar: false,
-    showFooter: false,
-    showAds: false,
-  },
-  "/register": {
-    showNavbar: false,
-    showFooter: false,
-    showAds: false,
-  },
   "/auth/reset-password": {
     showNavbar: false,
     showFooter: false,
