@@ -144,7 +144,7 @@ export default function VerifyTicketPage() {
   useEffect(() => {
     // Fix 1: SessionStatus is "pending" | "restored" | "unauthenticated" — not "loading"
     if (sessionStatus === "unauthenticated") {
-      router.replace(`/login?next=/verify/ticket/${code}`);
+      router.replace(`/auth?next=/verify/ticket/${code}`);
       return;
     }
     if (isAuthenticated) fetchTicket();
