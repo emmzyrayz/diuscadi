@@ -24,6 +24,23 @@ import Image from "next/image";
 import mentor from "@/assets/img/downloads/Dr-Ikechukwu-Umeh-1440x1920.png";
 import { AboutTeamMember, TeamTier } from "@/lib/models/aboutPageConfig";
 import { usePathname } from "next/navigation";
+import { Metadata } from "next";
+
+// MetaData
+export const metadata: Metadata = {
+  title: "About DIUSCADI",
+  description:
+    "Learn about the Digitized Initiative for Up-Skilling Career Development and Innovation — empowering Nigerian students and graduates for sustainable career outcomes.",
+  alternates: {
+    canonical: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://diuscadi.org.ng"}/about`,
+  },
+  openGraph: {
+    title: "About DIUSCADI — Our Story, Mission & Impact",
+    description:
+      "Empowering Nigerian students and graduates with future-ready skills.",
+    url: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://diuscadi.org.ng"}/about`,
+  },
+};
 
 // ─── Config shape for fetched data ───────────────────────────────────────────
 interface AboutConfig {

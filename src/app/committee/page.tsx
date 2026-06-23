@@ -9,6 +9,16 @@ import { LuLoader } from "react-icons/lu";
 import PublicShowcaseView from "@/components/sections/committees/PublicShowcaseView";
 import PrivateCommitteeDashboard from "@/components/sections/committees/PrivateCommitteeDashboard";
 import { cn } from "@/lib/utils";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Committees",
+  description:
+    "Meet the DIUSCADI committees driving innovation, career development, and digital literacy across Nigeria.",
+  alternates: {
+    canonical: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://diuscadi.org.ng"}/committee`,
+  },
+};
 
 export default function CommitteePage() {
   const router = useRouter();

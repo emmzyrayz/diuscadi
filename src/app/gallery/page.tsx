@@ -7,6 +7,17 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GalleryCategory } from "@/lib/models/Gallery";
+import { Metadata } from "next";
+
+
+export const metadata: Metadata = {
+  title: "Gallery",
+  description:
+    "Photos and highlights from DIUSCADI events, workshops, and LASCADSS seminars.",
+  alternates: {
+    canonical: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://diuscadi.org.ng"}/gallery`,
+  },
+};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

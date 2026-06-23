@@ -35,6 +35,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "../../lib/utils";
+import { Metadata } from "next";
+
+
+export const metadata: Metadata = {
+  title: "Contact Us",
+  description:
+    "Get in touch with the DIUSCADI team for enquiries, sponsorship, or partnership opportunities.",
+  alternates: {
+    canonical: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://diuscadi.org.ng"}/contact`,
+  },
+};
 
 /* ─── Schema ─────────────────────────────────────────────────────────────────── */
 

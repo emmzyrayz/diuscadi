@@ -14,6 +14,9 @@ const DESCRIPTION =
 // ── Base metadata ─────────────────────────────────────────────────────────────
 
 export const baseMetadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://diuscadi.org.ng",
+  ),
   title: {
     default: `${SITE_NAME} — ${TAGLINE}`,
     template: `%s | ${SITE_NAME}`,
