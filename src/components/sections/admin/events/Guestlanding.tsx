@@ -275,7 +275,14 @@ export function GuestLandingSection({ event }: GuestLandingSectionProps) {
               does not exist in /public. QR still scans at level "M" error
               correction without the logo overlay.
             */}
-            <QRCode value={landingUrl} size={140} withLogo={false} />
+            {/* <QRCode value={landingUrl} size={140} withLogo={false} /> */}
+
+            <QRCode
+              value={landingUrl}
+              size={200}
+              cornerSquareStyle="extra-rounded"
+              withLogo
+            />
 
             <div className="text-center space-y-0.5">
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">

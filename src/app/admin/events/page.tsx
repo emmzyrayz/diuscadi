@@ -127,6 +127,7 @@ export default function EventsManagementPage() {
       requiredSkills: event.requiredSkills ?? [],
       pendingSkills: [],
       learningOutcomes: (raw.learningOutcomes as string[]) ?? [],
+      skillsOffered: (raw.skillsOffered as string[]) ?? [],
       instructor: (raw.instructor as string) ?? "",
       maxCapacity: event.capacity ?? 100,
       ticketPrice: (raw.ticketPrice as number) ?? 0,

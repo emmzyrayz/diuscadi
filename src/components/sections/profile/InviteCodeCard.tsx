@@ -105,7 +105,13 @@ export const InviteCodeCard = ({ inviteCode }: InviteCodeCardProps) => {
             "duration-500",
           )}
         >
-          <QRCode value={qrValue} size={128} className="rounded-xl" />
+          {/* <QRCode value={qrValue} size={128} className="rounded-xl" /> */}
+          <QRCode
+            value={qrValue}
+            size={200}
+            cornerSquareStyle="extra-rounded"
+            withLogo
+          />
         </div>
         <p
           className={cn(

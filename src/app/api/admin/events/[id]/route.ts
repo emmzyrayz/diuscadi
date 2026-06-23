@@ -15,6 +15,51 @@ type Context = {
   params?: Promise<Record<string, string>> | Record<string, string>;
 };
 
+// ── GET ───────────────────────────────────────────────────────────────────────
+export const GET = withAuth(
+  async (req: AuthenticatedRequest, context?: Context) => {
+    try {
+      if (!ALLOWED_ROLES.includes(req.auth.role)) {
+        return NextResponse.json(
+          { error: "Admin access required" },
+          { status: 403 },
+        );
+      }
+
+      const params = context?.params
+        ? await Promise.resolve(context.params)
+        : {};
+      const id = params.id as string;
+      if (!id || !ObjectId.isValid(id)) {
+        return NextResponse.json(
+          { error: "Invalid event ID" },
+          { status: 400 },
+        );
+      }
+
+      const db = await getDb();
+      const event = await Collections.events(db).findOne({
+        _id: new ObjectId(id),
+      });
+
+      if (!event) {
+        return NextResponse.json(
+          { error: "Event not found" },
+          { status: 404 },
+        );
+      }
+
+      return NextResponse.json({ event });
+    } catch (err) {
+      console.error("[GET /api/admin/events/[id]]", err);
+      return NextResponse.json(
+        { error: "Internal server error" },
+        { status: 500 },
+      );
+    }
+  },
+);
+
 // ── PATCH ─────────────────────────────────────────────────────────────────────
 export const PATCH = withAuth(
   async (req: AuthenticatedRequest, context?: Context) => {

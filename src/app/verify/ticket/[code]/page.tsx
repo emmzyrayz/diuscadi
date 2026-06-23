@@ -5,7 +5,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import Image from "next/image";
-import { QRCodeSVG } from "qrcode.react";
+// import { QRCodeSVG } from "qrcode.react";
 import {
   LuCalendar,
   LuMapPin,
@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { useTickets } from "@/context/TicketContext";
 import { toast } from "react-hot-toast";
+import { TicketQRCode } from "@/components/ui/TicketQRCode";
 
 // Shape returned by GET /api/tickets/verify/[code]
 interface VerifyTicket {
@@ -813,18 +814,20 @@ export default function VerifyTicketPage() {
                         : "border-rose-200 opacity-50",
                   )}
                 >
-                  <QRCodeSVG
+                  {/* <QRCodeSVG
                     value={qrUrl}
                     size={180}
                     level="H"
                     includeMargin={false}
                     imageSettings={{
-                      src: "/logo-mark.png",
+                      src: "/logo-mark.webp",
                       width: 28,
                       height: 28,
                       excavate: true,
                     }}
-                  />
+                  /> */}
+
+                  <TicketQRCode value={qrUrl} />
                 </motion.div>
 
                 {/* Invite code */}

@@ -287,7 +287,7 @@ export const TicketFormSection = ({
             </h3>
           </div>
           <p className={cn("text-xs", "text-muted-foreground", "mb-4")}>
-            Select all the skills or topics you&apos;re interested in for this
+            Select the skill or topic you&apos;re interested in for this
             event.
           </p>
           <div className={cn("grid", "grid-cols-2", "gap-3")}>
@@ -296,13 +296,7 @@ export const TicketFormSection = ({
               return (
                 <button
                   key={skill}
-                  onClick={() =>
-                    onSkillsChange(
-                      isSelected
-                        ? selectedSkills.filter((s) => s !== skill)
-                        : [...selectedSkills, skill],
-                    )
-                  }
+                  onClick={() => onSkillsChange(isSelected ? [] : [skill])}
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-2xl border-2 transition-all text-left cursor-pointer",
                     isSelected

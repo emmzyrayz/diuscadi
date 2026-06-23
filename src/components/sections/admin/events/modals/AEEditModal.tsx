@@ -2979,6 +2979,7 @@ useEffect(() => {
     .then((data) => {
       // data.event is the full EventDocument shape
       const fullEvent = data.event ?? data; 
+      console.log("[modal] fetched event:", JSON.stringify(fullEvent, null, 2));
       setFormData(buildFormFromInitial({
         ...initialData,  // keeps _originalStatus etc. passed by caller
         ...fullEvent,    // overwrites with complete DB fields
@@ -2996,12 +2997,13 @@ useEffect(() => {
     () => buildFormFromInitial(initialData ?? {}),
   );
 
-  useEffect(() => {
-    if (isOpen) {
-      setFormData(buildFormFromInitial(initialData ?? {}));
-      setCurrentStep(1);
-    }
-  }, [isOpen, eventId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // useEffect(() => {
+  //   if (isOpen) {
+  //     setFormData(buildFormFromInitial(initialData ?? {}));
+  //     setCurrentStep(1);
+  //   }
+  // }, [isOpen, eventId]); 
+
 
   if (!isOpen) return null;
 

@@ -184,11 +184,16 @@ export default function RegistrationForm({
   const [inviteCode, setInviteCode] = useState("");
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
+  // const toggleSkill = (skill: string) => {
+  //   setSelectedSkills((prev) =>
+  //     prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill],
+  //   );
+  // };
+
   const toggleSkill = (skill: string) => {
-    setSelectedSkills((prev) =>
-      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill],
-    );
+    setSelectedSkills((prev) => (prev.includes(skill) ? [] : [skill]));
   };
+
   const [attendanceType, setAttendanceType] = useState<"physical" | "virtual">(
     "physical",
   );
@@ -301,7 +306,7 @@ export default function RegistrationForm({
       skillsOffered.length > 0 &&
       selectedSkills.length === 0
     ) {
-      setError("Please select at least one skill you'd like to learn.");
+      setError("Please select a skill you'd like to learn.");
       return;
     }
 
@@ -899,7 +904,9 @@ export default function RegistrationForm({
         <div className="rf-card">
           {/* ── Step indicator ─────────────────────────────────────────────── */}
           <div className="rf-steps" aria-label="Registration progress">
-            {(["details", "otp", "already-registered", "success"] as Step[]).map((s, i) => (
+            {(
+              ["details", "otp", "already-registered", "success"] as Step[]
+            ).map((s, i) => (
               <div
                 key={s}
                 className={`rf-step-dot ${
@@ -1060,7 +1067,7 @@ export default function RegistrationForm({
                           <button
                             key={skill}
                             type="button"
-                            role="checkbox"
+                            role="radio"
                             aria-checked={isSelected}
                             disabled={loading}
                             onClick={() => toggleSkill(skill)}
@@ -1092,7 +1099,7 @@ export default function RegistrationForm({
                         lineHeight: 1.5,
                       }}
                     >
-                      Select all that apply — helps us tailor sessions for you.
+                      Select a skill you&apos;d like to learn — helps us tailor sessions for you.
                     </p>
                   </div>
                 )}
