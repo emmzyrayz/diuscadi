@@ -104,7 +104,7 @@ export const baseMetadata: Metadata = {
   },
 
   verification: {
-    google: "your-google-site-verification-code", // Replace with actual code
+    google: "YwjThc-TlKyfdY2mVBJv8LNt6HPt206UIJKxjr_E4vU", // Replace with actual code
   },
 };
 
