@@ -1,6 +1,7 @@
 // POST /api/admin/broadcast/send
-// Marks broadcast as sent, then fire-and-forgets email dispatch
-// in 50-per-batch chunks to both account + guest recipients.
+// Marks broadcast as sent, then fire-and-forgets email dispatch.
+// First RESEND_LIMIT recipients → Resend batch API (bulk, free-tier safe)
+// Remainder → ZeptoMail individual sends (transactional overflow)
 
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
@@ -12,11 +13,12 @@ import {
   resolveRecipients,
   ResolvedRecipient,
 } from "@/lib/broadcast/recipientResolver";
-import { sendBroadcastEmail } from "@/lib/sendEmail";
+import { sendBroadcastEmail, sendBulkBroadcast } from "@/lib/sendEmail";
 
 const ALLOWED_ROLES = ["admin", "webmaster"];
-const BATCH_SIZE = 50;
-const BATCH_DELAY_MS = 100;
+const BATCH_SIZE = 50; // ZeptoMail concurrency window
+const BATCH_DELAY_MS = 100; // throttle between ZeptoMail batches
+const RESEND_LIMIT = 100; // recipients 0–99 via Resend; bump to 150 if you have headroom
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   if (!ALLOWED_ROLES.includes(req.auth.role)) {
@@ -80,7 +82,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
   }
 });
 
-// ── Async dispatcher (runs after response) ────────────────────────────────────
+// ── Async dispatcher ───────────────────────────────────────────────────────────
 
 async function dispatchBroadcast(
   db: Db,
@@ -91,7 +93,6 @@ async function dispatchBroadcast(
     broadcast.filter,
   );
 
-  // Prepare linked event display string once (re-used per email)
   const linkedEvent = broadcast.linkedEvent
     ? {
         title: broadcast.linkedEvent.title,
@@ -107,9 +108,37 @@ async function dispatchBroadcast(
   let sent = 0;
   let failed = 0;
 
-  // Send in fixed-size batches with a short delay between each
-  for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
-    const batch = recipients.slice(i, i + BATCH_SIZE);
+  const resendBatch = recipients.slice(0, RESEND_LIMIT);
+  const zeptoBatch = recipients.slice(RESEND_LIMIT);
+
+  // ── Resend bulk (first RESEND_LIMIT recipients, names personalised via {{name}}) ──
+  if (resendBatch.length > 0) {
+    try {
+      const result = await sendBulkBroadcast({
+        campaignName: `Broadcast-${broadcast._id}`,
+        subject: broadcast.subject,
+        htmlContent: broadcast.htmlContent,
+        textContent: broadcast.textContent,
+        contacts: resendBatch.map((r: ResolvedRecipient) => ({
+          email: r.email,
+          name: r.fullName || undefined,
+        })),
+        linkedEvent,
+      });
+      sent += result.sent;
+      failed += result.failed.length;
+      result.failed.forEach((f) =>
+        console.error(`[broadcast] Resend failed → ${f.email}: ${f.error}`),
+      );
+    } catch (err) {
+      console.error("[broadcast] Resend batch error:", err);
+      failed += resendBatch.length;
+    }
+  }
+
+  // ── ZeptoMail individual sends (overflow beyond RESEND_LIMIT) ─────────────
+  for (let i = 0; i < zeptoBatch.length; i += BATCH_SIZE) {
+    const batch = zeptoBatch.slice(i, i + BATCH_SIZE);
 
     await Promise.allSettled(
       batch.map(async (r: ResolvedRecipient) => {
@@ -124,19 +153,17 @@ async function dispatchBroadcast(
           });
           sent++;
         } catch (err) {
-          console.error(`[broadcast] Failed → ${r.email}:`, err);
+          console.error(`[broadcast] ZeptoMail failed → ${r.email}:`, err);
           failed++;
         }
       }),
     );
 
-    // Throttle between batches to avoid overwhelming SMTP
-    if (i + BATCH_SIZE < recipients.length) {
+    if (i + BATCH_SIZE < zeptoBatch.length) {
       await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
     }
   }
 
-  // Write final stats back to the broadcast document
   await Collections.broadcasts(db).updateOne(
     { _id: broadcast._id },
     {
@@ -150,8 +177,8 @@ async function dispatchBroadcast(
   );
 
   console.log(
-    `[broadcast:${broadcast._id}] Complete — ` +
-      `${sent} sent, ${failed} failed | ` +
+    `[broadcast:${broadcast._id}] Complete — ${sent} sent, ${failed} failed | ` +
+      `${resendBatch.length} via Resend, ${zeptoBatch.length} via ZeptoMail | ` +
       `${accountCount} accounts, ${guestCount} guests`,
   );
 }

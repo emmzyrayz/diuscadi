@@ -1,5 +1,18 @@
 import { Metadata } from "next";
 
+
+  /**
+ * Truncates a string for use in meta tags.
+ * @param text - Raw description text
+ * @param maxLength - Max characters (default 155 for meta, pass 125 for OG/Twitter)
+ */
+export function truncateDescription(text: string, maxLength = 155): string {
+  if (!text) return "";
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (cleaned.length <= maxLength) return cleaned;
+  return cleaned.slice(0, maxLength - 1).trimEnd() + "…";
+}
+
 // ── Real organisation constants ───────────────────────────────────────────────
 const WEB_URL = "https://diuscadi.org.ng";
 const IMAGE_URL = `${WEB_URL}/assets/og-banner.webp`;
@@ -8,8 +21,10 @@ const SITE_NAME = "DIUSCADI";
 const FULL_NAME = "Digitized Initiative for Up-Skilling Career Development and Innovation";
 const TAGLINE = "Shaping the Young for Future Career Success";
 
-const DESCRIPTION =
-  "DIUSCADI (Digitized Initiative for Up-Skilling Career Development and Innovation) is a non-profit programme domiciled at Nnamdi Azikiwe University, Awka, dedicated to empowering Nigerian students and young graduates with career-ready skills, mentorship, and real-world opportunities through the Life After School Career Development Seminar Series (LASCADSS) and other initiatives.";
+const rawDescription = "DIUSCADI (Digitized Initiative for Up-Skilling Career Development and Innovation) is a non-profit programme domiciled at Nnamdi Azikiwe University, Awka, dedicated to empowering Nigerian students and young graduates with career-ready skills, mentorship, and real-world opportunities through the Life After School Career Development Seminar Series (LASCADSS) and other initiatives.";
+
+const DESCRIPTION = truncateDescription(rawDescription);
+
 
 // ── Base metadata ─────────────────────────────────────────────────────────────
 

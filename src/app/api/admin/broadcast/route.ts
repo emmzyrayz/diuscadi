@@ -126,10 +126,10 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       linkedEvent,
       sendImmediately,
       scheduledFor: !sendImmediately ? new Date(scheduledFor) : undefined,
-      status: sendImmediately ? "sent" : "scheduled",
+      status: sendImmediately ? "draft" : "scheduled",
       createdBy,
       createdAt: now,
-      sentAt: sendImmediately ? now : undefined,
+      sentAt: undefined,
       updatedAt: now,
     };
 

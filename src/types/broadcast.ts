@@ -70,6 +70,8 @@ export interface BroadcastMessage {
   createdAt: Date;
   sentAt?: Date;
   updatedAt: Date;
+  templateId?: BroadcastTemplateId;
+  templateFields?: Record<string, unknown>;
 }
 
 export interface BroadcastRecipient {
@@ -78,3 +80,11 @@ export interface BroadcastRecipient {
   userId: ObjectId; // UserData._id
   matchedFilters: string[]; // ["verified_members", "committee:media"]
 }
+
+export type BroadcastTemplateId =
+  | "raw_html"              // existing — admin writes HTML directly
+  | "urgent_notice"         // pre-styled urgent/critical alert
+  | "general_announcement"  // standard announcement with optional bullet list
+  | "event_promotion"       // structured event fields
+  | "community_update"      // multi-section community news
+  | "platform_update";      // maintenance / feature launch / critical notice

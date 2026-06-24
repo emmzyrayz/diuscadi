@@ -132,6 +132,8 @@ export async function generateMetadata({
           eventDate: 1,
           location: 1,
           format: 1,
+          tags: 1,
+          category: 1,
         },
       },
     );
@@ -146,9 +148,33 @@ export async function generateMetadata({
       event.eventBanner?.imageUrl ?? `${base}/assets/og-banner.webp`;
     const canonicalUrl = `${base}/event-landing/${slug}`;
 
+    // After resolving title, description, imageUrl etc — add:
+    const locationKeywords = (() => {
+      const loc = event.location as Record<string, string> | undefined;
+      return [loc?.city, loc?.state].filter(Boolean) as string[];
+    })();
+
+    const keywords = [
+      // Dynamic from event
+      String(event.title),
+      String(event.category ?? ""),
+      ...((event.tags as string[]) ?? []),
+      ...locationKeywords,
+      // Static site-wide
+      "DIUSCADI",
+      "LASCADSS",
+      "career development Nigeria",
+      "student seminar Nigeria",
+      "up-skilling Nigeria",
+      "graduate event Nigeria",
+      "DIUSCADI event registration",
+      slug,
+    ].filter(Boolean); // removes any empty strings
+
     return {
       title,
       description,
+      keywords,
       alternates: { canonical: canonicalUrl },
       openGraph: {
         title,
