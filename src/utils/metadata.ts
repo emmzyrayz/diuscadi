@@ -2,7 +2,7 @@ import { Metadata } from "next";
 
 // ── Real organisation constants ───────────────────────────────────────────────
 const WEB_URL = "https://diuscadi.org.ng";
-const IMAGE_URL = `${WEB_URL}/assets/og-banner.jpg`;
+const IMAGE_URL = `${WEB_URL}/assets/og-banner.webp`;
 
 const SITE_NAME = "DIUSCADI";
 const FULL_NAME = "Digitized Initiative for Up-Skilling Career Development and Innovation";

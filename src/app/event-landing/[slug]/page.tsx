@@ -143,7 +143,7 @@ export async function generateMetadata({
     const title = String(event.title);
     const description = String(event.shortDescription ?? "");
     const imageUrl =
-      event.eventBanner?.imageUrl ?? `${base}/assets/og-banner.jpg`;
+      event.eventBanner?.imageUrl ?? `${base}/assets/og-banner.webp`;
     const canonicalUrl = `${base}/event-landing/${slug}`;
 
     return {
