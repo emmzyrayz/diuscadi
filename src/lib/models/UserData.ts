@@ -44,15 +44,49 @@ export interface UserLocation {
 // Read and auto-reverted by /api/auth/me when endsAt < now.
 // Never touches the permanent committeeMembership field directly —
 // the original membership is snapshotted here so revert is lossless.
-
 export interface TemporaryAssignment {
-  committee: string;              // slug of the temp committee
-  role: string;                   // role slug during the temp period
-  endsAt: Date;                   // auto-revert fires when now > endsAt
+  committee: string; // slug of the temp committee
+  role: string; // role slug during the temp period
+  endsAt: Date; // auto-revert fires when now > endsAt
   originalCommittee: string | null; // their committee before (null = had none)
-  originalRole: string | null;      // their role before (null = had none)
-  assignedBy: ObjectId;           // → Vault._id of admin who made the assignment
+  originalRole: string | null; // their role before (null = had none)
+  assignedBy: ObjectId; // → Vault._id of admin who made the assignment
   assignedAt: Date;
+}
+
+// ── Points ────────────────────────────────────────────────────────────────────
+// current  — spendable / redeemable balance; decrements on redemption.
+// lifetime — absolute career score; never decrements; drives leaderboards
+//            and member tier calculations.
+// lastCreditedAt — used by the admin dashboard to show last activity on
+//                  the points ledger without a PointsLog join.
+export interface UserPoints {
+  current: number;
+  lifetime: number;
+  lastCreditedAt?: Date;
+}
+
+// ── Referral meta ─────────────────────────────────────────────────────────────
+// Stored denormalised on UserData for O(1) dashboard reads.
+// The PointsLog collection is the source of truth for the full audit trail;
+// these counters are maintained via $inc on every referral reward write.
+//
+// directCount   — users who signed up with THIS user's invite code.
+// indirectCount — users at depth 2+ in this user's referral tree.
+// totalEarned   — lifetime points earned specifically from referrals
+//                 (subset of points.lifetime); useful for the referral
+//                 dashboard without scanning the full PointsLog.
+// treeDepthReached — deepest depth recorded so far in this user's tree;
+//                    helps the UI decide whether to render a tree or flat list.
+// lastReferralAt — timestamp of the most recent referral event under this
+//                  user (direct or indirect); drives the admin inspection
+//                  modal's "last activity" field.
+export interface UserReferralMeta {
+  directCount: number;
+  indirectCount: number;
+  totalEarned: number;
+  treeDepthReached: number;
+  lastReferralAt?: Date;
 }
 
 export interface UserDataDocument {
@@ -129,22 +163,43 @@ export interface UserDataDocument {
 
   committeeMembership: CommitteeMembership | null;
 
-  /**
-   * Set when admin temporarily assigns this member to another committee.
-   * While this field is present and endsAt > now, the effective committee
-   * for display purposes is temporaryAssignment.committee — NOT committeeMembership.
-   * /api/auth/me checks and clears this automatically on expiry.
-   */
-  temporaryAssignment?: TemporaryAssignment; // ← NEW
+  // Set when admin temporarily assigns this member to another committee.
+  // While this field is present and endsAt > now, the effective committee
+  // for display purposes is temporaryAssignment.committee — NOT committeeMembership.
+  // /api/auth/me checks and clears this automatically on expiry.
+  temporaryAssignment?: TemporaryAssignment;
 
   skills: Skill[]; // skill slugs manually verified by admin
   verifiedSkills?: string[];
   profileCompleted: boolean;
   profile?: { bio?: string };
   membershipStatus: "pending" | "approved" | "suspended";
-  signupInviteCode: string;
-  referredBy?: ObjectId;
 
+  // ── Referral ──────────────────────────────────────────────────────────────
+  // signupInviteCode is this user's own shareable referral code — generated
+  // at account creation and never changes. It is the primary key of the
+  // referral tree: every downstream user stores this value in referredBy.
+  signupInviteCode: string;
+
+  // The signupInviteCode of the person who referred this user.
+  // Stored as the code string (not an ObjectId) so tree traversal works
+  // by querying { signupInviteCode: referredBy } without an extra join.
+  // null = organic signup with no referrer.
+  // Typed as string (was ObjectId in the previous schema — migration script
+  // handles any legacy ObjectId values by resolving them to the code string).
+  referredBy?: string | null;
+
+  // Denormalised referral counters + metadata for O(1) dashboard reads.
+  // Source of truth is PointsLog; these are maintained via $inc on write.
+  referralMeta?: UserReferralMeta;
+
+  // ── Points ────────────────────────────────────────────────────────────────
+  // Initialised to { current: 0, lifetime: 0 } on account creation.
+  // Written by the points credit service; never written directly by
+  // any other route.
+  points?: UserPoints;
+
+  // ── Analytics ─────────────────────────────────────────────────────────────
   analytics: {
     eventsRegistered: number;
     eventsAttended: number;

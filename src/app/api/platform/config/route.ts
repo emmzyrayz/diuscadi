@@ -1,3 +1,4 @@
+// src/app/api/platform/config/route.ts
 // GET /api/platform/config — PUBLIC
 // Returns safe subset of platform config for client-side feature flag checks.
 // Does NOT expose debugTargets (user IDs) to the public — only returns
@@ -42,12 +43,17 @@ export async function GET(req: Request) {
         applicationsOpen: raw.applicationsOpen,
         maintenanceMode: raw.maintenanceMode,
         registrationFee: raw.registrationFee,
-        referralDiscountPercent: raw.referralDiscountPercent,
+        // ── Referral config (full ladder now exposed) ─────────────────────
         referralBonusPoints: raw.referralBonusPoints,
+        referralDepth2BonusPoints: raw.referralDepth2BonusPoints,
+        referralDepth3BonusPoints: raw.referralDepth3BonusPoints,
+        referralMaxDepth: raw.referralMaxDepth,
+        referralDiscountPercent: raw.referralDiscountPercent,
+        // ─────────────────────────────────────────────────────────────────
         showBanners: raw.showBanners,
         showGallery: raw.showGallery,
         debugMode: raw.debugMode,
-        isDebugTarget, // resolved for current user — no IDs exposed
+        isDebugTarget,
       },
     });
   } catch (err) {

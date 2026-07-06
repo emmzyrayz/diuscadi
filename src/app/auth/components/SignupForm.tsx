@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   LuUser,
   LuMail,
@@ -9,11 +9,19 @@ import {
   LuArrowRight,
   LuArrowLeft,
   LuCheck,
+  LuUserCheck,
+  LuX as LuXIcon,
+  LuLoader,
+  LuCircleAlert,
 } from "react-icons/lu";
+import { useSearchParams } from "next/navigation";
 import { AuthInput } from "./AuthInput";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth, SignupData } from "@/context/AuthContext";
 import type { EduStatus } from "@/types/domain";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { cn } from "../../../lib/utils";
 
 // ─── Country codes ────────────────────────────────────────────────────────────
 const COUNTRY_CODES = [
@@ -43,6 +51,7 @@ interface FormState {
   firstName: string;
   lastName: string;
   eduStatus: EduStatus;
+  inviteCode: string;
   // Step 2
   email: string;
   countryCode: number;
@@ -57,6 +66,7 @@ const INITIAL: FormState = {
   firstName: "",
   lastName: "",
   eduStatus: "STUDENT",
+  inviteCode: "",
   email: "",
   countryCode: 234,
   phoneNumber: "",
@@ -65,11 +75,32 @@ const INITIAL: FormState = {
   confirmPassword: "",
 };
 
+interface PlatformConfigState {
+  config: {
+    inviteMode: "open" | "lockdown" | "referral";
+    registrationOpen: boolean;
+    eventsOpen: boolean;
+    applicationsOpen: boolean;
+    maintenanceMode: boolean;
+    registrationFee: number;
+    referralBonusPoints: number;
+    referralDepth2BonusPoints: number;
+    referralDepth3BonusPoints: number;
+    referralMaxDepth: number;
+    referralDiscountPercent: number;
+    showBanners: boolean;
+    showGallery: boolean;
+    debugMode: boolean;
+    isDebugTarget: boolean;
+  };
+}
+
 // ─── Validation ───────────────────────────────────────────────────────────────
 function validateStep(step: number, form: FormState): string | null {
   if (step === 1) {
     if (!form.firstName.trim()) return "First name is required.";
     if (!form.lastName.trim()) return "Last name is required.";
+    // if (!form.inviteCode.trim()) return "Referral Code is required.";
   }
   if (step === 2) {
     if (!form.email.trim()) return "Email is required.";
@@ -108,11 +139,40 @@ const slideVariants = {
 // ─── Component ────────────────────────────────────────────────────────────────
 export const SignupForm: React.FC = () => {
   const { signup, isLoading, error, clearError } = useAuth();
+  const searchParams = useSearchParams();
+  const refCode = searchParams.get("ref");
 
   const [step, setStep] = useState(1);
   const [dir, setDir] = useState(1); // 1 = forward, -1 = back
   const [form, setForm] = useState<FormState>(INITIAL);
   const [localErr, setLocalErr] = useState<string | null>(null);
+  const [inviteCode, setInviteCode] = useState(refCode ?? "");
+  const [codeValidating, setCodeValidating] = useState(false);
+  const [codeValidation, setCodeValidation] = useState<{
+    valid: boolean;
+    referrerName?: string;
+    error?: string;
+  } | null>(null);
+  const codeDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 1. Add the state declaration at the top of your component
+  // No more 'any' flag warnings
+  const [platformConfig, setPlatformConfig] =
+    useState<PlatformConfigState | null>(null);
+
+  // 2. Add the fetch effect to grab it on mount
+  useEffect(() => {
+    async function fetchConfig() {
+      try {
+        const res = await fetch("/api/platform/config");
+        const data = await res.json();
+        setPlatformConfig(data);
+      } catch (err) {
+        console.error("Failed to load platform config", err);
+      }
+    }
+    fetchConfig();
+  }, []);
 
   const progress = (step / TOTAL_STEPS) * 100;
 
@@ -149,9 +209,54 @@ export const SignupForm: React.FC = () => {
     setStep((s) => s - 1);
   };
 
+  const validateInviteCode = useCallback(async (value: string) => {
+    if (!value.trim()) {
+      setCodeValidation(null);
+      return;
+    }
+    setCodeValidating(true);
+    try {
+      const res = await fetch("/api/referrals/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: value.trim() }),
+      });
+      const data = await res.json();
+      setCodeValidation(data);
+    } catch {
+      setCodeValidation({ valid: false, error: "Validation unavailable" });
+    } finally {
+      setCodeValidating(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (codeDebounceRef.current) clearTimeout(codeDebounceRef.current);
+
+    if (!inviteCode.trim()) {
+      setCodeValidation(null);
+      return;
+    }
+
+    codeDebounceRef.current = setTimeout(() => {
+      validateInviteCode(inviteCode);
+    }, 500);
+
+    return () => {
+      if (codeDebounceRef.current) clearTimeout(codeDebounceRef.current);
+    };
+  }, [inviteCode, validateInviteCode]);
+
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (
+      isCodeRequired &&
+      (!inviteCode.trim() || codeValidation?.valid !== true)
+    ) {
+      setLocalErr("A valid invite code is required to register.");
+      return;
+    }
     const err = validateStep(3, form);
     if (err) {
       setLocalErr(err);
@@ -162,6 +267,7 @@ export const SignupForm: React.FC = () => {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       email: form.email.trim().toLowerCase(),
+      inviteCode: form.inviteCode.trim(),
       password: form.password,
       confirmPassword: form.confirmPassword,
       eduStatus: form.eduStatus,
@@ -177,27 +283,58 @@ export const SignupForm: React.FC = () => {
 
   const displayError = localErr ?? error?.message ?? null;
 
+  // ─── PATCH 5 (REVISED): Determine if code is required ─────────────────────────
+  // Updated to drill into the .config wrapper returned by your API
+
+  const isCodeRequired = platformConfig?.config?.inviteMode === "referral";
+
   return (
-    <div className="w-full space-y-5">
+    <div className={cn("w-full", "space-y-5")}>
       {/* ── Progress bar ──────────────────────────────────────────────────── */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">
+        <div className={cn("flex", "items-center", "justify-between")}>
+          <span
+            className={cn(
+              "text-[8px]",
+              "font-black",
+              "text-muted-foreground",
+              "uppercase",
+              "tracking-widest",
+            )}
+          >
             {STEPS[step - 1].label}
           </span>
-          <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">
+          <span
+            className={cn(
+              "text-[8px]",
+              "font-black",
+              "text-muted-foreground",
+              "uppercase",
+              "tracking-widest",
+            )}
+          >
             {step} / {TOTAL_STEPS}
           </span>
         </div>
-        <div className="h-1 w-full text-muted rounded-full overflow-hidden">
+        <div
+          className={cn(
+            "h-1",
+            "w-full",
+            "text-muted",
+            "rounded-full",
+            "overflow-hidden",
+          )}
+        >
           <motion.div
-            className="h-full bg-foreground rounded-full"
+            className={cn("h-full", "bg-foreground", "rounded-full")}
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           />
         </div>
-        <p className="text-[9px] text-muted-foreground tracking-wide">
+        <p
+          className={cn("text-[9px]", "text-muted-foreground", "tracking-wide")}
+        >
           {STEPS[step - 1].hint}
         </p>
       </div>
@@ -210,9 +347,18 @@ export const SignupForm: React.FC = () => {
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className="px-4 py-3 bg-red-50 border border-red-100 rounded-xl"
+            className={cn(
+              "px-4",
+              "py-3",
+              "bg-red-50",
+              "border",
+              "border-red-100",
+              "rounded-xl",
+            )}
           >
-            <p className="text-[10px] font-bold text-red-500">{displayError}</p>
+            <p className={cn("text-[10px]", "font-bold", "text-red-500")}>
+              {displayError}
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -250,22 +396,60 @@ export const SignupForm: React.FC = () => {
                 />
 
                 {/* EduStatus toggle */}
-                <div className="p-4 bg-muted rounded-2xl border border-border">
-                  <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-3 text-center">
+                <div
+                  className={cn(
+                    "p-4",
+                    "bg-muted",
+                    "rounded-2xl",
+                    "border",
+                    "border-border",
+                  )}
+                >
+                  <p
+                    className={cn(
+                      "text-[8px]",
+                      "font-black",
+                      "text-muted-foreground",
+                      "uppercase",
+                      "tracking-widest",
+                      "mb-3",
+                      "text-center",
+                    )}
+                  >
                     I am a
                   </p>
-                  <div className="grid grid-cols-2 gap-2 relative">
+                  <div
+                    className={cn("grid", "grid-cols-2", "gap-2", "relative")}
+                  >
                     {(["STUDENT", "GRADUATE"] as EduStatus[]).map((type) => (
                       <button
                         key={type}
                         type="button"
                         onClick={() => setEdu(type)}
-                        className="relative py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors overflow-hidden"
+                        className={cn(
+                          "relative",
+                          "py-2.5",
+                          "rounded-xl",
+                          "text-[9px]",
+                          "font-black",
+                          "uppercase",
+                          "tracking-widest",
+                          "transition-colors",
+                          "overflow-hidden",
+                        )}
                       >
                         {form.eduStatus === type && (
                           <motion.span
                             layoutId="edu-pill"
-                            className="absolute inset-0 bg-background border border-foreground rounded-xl shadow-sm"
+                            className={cn(
+                              "absolute",
+                              "inset-0",
+                              "bg-background",
+                              "border",
+                              "border-foreground",
+                              "rounded-xl",
+                              "shadow-sm",
+                            )}
                             transition={{
                               type: "spring",
                               stiffness: 300,
@@ -281,6 +465,139 @@ export const SignupForm: React.FC = () => {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                <div className={cn("space-y-1.5", "w-full")}>
+                  <Label
+                    className={cn(
+                      "text-[10px]",
+                      "font-black",
+                      "uppercase",
+                      "tracking-widest",
+                    )}
+                  >
+                    Invite Code
+                    {isCodeRequired ? (
+                      <span className={cn("ml-1", "text-red-500")}>*</span>
+                    ) : (
+                      <span
+                        className={cn(
+                          "ml-1",
+                          "text-muted-foreground",
+                          "font-normal",
+                          "normal-case",
+                          "tracking-normal",
+                        )}
+                      >
+                        (optional)
+                      </span>
+                    )}
+                  </Label>
+
+                  <div className="relative">
+                    <Input
+                      value={inviteCode}
+                      onChange={(e) =>
+                        setInviteCode(e.target.value.toUpperCase().trim())
+                      }
+                      placeholder={
+                        isCodeRequired
+                          ? "Invite code required to register"
+                          : "Enter invite code if you have one"
+                      }
+                      maxLength={32}
+                      className={cn(
+                        "rounded-2xl py-4 pl-12 pr-12 text-xs font-bold text-foreground placeholder:text-muted-foreground placeholder:uppercase placeholder:tracking-widest focus:bg-background focus:border-foreground focus:ring-0 transition-all outline-none",
+                        "w-full bg-muted border",
+                        // keep whatever className your other inputs use, plus:
+                        "pr-10 font-mono uppercase tracking-widest",
+                        codeValidation?.valid === true &&
+                          "border-emerald-500/50",
+                        codeValidation?.valid === false &&
+                          inviteCode &&
+                          "border-red-500/50",
+                      )}
+                    />
+
+                    {/* Validation indicator */}
+                    <div
+                      className={cn(
+                        "absolute",
+                        "right-3",
+                        "top-1/2",
+                        "-translate-y-1/2",
+                      )}
+                    >
+                      {codeValidating && (
+                        <LuLoader
+                          className={cn(
+                            "w-4",
+                            "h-4",
+                            "text-muted-foreground",
+                            "animate-spin",
+                          )}
+                        />
+                      )}
+                      {!codeValidating && codeValidation?.valid === true && (
+                        <LuCheck
+                          className={cn("w-4", "h-4", "text-emerald-500")}
+                        />
+                      )}
+                      {!codeValidating &&
+                        codeValidation?.valid === false &&
+                        inviteCode && (
+                          <LuXIcon
+                            className={cn("w-4", "h-4", "text-red-500")}
+                          />
+                        )}
+                    </div>
+                  </div>
+
+                  {/* Referrer name confirmation */}
+                  {codeValidation?.valid === true &&
+                    codeValidation.referrerName && (
+                      <p
+                        className={cn(
+                          "flex",
+                          "items-center",
+                          "gap-1.5",
+                          "text-[11px]",
+                          "text-emerald-600",
+                          "font-bold",
+                        )}
+                      >
+                        <LuUserCheck
+                          className={cn("w-3.5", "h-3.5", "shrink-0")}
+                        />
+                        Referred by: {codeValidation.referrerName}
+                      </p>
+                    )}
+
+                  {/* Validation error */}
+                  {codeValidation?.valid === false && inviteCode && (
+                    <p
+                      className={cn(
+                        "flex",
+                        "items-center",
+                        "gap-1.5",
+                        "text-[11px]",
+                        "text-red-500",
+                        "font-bold",
+                      )}
+                    >
+                      <LuCircleAlert
+                        className={cn("w-3.5", "h-3.5", "shrink-0")}
+                      />
+                      {codeValidation.error ?? "Invalid invite code"}
+                    </p>
+                  )}
+
+                  {/* Auto-filled from URL */}
+                  {refCode && !codeValidation && (
+                    <p className={cn("text-[10px]", "text-muted-foreground")}>
+                      Code pre-filled from your referral link
+                    </p>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -307,16 +624,54 @@ export const SignupForm: React.FC = () => {
 
                 {/* Phone with country code */}
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest px-1">
+                  <label
+                    className={cn(
+                      "text-[9px]",
+                      "font-black",
+                      "text-muted-foreground",
+                      "uppercase",
+                      "tracking-widest",
+                      "px-1",
+                    )}
+                  >
                     Phone Number
                   </label>
-                  <div className="flex gap-2">
+                  <div className={cn("flex", "gap-2")}>
                     <div className="relative">
-                      <LuPhone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                      <LuPhone
+                        className={cn(
+                          "absolute",
+                          "left-3",
+                          "top-1/2",
+                          "-translate-y-1/2",
+                          "w-3.5",
+                          "h-3.5",
+                          "text-muted-foreground",
+                          "pointer-events-none",
+                        )}
+                      />
                       <select
                         value={form.countryCode}
                         onChange={set("countryCode")}
-                        className="h-full pl-8 pr-2 py-3.5 bg-muted border border-border rounded-xl text-[10px] font-bold text-slate-700 appearance-none focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground transition-colors"
+                        className={cn(
+                          "h-full",
+                          "pl-8",
+                          "pr-2",
+                          "py-3.5",
+                          "bg-muted",
+                          "border",
+                          "border-border",
+                          "rounded-xl",
+                          "text-[10px]",
+                          "font-bold",
+                          "text-slate-700",
+                          "appearance-none",
+                          "focus:outline-none",
+                          "focus:border-foreground",
+                          "focus:ring-1",
+                          "focus:ring-foreground",
+                          "transition-colors",
+                        )}
                       >
                         {COUNTRY_CODES.map(({ code, label }) => (
                           <option key={code} value={code}>
@@ -332,7 +687,24 @@ export const SignupForm: React.FC = () => {
                       value={form.phoneNumber}
                       onChange={set("phoneNumber")}
                       autoComplete="tel-national"
-                      className="flex-1 px-4 py-3.5 bg-muted border border-border rounded-xl text-[11px] font-medium text-slate-800 placeholder:text-slate-300 focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground transition-colors"
+                      className={cn(
+                        "flex-1",
+                        "px-4",
+                        "py-3.5",
+                        "bg-muted",
+                        "border",
+                        "border-border",
+                        "rounded-xl",
+                        "text-[11px]",
+                        "font-medium",
+                        "text-slate-800",
+                        "placeholder:text-slate-300",
+                        "focus:outline-none",
+                        "focus:border-foreground",
+                        "focus:ring-1",
+                        "focus:ring-foreground",
+                        "transition-colors",
+                      )}
                     />
                   </div>
                 </div>
@@ -347,7 +719,14 @@ export const SignupForm: React.FC = () => {
                     onChange={set("schoolEmail")}
                     autoComplete="off"
                   />
-                  <p className="text-[8px] text-muted-foreground px-1 tracking-wide">
+                  <p
+                    className={cn(
+                      "text-[8px]",
+                      "text-muted-foreground",
+                      "px-1",
+                      "tracking-wide",
+                    )}
+                  >
                     Only for students with an active institutional email
                     address.
                   </p>
@@ -382,7 +761,14 @@ export const SignupForm: React.FC = () => {
                   onChange={set("confirmPassword")}
                   autoComplete="new-password"
                 />
-                <p className="text-[8px] text-muted-foreground px-1 tracking-wide">
+                <p
+                  className={cn(
+                    "text-[8px]",
+                    "text-muted-foreground",
+                    "px-1",
+                    "tracking-wide",
+                  )}
+                >
                   Minimum 8 characters. You&apos;ll receive a verification code
                   on your email and phone.
                 </p>
@@ -400,9 +786,28 @@ export const SignupForm: React.FC = () => {
               type="button"
               onClick={back}
               disabled={isLoading}
-              className="flex items-center justify-center gap-2 py-3.5 border border-border text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-foreground hover:text-foreground transition-all duration-300 disabled:opacity-40"
+              className={cn(
+                "flex",
+                "items-center",
+                "justify-center",
+                "gap-2",
+                "py-3.5",
+                "border",
+                "border-border",
+                "text-slate-600",
+                "rounded-2xl",
+                "text-[10px]",
+                "font-black",
+                "uppercase",
+                "tracking-widest",
+                "hover:border-foreground",
+                "hover:text-foreground",
+                "transition-all",
+                "duration-300",
+                "disabled:opacity-40",
+              )}
             >
-              <LuArrowLeft className="w-3.5 h-3.5" />
+              <LuArrowLeft className={cn("w-3.5", "h-3.5")} />
               Back
             </button>
           )}
@@ -414,13 +819,37 @@ export const SignupForm: React.FC = () => {
               className={`flex items-center justify-center gap-2 py-3.5 bg-foreground text-background rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all duration-300 shadow-xl shadow-foreground/10 ${step === 1 ? "w-full" : ""}`}
             >
               Continue
-              <LuArrowRight className="w-3.5 h-3.5" />
+              <LuArrowRight className={cn("w-3.5", "h-3.5")} />
             </button>
           ) : (
             <button
               type="submit"
               disabled={isLoading}
-              className="flex items-center justify-center gap-2 py-3.5 bg-foreground text-background rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-secondary hover:text-foreground border border-transparent hover:border-primary transition-all duration-700 shadow-xl shadow-foreground/10 disabled:opacity-60 disabled:cursor-not-allowed"
+              className={cn(
+                "flex",
+                "items-center",
+                "justify-center",
+                "gap-2",
+                "py-3.5",
+                "bg-foreground",
+                "text-background",
+                "rounded-2xl",
+                "text-[10px]",
+                "font-black",
+                "uppercase",
+                "tracking-widest",
+                "hover:bg-secondary",
+                "hover:text-foreground",
+                "border",
+                "border-transparent",
+                "hover:border-primary",
+                "transition-all",
+                "duration-700",
+                "shadow-xl",
+                "shadow-foreground/10",
+                "disabled:opacity-60",
+                "disabled:cursor-not-allowed",
+              )}
             >
               {isLoading ? (
                 <>
@@ -431,13 +860,21 @@ export const SignupForm: React.FC = () => {
                       repeat: Infinity,
                       ease: "linear",
                     }}
-                    className="w-3.5 h-3.5 border-2 border-background/30 border-t-background rounded-full inline-block"
+                    className={cn(
+                      "w-3.5",
+                      "h-3.5",
+                      "border-2",
+                      "border-background/30",
+                      "border-t-background",
+                      "rounded-full",
+                      "inline-block",
+                    )}
                   />
                   Creating Account...
                 </>
               ) : (
                 <>
-                  <LuCheck className="w-3.5 h-3.5" />
+                  <LuCheck className={cn("w-3.5", "h-3.5")} />
                   Create Account
                 </>
               )}

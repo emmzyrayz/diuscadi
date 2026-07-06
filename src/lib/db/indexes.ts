@@ -1,6 +1,6 @@
 // lib/db/indexes.ts
-// Run once after deploy:
-//   pnpm dotenv -e .env.local -- tsx lib/db/indexes.ts
+// Run once after deploy (or after schema changes):
+//   pnpm dotenv -e .env.local -- tsx src/lib/db/indexes.ts
 
 import { getDb } from "../mongodb";
 
@@ -50,10 +50,25 @@ export async function createIndexes() {
       sparse: true,
       name: "userData_schoolEmail",
     },
+    // referredBy stores the signupInviteCode of the referrer (string).
+    // Used by tree traversal queries: find all users where referredBy = X.
+    // sparse: true because organic signups have no referrer.
     {
       key: { referredBy: 1 },
       sparse: true,
       name: "userData_referredBy",
+    },
+    // Leaderboard query: sort all users by lifetime points descending.
+    {
+      key: { "points.lifetime": -1 },
+      sparse: true,
+      name: "userData_points_lifetime",
+    },
+    // Leaderboard filtered by committee — points within a committee.
+    {
+      key: { "committeeMembership.committee": 1, "points.lifetime": -1 },
+      sparse: true,
+      name: "userData_committee_points",
     },
     { key: { membershipStatus: 1 }, name: "userData_membershipStatus" },
     {
@@ -104,17 +119,14 @@ export async function createIndexes() {
   ]);
   console.log("✓ events");
 
-  // ── eventReviewsTypes ────────────────────────────────────────────────────────────
+  // ── eventReviews ───────────────────────────────────────────────────────────
   await db.collection("eventReviews").createIndexes([
-    // One review per user per event — enforced at DB level
     {
       key: { eventId: 1, userId: 1 },
       unique: true,
       name: "eventReviews_user_event_unique",
     },
-    // Fetch all visible reviews for an event fast
     { key: { eventId: 1, isVisible: 1 }, name: "eventReviews_eventId_visible" },
-    // Admin moderation queue — hidden reviews sorted by date
     { key: { isVisible: 1, createdAt: -1 }, name: "eventReviews_moderation" },
   ]);
   console.log("✓ eventReviews");
@@ -138,10 +150,6 @@ export async function createIndexes() {
     { key: { userId: 1 }, name: "reg_userId" },
     { key: { status: 1 }, name: "reg_status" },
     { key: { referralCodeUsed: 1 }, sparse: true, name: "reg_referral" },
-    // Supports the cron reminder query:
-    // { eventId, status: { $in: [...] }, "reminders.sent24h": { $exists: false } }
-    // sparse: true because most registrations won't have this field until
-    // after their first reminder run — avoids indexing every null entry.
     {
       key: { eventId: 1, status: 1, "reminders.sent24h": 1 },
       sparse: true,
@@ -184,29 +192,14 @@ export async function createIndexes() {
   ]);
   console.log("✓ files");
 
-  // ── referralLinks ───────────────────────────────────────────────────────────
-  await db.collection("referralLinks").createIndexes([
-    { key: { code: 1 }, unique: true, name: "referralLinks_code_unique" },
-    {
-      key: { ownerVaultId: 1, resourceType: 1, resourceId: 1 },
-      name: "referralLinks_owner_resource",
-    },
-    { key: { parentCode: 1 }, sparse: true, name: "referralLinks_parentCode" },
-    { key: { createdAt: -1 }, name: "referralLinks_createdAt" },
-  ]);
-  console.log("✓ referralLinks");
-
-  // ── referralEvents ──────────────────────────────────────────────────────────
-  await db.collection("referralEvents").createIndexes([
-    { key: { code: 1 }, name: "referralEvents_code" },
-    { key: { ownerVaultId: 1, createdAt: -1 }, name: "referralEvents_owner" },
-    { key: { eventType: 1, createdAt: -1 }, name: "referralEvents_type_date" },
-    {
-      key: { resourceType: 1, resourceId: 1, createdAt: -1 },
-      name: "referralEvents_resource",
-    },
-  ]);
-  console.log("✓ referralEvents");
+  // ── NOTE: referralLinks and referralEvents indexes removed ─────────────────
+  // The old ReferralLink / ReferralEvent collections were dropped after
+  // the migration script (001_referral_migration.ts) completed successfully.
+  // Referral data now lives in:
+  //   userData.referredBy       — who referred this user (invite code string)
+  //   userData.referralMeta     — denormalised tree counters
+  //   pointsLog (source: "referral_*") — full audit trail
+  // ─────────────────────────────────────────────────────────────────────────
 
   // ── institutions ───────────────────────────────────────────────────────────
   await db.collection("institutions").createIndexes([
@@ -279,22 +272,22 @@ export async function createIndexes() {
   ]);
   console.log("✓ curriculumSubmissions");
 
-  // pageVisits
-  await db.collection("pageVisits").createIndex(
-    { expiresAt: 1 },
-    { expireAfterSeconds: 0 }, // TTL — MongoDB deletes doc when expiresAt is reached
-  );
-  await db.collection("pageVisits").createIndex(
-    { sessionKey: 1 },
-    { unique: true }, // prevents duplicate visits within the 3hr window
-  );
+  // ── pageVisits ─────────────────────────────────────────────────────────────
+  await db
+    .collection("pageVisits")
+    .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  await db
+    .collection("pageVisits")
+    .createIndex({ sessionKey: 1 }, { unique: true });
   await db.collection("pageVisits").createIndex({ hour: 1, dayOfWeek: 1 });
-  await db.collection("predictionLogs").createIndex(
-    { date: 1 },
-    { unique: true }, // one log per day
-  );
+
+  // ── predictionLogs ─────────────────────────────────────────────────────────
+  await db
+    .collection("predictionLogs")
+    .createIndex({ date: 1 }, { unique: true });
   await db.collection("predictionLogs").createIndex({ appliedAt: -1 });
-  // landingPageConfig — sectionKey is the primary key, must be unique
+
+  // ── landingPageConfig ──────────────────────────────────────────────────────
   await db
     .collection("landingPageConfig")
     .createIndex(
@@ -302,7 +295,7 @@ export async function createIndexes() {
       { unique: true, name: "landingPageConfig_sectionKey" },
     );
 
-  // newsletterSubscribers
+  // ── newsletterSubscribers ──────────────────────────────────────────────────
   await db.collection("newsletterSubscribers").createIndexes([
     { key: { email: 1 }, unique: true, name: "newsletter_email_unique" },
     { key: { subscribedAt: -1 }, name: "newsletter_subscribedAt" },
@@ -310,6 +303,7 @@ export async function createIndexes() {
   ]);
   console.log("✓ landingPageConfig + newsletterSubscribers");
 
+  // ── aboutPageConfig ────────────────────────────────────────────────────────
   await db
     .collection("aboutPageConfig")
     .createIndex(
@@ -318,6 +312,7 @@ export async function createIndexes() {
     );
   console.log("✓ aboutPageConfig");
 
+  // ── applications (additional) ──────────────────────────────────────────────
   await db.collection("applications").createIndex({ vaultId: 1, status: 1 });
   await db
     .collection("applications")
@@ -339,8 +334,6 @@ export async function createIndexes() {
       sparse: true,
       name: "guestProfiles_migratedToUserId",
     },
-    // Drives the lazy session-merge-check sweep: "pending"/"snoozed" profiles
-    // whose 48hr window or snooze has elapsed, evaluated on login — not a cron.
     {
       key: { mergeStatus: 1, firstShownAt: 1 },
       sparse: true,
@@ -351,8 +344,6 @@ export async function createIndexes() {
       sparse: true,
       name: "guestProfiles_mergeStatus_snoozedUntil",
     },
-    // OTP lookup during cold-migrate verify — sparse since most profiles
-    // never have an active OTP at any given time.
     {
       key: { "migrationOtp.code": 1, "migrationOtp.expiresAt": 1 },
       sparse: true,
@@ -361,7 +352,7 @@ export async function createIndexes() {
   ]);
   console.log("✓ guestProfiles");
 
-  // ── guestEventRegistrations (additions for guest profile migration) ───────
+  // ── guestEventRegistrations ────────────────────────────────────────────────
   await db.collection("guestEventRegistrations").createIndexes([
     { key: { guestProfileId: 1 }, name: "guestReg_guestProfileId" },
     {
@@ -376,6 +367,54 @@ export async function createIndexes() {
     },
   ]);
   console.log("✓ guestEventRegistrations (migration fields)");
+
+  // ── pointsLog ──────────────────────────────────────────────────────────────
+  // Append-only ledger. Never updated or deleted.
+  // Index strategy covers: user history, admin audit, referral tree reads,
+  // leaderboard aggregation, and source-type analytics.
+  await db.collection("pointsLog").createIndexes([
+    // Primary read: "all point events for this user, newest first"
+    // Used by the points history page and admin user inspection modal.
+    {
+      key: { userId: 1, createdAt: -1 },
+      name: "pointsLog_userId_date",
+    },
+    // Referral tree read: "all referral rewards earned by this user"
+    // Filtered by source prefix — compound with createdAt for pagination.
+    {
+      key: { userId: 1, source: 1, createdAt: -1 },
+      name: "pointsLog_userId_source_date",
+    },
+    // Referral depth analytics: "how many depth-1 vs depth-2 rewards"
+    // Used by the referral dashboard and admin tree inspection.
+    {
+      key: { userId: 1, referralDepth: 1 },
+      sparse: true,
+      name: "pointsLog_userId_referralDepth",
+    },
+    // Referee lookup: "did this new user trigger any referral rewards?"
+    // Used by the migration script and the referral reward service to
+    // prevent double-crediting the same signup.
+    {
+      key: { refereeUserId: 1 },
+      sparse: true,
+      name: "pointsLog_refereeUserId",
+    },
+    // Source audit: "all task_completion events platform-wide"
+    // Used by admin analytics and the leaderboard aggregation pipeline.
+    {
+      key: { source: 1, createdAt: -1 },
+      name: "pointsLog_source_date",
+    },
+    // Task audit: "all point events for a specific task"
+    // Used by the task management panel to show who earned what.
+    {
+      key: { taskId: 1 },
+      sparse: true,
+      name: "pointsLog_taskId",
+    },
+  ]);
+  console.log("✓ pointsLog");
 
   console.log("\n✅ All indexes created.");
 }

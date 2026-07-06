@@ -26,14 +26,15 @@ import { useTaskAdmin } from "@/context/TaskAdminContext";
 import { useToast } from "@/hooks/useToast";
 import type { AssignmentWithMemberInfo } from "@/context/TaskAdminContext";
 
-interface ManualEvaluateSheetProps {
+
+export interface ManualEvaluateSheetProps {
   assignment: AssignmentWithMemberInfo | null;
   maxScore: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-interface CriterionRow {
+export interface CriterionRow {
   criterion: string;
   awarded: string; // string for input control, parsed on submit
   maximum: string;

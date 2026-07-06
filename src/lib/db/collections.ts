@@ -1,4 +1,4 @@
-// lib/db/collections.ts — add institutionDepartments
+// lib/db/collections.ts
 import { Db } from "mongodb";
 import { VaultDocument } from "@/lib/models/vault";
 import { UserDataDocument } from "@/lib/models/UserData";
@@ -14,8 +14,6 @@ import { InstitutionDepartmentDocument } from "@/lib/models/Institutiondepartmen
 import { InviteDocument } from "@/lib/models/invite";
 import { HealthReportDocument } from "@/lib/models/healthReport";
 import { FileDocument } from "@/lib/models/FileDocument";
-import { ReferralLinkDocument } from "@/lib/models/ReferralLink";
-import { ReferralEventDocument } from "@/lib/models/ReferralEvent";
 import type { CurriculumSubmissionDocument } from "@/lib/models/CurriculumSubmission";
 import type {
   CommitteeDocument,
@@ -40,7 +38,16 @@ import type { DbTask, DbAssignment, DbBotActionLog } from "@/lib/db/dbTypes";
 import { IGuestEventRegistrationDocument } from "../models/GuestEventRegistration";
 import { BroadcastMessage } from "@/types/broadcast";
 import { GuestProfileDocument } from "../models/GuestProfile";
+import { PointsLogDocument } from "@/lib/models/PointsLog";
 
+// ─── NOTE: ReferralLink and ReferralEvent collections have been removed. ──────
+// The referral system now uses UserData.signupInviteCode as the universal
+// referral code, UserData.referredBy to record who referred whom, and
+// PointsLog (source: "referral_signup" | "referral_event_reg") as the
+// audit trail. The migration script at
+// src/lib/db/migrations/001_referral_migration.ts transferred existing
+// referral data before these collections were dropped.
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const Collections = {
   vault: (db: Db) => db.collection<VaultDocument>("vault"),
@@ -62,10 +69,6 @@ export const Collections = {
   healthReports: (db: Db) =>
     db.collection<HealthReportDocument>("healthReports"),
   files: (db: Db) => db.collection<FileDocument>("files"),
-  referralLinks: (db: Db) =>
-    db.collection<ReferralLinkDocument>("referralLinks"),
-  referralEvents: (db: Db) =>
-    db.collection<ReferralEventDocument>("referralEvents"),
   curriculumSubmissions: (db: Db) =>
     db.collection<CurriculumSubmissionDocument>("curriculumSubmissions"),
   committees: (db: Db) => db.collection<CommitteeDocument>("committees"),
@@ -100,4 +103,9 @@ export const Collections = {
   broadcasts: (db: Db) => db.collection<BroadcastMessage>("broadcasts"),
   guestProfiles: (db: Db) =>
     db.collection<GuestProfileDocument>("guestProfiles"),
+
+  // ── Points ledger ─────────────────────────────────────────────────────────
+  // Append-only. Never update or delete documents in this collection.
+  // All writes go through src/lib/services/pointsService.ts exclusively.
+  pointsLog: (db: Db) => db.collection<PointsLogDocument>("pointsLog"),
 };

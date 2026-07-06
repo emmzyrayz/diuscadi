@@ -1,775 +1,456 @@
 "use client";
+// src/components/sections/committees/TaskManagementPanel.tsx
+// Phase 6 update:
+//   - "Create Task" button routes to /committees/[slug]/tasks/create
+//   - Clicking a task card opens TaskDetailModal (read + edit link)
+//   - Task cards show assignmentStats if available
 
 import React, { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { useUser } from "@/context/UserContext";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetClose,
-} from "@/components/ui/sheet";
-import {
-  LuRefreshCw,
-  LuInbox,
-  LuCircleAlert,
-  LuUsers,
-  LuCircleCheck,
-  LuSend,
+  LuPlus,
   LuLoader,
-  LuRotateCcw,
+  LuRefreshCw,
+  LuCircleAlert,
+  LuInbox,
+  LuChevronLeft,
   LuChevronRight,
-  LuEye,
-  LuPenLine,
-  LuZap,
+  LuClock,
+  LuUsers,
+  LuCoins,
+  LuCheck,
+  LuSend,
+  LuVote,
+  LuClipboardList,
+  LuShieldCheck,
+  LuTriangleAlert,
 } from "react-icons/lu";
-import { useTaskAdmin } from "@/context/TaskAdminContext";
-import { useToast } from "@/hooks/useToast";
-import { ManualEvaluateSheet } from "@/components/sections/tasks/ManualEvaluateSheet";
-import type {
-  AdminEnrichedTask,
-  AssignmentWithMemberInfo,
-} from "@/context/TaskAdminContext";
+import { Button } from "@/components/ui/button";
+import { TaskDetailModal } from "@/components/sections/tasks/admin/TaskDetailModal";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-function formatDate(dateStr: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(dateStr));
+interface TaskItem {
+  _id: string;
+  title: string;
+  description: string;
+  committeeSlug: string;
+  status: string;
+  taskType: string;
+  priority: string;
+  deadline: string;
+  pointsReward: number;
+  tags: string[];
+  assignmentStats?: {
+    total: number;
+    byStatus: Record<string, number>;
+  };
+  createdAt: string;
 }
 
-function deadlineLabel(dateStr: string): {
-  text: string;
-  urgent: boolean;
-  past: boolean;
-} {
-  const diff = new Date(dateStr).getTime() - Date.now();
-  const days = Math.ceil(diff / 86_400_000);
-  const fmt = formatDate(dateStr);
-  if (diff < 0) return { text: `Overdue · ${fmt}`, urgent: false, past: true };
-  if (days <= 1)
-    return { text: `Due Today · ${fmt}`, urgent: true, past: false };
-  if (days <= 3)
-    return { text: `${days}d left · ${fmt}`, urgent: true, past: false };
-  return { text: fmt, urgent: false, past: false };
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
 }
 
-const STATUS_FILTERS = [
-  { value: "active", label: "Active" },
-  { value: "draft", label: "Draft" },
-  { value: "completed", label: "Completed" },
-  { value: "all", label: "All" },
-] as const;
+// ─── Display config ───────────────────────────────────────────────────────────
 
-const PRIORITY_DOT: Record<string, string> = {
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  draft: {
+    label: "Draft",
+    className: "bg-muted text-muted-foreground border-border",
+  },
+  pending_approval: {
+    label: "Pending Approval",
+    className: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+  },
+  active: {
+    label: "Active",
+    className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  },
+  completed: {
+    label: "Completed",
+    className: "bg-primary/10 text-primary border-primary/20",
+  },
+  cancelled: {
+    label: "Cancelled",
+    className: "bg-red-500/10 text-red-500 border-red-500/20",
+  },
+  archived: {
+    label: "Archived",
+    className: "bg-muted text-muted-foreground/60 border-border",
+  },
+};
+
+const TYPE_ICONS: Record<string, React.ElementType> = {
+  submission: LuSend,
+  poll: LuVote,
+  survey: LuClipboardList,
+  acknowledgement: LuShieldCheck,
+};
+
+const PRIORITY_DOTS: Record<string, string> = {
   critical: "bg-red-500",
   high: "bg-orange-500",
   medium: "bg-yellow-500",
   low: "bg-green-500",
 };
 
-// ─── Assignment row ───────────────────────────────────────────────────────────
+const STATUS_FILTERS = [
+  { value: "all", label: "All" },
+  { value: "pending_approval", label: "Pending" },
+  { value: "active", label: "Active" },
+  { value: "draft", label: "Draft" },
+  { value: "completed", label: "Completed" },
+  { value: "archived", label: "Archived" },
+] as const;
 
-interface AssignmentRowProps {
-  a: AssignmentWithMemberInfo;
-  maxScore: number;
-  onRevision: (a: AssignmentWithMemberInfo) => void;
-  onEvaluate: (a: AssignmentWithMemberInfo) => void;
-  revisionLoading: boolean;
-}
-
-function AssignmentRow({
-  a,
-  maxScore,
-  onRevision,
-  onEvaluate,
-  revisionLoading,
-}: AssignmentRowProps) {
-  const canRevise = ["submitted", "under_review", "evaluated"].includes(
-    a.status,
-  );
-  const canEval = ["submitted", "under_review"].includes(a.status);
-  const hasScore = a.evaluation != null;
-
-  return (
-    <div
-      className={cn(
-        "glass-subtle",
-        "rounded-lg",
-        "p-3",
-        "space-y-2",
-        "border",
-        "border-border/30",
-      )}
-    >
-      <div className="flex items-start justify-between gap-3 min-w-0">
-        <div className="min-w-0">
-          <p className="text-xs font-bold text-foreground truncate">
-            {a.memberInfo?.fullName ?? "Unknown member"}
-          </p>
-          <p className="text-[10px] text-muted-foreground/60 truncate">
-            {a.memberInfo?.email}
-          </p>
-        </div>
-
-        <span
-          className={cn(
-            "text-[9px]",
-            "font-mono",
-            "font-bold",
-            "uppercase",
-            "tracking-wider",
-            "px-1.5",
-            "py-0.5",
-            "rounded",
-            "shrink-0",
-            a.status === "evaluated" && "bg-green-500/10 text-green-500",
-            a.status === "submitted" && "bg-primary/10 text-primary",
-            a.status === "under_review" && "bg-yellow-500/10 text-yellow-500",
-            a.status === "revision_requested" &&
-              "bg-orange-500/10 text-orange-500",
-            a.status === "pending" && "bg-foreground/5 text-muted-foreground",
-            a.status === "rejected" && "bg-red-500/10 text-red-500",
-          )}
-        >
-          {a.status.replace("_", " ")}
-        </span>
-      </div>
-
-      {/* Score pill if evaluated */}
-      {hasScore && a.evaluation && (
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "text-[10px]",
-              "font-mono",
-              "font-bold",
-              "px-2",
-              "py-0.5",
-              "rounded-full",
-              a.evaluation.percentageScore >= 70
-                ? "bg-green-500/10 text-green-500"
-                : a.evaluation.percentageScore >= 50
-                  ? "bg-yellow-500/10 text-yellow-500"
-                  : "bg-red-500/10 text-red-500",
-            )}
-          >
-            {a.evaluation.totalScore}/{maxScore} ·{" "}
-            {a.evaluation.percentageScore.toFixed(0)}%
-          </span>
-          {a.evaluation.flaggedForHumanReview && (
-            <span className="text-[9px] font-mono text-yellow-500">
-              ⚑ Flagged
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Submission date */}
-      {a.submission?.submittedAt && (
-        <p className="text-[10px] font-mono text-muted-foreground/40">
-          Submitted {formatDate(a.submission.submittedAt)}
-        </p>
-      )}
-
-      {/* Revision history count */}
-      {a.revisionHistory.length > 0 && (
-        <p className="text-[10px] text-muted-foreground/40">
-          {a.revisionHistory.length} revision
-          {a.revisionHistory.length > 1 ? "s" : ""} requested
-        </p>
-      )}
-
-      {/* Action buttons */}
-      {(canRevise || canEval) && (
-        <div className="flex gap-2 pt-1">
-          {canEval && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 flex-1 text-[10px] font-bold uppercase tracking-wider"
-              onClick={() => onEvaluate(a)}
-            >
-              <LuPenLine className="w-3 h-3 mr-1" /> Evaluate
-            </Button>
-          )}
-          {canRevise && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 flex-1 text-[10px] font-bold uppercase tracking-wider text-orange-500 hover:bg-orange-500/5"
-              onClick={() => onRevision(a)}
-              disabled={revisionLoading}
-            >
-              {revisionLoading ? (
-                <LuLoader className="w-3 h-3 animate-spin" />
-              ) : (
-                <>
-                  <LuRotateCcw className="w-3 h-3 mr-1" /> Request Revision
-                </>
-              )}
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Admin task card ──────────────────────────────────────────────────────────
-
-interface AdminTaskCardProps {
-  task: AdminEnrichedTask;
-  onViewSubmissions: (task: AdminEnrichedTask) => void;
-  onActivate: (task: AdminEnrichedTask) => void;
-  activatingId: string | null;
-}
-
-function AdminTaskCard({
-  task,
-  onViewSubmissions,
-  onActivate,
-  activatingId,
-}: AdminTaskCardProps) {
-  const s = task.assignmentStats;
-  const dl = deadlineLabel(task.deadline);
-  const isActivating = activatingId === task._id;
-
-  return (
-    <div
-      className={cn(
-        "glass-subtle",
-        "rounded-xl",
-        "border",
-        "border-border/40",
-        "p-4",
-        "space-y-3",
-        "hover:border-primary/15",
-        "transition-all",
-        "duration-200",
-      )}
-    >
-      {/* Title row */}
-      <div className="flex items-start gap-3 min-w-0">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span
-              className={cn(
-                "w-2 h-2 rounded-full shrink-0",
-                PRIORITY_DOT[task.priority] ?? "bg-gray-400",
-              )}
-            />
-            <h4 className="text-sm font-bold text-foreground truncate">
-              {task.title}
-            </h4>
-          </div>
-          <p className="text-xs text-muted-foreground line-clamp-1 break-words pl-4">
-            {task.description}
-          </p>
-        </div>
-        <span
-          className={cn(
-            "text-[9px]",
-            "font-mono",
-            "font-bold",
-            "uppercase",
-            "tracking-wider",
-            "px-2",
-            "py-0.5",
-            "rounded",
-            "shrink-0",
-            task.status === "active" && "bg-green-500/10 text-green-500",
-            task.status === "draft" && "bg-foreground/5 text-muted-foreground",
-            task.status === "completed" && "bg-blue-500/10 text-blue-500",
-            task.status === "archived" &&
-              "bg-foreground/5 text-muted-foreground/40",
-            task.status === "cancelled" && "bg-red-500/10 text-red-500",
-          )}
-        >
-          {task.status}
-        </span>
-      </div>
-
-      {/* Stats row */}
-      {s.total > 0 && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <span
-            className={cn(
-              "flex",
-              "items-center",
-              "gap-1",
-              "text-[10px]",
-              "font-mono",
-              "text-muted-foreground/60",
-            )}
-          >
-            <LuUsers className="w-3 h-3" /> {s.total} assigned
-          </span>
-          {s.submitted > 0 && (
-            <span className="flex items-center gap-1 text-[10px] font-mono text-primary">
-              <LuSend className="w-3 h-3" /> {s.submitted} submitted
-            </span>
-          )}
-          {s.evaluated > 0 && (
-            <span className="flex items-center gap-1 text-[10px] font-mono text-green-500">
-              <LuCircleCheck className="w-3 h-3" /> {s.evaluated} evaluated
-            </span>
-          )}
-          {s.under_review > 0 && (
-            <span className="flex items-center gap-1 text-[10px] font-mono text-yellow-500">
-              <LuLoader className="w-3 h-3" /> {s.under_review} in review
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Deadline */}
-      <p
-        className={cn(
-          "text-[10px]",
-          "font-mono",
-          dl.past
-            ? "text-red-500"
-            : dl.urgent
-              ? "text-orange-500"
-              : "text-muted-foreground/50",
-        )}
-      >
-        ⏱ {dl.text}
-      </p>
-
-      {/* Actions */}
-      <div className="flex gap-2 pt-1 border-t border-border/20">
-        {task.status === "draft" && (
-          <Button
-            size="sm"
-            className="h-7 flex-1 text-[10px] font-bold uppercase tracking-wider"
-            onClick={() => onActivate(task)}
-            disabled={isActivating}
-          >
-            {isActivating ? (
-              <>
-                <LuLoader className="w-3 h-3 mr-1 animate-spin" /> Activating…
-              </>
-            ) : (
-              <>
-                <LuZap className="w-3 h-3 mr-1" /> Activate
-              </>
-            )}
-          </Button>
-        )}
-
-        {task.status === "active" && s.total > 0 && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 flex-1 text-[10px] font-bold uppercase tracking-wider"
-            onClick={() => onViewSubmissions(task)}
-          >
-            <LuEye className="w-3 h-3 mr-1" />
-            View Submissions
-            <LuChevronRight className="w-3 h-3 ml-auto" />
-          </Button>
-        )}
-
-        {task.status === "active" && s.total === 0 && (
-          <p className="text-[10px] text-muted-foreground/40 font-mono py-1">
-            No assignments spawned yet
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Main panel ───────────────────────────────────────────────────────────────
+// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface TaskManagementPanelProps {
   committeeSlug: string;
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export function TaskManagementPanel({
   committeeSlug,
 }: TaskManagementPanelProps) {
-  const {
-    adminTasks,
-    adminTasksLoading,
-    adminTasksError,
-    adminStatusFilter,
-    viewingTask,
-    taskAssignments,
-    taskAssignmentsLoading,
-    taskAssignmentsError,
-    loadAdminTasks,
-    refreshAdminTasks,
-    setAdminStatusFilter,
-    updateTaskStatus,
-    loadTaskAssignments,
-    closeTaskAssignments,
-    requestRevision,
-  } = useTaskAdmin();
-  const { toast } = useToast();
+  const { token } = useAuth();
+  const { profile, effectiveRole } = useUser();
+  const router = useRouter();
 
-  const [activatingId, setActivatingId] = useState<string | null>(null);
-  const [revisionTarget, setRevisionTarget] =
-    useState<AssignmentWithMemberInfo | null>(null);
-  const [revisionReason, setRevisionReason] = useState("");
-  const [revisionLoading, setRevisionLoading] = useState(false);
-  const [evaluateTarget, setEvaluateTarget] =
-    useState<AssignmentWithMemberInfo | null>(null);
-  const [evalSheetOpen, setEvalSheetOpen] = useState(false);
-  const [submissionsOpen, setSubmissionsOpen] = useState(false);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // ── Mount: load tasks for this committee ──────────────────────────────────
+  // ── Detail modal state ────────────────────────────────────────────────────
+  const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  // ── Permission check ───────────────────────────────────────────────────────
+  const canCreateTask =
+    profile?.membershipStatus === "approved" &&
+    ["HEAD", "COORDINATOR"].includes(effectiveRole ?? "");
+
+  // ── Fetch tasks ────────────────────────────────────────────────────────────
+
+  const fetchTasks = useCallback(
+    async (status: string, page: number) => {
+      if (!token) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({
+          status,
+          page: String(page),
+          committee: committeeSlug,
+        });
+        const res = await fetch(`/api/admin/tasks?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Failed to load tasks");
+        setTasks(data.tasks ?? []);
+        setPagination(data.pagination ?? null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load tasks");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token, committeeSlug],
+  );
+
   useEffect(() => {
-    loadAdminTasks({ committeeSlug, status: "active" });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [committeeSlug]);
+    fetchTasks(statusFilter, currentPage);
+  }, [fetchTasks, statusFilter, currentPage]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
+  const handleFilterChange = (status: string) => {
+    setStatusFilter(status);
+    setCurrentPage(1);
+  };
 
-  const handleFilterChange = useCallback(
-    (status: string) => {
-      setAdminStatusFilter(status);
-      loadAdminTasks({ committeeSlug, status });
-    },
-    [committeeSlug, loadAdminTasks, setAdminStatusFilter],
-  );
+  const handleTaskClick = (task: TaskItem) => {
+    setSelectedTask(task);
+    setModalOpen(true);
+  };
 
-  const handleActivate = useCallback(
-    async (task: AdminEnrichedTask) => {
-      setActivatingId(task._id);
-      const result = await updateTaskStatus(task._id, "active");
-      setActivatingId(null);
-      if (result.success) {
-        toast({
-          title: "Task Activated",
-          description: `${task.title} is now live.`,
-          variant: "success",
-        });
-      } else {
-        toast({
-          title: "Activation Failed",
-          description: result.error,
-          variant: "destructive",
-        });
-      }
-    },
-    [updateTaskStatus, toast],
-  );
-
-  const handleViewSubmissions = useCallback(
-    async (task: AdminEnrichedTask) => {
-      await loadTaskAssignments(task);
-      setSubmissionsOpen(true);
-    },
-    [loadTaskAssignments],
-  );
-
-  const handleRequestRevision = useCallback(
-    async (a: AssignmentWithMemberInfo) => {
-      if (!revisionReason.trim()) return;
-      setRevisionLoading(true);
-      const result = await requestRevision(a._id, revisionReason);
-      setRevisionLoading(false);
-      if (result.success) {
-        setRevisionTarget(null);
-        setRevisionReason("");
-        toast({
-          title: "Revision Requested",
-          description: `${a.memberInfo?.fullName} will resubmit.`,
-          variant: "success",
-        });
-      } else {
-        toast({
-          title: "Failed",
-          description: result.error,
-          variant: "destructive",
-        });
-      }
-    },
-    [revisionReason, requestRevision, toast],
-  );
-
-  const handleEvaluateClick = useCallback((a: AssignmentWithMemberInfo) => {
-    setEvaluateTarget(a);
-    setEvalSheetOpen(true);
-  }, []);
+  const pendingCount = tasks.filter(
+    (t) => t.status === "pending_approval",
+  ).length;
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4 w-full min-w-0">
-      {/* ── Filter row ────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1 flex-wrap">
-          {STATUS_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => handleFilterChange(f.value)}
-              className={cn(
-                "text-[10px]",
-                "font-mono",
-                "font-bold",
-                "uppercase",
-                "tracking-wider",
-                "px-2.5",
-                "py-1",
-                "rounded-md",
-                "transition-all",
-                "duration-150",
-                adminStatusFilter === f.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-foreground/5 text-muted-foreground hover:bg-foreground/10",
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
+    <div className="space-y-5 w-full">
+      {/* ── Header row ──────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="text-sm font-black text-foreground uppercase tracking-tight">
+            Committee Tasks
+          </h3>
+          {pagination && (
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+              {pagination.total} task{pagination.total !== 1 ? "s" : ""}
+            </p>
+          )}
         </div>
 
-        <button
-          onClick={refreshAdminTasks}
-          disabled={adminTasksLoading}
-          className={cn(
-            "p-1.5",
-            "rounded-md",
-            "text-muted-foreground/50",
-            "hover:text-muted-foreground",
-            "hover:bg-foreground/5",
-            "transition-all",
-            "duration-150",
-            adminTasksLoading && "animate-spin pointer-events-none",
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => fetchTasks(statusFilter, currentPage)}
+            disabled={loading}
+            className={cn(
+              "p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-all",
+              loading && "animate-spin pointer-events-none",
+            )}
+          >
+            <LuRefreshCw className="w-3.5 h-3.5" />
+          </button>
+
+          {canCreateTask && (
+            <Button
+              size="sm"
+              onClick={() =>
+                router.push(`/committees/${committeeSlug}/tasks/create`)
+              }
+              className="h-8 text-[10px] font-black uppercase tracking-widest"
+            >
+              <LuPlus className="w-3.5 h-3.5 mr-1.5" />
+              Create Task
+            </Button>
           )}
-          aria-label="Refresh"
-        >
-          <LuRefreshCw className="w-3.5 h-3.5" />
-        </button>
+        </div>
       </div>
 
-      {/* ── Error ─────────────────────────────────────────────────────────── */}
-      {adminTasksError && !adminTasksLoading && (
-        <div
-          className={cn(
-            "flex",
-            "items-center",
-            "gap-2",
-            "p-3",
-            "rounded-lg",
-            "bg-red-500/8",
-            "border",
-            "border-red-500/20",
-          )}
-        >
-          <LuCircleAlert className="w-4 h-4 text-red-500 shrink-0" />
-          <p className="text-xs text-red-500 flex-1">{adminTasksError}</p>
+      {/* ── Pending approval banner ──────────────────────────────────────────── */}
+      {pendingCount > 0 && statusFilter === "all" && (
+        <div className="flex items-center gap-2 p-3 bg-amber-500/5 border border-amber-500/15 rounded-xl">
+          <LuTriangleAlert className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <p className="text-[11px] text-amber-600 font-bold flex-1">
+            {pendingCount} task{pendingCount > 1 ? "s" : ""} awaiting admin
+            approval
+          </p>
           <button
-            onClick={refreshAdminTasks}
-            className="text-[10px] font-mono font-bold text-red-500 underline underline-offset-2"
+            onClick={() => handleFilterChange("pending_approval")}
+            className="text-[9px] font-black text-amber-600 uppercase tracking-widest underline underline-offset-2"
+          >
+            Filter
+          </button>
+        </div>
+      )}
+
+      {/* ── Status filters ───────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {STATUS_FILTERS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => handleFilterChange(f.value)}
+            className={cn(
+              "text-[9px] font-mono font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg transition-all",
+              statusFilter === f.value
+                ? "bg-primary text-primary-foreground"
+                : "bg-foreground/5 text-muted-foreground hover:bg-foreground/10",
+            )}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Error ────────────────────────────────────────────────────────────── */}
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-500/8 border border-red-500/20 rounded-xl">
+          <LuCircleAlert className="w-4 h-4 text-red-500 shrink-0" />
+          <p className="text-xs text-red-500 flex-1">{error}</p>
+          <button
+            onClick={() => fetchTasks(statusFilter, currentPage)}
+            className="text-[9px] font-black text-red-500 underline"
           >
             Retry
           </button>
         </div>
       )}
 
-      {/* ── Skeletons ─────────────────────────────────────────────────────── */}
-      {adminTasksLoading && (
-        <div className="space-y-3">
+      {/* ── Loading ───────────────────────────────────────────────────────────── */}
+      {loading && (
+        <div className="space-y-2">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className={cn(
-                "glass-subtle",
-                "rounded-xl",
-                "border",
-                "border-border/30",
-                "p-4",
-                "space-y-3",
-                "animate-pulse",
-              )}
-            >
-              <div className="h-4 bg-foreground/8 rounded w-2/3" />
-              <div className="h-3 bg-foreground/5 rounded w-full" />
-              <div className="h-3 bg-foreground/5 rounded w-1/3" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Empty state ───────────────────────────────────────────────────── */}
-      {!adminTasksLoading && !adminTasksError && adminTasks.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
-          <LuInbox className="w-9 h-9 text-muted-foreground/20" />
-          <div>
-            <p className="text-sm font-bold text-muted-foreground/50">
-              No tasks yet
-            </p>
-            <p className="text-[11px] text-muted-foreground/35 mt-0.5">
-              Create a task using the form above to get started.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Task cards ────────────────────────────────────────────────────── */}
-      {!adminTasksLoading && adminTasks.length > 0 && (
-        <div className="space-y-3">
-          {adminTasks.map((task) => (
-            <AdminTaskCard
-              key={task._id}
-              task={task}
-              onViewSubmissions={handleViewSubmissions}
-              onActivate={handleActivate}
-              activatingId={activatingId}
+              className="h-20 bg-foreground/5 rounded-xl animate-pulse"
             />
           ))}
         </div>
       )}
 
-      {/* ── Task submissions sheet ────────────────────────────────────────── */}
-      <Sheet
-        open={submissionsOpen}
-        onOpenChange={(v) => {
-          setSubmissionsOpen(v);
-          if (!v) closeTaskAssignments();
-        }}
-      >
-        <SheetContent
-          side="right"
-          className="w-full sm:max-w-lg overflow-y-auto flex flex-col gap-0 p-0"
-        >
-          <SheetHeader className="p-6 pb-4 border-b border-border space-y-1">
-            <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-muted-foreground">
-              Submissions
-            </span>
-            <SheetTitle className="text-sm font-black uppercase tracking-tight">
-              {viewingTask?.title}
-            </SheetTitle>
-          </SheetHeader>
+      {/* ── Empty ────────────────────────────────────────────────────────────── */}
+      {!loading && !error && tasks.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-14 gap-3 text-center border border-dashed border-border rounded-2xl">
+          <LuInbox className="w-8 h-8 text-muted-foreground/20" />
+          <p className="text-xs font-bold text-muted-foreground/50">
+            No {statusFilter !== "all" ? statusFilter : ""} tasks
+          </p>
+          {canCreateTask && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                router.push(`/committees/${committeeSlug}/tasks/create`)
+              }
+              className="h-8 text-[10px] font-black uppercase tracking-widest mt-1"
+            >
+              <LuPlus className="w-3 h-3 mr-1.5" />
+              Create First Task
+            </Button>
+          )}
+        </div>
+      )}
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-3">
-            {taskAssignmentsLoading && (
-              <div className="flex items-center justify-center py-10 gap-2">
-                <LuLoader className="w-5 h-5 animate-spin text-primary" />
-                <span className="text-sm text-muted-foreground">
-                  Loading submissions…
-                </span>
-              </div>
-            )}
+      {/* ── Task cards ───────────────────────────────────────────────────────── */}
+      {!loading && tasks.length > 0 && (
+        <div className="space-y-2">
+          {tasks.map((task) => {
+            const statusCfg = STATUS_CONFIG[task.status] ?? STATUS_CONFIG.draft;
+            const TypeIcon = TYPE_ICONS[task.taskType] ?? LuSend;
+            const priorityDot =
+              PRIORITY_DOTS[task.priority] ?? PRIORITY_DOTS.medium;
+            const isOverdue = new Date(task.deadline) < new Date();
+            const stats = task.assignmentStats ?? {
+              total: 0,
+              byStatus: {},
+            };
+            const evaluated = stats.byStatus["evaluated"] ?? 0;
+            const isPending = task.status === "pending_approval";
 
-            {taskAssignmentsError && !taskAssignmentsLoading && (
-              <div
+            return (
+              <button
+                key={task._id}
+                type="button"
+                onClick={() => handleTaskClick(task)}
                 className={cn(
-                  "p-3",
-                  "rounded-lg",
-                  "bg-red-500/8",
-                  "border",
-                  "border-red-500/20",
-                  "text-xs",
-                  "text-red-500",
+                  "w-full flex items-center gap-4 p-4 bg-background border-2 rounded-xl text-left transition-all hover:border-foreground/20 cursor-pointer",
+                  isPending
+                    ? "border-amber-500/25 bg-amber-500/[0.02]"
+                    : "border-border",
                 )}
               >
-                {taskAssignmentsError}
-              </div>
-            )}
+                {/* Type icon */}
+                <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                  <TypeIcon className="w-4 h-4 text-muted-foreground" />
+                </div>
 
-            {!taskAssignmentsLoading && taskAssignments.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-10">
-                No submissions yet.
-              </p>
-            )}
-
-            {!taskAssignmentsLoading &&
-              taskAssignments.map((a) => (
-                <div key={a._id}>
-                  {revisionTarget?._id === a._id ? (
-                    // Inline revision reason form
+                {/* Main info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
                     <div
                       className={cn(
-                        "glass-subtle",
-                        "rounded-lg",
-                        "p-3",
-                        "space-y-2",
-                        "border",
-                        "border-orange-500/20",
+                        "w-1.5 h-1.5 rounded-full shrink-0",
+                        priorityDot,
+                      )}
+                    />
+                    <p className="text-[11px] font-black text-foreground truncate">
+                      {task.title}
+                    </p>
+                    <span
+                      className={cn(
+                        "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border",
+                        statusCfg.className,
                       )}
                     >
-                      <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-orange-500">
-                        Revision Reason — {a.memberInfo?.fullName}
-                      </p>
-                      <textarea
-                        className="w-full text-xs p-2 rounded-md bg-foreground/5 border border-border/30 resize-none focus:outline-none focus:ring-1 focus:ring-orange-500/30 min-h-[80px]"
-                        placeholder="Describe what the member should fix or improve…"
-                        value={revisionReason}
-                        onChange={(e) => setRevisionReason(e.target.value)}
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 flex-1 text-[10px]"
-                          onClick={() => {
-                            setRevisionTarget(null);
-                            setRevisionReason("");
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="h-7 flex-1 text-[10px] font-bold uppercase tracking-wider bg-orange-500 hover:bg-orange-600"
-                          onClick={() => handleRequestRevision(a)}
-                          disabled={revisionLoading || !revisionReason.trim()}
-                        >
-                          {revisionLoading ? (
-                            <LuLoader className="w-3 h-3 animate-spin" />
-                          ) : (
-                            "Confirm"
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <AssignmentRow
-                      a={a}
-                      maxScore={viewingTask?.maxScore ?? 100}
-                      onRevision={(a) => {
-                        setRevisionTarget(a);
-                        setRevisionReason("");
-                      }}
-                      onEvaluate={handleEvaluateClick}
-                      revisionLoading={
-                        revisionLoading && revisionTarget?._id === a._id
-                      }
-                    />
-                  )}
+                      {statusCfg.label}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span
+                      className={cn(
+                        "flex items-center gap-1 text-[9px] font-mono",
+                        isOverdue ? "text-red-500" : "text-muted-foreground/60",
+                      )}
+                    >
+                      <LuClock className="w-2.5 h-2.5" />
+                      {new Date(task.deadline).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+
+                    {task.pointsReward > 0 && (
+                      <span className="flex items-center gap-1 text-[9px] font-mono text-primary">
+                        <LuCoins className="w-2.5 h-2.5" />
+                        {task.pointsReward}pts
+                      </span>
+                    )}
+
+                    {stats.total > 0 && (
+                      <span className="flex items-center gap-1 text-[9px] font-mono text-muted-foreground/60">
+                        <LuUsers className="w-2.5 h-2.5" />
+                        {evaluated}/{stats.total}
+                      </span>
+                    )}
+
+                    {isPending && (
+                      <span className="flex items-center gap-1 text-[9px] font-bold text-amber-500">
+                        <LuTriangleAlert className="w-2.5 h-2.5" />
+                        Awaiting approval
+                      </span>
+                    )}
+                  </div>
                 </div>
-              ))}
-          </div>
 
-          <div className="p-4 border-t border-border">
-            <SheetClose asChild>
-              <Button
-                variant="ghost"
-                className="w-full h-9 text-[11px] font-bold uppercase tracking-wider"
-              >
-                Close
-              </Button>
-            </SheetClose>
-          </div>
-        </SheetContent>
-      </Sheet>
+                {/* Chevron hint */}
+                <LuCheck className="w-3.5 h-3.5 text-muted-foreground/20 shrink-0" />
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      {/* ── Manual evaluate sheet ─────────────────────────────────────────── */}
-      <ManualEvaluateSheet
-        assignment={evaluateTarget}
-        maxScore={viewingTask?.maxScore ?? 100}
-        open={evalSheetOpen}
-        onOpenChange={setEvalSheetOpen}
+      {/* ── Pagination ───────────────────────────────────────────────────────── */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between pt-3 border-t border-border/30">
+          <span className="text-[9px] font-mono text-muted-foreground/40">
+            Page {pagination.page} of {pagination.totalPages}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              disabled={!pagination.hasPrev || loading}
+              onClick={() => setCurrentPage((p) => p - 1)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg border border-border disabled:opacity-30 hover:bg-foreground/5 transition-all"
+            >
+              <LuChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              disabled={!pagination.hasNext || loading}
+              onClick={() => setCurrentPage((p) => p + 1)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg border border-border disabled:opacity-30 hover:bg-foreground/5 transition-all"
+            >
+              <LuChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Task detail modal ─────────────────────────────────────────────────── */}
+      <TaskDetailModal
+        task={selectedTask}
+        open={modalOpen}
+        onOpenChange={(open) => {
+          setModalOpen(open);
+          if (!open) setSelectedTask(null);
+        }}
       />
     </div>
   );

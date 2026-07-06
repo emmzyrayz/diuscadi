@@ -23,6 +23,8 @@ import {
   LuChartBar,
   LuMail,
   LuActivity,
+  LuTrophy,
+  LuCoins,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -50,6 +52,7 @@ const MEMBER_LINKS = [
   { name: "Tickets", href: "/tickets" },
   { name: "Profile", href: "/profile" },
   { name: "Apply", href: "/profile/applications" },
+  { name: "Leaderboard", href: "/leaderboard" },
   { name: "Landing Page", href: "/" },
   { name: "About", href: "/about" },
   { name: "Gallery", href: "/gallery" },
@@ -112,6 +115,7 @@ const LINK_ICONS: Record<string, React.ElementType> = {
   "/events": LuCalendar,
   "/tickets": LuTicket,
   "/profile": LuUser,
+  "/leaderboard": LuTrophy,
   "/profile/applications": LuFileText,
   "/settings": LuSettings,
   "/admin": LuLayoutDashboard,
@@ -202,6 +206,10 @@ export default function Navbar() {
   const inlineLinksMd = allLinks.slice(0, VISIBLE_AT_MD);
   const overflowLinks = allLinks.slice(VISIBLE_AT_MD); // shown in dropdown on md
   const overflowLinksLg = allLinks.slice(VISIBLE_AT_LG); // shown in dropdown on lg+
+
+  // Points — may be absent on older sessions before Phase 5 hydration
+  const currentPoints = user?.points?.current ?? 0;
+  const lifetimePoints = user?.points?.lifetime ?? 0;
 
   function isActive(href: string) {
     if (href === "/" || href === "/home") return pathname === href;
@@ -389,6 +397,22 @@ export default function Navbar() {
                                 : `${(user.fullName as { firstname?: string }).firstname ?? ""}`
                               : "My Account"}
                           </p>
+                          <p className="text-muted-foreground text-xs">
+                            {user?.email}
+                          </p>
+                          {(lifetimePoints > 0 || currentPoints > 0) && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-[10px] font-mono font-bold text-primary">
+                                {lifetimePoints.toLocaleString()} career pts
+                              </p>
+                              <span className="text-muted-foreground/30 text-[10px]">
+                                ·
+                              </span>
+                              <p className="text-[10px] font-mono text-muted-foreground">
+                                {currentPoints.toLocaleString()} current
+                              </p>
+                            </div>
+                          )}
                           <p className="text-[9px] text-muted-foreground mt-0.5 capitalize">
                             {role ?? "member"} ·{" "}
                             {mode === "console" ? "Console" : "Main Site"}
@@ -407,6 +431,18 @@ export default function Navbar() {
                         <UserMenuItem
                           icon={LuTicket}
                           label="My Tickets"
+                          href="/tickets"
+                          onClick={() => setUserMenuOpen(false)}
+                        />
+                        <UserMenuItem
+                          icon={LuCoins}
+                          label="Career Points"
+                          href="/profile/points"
+                          onClick={() => setUserMenuOpen(false)}
+                        />
+                        <UserMenuItem
+                          icon={LuTrophy}
+                          label="leaderboard"
                           href="/tickets"
                           onClick={() => setUserMenuOpen(false)}
                         />

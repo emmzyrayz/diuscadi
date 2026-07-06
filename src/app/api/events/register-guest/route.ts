@@ -1,3 +1,4 @@
+// src/app/api/events/register-guest/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
@@ -9,48 +10,13 @@ import {
   sendGuestConfirmationWithAccountEmail,
   sendEventRegistrationEmail,
 } from "@/lib/sendEmail";
+import { creditReferralPoints } from "@/lib/services/pointsService";
 import type { IGuestEventRegistration } from "@/lib/models/GuestEventRegistration";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/events/register-guest
-//
-// Public endpoint — no auth required.
-//
-//   1. Validate input fields and ObjectIds
-//   2. Validate the event (published, not expired, deadline not passed)
-//   3. Validate the ticket type (active, within availability window)
-//   4. NEW — Check if email belongs to an existing Vault account:
-//        a. No account exists                → proceed as normal guest
-//        b. Account exists, ALREADY registered for this event (real ticket)
-//             → do NOT create a guest registration. Fire a reminder email
-//               to the resolve the registration with their account
-//             → return { alreadyRegistered: true } — no ticket data exposed
-//               to an unauthenticated form submission
-//        c. Account exists, NOT yet registered for this event
-//             → proceed as guest registration, but stamp matchedUserId so
-//               the warm-migrate flow can fold this in later, and send a
-//               combined "ticket + you have an account" email
-//   5. Guard: existing GUEST registration for this email+event → return
-//      existing data directly (bypasses OTP — unchanged from before)
-//   6. Capacity checks (event + ticket tier)
-//   7. Referral code validation
-//   8. Generate unique inviteCode
-//   9. NEW — find-or-create GuestProfile, link via guestProfileId
-//  10. Save guest record (verifiedAt set immediately — no OTP)
-//  11. NEW — send the appropriate confirmation email (fire-and-forget):
-//        - matchedUserId set  → combined ticket + existing-account email
-//        - no match           → standard guest confirmation email
-//      (Previously NO email fired at all in the bypassed flow — this was a
-//      gap inherited from the bypass, fixed here since we're already
-//      touching this logic.)
-//  12. Respond — client jumps straight to step 3
-// ─────────────────────────────────────────────────────────────────────────────
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export async function POST(req: NextRequest) {
   try {
-    // ── 0. Parse body ────────────────────────────────────────────────────────
     const body = await req.json();
     const {
       eventId,
@@ -121,7 +87,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Connect to DB ────────────────────────────────────────────────────────
     const db = await getDb();
     const eventObjId = new ObjectId(eventId!);
     const ticketObjId = new ObjectId(ticketTypeId!);
@@ -186,8 +151,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 7. NEW — Resolve Vault account match + branch ────────────────────────
-    // Step 7a: does ANY account exist for this email at all?
+    // ── 7. Resolve Vault account match + branch ──────────────────────────────
     let matchedUserId: ObjectId | undefined;
 
     const existingVault = await Collections.vault(db).findOne(
@@ -204,7 +168,6 @@ export async function POST(req: NextRequest) {
       if (matchedUserData) {
         const matchedUserDataId = matchedUserData._id as ObjectId;
 
-        // Step 7b: does that account ALREADY have a real ticket for THIS event?
         const existingAccountReg = await Collections.eventRegistrations(
           db,
         ).findOne(
@@ -217,9 +180,6 @@ export async function POST(req: NextRequest) {
         );
 
         if (existingAccountReg) {
-          // ── Branch B: already has a real ticket — do NOT create a guest
-          // registration, do NOT expose ticket data to this unauthenticated
-          // form. Fire a reminder email instead. ──────────────────────────
           void (async () => {
             try {
               const userData = await Collections.userData(db).findOne(
@@ -265,7 +225,7 @@ export async function POST(req: NextRequest) {
                 eventTitle: String(event.title),
                 eventDate: eventDateFormatted,
                 eventLocation,
-                ticketCode: "", // not needed — ticketUrl is the source of truth
+                ticketCode: "",
                 isFree,
                 ticketPrice: isFree
                   ? undefined
@@ -294,13 +254,11 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // ── Branch C: account exists, not yet registered for this event —
-        // proceed as a guest registration, but flag it for later merge. ────
         matchedUserId = matchedUserDataId;
       }
     }
 
-    // ── 8. Guard: existing GUEST registration (unchanged bypass logic) ───────
+    // ── 8. Guard: existing GUEST registration ─────────────────────────────────
     const existingGuest = await Collections.guestEventRegistrations(db).findOne(
       {
         email: emailLower,
@@ -313,8 +271,6 @@ export async function POST(req: NextRequest) {
     );
 
     if (existingGuest) {
-      // Defensive backfill — in case this record predates the GuestProfile
-      // migration and the backfill script hasn't run yet in this environment.
       if (!existingGuest.guestProfileId) {
         const profile = await findOrCreateGuestProfile(db, {
           email: emailLower,
@@ -345,7 +301,6 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Stale pending record (legacy, pre-bypass) — verify it in-place
       await Collections.guestEventRegistrations(db).updateOne(
         { _id: existingGuest._id },
         {
@@ -368,7 +323,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 9. Total event capacity check (account + guest combined) ─────────────
+    // ── 9. Total event capacity check ─────────────────────────────────────────
     const [accountCount, guestCount] = await Promise.all([
       Collections.eventRegistrations(db).countDocuments({
         eventId: eventObjId,
@@ -387,7 +342,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 10. Ticket-tier capacity check (account + guest combined) ────────────
+    // ── 10. Ticket-tier capacity check ────────────────────────────────────────
     const [tierAccountCount, tierGuestCount] = await Promise.all([
       Collections.eventRegistrations(db).countDocuments({
         eventId: eventObjId,
@@ -408,12 +363,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 11. Validate referral code (optional) ─────────────────────────────────
+    // ── 11. Validate referral code + resolve referrer ─────────────────────────
+    let referrerUserDataId: ObjectId | null = null;
+
     if (referralCodeUsed) {
       const [referrerAccount, referrerGuest] = await Promise.all([
         Collections.eventRegistrations(db).findOne(
           { inviteCode: referralCodeUsed, eventId: eventObjId },
-          { projection: { _id: 1 } },
+          { projection: { _id: 1, userId: 1 } },
         ),
         Collections.guestEventRegistrations(db).findOne(
           { inviteCode: referralCodeUsed, eventId: eventObjId },
@@ -427,9 +384,29 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
+
+      // Only credit a registered account referrer (guests earn on migration).
+      if (referrerAccount?.userId) {
+        referrerUserDataId = referrerAccount.userId as ObjectId;
+      }
     }
 
-    // ── 12. Generate unique inviteCode (up to 5 attempts) ─────────────────────
+    // ── 12. Resolve referral discount ─────────────────────────────────────────
+    let discountedPrice: number | undefined;
+
+    if (referralCodeUsed && referrerUserDataId) {
+      const basePrice = ticketType.price as number | undefined;
+      if (basePrice && basePrice > 0) {
+        const discountConfig = await Collections.platformConfig(db).findOne(
+          { key: "referralDiscountPercent" },
+          { projection: { value: 1 } },
+        );
+        const discountPct = (discountConfig?.value as number | undefined) ?? 10;
+        discountedPrice = Math.round(basePrice * (1 - discountPct / 100));
+      }
+    }
+
+    // ── 13. Generate unique inviteCode ────────────────────────────────────────
     let inviteCode = "";
 
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -459,7 +436,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 13. NEW — find-or-create GuestProfile ─────────────────────────────────
+    // ── 14. Find-or-create GuestProfile ──────────────────────────────────────
     const guestProfile = await findOrCreateGuestProfile(db, {
       email: emailLower,
       firstname: firstName!.trim(),
@@ -467,7 +444,7 @@ export async function POST(req: NextRequest) {
       ...(phone && { phone }),
     });
 
-    // ── 14. Save guest record — verifiedAt set immediately (no OTP) ───────────
+    // ── 15. Save guest record ─────────────────────────────────────────────────
     const guestDoc: Omit<IGuestEventRegistration, "_id"> = {
       fullName: {
         firstname: firstName!.trim(),
@@ -477,7 +454,8 @@ export async function POST(req: NextRequest) {
       ...(phone && { phone }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       guestProfileId: guestProfile._id as any,
-      ...(matchedUserId && { matchedUserId: matchedUserId as any }), // eslint-disable-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...(matchedUserId && { matchedUserId: matchedUserId as any }),
       eventId: eventObjId,
       ticketTypeId: ticketObjId,
       inviteCode,
@@ -500,9 +478,41 @@ export async function POST(req: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ).insertOne(guestDoc as any);
 
-    // ── 15. NEW — send the appropriate confirmation email (fire-and-forget) ──
-    // Previously NO email fired here at all (bypass gap) — fixed as part of
-    // this rewrite since the matched-account branching needed this logic anyway.
+    // ── 16. Fire referral event reward (fire-and-forget) ──────────────────────
+    // Credit the referrer if a valid account referrer was found.
+    if (referralCodeUsed && referrerUserDataId) {
+      void (async () => {
+        try {
+          const bonusConfig = await Collections.platformConfig(db).findOne(
+            { key: "referralBonusPoints" },
+            { projection: { value: 1 } },
+          );
+          const bonusAmount = (bonusConfig?.value as number | undefined) ?? 50;
+
+          // For guest registrations we credit the direct event referrer only
+          // (depth 1). Full chain credits happen on account creation/migration.
+          await creditReferralPoints({
+            db,
+            recipientUserId: referrerUserDataId,
+            // Use the insertedId as a proxy for the referee — guest has no
+            // userData._id yet; we store the guestEventRegistration _id here
+            // and the idempotency guard still works correctly.
+            refereeUserId: insertedId,
+            depth: 1,
+            amount: bonusAmount,
+            source: "referral_event_reg",
+            eventDate: now,
+          });
+        } catch (err) {
+          console.error(
+            "[register-guest] Referral event reward failed (non-fatal):",
+            err,
+          );
+        }
+      })();
+    }
+
+    // ── 17. Send confirmation email (fire-and-forget) ─────────────────────────
     void (async () => {
       try {
         const eventDateFormatted = new Date(event.eventDate).toLocaleDateString(
@@ -547,13 +557,13 @@ export async function POST(req: NextRequest) {
         })();
 
         const price = ticketType.price as number | undefined;
-        const isFree = !price || price === 0;
+        const effectivePrice = discountedPrice ?? price;
+        const isFree = !effectivePrice || effectivePrice === 0;
         const ticketPrice = isFree
           ? undefined
-          : `₦${price.toLocaleString("en-NG")}`;
+          : `₦${effectivePrice!.toLocaleString("en-NG")}`;
 
         if (matchedUserId) {
-          // ── Branch C email: combined ticket + "you have an account" ──────
           await sendGuestConfirmationWithAccountEmail({
             to: emailLower,
             ticketId: insertedId.toString(),
@@ -569,7 +579,6 @@ export async function POST(req: NextRequest) {
             forgotPasswordUrl: `${APP_URL}/auth/forgot-password?email=${encodeURIComponent(emailLower)}`,
           });
         } else {
-          // ── Standard guest confirmation ───────────────────────────────────
           await sendGuestConfirmationEmail({
             to: emailLower,
             ticketId: insertedId.toString(),
@@ -592,11 +601,11 @@ export async function POST(req: NextRequest) {
       }
     })();
 
-    // ── 16. Respond — client jumps straight to step 3 ─────────────────────────
     return NextResponse.json(
       {
         registrationId: insertedId.toString(),
         inviteCode,
+        ...(discountedPrice !== undefined && { discountedPrice }),
       },
       { status: 201 },
     );

@@ -15,6 +15,7 @@ export const ROUTE_MANIFEST: RouteConfig[] = [
   { path: "/tickets", authRequired: true },
   { path: "/home", authRequired: true },
   { path: "/events", authRequired: true },
+  { path: "/leaderboard", authRequired: true },
   { path: "/users", authRequired: true },
   { path: "/auth", authRequired: false, redirect: "/home" }, // Redirect if already logged in
 ];

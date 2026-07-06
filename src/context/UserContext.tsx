@@ -1,5 +1,7 @@
 "use client";
-// context/UserContext.tsx
+// src/context/UserContext.tsx
+// Unified Phase 5 Hydration: Retains all original methods, locations, & preferences
+// while integrating the points and referral schema additions safely.
 
 import React, {
   createContext,
@@ -22,7 +24,21 @@ import type {
 import { DEFAULT_PREFERENCES } from "@/types/domain";
 import type { CloudinaryImage } from "@/types/cloudinary";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Sub-types ────────────────────────────────────────────────────────────────
+
+export interface UserPoints {
+  current: number;
+  lifetime: number;
+  lastCreditedAt?: string | null;
+}
+
+export interface UserReferralMeta {
+  directCount: number;
+  indirectCount: number;
+  totalEarned: number;
+  treeDepthReached: number;
+  lastReferralAt?: string | null;
+}
 
 export interface Institution {
   institutionId?: string;
@@ -46,7 +62,6 @@ export interface Institution {
   cgpaScale?: number;
 }
 
-// ── Location — matches UserData.ts UserLocation interface ─────────────────────
 export interface UserLocation {
   country?: string;
   state?: string;
@@ -57,6 +72,16 @@ export interface UserLocation {
   rawState?: string;
   rawCity?: string;
 }
+
+export interface TemporaryAssignment {
+  committee: string;
+  role: string;
+  endsAt: string;
+  originalCommittee: string | null;
+  originalRole: string | null;
+}
+
+// ─── UserProfile ──────────────────────────────────────────────────────────────
 
 export interface UserProfile {
   id: string;
@@ -74,10 +99,11 @@ export interface UserProfile {
     portfolio?: string;
   };
   committeeMembership: CommitteeMembership | null;
+  temporaryAssignment?: TemporaryAssignment;
   skills: Skill[];
   profileCompleted: boolean;
   membershipStatus: "pending" | "approved" | "suspended";
-  location?: UserLocation; // ← now uses full UserLocation type
+  location?: UserLocation;
   Institution?: Institution;
   profile?: { bio?: string };
   analytics: {
@@ -87,7 +113,13 @@ export interface UserProfile {
     lastActiveAt?: string;
   };
   signupInviteCode: string;
+  referredBy?: string | null; // invite code of the user who referred this user
   preferences: UserPreferences;
+
+  // ── Phase 5 additions ──
+  points?: UserPoints;
+  referralMeta?: UserReferralMeta;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -97,30 +129,32 @@ export interface UpdateResult {
   error?: string;
 }
 
-// ─── Context type ─────────────────────────────────────────────────────────────
+// ─── Context Type ─────────────────────────────────────────────────────────────
 
 interface UserContextType {
   profile: UserProfile | null;
-  isLoading: boolean;
+  isLoading: boolean; // Retained original loading key name
   error: string | null;
-
   refreshProfile: () => Promise<void>;
+  updateProfileLocal: (patch: Partial<UserProfile>) => void;
   updateProfile: (data: {
     fullName?: { firstname: string; secondname?: string; lastname: string };
     bio?: string;
     phone?: PhoneNumber;
-    location?: UserLocation; // ← ADDED
-     socials?: {           // ✅ add this
-    linkedin?: string;
-    github?: string;
-    twitter?: string;
-    portfolio?: string;
-  };
+    location?: UserLocation;
+    socials?: {
+      linkedin?: string;
+      github?: string;
+      twitter?: string;
+      portfolio?: string;
+    };
   }) => Promise<UpdateResult>;
   updateInstitution: (data: Partial<Institution>) => Promise<UpdateResult>;
   updateSkills: (skills: Skill[]) => Promise<UpdateResult>;
   updateCommittee: (committee: Committee | null) => Promise<UpdateResult>;
   updatePreferences: (prefs: Partial<UserPreferences>) => Promise<UpdateResult>;
+  effectiveCommittee: string | null;
+  effectiveRole: string | null;
   clearError: () => void;
 }
 
@@ -128,7 +162,7 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Token Helpers ────────────────────────────────────────────────────────────
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -155,7 +189,12 @@ function parseFullName(raw: unknown): UserProfile["fullName"] {
   return { firstname: String(raw ?? ""), lastname: "" };
 }
 
+// ─── Safe Profile Parser Engine ───────────────────────────────────────────────
+
 function parseProfile(raw: Record<string, unknown>): UserProfile {
+  const rawPoints = raw.points as Record<string, unknown> | undefined;
+  const rawRef = raw.referralMeta as Record<string, unknown> | undefined;
+
   return {
     id: String(raw._id ?? ""),
     fullName: parseFullName(raw.fullName),
@@ -180,8 +219,35 @@ function parseProfile(raw: Record<string, unknown>): UserProfile {
       eventsAttended: 0,
     }) as UserProfile["analytics"],
     signupInviteCode: String(raw.signupInviteCode ?? ""),
+    referredBy: (raw.referredBy as string | null | undefined) ?? null,
+
+    // Crucial fix: Ensures layout contexts don't drop user configuration
     preferences:
       (raw.preferences as UserPreferences | undefined) ?? DEFAULT_PREFERENCES,
+
+    // Phase 5 Payload Hydration
+    points: rawPoints
+      ? {
+          current: Number(rawPoints.current ?? 0),
+          lifetime: Number(rawPoints.lifetime ?? 0),
+          lastCreditedAt: rawPoints.lastCreditedAt
+            ? String(rawPoints.lastCreditedAt)
+            : null,
+        }
+      : undefined,
+
+    referralMeta: rawRef
+      ? {
+          directCount: Number(rawRef.directCount ?? 0),
+          indirectCount: Number(rawRef.indirectCount ?? 0),
+          totalEarned: Number(rawRef.totalEarned ?? 0),
+          treeDepthReached: Number(rawRef.treeDepthReached ?? 0),
+          lastReferralAt: rawRef.lastReferralAt
+            ? String(rawRef.lastReferralAt)
+            : null,
+        }
+      : undefined,
+
     createdAt: String(raw.createdAt ?? ""),
     updatedAt: String(raw.updatedAt ?? ""),
   };
@@ -192,9 +258,9 @@ async function callPatch(
   body: Record<string, unknown>,
   setProfile: React.Dispatch<React.SetStateAction<UserProfile | null>>,
   setError: React.Dispatch<React.SetStateAction<string | null>>,
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
 ): Promise<UpdateResult> {
-  setLoading(true);
+  setIsLoading(true);
   setError(null);
   try {
     const res = await fetch(endpoint, {
@@ -215,11 +281,11 @@ async function callPatch(
     setError(msg);
     return { success: false, error: msg };
   } finally {
-    setLoading(false);
+    setIsLoading(false);
   }
 }
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+// ─── Provider Component ───────────────────────────────────────────────────────
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const { user, isAuthenticated, sessionStatus } = useAuth();
@@ -228,7 +294,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Seed from AuthContext on login
+  // Seed baseline properties from AuthContext immediately on login
   useEffect(() => {
     if (sessionStatus === "pending") return;
     if (!isAuthenticated || !user) {
@@ -253,13 +319,19 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       profile: undefined,
       analytics: { eventsRegistered: 0, eventsAttended: 0 },
       signupInviteCode: "",
-      preferences: user.preferences,
+      preferences: user.preferences ?? DEFAULT_PREFERENCES,
+      points: user.points
+        ? {
+            lifetime: user.points.lifetime,
+            current: user.points.current ?? 0, // Fallback undefined to 0
+          }
+        : undefined,
       createdAt: "",
       updatedAt: "",
     });
   }, [isAuthenticated, sessionStatus, user]);
 
-  // Full profile fetch on session restore
+  // Handle deep fetching of heavy profiles when sessions complete verification
   const refreshProfile = useCallback(async () => {
     if (!isAuthenticated) return;
     setIsLoading(true);
@@ -282,7 +354,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     refreshProfile();
   }, [sessionStatus, isAuthenticated, refreshProfile]);
 
-  // ── updateProfile — now includes location ─────────────────────────────────
+  // ── Core Domain Update Handlers ─────────────────────────────────────────────
+
   const updateProfile = useCallback(
     (data: {
       fullName?: { firstname: string; secondname?: string; lastname: string };
@@ -373,6 +446,24 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
+   const updateProfileLocal = useCallback((patch: Partial<UserProfile>) => {
+     setProfile((prev) => (prev ? { ...prev, ...patch } : prev));
+   }, []);
+
+  const effectiveCommittee = profile
+    ? ((profile.temporaryAssignment &&
+      new Date(profile.temporaryAssignment.endsAt) > new Date()
+        ? profile.temporaryAssignment.committee
+        : profile.committeeMembership?.committee) ?? null)
+    : null;
+
+  const effectiveRole = profile
+    ? ((profile.temporaryAssignment &&
+      new Date(profile.temporaryAssignment.endsAt) > new Date()
+        ? profile.temporaryAssignment.role
+        : profile.committeeMembership?.role) ?? null)
+    : null;
+
   const clearError = useCallback(() => setError(null), []);
 
   return (
@@ -386,7 +477,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         updateInstitution,
         updateSkills,
         updateCommittee,
+        updateProfileLocal,
         updatePreferences,
+        effectiveCommittee,
+        effectiveRole,
         clearError,
       }}
     >

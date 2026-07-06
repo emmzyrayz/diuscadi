@@ -58,6 +58,12 @@ export interface User {
     lastname: string;
   };
 
+  points?: {
+    lifetime: number;
+    current?: number;
+    // Add current or any other nested fields if they exist in the DB
+  };
+
   // avatar is a CloudinaryImage — never a plain string
   hasAvatar: boolean;
   avatar?: CloudinaryImage;
@@ -183,6 +189,9 @@ function parseUserFromMe(
   vault: Record<string, unknown>,
   userData: Record<string, unknown>,
 ): User {
+  // Safe parsing helper for points block
+  const rawPoints = userData.points as Record<string, unknown> | undefined;
+
   return {
     // ── From Vault ──────────────────────────────────────────────────────────
     id: String(vault._id ?? ""),
@@ -199,6 +208,15 @@ function parseUserFromMe(
     fullName: parseFullName(userData.fullName),
     hasAvatar: Boolean(userData.hasAvatar),
     avatar: userData.avatar as CloudinaryImage | undefined,
+
+    points: rawPoints
+      ? {
+          lifetime: Number(rawPoints.lifetime ?? 0),
+          current:
+            rawPoints.current !== undefined ? Number(rawPoints.current) : 0,
+        }
+      : undefined,
+
     schoolEmail: userData.schoolEmail as string | undefined,
     committeeMembership: (userData.committeeMembership ??
       null) as CommitteeMembership | null,
@@ -360,13 +378,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             firstName: data.firstName,
             lastName: data.lastName,
             secondName: data.secondName,
+            inviteCode: data.inviteCode,
             email: data.email,
             password: data.password,
             eduStatus: data.eduStatus,
             phone: data.phone,
             schoolEmail: data.schoolEmail,
             skills: data.skills,
-            inviteCode: data.inviteCode,
           }),
         });
         router.push(`/auth/verify?email=${encodeURIComponent(data.email)}`);

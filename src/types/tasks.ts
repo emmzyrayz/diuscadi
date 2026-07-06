@@ -1,120 +1,156 @@
 // src/types/tasks.ts
 // ─── Task Management & AI Evaluation — Domain Types ──────────────────────────
-// Follows the same interface-first pattern as src/types/domain.ts
 
 // ─── Enumerations ─────────────────────────────────────────────────────────────
 
 export type TaskStatus =
-  | "draft" // Created by admin/head — not yet visible to members
-  | "active" // Published — assignments auto-spawned or manually assigned
-  | "completed" // All targeted assignments have been evaluated
+  | "draft" // Created — not yet visible to members
+  | "pending_approval" // Global tasks submitted by HEAD/COORDINATOR/MOD;
+  // awaiting webmaster/head-admin sign-off before publish
+  | "active" // Published — assignments spawned, visible to targets
+  | "completed" // All targeted assignments evaluated
   | "cancelled" // Abandoned without evaluation
   | "archived"; // Completed + moved out of the active view
 
-// src/types/tasks.ts
 export type TaskType =
-  | "submission"      // Current system — deliverables + Gemini evaluation
-  | "poll"            // Committee votes on options → majority decision
-  | "survey"          // Structured questions → collected responses
-  | "acknowledgement" // Read and confirm → binary completion
+  | "submission" // Deliverables + Gemini/manual evaluation pipeline.
+  // ONLY task type eligible for time-decay scoring.
+  | "poll" // Committee votes on options → majority decision
+  | "survey" // Structured questions → collected responses
+  | "acknowledgement" // Read and confirm → binary instant completion
+  | "learning"; // External edu platform completion via webhook
+// TODO: implement when PandaAcademy / UniArchive are ready.
 
 export type TaskPriority = "low" | "medium" | "high" | "critical";
 
-// individual: one submission per member
-// group: one shared submission per committee (future-use)
-export type TaskScope = "individual" | "group";
+// ── Task scope ────────────────────────────────────────────────────────────────
+// "committee" — visible only to approved members of the task's committeeSlug.
+//               Created and activated directly by HEAD/COORDINATOR/Admin.
+// "global"    — visible to all approved platform members across committees.
+//               Must pass through "pending_approval" before going active
+//               unless the creator is webmaster/head-admin.
+export type TaskScope = "committee" | "global";
+
+// Assignment grouping (previously named TaskScope before the rename above).
+export type AssignmentGrouping = "individual" | "group";
 
 export type AssignmentStatus =
-  | "pending" // Auto-created on task activation; member not yet started
-  | "in_progress" // Member acknowledged the task
-  | "submitted" // Deliverables submitted; awaiting evaluation
-  | "under_review" // Queued (for Gemini Bot or manual admin queue)
-  | "evaluated" // Score + feedback written
-  | "revision_requested" // Returned with notes; member must resubmit
-  | "rejected"; // Admin/head closed without score
+  | "pending"
+  | "in_progress"
+  | "submitted"
+  | "under_review"
+  | "evaluated"
+  | "revision_requested"
+  | "rejected";
 
-export type EvaluatorType =
-  | "GEMINI_BOT" // Fully automated
-  | "MANUAL" // Human admin / committee head
-  | "HYBRID"; // Gemini pre-scored, human confirmed/overrode
+export type EvaluatorType = "GEMINI_BOT" | "MANUAL" | "HYBRID";
 
-export type BotTrigger =
-  | "AUTO_SUBMIT" // Triggered automatically when member submits
-  | "MANUAL_TRIGGER" // Admin/head manually fires bot on existing submission
-  | "RE_EVALUATE"; // Re-run after criteria change
+export type BotTrigger = "AUTO_SUBMIT" | "MANUAL_TRIGGER" | "RE_EVALUATE";
 
-// Poll config — defined by the task creator
+// ── Poll config ───────────────────────────────────────────────────────────────
+
 export interface PollConfig {
   question: string;
   options: { id: string; label: string }[];
-  allowMultiple: boolean;       // single choice vs multi-select
+  allowMultiple: boolean;
   showResultsBeforeDeadline: boolean;
-  requiresQuorum: boolean;      // minimum % of members must vote for result to be valid
+  requiresQuorum: boolean;
   quorumPercent?: number;
 }
 
-// Survey config — a structured form
+// ── Survey config ─────────────────────────────────────────────────────────────
+
 export interface SurveyQuestion {
   id: string;
   label: string;
-  type: "short_text" | "long_text" | "single_choice" | "multi_choice" | "rating";
-  options?: string[];           // for choice types
+  type:
+    | "short_text"
+    | "long_text"
+    | "single_choice"
+    | "multi_choice"
+    | "rating";
+  options?: string[];
   required: boolean;
 }
 
 export interface SurveyConfig {
   questions: SurveyQuestion[];
-  anonymous: boolean;           // if true, responses aren't linked to userId
+  anonymous: boolean;
+}
+
+// ── Learning task config (scaffold — TODO when edu platforms ready) ───────────
+
+export interface LearningConfig {
+  externalPlatform: "panda_academy" | "uni_archive";
+  externalCourseId: string;
+  webhookSecret?: string;
+  courseUrl?: string;
 }
 
 // ─── Sub-document Shapes ──────────────────────────────────────────────────────
 
 export interface TaskDeliverable {
-  label: string; // e.g. "Design Mockup Link"
-  description?: string; // Helper text shown to member
+  label: string;
+  description?: string;
   type: "text" | "url" | "file_url" | "image_url";
   required: boolean;
   placeholder?: string;
 }
 
 export interface SubmissionItem {
-  deliverableLabel: string; // Must match a TaskDeliverable.label
+  deliverableLabel: string;
   type: "text" | "url" | "file_url" | "image_url";
   value: string;
 }
 
 export interface CriteriaScore {
-  criterion: string; // e.g. "Creativity"
+  criterion: string;
   awarded: number;
   maximum: number;
-  rationale: string; // Gemini's or human's reasoning
+  rationale: string;
 }
 
 export interface EvaluationResult {
   totalScore: number;
   maxScore: number;
-  percentageScore: number; // (totalScore / maxScore) * 100
-  feedback: string; // 2–4 sentence overall feedback
+  percentageScore: number;
+  feedback: string;
   criteriaBreakdown: CriteriaScore[];
-  evaluatorId: string; // Literal "GEMINI_BOT" | ObjectId string of admin
+  evaluatorId: string;
   evaluatorType: EvaluatorType;
   evaluatedAt: Date;
-  flaggedForHumanReview: boolean; // Bot sets this when uncertain
-  reviewNote?: string; // Reason for flagging
+  flaggedForHumanReview: boolean;
+  reviewNote?: string;
+
+  // ── Time-decay scoring snapshot (submission tasks only) ───────────────────
+  // Populated only when the parent task is taskType === "submission" and
+  // pointsReward > 0. Captures the exact inputs and outputs of
+  // calculateSubmissionPoints() at the moment of evaluation — this is the
+  // permanent audit record, frozen even if platformConfig or task settings
+  // change later.
+  pointsAwarded?: {
+    passed: boolean;
+    qualityPoints: number;
+    timeBonusPoints: number;
+    totalPoints: number;
+    timeMultiplier: number;
+    hoursElapsed: number;
+  };
 }
 
 export interface RevisionHistoryEntry {
   requestedAt: Date;
-  requestedBy: string; // Vault ObjectId of admin/head who requested
+  requestedBy: string;
   reason: string;
-  resubmittedAt?: Date; // Populated when member re-submits
+  resubmittedAt?: Date;
 }
 
-// Add to ITask
+// ── Assignment target ─────────────────────────────────────────────────────────
+
 export type AssignmentTarget =
-  | { mode: "broadcast" }                    // all approved members
-  | { mode: "specific"; userIds: string[] }  // named individuals
-  | { mode: "role"; roles: string[] }        // e.g. ["HEAD", "COORDINATOR"]
+  | { mode: "broadcast" }
+  | { mode: "specific"; userIds: string[] }
+  | { mode: "role"; roles: string[] };
 
 // ─── Primary Document Interfaces ─────────────────────────────────────────────
 
@@ -122,54 +158,117 @@ export interface ITask {
   _id: string;
   title: string;
   description: string;
-  committeeSlug: string; // Scoping key — matches CommitteeDocument.slug
-  createdBy: string; // Vault ObjectId of admin / committee HEAD who created
-  // If empty array → task is broadcast to ALL approved members of the committee.
-  // If populated → task is targeted to specific UserData ObjectIds only.
-  assignmentTarget: AssignmentTarget;
+  committeeSlug: string;
+  createdBy: string;
   scope: TaskScope;
+  assignmentTarget: AssignmentTarget;
   priority: TaskPriority;
   priorityWeight: number;
   status: TaskStatus;
   deadline: Date;
   taskType: TaskType;
-  pollConfig?: PollConfig; // only present when taskType === "poll"
-  surveyConfig?: SurveyConfig; // only present when taskType === "survey"
+
+  // Set the moment the task transitions to "active" (publish time).
+  // This is the clock-start for time-decay scoring — NOT createdAt.
+  // Remains undefined while status is "draft" or "pending_approval".
+  publishedAt?: Date;
+
+  pollConfig?: PollConfig;
+  surveyConfig?: SurveyConfig;
+  learningConfig?: LearningConfig;
+
+  // submission-specific
   deliverables: TaskDeliverable[];
+  maxScore: number;
+  autoEvaluate: boolean;
+  evaluationCriteria: string;
+
+  // ── Points + time-decay configuration (submission tasks) ──────────────────
+  // pointsReward — total possible points for completing this task.
+  //   Used by ALL task types, not just submission (a poll might pay 5pts flat).
+  // qualityWeight + timeWeight — must sum to 100. Only meaningful when
+  //   taskType === "submission". For all other task types these are ignored
+  //   and the full pointsReward is paid flat on completion.
+  // decayBaseHours — duration in hours of the first (full-multiplier) time
+  //   bracket. Only meaningful for submission tasks. Default 4.
+  // passThresholdPercent — minimum evaluationPercentage required to earn ANY
+  //   points (quality or time). Only meaningful for submission tasks.
+  //   Default 50.
+  pointsReward: number;
+  qualityWeight?: number; // 0-100, submission tasks only
+  timeWeight?: number; // 0-100, submission tasks only
+  decayBaseHours?: number; // hours, submission/instant tasks, default 4
+  passThresholdPercent?: number; // 0-100, submission tasks only, default 50
+
+  // ── Instant-complete lateness config (poll, survey, acknowledgement) ──────
+  // acceptResponsesAfterDeadline — if false, the submit route hard-rejects
+  //   any response attempted after task.deadline with a 422. If true, late
+  //   responses are accepted but pointsEarned decays per
+  //   calculateInstantTaskPoints() in timeDecayService.ts.
+  // latenessStretchFactor — 0-1, default 0.5. Dampens hoursPastDeadline
+  //   before it's fed into the same bracket decay curve submission tasks
+  //   use. A value of 0.5 means a 24h-late response is treated as if it
+  //   were 12h late. No floor — sufficiently late responses can still earn 0.
+  // Both fields are ignored for taskType === "submission" (which has its
+  // own publishedAt-anchored decay via qualityWeight/timeWeight instead).
+  acceptResponsesAfterDeadline?: boolean; // default false
+  latenessStretchFactor?: number; // 0-1, default 0.5
+
   tags: string[];
-  maxScore: number; // Ceiling for scoring (default 100)
-  autoEvaluate: boolean; // If true → trigger Gemini Bot on submit
-  evaluationCriteria: string; // Natural language criteria — fed verbatim to Gemini
-  isVisible: boolean; // Can be hidden from members without cancelling
+  isVisible: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface IAssignment {
   _id: string;
-  taskId: string; // Task ObjectId
-  userId: string; // UserData ObjectId of the assigned member
-  committeeSlug: string; // Denormalised — avoids join when listing per committee
+  taskId: string;
+  userId: string;
+  committeeSlug: string;
   status: AssignmentStatus;
   submission?: {
     items: SubmissionItem[];
     submittedAt: Date;
     additionalNotes?: string;
   };
+
+  // ── Instant-complete response payloads ──────────────────────────────────
+  // Only one of these is ever populated per assignment, matching the parent
+  // task's taskType. All three share the same lateness-decay points
+  // calculation via calculateInstantTaskPoints() — the result is snapshotted
+  // into instantPointsResult at the moment of response, same pattern as
+  // submission tasks snapshot pointsAwarded into evaluation.
+  pollResponse?: PollResponse;
+  surveyResponse?: SurveyResponse;
+  // acknowledgement has no payload beyond the timestamp itself — the act of
+  // confirming IS the response. Stored as a bare Date for clarity.
+  acknowledgedAt?: Date;
+
+  // Snapshot of the lateness decay calculation at response time. Populated
+  // for poll/survey/acknowledgement tasks with pointsReward > 0. Frozen
+  // permanently once written — never recalculated, even if task config
+  // changes later.
+  instantPointsResult?: {
+    accepted: boolean;
+    pointsEarned: number;
+    isLate: boolean;
+    hoursPastDeadline: number;
+    effectiveHoursPastDeadline: number;
+    timeMultiplier: number;
+  };
+
   evaluation?: EvaluationResult;
   revisionHistory: RevisionHistoryEntry[];
-  overriddenDeadline?: Date; // Per-assignment deadline set by admin
+  overriddenDeadline?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Replaces SubmissionItem for polls
 export interface PollResponse {
   selectedOptionIds: string[];
   votedAt: Date;
 }
 
-// Replaces SubmissionItem for surveys  
 export interface SurveyResponse {
   answers: { questionId: string; value: string | string[] }[];
   submittedAt: Date;
@@ -177,25 +276,25 @@ export interface SurveyResponse {
 
 export interface IBotActionLog {
   _id: string;
-  assignmentId: string; // Assignment ObjectId
-  taskId: string; // Task ObjectId (denormalised)
-  userId: string; // UserData ObjectId (denormalised)
+  assignmentId: string;
+  taskId: string;
+  userId: string;
   committeeSlug: string;
   trigger: BotTrigger;
   inputPayload: {
-    submissionText: string; // Flattened submission fed to Gemini
-    evaluationCriteria: string; // Criteria snapshot at time of evaluation
+    submissionText: string;
+    evaluationCriteria: string;
     taskTitle: string;
     taskDescription: string;
     maxScore: number;
   };
-  rawGeminiResponse: string; // Unparsed string from Gemini — kept for audit
+  rawGeminiResponse: string;
   parsedResult?: Partial<EvaluationResult>;
   tokensUsed?: number;
   processingMs: number;
-  modelVersion: string; // e.g. "gemini-1.5-flash"
+  modelVersion: string;
   success: boolean;
-  errorMessage?: string; // Populated on parse failure or API error
+  errorMessage?: string;
   createdAt: Date;
 }
 
@@ -205,18 +304,31 @@ export interface CreateTaskPayload {
   title: string;
   description: string;
   committeeSlug: string;
-  taskType?: TaskType; // ← add
-  assignmentTarget?: AssignmentTarget; // ← replaces specificAssignees
   scope?: TaskScope;
+  taskType?: TaskType;
+  assignmentTarget?: AssignmentTarget;
   priority?: TaskPriority;
   deadline: string;
-  pollConfig?: PollConfig; // ← add
-  surveyConfig?: SurveyConfig; // ← add
+  pollConfig?: PollConfig;
+  surveyConfig?: SurveyConfig;
+  learningConfig?: LearningConfig;
   deliverables?: TaskDeliverable[];
   tags?: string[];
   maxScore?: number;
   autoEvaluate?: boolean;
   evaluationCriteria?: string;
+
+  // ── Points + decay config (submission tasks) ───────────────────────────────
+  pointsReward?: number;
+  qualityWeight?: number;
+  timeWeight?: number;
+  decayBaseHours?: number;
+  passThresholdPercent?: number;
+
+  // ── Instant-complete lateness config (poll, survey, acknowledgement) ──────
+  acceptResponsesAfterDeadline?: boolean;
+  latenessStretchFactor?: number;
+
   publishImmediately?: boolean;
 }
 
@@ -230,7 +342,6 @@ export interface BotEvaluatePayload {
   trigger?: BotTrigger;
 }
 
-// Shape that Gemini must return — used for JSON.parse validation
 export interface GeminiEvaluationResponse {
   totalScore: number;
   percentageScore: number;

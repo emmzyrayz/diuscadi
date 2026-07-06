@@ -11,6 +11,8 @@ import {
   LuTicket,
   LuSettings,
   LuCheck,
+  LuCoins,
+  LuTrophy,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -35,7 +37,6 @@ export const ProfileSidebar = ({
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  // Build display string from structured fullName object
   const displayName = [
     profile.fullName.firstname,
     profile.fullName.secondname,
@@ -44,10 +45,13 @@ export const ProfileSidebar = ({
     .filter(Boolean)
     .join(" ");
 
-  // Extract image URL from CloudinaryImage for <Image src>
   const avatarUrl = profile.hasAvatar
     ? (profile.avatar?.imageUrl ?? null)
     : null;
+
+  // Points — may be absent on older sessions before Phase 5 hydration
+  const currentPoints = profile.points?.current ?? 0;
+  const lifetimePoints = profile.points?.lifetime ?? 0;
 
   const menuItems = [
     {
@@ -63,6 +67,12 @@ export const ProfileSidebar = ({
       active: false,
     },
     { label: "My Tickets", icon: LuTicket, href: "/tickets", active: false },
+    {
+      label: "Career Points",
+      icon: LuCoins,
+      href: "/profile/points",
+      active: false,
+    },
     { label: "Settings", icon: LuSettings, href: "/settings", active: false },
   ];
 
@@ -112,7 +122,6 @@ export const ProfileSidebar = ({
               )}
             </motion.div>
 
-            {/* Edit avatar button */}
             <motion.button
               whileHover={{ scale: 1.1, rotate: 5 }}
               whileTap={{ scale: 0.95 }}
@@ -133,7 +142,7 @@ export const ProfileSidebar = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="space-y-1 mb-6"
+            className="space-y-1 mb-4"
           >
             <h2 className="text-xl font-black text-foreground tracking-tight">
               {displayName}
@@ -142,6 +151,11 @@ export const ProfileSidebar = ({
               <LuMail className="w-3.5 h-3.5" />
               {profile.email}
             </p>
+            {lifetimePoints > 0 && (
+              <p className="text-[10px] font-mono font-bold text-primary mt-1">
+                {lifetimePoints.toLocaleString()} career pts
+              </p>
+            )}
           </motion.div>
 
           {/* Membership status badge */}
@@ -151,7 +165,7 @@ export const ProfileSidebar = ({
             transition={{ delay: 0.4 }}
             className={cn(
               "w-full py-3 bg-muted rounded-2xl border border-border",
-              "flex items-center justify-center gap-2",
+              "flex items-center justify-center gap-2 mb-4",
             )}
           >
             <motion.div
@@ -166,6 +180,48 @@ export const ProfileSidebar = ({
               Member
             </span>
           </motion.div>
+
+          {/* ── Points balance strip (Phase 5) ────────────────────────────── */}
+          {/* Only shown once the user has any lifetime points or the field
+              exists — avoids showing "0 pts" to brand-new users who haven't
+              earned anything yet and might find it discouraging. */}
+          {lifetimePoints > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
+              className="w-full"
+            >
+              <Link
+                href="/profile/points"
+                className={cn(
+                  "w-full flex items-center justify-between px-4 py-3",
+                  "bg-primary/5 hover:bg-primary/10 border border-primary/15",
+                  "rounded-2xl transition-all group",
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <LuCoins className="w-4 h-4 text-primary" />
+                  <div className="text-left">
+                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
+                      Current Balance
+                    </p>
+                    <p className="text-sm font-black text-primary">
+                      {currentPoints.toLocaleString()} pts
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
+                    Career Score
+                  </p>
+                  <p className="text-sm font-black text-foreground">
+                    {lifetimePoints.toLocaleString()}
+                  </p>
+                </div>
+              </Link>
+            </motion.div>
+          )}
         </div>
       </motion.div>
 
@@ -245,6 +301,33 @@ export const ProfileSidebar = ({
           />
         </motion.div>
       )}
+
+      {/* ── Leaderboard shortcut ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.25 }}
+      >
+        <Link
+          href="/leaderboard"
+          className={cn(
+            "flex items-center gap-3 px-6 py-4 rounded-2xl",
+            "bg-amber-500/5 border border-amber-500/15",
+            "hover:bg-amber-500/10 transition-all group",
+          )}
+        >
+          <LuTrophy className="w-4 h-4 text-amber-500 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-black text-foreground uppercase tracking-wide">
+              Leaderboard
+            </p>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+              See where you rank platform-wide
+            </p>
+          </div>
+          <LuTrophy className="w-3.5 h-3.5 text-amber-500/40 group-hover:text-amber-500 transition-colors" />
+        </Link>
+      </motion.div>
 
       {/* ── Nav menu ── */}
       <motion.nav

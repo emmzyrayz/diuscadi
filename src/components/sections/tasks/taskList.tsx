@@ -13,6 +13,9 @@ import {
 import { useTasks, type EnrichedTask } from "@/context/TaskContext";
 import { TaskCard } from "./TaskCard";
 import { SubmissionSheet, type SheetMode } from "./submissionSheet";
+import { PollResponseSheet } from "./PollResponseSheet";
+import { SurveyResponseSheet } from "./SurveyResponseSheet";
+import { AcknowledgementSheet } from "./AcknowledgementSheet";
 
 // ─── Status filter config ─────────────────────────────────────────────────────
 
@@ -24,7 +27,6 @@ const STATUS_FILTERS = [
 ] as const;
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
-// No Skeleton component confirmed — built inline following the glass-subtle pattern
 
 function TaskSkeleton() {
   return (
@@ -39,21 +41,21 @@ function TaskSkeleton() {
         "animate-pulse",
       )}
     >
-      <div className="flex items-start gap-3">
-        <div className="flex-1 space-y-2">
-          <div className="h-3.5 bg-foreground/8 rounded-md w-3/4" />
-          <div className="h-3   bg-foreground/5 rounded-md w-full" />
-          <div className="h-3   bg-foreground/5 rounded-md w-2/3" />
+      <div className={cn('flex', 'items-start', 'gap-3')}>
+        <div className={cn('flex-1', 'space-y-2')}>
+          <div className={cn('h-3.5', 'bg-foreground/8', 'rounded-md', 'w-3/4')} />
+          <div className={cn('h-3', 'bg-foreground/5', 'rounded-md', 'w-full')} />
+          <div className={cn('h-3', 'bg-foreground/5', 'rounded-md', 'w-2/3')} />
         </div>
-        <div className="h-5 w-16 bg-foreground/5 rounded-md shrink-0" />
+        <div className={cn('h-5', 'w-16', 'bg-foreground/5', 'rounded-md', 'shrink-0')} />
       </div>
-      <div className="flex gap-3">
-        <div className="h-3 bg-foreground/5 rounded w-24" />
-        <div className="h-3 bg-foreground/5 rounded w-14" />
+      <div className={cn('flex', 'gap-3')}>
+        <div className={cn('h-3', 'bg-foreground/5', 'rounded', 'w-24')} />
+        <div className={cn('h-3', 'bg-foreground/5', 'rounded', 'w-14')} />
       </div>
-      <div className="pt-2 border-t border-border/20 flex items-center justify-between gap-2">
-        <div className="h-3 bg-foreground/5 rounded w-20" />
-        <div className="h-7 bg-foreground/8 rounded-lg w-24" />
+      <div className={cn('pt-2', 'border-t', 'border-border/20', 'flex', 'items-center', 'justify-between', 'gap-2')}>
+        <div className={cn('h-3', 'bg-foreground/5', 'rounded', 'w-20')} />
+        <div className={cn('h-7', 'bg-foreground/8', 'rounded-lg', 'w-24')} />
       </div>
     </div>
   );
@@ -73,15 +75,25 @@ export function TasksList() {
     setActiveStatus,
   } = useTasks();
 
-  // Sheet state
-  const [sheetTask, setSheetTask] = useState<EnrichedTask | null>(null);
-  const [sheetMode, setSheetMode] = useState<SheetMode>("submit");
-  const [sheetOpen, setSheetOpen] = useState(false);
+  // ── Submission sheet state (unchanged from Phase 2/3) ─────────────────────
+  const [submissionTask, setSubmissionTask] = useState<EnrichedTask | null>(
+    null,
+  );
+  const [submissionMode, setSubmissionMode] = useState<SheetMode>("submit");
+  const [submissionOpen, setSubmissionOpen] = useState(false);
 
-  // Load active tasks on mount (Tasks tab is the default)
+  // ── Instant-complete sheet state (Phase 4) ────────────────────────────────
+  // Each sheet manages its own open state so they can't accidentally
+  // open simultaneously. The respondTask reference is shared — only one
+  // sheet renders it at a time, controlled by which open flag is true.
+  const [respondTask, setRespondTask] = useState<EnrichedTask | null>(null);
+  const [pollOpen, setPollOpen] = useState(false);
+  const [surveyOpen, setSurveyOpen] = useState(false);
+  const [ackOpen, setAckOpen] = useState(false);
+
+  // Load active tasks on mount
   useEffect(() => {
     loadTasks("active", 1);
-    // loadTasks is stable (useCallback) and only needs to run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -101,24 +113,44 @@ export function TasksList() {
   );
 
   const handleSubmitClick = useCallback((task: EnrichedTask) => {
-    setSheetTask(task);
-    setSheetMode("submit");
-    setSheetOpen(true);
+    setSubmissionTask(task);
+    setSubmissionMode("submit");
+    setSubmissionOpen(true);
   }, []);
 
   const handleViewClick = useCallback((task: EnrichedTask) => {
-    setSheetTask(task);
-    setSheetMode("view");
-    setSheetOpen(true);
+    setSubmissionTask(task);
+    setSubmissionMode("view");
+    setSubmissionOpen(true);
+  }, []);
+
+  // Phase 4: single entry point for all instant-complete task types.
+  // Inspects task.taskType and opens the correct sheet. The respondTask
+  // reference is set first so the sheet has the task before it opens.
+  const handleRespondClick = useCallback((task: EnrichedTask) => {
+    setRespondTask(task);
+    switch (task.taskType) {
+      case "poll":
+        setPollOpen(true);
+        break;
+      case "survey":
+        setSurveyOpen(true);
+        break;
+      case "acknowledgement":
+        setAckOpen(true);
+        break;
+      default:
+        break;
+    }
   }, []);
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4 w-full min-w-0">
+    <div className={cn('space-y-4', 'w-full', 'min-w-0')}>
       {/* ── Filter + Refresh Row ─────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-3 min-w-0">
-        <div className="flex items-center gap-1 flex-wrap">
+      <div className={cn('flex', 'items-center', 'justify-between', 'gap-3', 'min-w-0')}>
+        <div className={cn('flex', 'items-center', 'gap-1', 'flex-wrap')}>
           {STATUS_FILTERS.map((f) => (
             <button
               key={f.value}
@@ -143,7 +175,7 @@ export function TasksList() {
               {f.value === activeStatus &&
                 pagination &&
                 pagination.total > 0 && (
-                  <span className="ml-1 opacity-60">({pagination.total})</span>
+                  <span className={cn('ml-1', 'opacity-60')}>({pagination.total})</span>
                 )}
             </button>
           ))}
@@ -164,7 +196,7 @@ export function TasksList() {
           )}
           aria-label="Refresh tasks"
         >
-          <LuRefreshCw className="w-3.5 h-3.5" />
+          <LuRefreshCw className={cn('w-3.5', 'h-3.5')} />
         </button>
       </div>
 
@@ -182,11 +214,11 @@ export function TasksList() {
             "border-red-500/20",
           )}
         >
-          <LuCircleAlert className="w-4 h-4 text-red-500 shrink-0" />
-          <p className="text-xs text-red-500 flex-1">{tasksError}</p>
+          <LuCircleAlert className={cn('w-4', 'h-4', 'text-red-500', 'shrink-0')} />
+          <p className={cn('text-xs', 'text-red-500', 'flex-1')}>{tasksError}</p>
           <button
             onClick={refreshTasks}
-            className="text-[10px] font-mono font-bold text-red-500 underline underline-offset-2 shrink-0"
+            className={cn('text-[10px]', 'font-mono', 'font-bold', 'text-red-500', 'underline', 'underline-offset-2', 'shrink-0')}
           >
             Retry
           </button>
@@ -204,13 +236,13 @@ export function TasksList() {
 
       {/* ── Empty state ──────────────────────────────────────────────────── */}
       {!tasksLoading && !tasksError && tasks.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
-          <LuInbox className="w-9 h-9 text-muted-foreground/20" />
+        <div className={cn('flex', 'flex-col', 'items-center', 'justify-center', 'py-14', 'gap-3', 'text-center')}>
+          <LuInbox className={cn('w-9', 'h-9', 'text-muted-foreground/20')} />
           <div>
-            <p className="text-sm font-bold text-muted-foreground/50">
+            <p className={cn('text-sm', 'font-bold', 'text-muted-foreground/50')}>
               No{activeStatus !== "all" ? ` ${activeStatus}` : ""} tasks
             </p>
-            <p className="text-[11px] text-muted-foreground/35 mt-0.5">
+            <p className={cn('text-[11px]', 'text-muted-foreground/35', 'mt-0.5')}>
               Tasks assigned to your committee will appear here.
             </p>
           </div>
@@ -226,6 +258,7 @@ export function TasksList() {
               task={task}
               onSubmit={handleSubmitClick}
               onViewDetails={handleViewClick}
+              onRespond={handleRespondClick}
             />
           ))}
         </div>
@@ -233,40 +266,70 @@ export function TasksList() {
 
       {/* ── Pagination ───────────────────────────────────────────────────── */}
       {!tasksLoading && pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between pt-3 border-t border-border/30">
-          <span className="text-[10px] font-mono text-muted-foreground/40">
+        <div className={cn('flex', 'items-center', 'justify-between', 'pt-3', 'border-t', 'border-border/30')}>
+          <span className={cn('text-[10px]', 'font-mono', 'text-muted-foreground/40')}>
             Page {pagination.page} of {pagination.totalPages} ·{" "}
             {pagination.total} total
           </span>
-          <div className="flex items-center gap-1">
+          <div className={cn('flex', 'items-center', 'gap-1')}>
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 w-7 p-0"
+              className={cn('h-7', 'w-7', 'p-0')}
               disabled={pagination.page <= 1}
               onClick={() => handlePageChange(pagination.page - 1)}
             >
-              <LuChevronLeft className="w-3.5 h-3.5" />
+              <LuChevronLeft className={cn('w-3.5', 'h-3.5')} />
             </Button>
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 w-7 p-0"
+              className={cn('h-7', 'w-7', 'p-0')}
               disabled={pagination.page >= pagination.totalPages}
               onClick={() => handlePageChange(pagination.page + 1)}
             >
-              <LuChevronRight className="w-3.5 h-3.5" />
+              <LuChevronRight className={cn('w-3.5', 'h-3.5')} />
             </Button>
           </div>
         </div>
       )}
 
-      {/* ── Submission Sheet (portal — renders outside card DOM) ─────────── */}
+      {/* ── Submission sheet (portal — renders outside card DOM) ─────────── */}
       <SubmissionSheet
-        task={sheetTask}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        mode={sheetMode}
+        task={submissionTask}
+        open={submissionOpen}
+        onOpenChange={setSubmissionOpen}
+        mode={submissionMode}
+      />
+
+      {/* ── Poll response sheet ───────────────────────────────────────────── */}
+      <PollResponseSheet
+        task={respondTask}
+        open={pollOpen}
+        onOpenChange={(v) => {
+          setPollOpen(v);
+          if (!v) setRespondTask(null);
+        }}
+      />
+
+      {/* ── Survey response sheet ─────────────────────────────────────────── */}
+      <SurveyResponseSheet
+        task={respondTask}
+        open={surveyOpen}
+        onOpenChange={(v) => {
+          setSurveyOpen(v);
+          if (!v) setRespondTask(null);
+        }}
+      />
+
+      {/* ── Acknowledgement sheet ─────────────────────────────────────────── */}
+      <AcknowledgementSheet
+        task={respondTask}
+        open={ackOpen}
+        onOpenChange={(v) => {
+          setAckOpen(v);
+          if (!v) setRespondTask(null);
+        }}
       />
     </div>
   );

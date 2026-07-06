@@ -12,8 +12,6 @@ import type {
 export interface TaskDocument
   extends Omit<ITask, "_id" | "createdBy" | "assignmentTarget">, Document {
   createdBy: Types.ObjectId;
-  // Discriminated union flattened — matches AssignmentTargetSchema exactly.
-  // The TypeScript union lives in ITask (API layer); Mongoose needs a flat shape.
   assignmentTarget: {
     mode: "broadcast" | "specific" | "role";
     userIds: Types.ObjectId[];
@@ -55,8 +53,6 @@ const TaskDeliverableSchema = new Schema<TaskDeliverable>(
   { _id: false },
 );
 
-// AssignmentTarget — discriminated union flattened into one sub-document.
-// mode is the discriminator; userIds and roles are conditionally populated.
 const AssignmentTargetSchema = new Schema(
   {
     mode: {
@@ -64,13 +60,12 @@ const AssignmentTargetSchema = new Schema(
       enum: ["broadcast", "specific", "role"],
       required: true,
     },
-    userIds: [{ type: Schema.Types.ObjectId, ref: "UserData" }], // mode === "specific"
-    roles: [{ type: String }], // mode === "role"
+    userIds: [{ type: Schema.Types.ObjectId, ref: "UserData" }],
+    roles: [{ type: String }],
   },
   { _id: false },
 );
 
-// Poll sub-schemas
 const PollOptionSchema = new Schema(
   {
     id: { type: String, required: true },
@@ -91,7 +86,6 @@ const PollConfigSchema = new Schema<PollConfig>(
   { _id: false },
 );
 
-// Survey sub-schemas
 const SurveyQuestionSchema = new Schema<SurveyQuestion>(
   {
     id: { type: String, required: true },
@@ -148,36 +142,47 @@ const TaskSchema = new Schema<TaskDocument>(
       required: true,
     },
 
-    // ── Replaces specificAssignees ──────────────────────────────────────────
+    // ── Scope ─────────────────────────────────────────────────────────────────
+    // RECONCILED in Phase 3: previously "individual" | "group" (assignment
+    // grouping concept). Now "committee" | "global" (visibility/targeting
+    // concept). The old grouping concept is preserved separately as
+    // AssignmentGrouping in types/tasks.ts but is not yet persisted anywhere
+    // — no schema field currently needs it since every task is effectively
+    // "individual" grouping in practice. If group-submission tasks are built
+    // later, add a separate `assignmentGrouping` field rather than reusing
+    // this one again.
+    scope: {
+      type: String,
+      enum: ["committee", "global"],
+      default: "committee",
+    },
+
     assignmentTarget: {
       type: AssignmentTargetSchema,
       required: true,
       default: () => ({ mode: "broadcast" }),
     },
 
-    scope: {
-      type: String,
-      enum: ["individual", "group"],
-      default: "individual",
-    },
-
-    // ── Task type discriminator ─────────────────────────────────────────────
     taskType: {
       type: String,
-      enum: ["submission", "poll", "survey", "acknowledgement"],
+      enum: ["submission", "poll", "survey", "acknowledgement", "learning"],
       required: true,
       default: "submission",
     },
 
-    // ── Type-specific config (only one will be populated per task) ──────────
     pollConfig: {
       type: PollConfigSchema,
-      default: undefined, // absent unless taskType === "poll"
+      default: undefined,
     },
     surveyConfig: {
       type: SurveyConfigSchema,
-      default: undefined, // absent unless taskType === "survey"
+      default: undefined,
     },
+    // learningConfig intentionally has no Mongoose sub-schema yet — TODO
+    // Phase-7 (or whenever PandaAcademy/UniArchive integration begins).
+    // Task creation currently blocks taskType === "learning" with a 501 at
+    // the route layer, so no documents will ever populate this field via
+    // the normal creation flow until that's implemented.
 
     priority: {
       type: String,
@@ -190,9 +195,21 @@ const TaskSchema = new Schema<TaskDocument>(
       default: 2,
     },
 
+    // ── Status ────────────────────────────────────────────────────────────────
+    // pending_approval added in Phase 3 — global tasks created by non-admins
+    // sit here until a webmaster/head-admin approves via the dedicated
+    // /approve route (or, as a fallback, the generic PATCH route with the
+    // same permission gate enforced).
     status: {
       type: String,
-      enum: ["draft", "active", "completed", "cancelled", "archived"],
+      enum: [
+        "draft",
+        "pending_approval",
+        "active",
+        "completed",
+        "cancelled",
+        "archived",
+      ],
       default: "draft",
     },
 
@@ -201,7 +218,15 @@ const TaskSchema = new Schema<TaskDocument>(
       required: [true, "Deadline is required"],
     },
 
-    // Only populated when taskType === "submission"
+    // ── publishedAt ───────────────────────────────────────────────────────────
+    // Set only on the draft→active or pending_approval→active transition.
+    // This is the clock-start for time-decay scoring — NEVER createdAt.
+    // Absent for draft and pending_approval tasks.
+    publishedAt: {
+      type: Date,
+      default: undefined,
+    },
+
     deliverables: {
       type: [TaskDeliverableSchema],
       default: [],
@@ -209,7 +234,6 @@ const TaskSchema = new Schema<TaskDocument>(
 
     tags: [{ type: String, trim: true, lowercase: true }],
 
-    // Only meaningful when taskType === "submission"
     maxScore: {
       type: Number,
       default: 100,
@@ -218,6 +242,55 @@ const TaskSchema = new Schema<TaskDocument>(
     },
     autoEvaluate: { type: Boolean, default: false },
     evaluationCriteria: { type: String, default: "" },
+
+    // ── Points + time-decay configuration ──────────────────────────────────────
+    // pointsReward applies to every task type. qualityWeight/timeWeight/
+    // decayBaseHours/passThresholdPercent are only meaningful for
+    // taskType === "submission" — left undefined for other types.
+    pointsReward: {
+      type: Number,
+      default: 0,
+      min: [0, "pointsReward cannot be negative"],
+    },
+    qualityWeight: {
+      type: Number,
+      min: [0, "qualityWeight must be between 0 and 100"],
+      max: [100, "qualityWeight must be between 0 and 100"],
+      default: undefined,
+    },
+    timeWeight: {
+      type: Number,
+      min: [0, "timeWeight must be between 0 and 100"],
+      max: [100, "timeWeight must be between 0 and 100"],
+      default: undefined,
+    },
+    decayBaseHours: {
+      type: Number,
+      min: [0.5, "decayBaseHours must be at least 0.5"],
+      default: undefined,
+    },
+    passThresholdPercent: {
+      type: Number,
+      min: [0, "passThresholdPercent must be between 0 and 100"],
+      max: [100, "passThresholdPercent must be between 0 and 100"],
+      default: undefined,
+    },
+
+    // ── Instant-complete lateness config (poll, survey, acknowledgement) ──────
+    // Ignored for taskType === "submission". acceptResponsesAfterDeadline
+    // gates whether the submit route accepts a response at all once
+    // task.deadline has passed. latenessStretchFactor dampens how harshly
+    // a late response's reward decays — see timeDecayService.ts.
+    acceptResponsesAfterDeadline: {
+      type: Boolean,
+      default: false,
+    },
+    latenessStretchFactor: {
+      type: Number,
+      min: [0, "latenessStretchFactor must be between 0 and 1"],
+      max: [1, "latenessStretchFactor must be between 0 and 1"],
+      default: 0.5,
+    },
 
     isVisible: { type: Boolean, default: true },
   },
@@ -236,7 +309,6 @@ function syncPriorityWeight(this: mongoose.Query<unknown, TaskDocument>) {
   }
 }
 
-
 // ─── Pre-save hook — keep priorityWeight in sync with priority ────────────────
 TaskSchema.pre("save", function (this: TaskDocument) {
   this.priorityWeight =
@@ -247,13 +319,32 @@ TaskSchema.pre("findOneAndUpdate", syncPriorityWeight);
 TaskSchema.pre("updateOne", syncPriorityWeight);
 TaskSchema.pre("updateMany", syncPriorityWeight);
 
+// ─── Validation hook — enforce qualityWeight + timeWeight = 100 ───────────────
+// Mirrors validateWeightSplit() in timeDecayService.ts. Duplicated here as a
+// last-line-of-defense schema-level guard in case a document is ever saved
+// through a path that bypasses the route-layer validation (e.g. a future
+// admin bulk-edit script). The route layer remains the primary enforcement
+// point and should always catch this first with a clearer error message.
+TaskSchema.pre("save", function (this: TaskDocument) {
+  if (this.taskType === "submission" && this.pointsReward > 0) {
+    const qw = this.qualityWeight ?? 80;
+    const tw = this.timeWeight ?? 20;
+    if (qw + tw !== 100) {
+      throw new Error(
+        `qualityWeight + timeWeight must equal 100 for submission tasks with points (got ${qw + tw})`,
+      );
+    }
+  }
+});
 
 // ─── Indexes ──────────────────────────────────────────────────────────────────
 TaskSchema.index({ committeeSlug: 1, status: 1, deadline: 1 });
 TaskSchema.index({ createdBy: 1, committeeSlug: 1 });
 TaskSchema.index({ committeeSlug: 1, priority: 1, deadline: 1 });
 TaskSchema.index({ priorityWeight: -1, deadline: 1 });
-TaskSchema.index({ committeeSlug: 1, taskType: 1, status: 1 }); // filter by type
+TaskSchema.index({ committeeSlug: 1, taskType: 1, status: 1 });
+// New for Phase 3: global task approval queue lookup.
+TaskSchema.index({ scope: 1, status: 1 });
 
 // ─── Model Export ─────────────────────────────────────────────────────────────
 const Task: Model<TaskDocument> =

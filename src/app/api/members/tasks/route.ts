@@ -1,12 +1,12 @@
-// src/app/api/members/member/tasks/route.ts
-// ─── GET /api/members/member/tasks ────────────────────────────────────────────────────
+// src/app/api/members/tasks/route.ts
+// ─── GET /api/members/tasks ────────────────────────────────────────────────────
 // Returns tasks for the authenticated member's effective committee,
 // each enriched with that member's own assignment summary.
-//
-// Query params:
-//   status  "active" (default) | "completed" | "cancelled" | "archived" | "all"
-//   page    page number, default 1
-//   limit   items per page, default 20, max 50
+// UPDATED Phase 4: returns pollConfig, surveyConfig, pointsReward,
+// acceptResponsesAfterDeadline, latenessStretchFactor on each task, and
+// adds pollResponseRecorded / surveyResponseRecorded / acknowledgedAtRecorded
+// boolean flags to the assignment enrichment so the TaskCard can render
+// the correct CTA without fetching the full assignment document.
 
 import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
@@ -39,7 +39,6 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     }
 
     // ── 2. Resolve effective committee ────────────────────────────────────────
-    // temporaryAssignment (if active) takes precedence over primary membership
 
     const now = new Date();
     const effectiveSlug: string | null =
@@ -64,9 +63,15 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const skip = (page - 1) * limit;
 
     // ── 4. Build task query ───────────────────────────────────────────────────
+    // Scoped to the member's effective committee OR global tasks (scope: "global")
+    // that are active and visible. Members see both their committee tasks and
+    // any global tasks the platform has published.
 
     const taskQuery: Record<string, unknown> = {
-      committeeSlug: effectiveSlug,
+      $or: [
+        { committeeSlug: effectiveSlug, scope: "committee" },
+        { scope: "global" },
+      ],
       isVisible: true,
     };
     if (statusFilter !== "all") taskQuery.status = statusFilter;
@@ -76,7 +81,6 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const [tasks, total] = await Promise.all([
       Collections.tasks(db)
         .find(taskQuery)
-        // priority DESC (critical first), then deadline ASC (soonest first)
         .sort({ priority: -1, deadline: 1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -110,6 +114,16 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         "evaluation.flaggedForHumanReview": 1,
         overriddenDeadline: 1,
         revisionHistory: 1,
+        // ── Phase 4: instant-complete response presence flags ──────────────
+        // We project only the presence indicator (votedAt / submittedAt /
+        // acknowledgedAt) rather than the full response payload — the card
+        // only needs to know whether the member has already responded, not
+        // what they said. The full response is available via the detail route
+        // if the UI ever needs it.
+        "pollResponse.votedAt": 1,
+        "surveyResponse.submittedAt": 1,
+        acknowledgedAt: 1,
+        instantPointsResult: 1,
       })
       .toArray();
 
@@ -123,8 +137,21 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
     const enriched = tasks.map((task) => {
       const a = assignmentMap.get((task._id as ObjectId).toString()) ?? null;
+
       return {
+        // ── Core task fields ─────────────────────────────────────────────────
         ...task,
+
+        // ── Phase 4: instant-complete task configs ────────────────────────────
+        // Always included regardless of taskType so the client doesn't need
+        // to guess which fields are present. Undefined for irrelevant types.
+        pollConfig: task.pollConfig ?? null,
+        surveyConfig: task.surveyConfig ?? null,
+        pointsReward: task.pointsReward ?? 0,
+        acceptResponsesAfterDeadline: task.acceptResponsesAfterDeadline ?? false,
+        latenessStretchFactor: task.latenessStretchFactor ?? 0.5,
+
+        // ── Assignment summary ────────────────────────────────────────────────
         assignment: a
           ? {
               _id: a._id,
@@ -142,6 +169,18 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
                 a.evaluation?.flaggedForHumanReview ?? false,
               effectiveDeadline: a.overriddenDeadline ?? task.deadline,
               revisionsRequested: (a.revisionHistory ?? []).length,
+
+              // ── Phase 4: instant-complete response flags ───────────────────
+              // Boolean presence indicators — the sheet renders the "already
+              // responded" state based on these, never on assignment.status
+              // alone (since "evaluated" is also the final status for
+              // submission tasks after scoring).
+              pollResponseRecorded: !!a.pollResponse?.votedAt,
+              surveyResponseRecorded: !!a.surveyResponse?.submittedAt,
+              acknowledgedAtRecorded: !!a.acknowledgedAt,
+
+              // Lateness decay snapshot for the card's points-earned display.
+              instantPointsResult: a.instantPointsResult ?? null,
             }
           : null,
       };

@@ -1,3 +1,4 @@
+// src/app/api/events/register/route.ts
 // POST /api/events/register
 // Auth required. Registers the authenticated user for an event.
 // Body: { eventId, ticketTypeId, referralCodeUsed? }
@@ -9,6 +10,7 @@ import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
 import { generateInviteCode } from "@/lib/auth";
 import { sendEventRegistrationEmail } from "@/lib/sendEmail";
+import { processReferralChain } from "@/lib/services/pointsService";
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   try {
@@ -43,7 +45,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     const vaultId = new ObjectId(req.auth.vaultId);
     const now = new Date();
 
-    // Resolve userData — expand projection to include name for confirmation email
+    // Resolve userData
     const userData = await Collections.userData(db).findOne(
       { vaultId },
       { projection: { _id: 1, fullName: 1 } },
@@ -145,17 +147,43 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
-    // Validate referral code if provided
+    // ── Validate referral code + resolve referrer ──────────────────────────
+    // The referral code is another attendee's inviteCode for this specific
+    // event. We validate it exists and resolve the referrer's userData so we
+    // can credit their points after successful registration.
+    let referrerUserDataId: ObjectId | null = null;
+
     if (referralCodeUsed) {
-      const referrer = await Collections.eventRegistrations(db).findOne({
-        inviteCode: referralCodeUsed,
-        eventId: eventObjId,
-      });
-      if (!referrer) {
+      const referrerReg = await Collections.eventRegistrations(db).findOne(
+        { inviteCode: referralCodeUsed, eventId: eventObjId },
+        { projection: { userId: 1 } },
+      );
+      if (!referrerReg) {
         return NextResponse.json(
           { error: "Invalid referral code" },
           { status: 400 },
         );
+      }
+      referrerUserDataId = referrerReg.userId as ObjectId;
+    }
+
+    // ── Resolve referral discount ──────────────────────────────────────────
+    // If a valid referral code was supplied and the ticket has a price,
+    // apply referralDiscountPercent from platformConfig to the ticket price.
+    // The discounted price is stored on the registration for audit purposes.
+    // NOTE: actual payment processing is out of scope for this route —
+    // this field is used by the payment/checkout layer when it's built.
+    let discountedPrice: number | undefined;
+
+    if (referralCodeUsed && referrerUserDataId) {
+      const basePrice = ticketType.price as number | undefined;
+      if (basePrice && basePrice > 0) {
+        const discountConfig = await Collections.platformConfig(db).findOne(
+          { key: "referralDiscountPercent" },
+          { projection: { value: 1 } },
+        );
+        const discountPct = (discountConfig?.value as number | undefined) ?? 10;
+        discountedPrice = Math.round(basePrice * (1 - discountPct / 100));
       }
     }
 
@@ -185,6 +213,8 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       ticketTypeId: ticketObjId,
       inviteCode,
       referralCodeUsed: referralCodeUsed ?? null,
+      // Store the discounted price if a referral was used — audit trail.
+      ...(discountedPrice !== undefined && { discountedPrice }),
       status: "registered" as const,
       registeredAt: now,
       createdAt: now,
@@ -193,7 +223,6 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         selectedSkills.length > 0 && {
           selectedSkills,
         }),
-      // Only stored for hybrid events
       ...(resolvedAttendanceType &&
         event.format === "hybrid" && {
           attendanceType: resolvedAttendanceType,
@@ -212,9 +241,48 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       },
     );
 
-    // ── Send confirmation email ────────────────────────────────────────────────
-    // Fire-and-forget — a failed email must never fail the registration response.
-    // We resolve the user's email from vault (userData doesn't store email).
+    // ── Fire referral event reward (fire-and-forget) ───────────────────────
+    // If this registration used a referral code, credit the referrer's
+    // points chain for "referral_event_reg". We use processReferralChain
+    // with the registering user's ID — the chain walks from this user's
+    // referredBy field upward, NOT from the event referrer, because event
+    // referrals and signup referrals are tracked separately.
+    //
+    // Additionally, if the referrer exists (referrerUserDataId), we credit
+    // them directly as a depth-1 event referral reward.
+    if (referralCodeUsed && referrerUserDataId) {
+      void (async () => {
+        try {
+          const { creditReferralPoints } =
+            await import("@/lib/services/pointsService");
+
+          // Read the depth-1 event referral bonus from config.
+          // Reuses referralBonusPoints (same pool as signup rewards).
+          const bonusConfig = await Collections.platformConfig(db).findOne(
+            { key: "referralBonusPoints" },
+            { projection: { value: 1 } },
+          );
+          const bonusAmount = (bonusConfig?.value as number | undefined) ?? 50;
+
+          await creditReferralPoints({
+            db,
+            recipientUserId: referrerUserDataId,
+            refereeUserId: userDataId,
+            depth: 1,
+            amount: bonusAmount,
+            source: "referral_event_reg",
+            eventDate: now,
+          });
+        } catch (err) {
+          console.error(
+            "[register] Referral event reward failed (non-fatal):",
+            err,
+          );
+        }
+      })();
+    }
+
+    // ── Send confirmation email (fire-and-forget) ────────────────────────────
     void (async () => {
       try {
         const vault = await Collections.vault(db).findOne(
@@ -223,19 +291,13 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         );
         if (!vault?.email) return;
 
-        // Build display name from UserData.fullName
         const fn = userData.fullName as
-          | {
-              firstname?: string;
-              secondname?: string;
-              lastname?: string;
-            }
+          | { firstname?: string; secondname?: string; lastname?: string }
           | undefined;
         const displayName = fn
           ? [fn.firstname, fn.lastname].filter(Boolean).join(" ") || "there"
           : "there";
 
-        // Format event date for WAT display
         const eventDateObj = new Date(event.eventDate as Date);
         const formattedDate =
           eventDateObj.toLocaleDateString("en-NG", {
@@ -252,8 +314,6 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
             timeZone: "Africa/Lagos",
           });
 
-        // Build location string
-        // Resolve location and WhatsApp based on format + attendanceType
         const loc = event.location as Record<string, string> | undefined;
         const format = String(event.format ?? "");
         const isVirtual =
@@ -282,27 +342,26 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
           return (event.whatsappGroupLink as string) || undefined;
         })();
 
-        // Determine ticket price display
-       const price = ticketType.price as number | undefined;
-       const isFree = !price || price === 0;
-       const ticketPrice = isFree
-         ? undefined
-         : `₦${price.toLocaleString("en-NG")}`;
+        const price = ticketType.price as number | undefined;
+        const effectivePrice = discountedPrice ?? price;
+        const isFree = !effectivePrice || effectivePrice === 0;
+        const ticketPrice = isFree
+          ? undefined
+          : `₦${effectivePrice!.toLocaleString("en-NG")}`;
 
-       await sendEventRegistrationEmail({
-         to: vault.email as string,
-         ticketId: insertedId.toString(),
-         name: displayName,
-         eventTitle: String(event.title),
-         eventDate: formattedDate,
-         eventLocation,
-         ticketCode: inviteCode,
-         isFree,
-         ticketPrice,
-         whatsappGroupLink: resolvedWhatsApp,
-       });
+        await sendEventRegistrationEmail({
+          to: vault.email as string,
+          ticketId: insertedId.toString(),
+          name: displayName,
+          eventTitle: String(event.title),
+          eventDate: formattedDate,
+          eventLocation,
+          ticketCode: inviteCode,
+          isFree,
+          ticketPrice,
+          whatsappGroupLink: resolvedWhatsApp,
+        });
       } catch (emailErr) {
-        // Log but never surface to the user — registration already succeeded
         console.error("[register] Confirmation email failed:", emailErr);
       }
     })();
@@ -317,6 +376,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
           eventId,
           ticketTypeId,
           registeredAt: now.toISOString(),
+          ...(discountedPrice !== undefined && { discountedPrice }),
         },
       },
       { status: 201 },

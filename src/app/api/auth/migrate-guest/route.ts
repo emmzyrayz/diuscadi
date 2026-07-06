@@ -1,3 +1,4 @@
+// src/app/api/auth/migrate-guest/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
@@ -9,6 +10,7 @@ import type { VaultDocument } from "@/lib/models/vault";
 import type { UserDataDocument } from "@/lib/models/UserData";
 import type { EduStatus, PhoneNumber } from "@/types/domain";
 import { sendMigrationWelcomeEmail } from "@/lib/sendEmail";
+import { processReferralChain } from "@/lib/services/pointsService";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/auth/migrate-guest
@@ -24,18 +26,6 @@ import { sendMigrationWelcomeEmail } from "@/lib/sendEmail";
 //     phone: { countryCode: number, phoneNumber: number },
 //     eduStatus: "STUDENT" | "GRADUATE"
 //   }
-//
-// CHANGED from the pre-GuestProfile version:
-//   - Token now carries guestProfileId as the primary reference
-//   - Linked tickets resolved via guestProfileId (getLinkedRegistrations),
-//     not a raw email scan — correctly scoped even if two different people
-//     happen to share an email typo across unrelated registrations
-//   - migratedToUserId/migratedAt stamped on BOTH the GuestProfile (canonical
-//     check) and every linked registration (audit trail), not just registrations
-//   - "email already exists" no longer branches on requiresPasswordReset —
-//     single response pointing to forgot-password, which now has its own
-//     cooldown and works for both "temp password never arrived" and
-//     "genuine separate account" cases
 // ─────────────────────────────────────────────────────────────────────────────
 
 function generateTempPassword(): string {
@@ -140,7 +130,7 @@ export async function POST(req: NextRequest) {
     const db = await getDb();
     const guestProfileObjId = new ObjectId(guestProfileId);
 
-    // ── 3. Re-validate the GuestProfile (canonical identity check) ─────────
+    // ── 3. Re-validate the GuestProfile ─────────────────────────────────────
     const profile = await Collections.guestProfiles(db).findOne({
       _id: guestProfileObjId,
     });
@@ -175,9 +165,6 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 5. Guard: email must not already exist in vault ─────────────────────
-    // Single response now (no requiresPasswordReset branching) — forgot-password
-    // handles both "temp password never arrived" and "genuine separate
-    // account" cases identically, and now has its own cooldown.
     const existingVault = await Collections.vault(db).findOne(
       { email: emailLower },
       { projection: { _id: 1 } },
@@ -207,7 +194,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 7. Generate temp password ────────────────────────────────────────────
+    // ── 7. Resolve referrer from the guest registration ────────────────────
+    // The guest registration may have been made with a referral code
+    // (referralCodeUsed = the referrer's inviteCode on the event registration).
+    // We look that up and set referredBy on the new UserData so the
+    // referral chain gets credited correctly.
+    //
+    // The guest's referralCodeUsed is stored on the source registration —
+    // we fetch it from the guestEventRegistration document.
+    let referredBy: string | undefined;
+    const sourceRegFull = await Collections.guestEventRegistrations(db).findOne(
+      { _id: new ObjectId(guestRegistrationId) },
+      { projection: { referralCodeUsed: 1 } },
+    );
+    if (sourceRegFull?.referralCodeUsed) {
+      // referralCodeUsed is the inviteCode of whoever referred them to the
+      // event — that same user's signupInviteCode is their platform referral code.
+      // Look up the userData whose inviteCode matches.
+      const eventReferrer = await Collections.eventRegistrations(db).findOne(
+        { inviteCode: sourceRegFull.referralCodeUsed },
+        { projection: { userId: 1 } },
+      );
+      if (eventReferrer?.userId) {
+        const referrerData = await Collections.userData(db).findOne(
+          { _id: eventReferrer.userId },
+          { projection: { signupInviteCode: 1 } },
+        );
+        if (referrerData?.signupInviteCode) {
+          referredBy = referrerData.signupInviteCode;
+        }
+      }
+    }
+
+    // ── 8. Generate temp password ────────────────────────────────────────────
     const tempPassword = generateTempPassword();
     const passwordHash = await hashPassword(tempPassword);
     const now = new Date();
@@ -219,7 +238,7 @@ export async function POST(req: NextRequest) {
       phoneNumber: phone.phoneNumber,
     };
 
-    // ── 8. Create Vault document ─────────────────────────────────────────────
+    // ── 9. Create Vault document ─────────────────────────────────────────────
     const vaultDoc = {
       _id: vaultId,
       email: emailLower,
@@ -227,7 +246,7 @@ export async function POST(req: NextRequest) {
       phone: phoneData,
       eduStatus: eduStatus as EduStatus,
       role: "participant" as const,
-      isEmailVerified: true, // OTP already proved this at the migrate step
+      isEmailVerified: true,
       isPhoneVerified: false,
       isAccountActive: true,
       requiresPasswordReset: true,
@@ -240,7 +259,7 @@ export async function POST(req: NextRequest) {
 
     await Collections.vault(db).insertOne(vaultDoc as unknown as VaultDocument);
 
-    // ── 9. Create UserData document ──────────────────────────────────────────
+    // ── 10. Create UserData document ──────────────────────────────────────────
     const userDataDoc: UserDataDocument = {
       _id: userDataId,
       vaultId,
@@ -263,6 +282,20 @@ export async function POST(req: NextRequest) {
       profileCompleted: false,
       membershipStatus: "pending",
       signupInviteCode: generateInviteCode(),
+      // Store the referrer's invite code string — absent for organic migrations.
+      ...(referredBy && { referredBy }),
+      // Initialise points sub-document at zero.
+      points: {
+        current: 0,
+        lifetime: 0,
+      },
+      // Initialise referral counters at zero.
+      referralMeta: {
+        directCount: 0,
+        indirectCount: 0,
+        totalEarned: 0,
+        treeDepthReached: 0,
+      },
       analytics: {
         eventsRegistered: 0,
         eventsAttended: 0,
@@ -275,11 +308,10 @@ export async function POST(req: NextRequest) {
 
     await Collections.userData(db).insertOne(userDataDoc);
 
-    // ── 10. Resolve all linked registrations via guestProfileId ─────────────
-    // CHANGED: was a raw email scan; now scoped to this exact profile.
+    // ── 11. Resolve all linked registrations via guestProfileId ─────────────
     const allGuestRegs = await getLinkedRegistrations(db, guestProfileObjId);
 
-    // ── 11. Create EventRegistration records for each guest ticket ──────────
+    // ── 12. Create EventRegistration records for each guest ticket ──────────
     let migratedCount = 0;
 
     for (const guestReg of allGuestRegs) {
@@ -313,7 +345,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 12. Update UserData analytics ─────────────────────────────────────────
+    // ── 13. Update UserData analytics ─────────────────────────────────────────
     const checkedInCount = allGuestRegs.filter(
       (r) => r.status === "checked-in",
     ).length;
@@ -329,10 +361,7 @@ export async function POST(req: NextRequest) {
       },
     );
 
-    // ── 13. Dual-stamp migration status ───────────────────────────────────────
-    // On the GuestProfile (canonical check — what request-otp/verify-otp/
-    // session-merge-check all read) AND on each registration (audit trail,
-    // self-contained even if the profile doc is ever touched later).
+    // ── 14. Dual-stamp migration status ───────────────────────────────────────
     await Collections.guestProfiles(db).updateOne(
       { _id: guestProfileObjId },
       {
@@ -356,7 +385,18 @@ export async function POST(req: NextRequest) {
       },
     );
 
-    // ── 14. Send welcome email (fire-and-forget) ────────────────────────────
+    // ── 15. Fire referral chain (fire-and-forget) ─────────────────────────────
+    // If this migrating guest was referred, credit the referrer's points chain.
+    // Never throws — a rewards failure must not block the migration response.
+    if (referredBy) {
+      void processReferralChain(db, {
+        newUserId: userDataId,
+        source: "referral_signup",
+        eventDate: now,
+      });
+    }
+
+    // ── 16. Send welcome email (fire-and-forget) ────────────────────────────
     void (async () => {
       try {
         await sendMigrationWelcomeEmail({

@@ -1,7 +1,10 @@
 "use client";
-// context/TaskContext.tsx — Phase 3 update
-// Adds: FullAssignmentDetail type, loadAssignmentDetail(), selectedAssignment
-// state, clearSelectedAssignment(). Everything else unchanged from Phase 2.
+// context/TaskContext.tsx — Phase 4 update
+// Adds: submitPollResponse(), submitSurveyResponse(), submitAcknowledgement()
+// for the three instant-complete task types. Extends EnrichedTask and
+// TaskAssignmentSummary with the fields those sheets need to render correctly
+// (pollConfig, surveyConfig, pointsReward, acceptResponsesAfterDeadline,
+// and recorded-response flags). Everything from Phase 2/3 unchanged.
 
 import React, {
   createContext,
@@ -12,7 +15,12 @@ import React, {
 } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useUser } from "@/context/UserContext";
-import type { SubmitAssignmentPayload, BotTrigger } from "@/types/tasks";
+import type {
+  SubmitAssignmentPayload,
+  BotTrigger,
+  PollConfig,
+  SurveyConfig,
+} from "@/types/tasks";
 
 // ─── Phase 2 types (unchanged) ────────────────────────────────────────────────
 
@@ -32,6 +40,20 @@ export interface TaskAssignmentSummary {
   flaggedForHumanReview: boolean;
   effectiveDeadline: string;
   revisionsRequested: number;
+
+  // ── Phase 4: instant-complete response flags ────────────────────────────
+  // Booleans only — the sheets don't need the full response payload to
+  // decide whether to show the form or the "already responded" state.
+  pollResponseRecorded?: boolean;
+  surveyResponseRecorded?: boolean;
+  acknowledgedAtRecorded?: boolean;
+  // Lateness decay result snapshot, if pointsReward > 0 for this task.
+  instantPointsResult?: {
+    accepted: boolean;
+    pointsEarned: number;
+    isLate: boolean;
+    timeMultiplier: number;
+  } | null;
 }
 
 export interface TaskDeliverableClient {
@@ -49,8 +71,14 @@ export interface EnrichedTask {
   committeeSlug: string;
   priority: "low" | "medium" | "high" | "critical";
   priorityWeight: number;
-  status: "draft" | "active" | "completed" | "cancelled" | "archived";
-  taskType: "submission" | "poll" | "survey" | "acknowledgement";
+  status:
+    | "draft"
+    | "pending_approval"
+    | "active"
+    | "completed"
+    | "cancelled"
+    | "archived";
+  taskType: "submission" | "poll" | "survey" | "acknowledgement" | "learning";
   deadline: string;
   deliverables: TaskDeliverableClient[];
   tags: string[];
@@ -61,6 +89,13 @@ export interface EnrichedTask {
   createdAt: string;
   updatedAt: string;
   assignment: TaskAssignmentSummary | null;
+
+  // ── Phase 4: fields needed by the instant-complete sheets ─────────────────
+  pointsReward: number;
+  pollConfig?: PollConfig;
+  surveyConfig?: SurveyConfig;
+  acceptResponsesAfterDeadline?: boolean;
+  latenessStretchFactor?: number;
 }
 
 export interface TaskPagination {
@@ -87,6 +122,14 @@ export interface SubmitResult {
     percentage: number;
     flaggedForHumanReview: boolean;
     feedback: string;
+    pointsAwarded?: {
+      passed: boolean;
+      qualityPoints: number;
+      timeBonusPoints: number;
+      totalPoints: number;
+      timeMultiplier: number;
+      hoursElapsed: number;
+    } | null;
   } | null;
 }
 
@@ -103,7 +146,24 @@ export interface BotEvaluateResult {
   };
 }
 
-// ─── Phase 3 types (new) ──────────────────────────────────────────────────────
+// ── Phase 4: instant-complete result shape ─────────────────────────────────────
+
+export interface InstantPointsResultClient {
+  accepted: boolean;
+  pointsEarned: number;
+  isLate: boolean;
+  hoursPastDeadline: number;
+  effectiveHoursPastDeadline: number;
+  timeMultiplier: number;
+}
+
+export interface InstantSubmitResult {
+  success: boolean;
+  error?: string;
+  pointsResult?: InstantPointsResultClient | null;
+}
+
+// ─── Phase 3 types (unchanged) ────────────────────────────────────────────────
 
 export interface FullCriteriaScore {
   criterion: string;
@@ -123,6 +183,14 @@ export interface FullEvaluation {
   evaluatedAt: string;
   flaggedForHumanReview: boolean;
   reviewNote?: string | null;
+  pointsAwarded?: {
+    passed: boolean;
+    qualityPoints: number;
+    timeBonusPoints: number;
+    totalPoints: number;
+    timeMultiplier: number;
+    hoursElapsed: number;
+  };
 }
 
 export interface FullSubmissionItem {
@@ -154,7 +222,6 @@ export interface FullAssignmentDetail {
   overriddenDeadline?: string | null;
   createdAt: string;
   updatedAt: string;
-  // Populated by the API from the parent task
   task?: {
     _id: string;
     title: string;
@@ -172,7 +239,6 @@ export interface FullAssignmentDetail {
 // ─── Context type ──────────────────────────────────────────────────────────────
 
 interface TaskContextType {
-  // Task feed (Phase 2)
   tasks: EnrichedTask[];
   pagination: TaskPagination | null;
   committee: CommitteeMeta | null;
@@ -193,12 +259,22 @@ interface TaskContextType {
   ) => Promise<BotEvaluateResult>;
   clearErrors: () => void;
 
-  // Full assignment detail (Phase 3)
   selectedAssignment: FullAssignmentDetail | null;
   selectedAssignmentLoading: boolean;
   selectedAssignmentError: string | null;
   loadAssignmentDetail: (assignmentId: string) => Promise<void>;
   clearSelectedAssignment: () => void;
+
+  // ── Phase 4: instant-complete submit functions ─────────────────────────────
+  submitPollResponse: (
+    assignmentId: string,
+    selectedOptionIds: string[],
+  ) => Promise<InstantSubmitResult>;
+  submitSurveyResponse: (
+    assignmentId: string,
+    answers: { questionId: string; value: string | string[] }[],
+  ) => Promise<InstantSubmitResult>;
+  submitAcknowledgement: (assignmentId: string) => Promise<InstantSubmitResult>;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -231,7 +307,6 @@ export function TaskProvider({ children }: TaskProviderProps) {
   const { isAuthenticated } = useAuth();
   const { profile } = useUser();
 
-  // Phase 2 state
   const [tasks, setTasks] = useState<EnrichedTask[]>([]);
   const [pagination, setPagination] = useState<TaskPagination | null>(null);
   const [committee, setCommittee] = useState<CommitteeMeta | null>(null);
@@ -240,7 +315,6 @@ export function TaskProvider({ children }: TaskProviderProps) {
   const [activeStatus, setActiveStatus] = useState("active");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Phase 3 state
   const [selectedAssignment, setSelectedAssignment] =
     useState<FullAssignmentDetail | null>(null);
   const [selectedAssignmentLoading, setSelectedAssignmentLoading] =
@@ -294,7 +368,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
     [loadTasks, activeStatus, currentPage],
   );
 
-  // ── Submit assignment ──────────────────────────────────────────────────────
+  // ── Submit assignment (submission tasks) ──────────────────────────────────
 
   const submitAssignment = useCallback(
     async (
@@ -414,6 +488,150 @@ export function TaskProvider({ children }: TaskProviderProps) {
     [],
   );
 
+  // ── Phase 4: submitPollResponse ────────────────────────────────────────────
+
+  const submitPollResponse = useCallback(
+    async (
+      assignmentId: string,
+      selectedOptionIds: string[],
+    ): Promise<InstantSubmitResult> => {
+      try {
+        const res = await fetch(
+          `/api/members/assignments/${assignmentId}/submit`,
+          {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({ selectedOptionIds }),
+          },
+        );
+        const data = await res.json();
+
+        if (!res.ok)
+          return { success: false, error: data.error ?? "Vote failed" };
+
+        setTasks((prev) =>
+          prev.map((task) => {
+            if (task.assignment?._id !== assignmentId) return task;
+            return {
+              ...task,
+              assignment: {
+                ...task.assignment,
+                status: "evaluated",
+                pollResponseRecorded: true,
+                instantPointsResult: data.pointsResult ?? null,
+              },
+            };
+          }),
+        );
+
+        return { success: true, pointsResult: data.pointsResult ?? null };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : "Vote failed",
+        };
+      }
+    },
+    [],
+  );
+
+  // ── Phase 4: submitSurveyResponse ──────────────────────────────────────────
+
+  const submitSurveyResponse = useCallback(
+    async (
+      assignmentId: string,
+      answers: { questionId: string; value: string | string[] }[],
+    ): Promise<InstantSubmitResult> => {
+      try {
+        const res = await fetch(
+          `/api/members/assignments/${assignmentId}/submit`,
+          {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({ answers }),
+          },
+        );
+        const data = await res.json();
+
+        if (!res.ok)
+          return { success: false, error: data.error ?? "Submission failed" };
+
+        setTasks((prev) =>
+          prev.map((task) => {
+            if (task.assignment?._id !== assignmentId) return task;
+            return {
+              ...task,
+              assignment: {
+                ...task.assignment,
+                status: "evaluated",
+                surveyResponseRecorded: true,
+                instantPointsResult: data.pointsResult ?? null,
+              },
+            };
+          }),
+        );
+
+        return { success: true, pointsResult: data.pointsResult ?? null };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : "Submission failed",
+        };
+      }
+    },
+    [],
+  );
+
+  // ── Phase 4: submitAcknowledgement ─────────────────────────────────────────
+
+  const submitAcknowledgement = useCallback(
+    async (assignmentId: string): Promise<InstantSubmitResult> => {
+      try {
+        const res = await fetch(
+          `/api/members/assignments/${assignmentId}/submit`,
+          {
+            method: "POST",
+            headers: authHeaders(),
+            // No body needed — the route's acknowledgement handler doesn't
+            // read one, but we send an empty object to keep Content-Type
+            // consistent and avoid any body-parsing edge cases server-side.
+            body: JSON.stringify({}),
+          },
+        );
+        const data = await res.json();
+
+        if (!res.ok)
+          return {
+            success: false,
+            error: data.error ?? "Confirmation failed",
+          };
+
+        setTasks((prev) =>
+          prev.map((task) => {
+            if (task.assignment?._id !== assignmentId) return task;
+            return {
+              ...task,
+              assignment: {
+                ...task.assignment,
+                status: "evaluated",
+                acknowledgedAtRecorded: true,
+                instantPointsResult: data.pointsResult ?? null,
+              },
+            };
+          }),
+        );
+
+        return { success: true, pointsResult: data.pointsResult ?? null };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : "Confirmation failed",
+        };
+      }
+    },
+    [],
+  );
+
   // ── Load full assignment detail (Phase 3) ──────────────────────────────────
 
   const loadAssignmentDetail = useCallback(async (assignmentId: string) => {
@@ -428,7 +646,6 @@ export function TaskProvider({ children }: TaskProviderProps) {
 
       if (!res.ok) throw new Error(data.error ?? "Failed to load assignment");
 
-      // Merge task summary into the assignment object for convenience
       setSelectedAssignment({
         ...data.assignment,
         task: data.task ?? undefined,
@@ -469,6 +686,9 @@ export function TaskProvider({ children }: TaskProviderProps) {
         selectedAssignmentError,
         loadAssignmentDetail,
         clearSelectedAssignment,
+        submitPollResponse,
+        submitSurveyResponse,
+        submitAcknowledgement,
       }}
     >
       {children}

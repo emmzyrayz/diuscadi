@@ -1,23 +1,26 @@
 // src/lib/services/botEvaluationService.ts
-// ─── Orchestration layer: prompt → Gemini → DB writes → return ───────────────
+// ─── Orchestration layer: prompt → Gemini → DB writes → points credit → return ──
 // Shared entry-point for both:
 //   POST /api/members/assignments/[id]/submit   (autoEvaluate trigger)
 //   POST /api/members/bot/evaluate              (manual / re-evaluate trigger)
 //
 // The service is the ONLY code that writes to assignments and bot_action_logs
-// during an evaluation cycle.
+// during an evaluation cycle, AND (as of Phase 3) the only code that computes
+// and credits time-decay points for submission tasks evaluated by the bot.
 
 import { Db, ObjectId, WithId } from "mongodb";
 import { Collections } from "@/lib/db/collections";
 import { buildEvaluationPrompt, callGeminiEvaluate } from "./geminiService";
+import { calculateSubmissionPoints } from "./timeDecayService";
+import { creditTaskPoints } from "./pointsService";
 import type { EvaluationResult, BotTrigger } from "@/types/tasks";
 import { DbAssignment, DbTask } from "../db/dbTypes";
 
 // ─── Public Interface ──────────────────────────────────────────────────────────
 
 export interface BotEvaluationInput {
-  assignment: WithId<DbAssignment>; // ← replaces the Omit<IAssignment...> intersection mess
-  task: WithId<DbTask>; // ← replaces the Omit<ITask...> intersection mess
+  assignment: WithId<DbAssignment>;
+  task: WithId<DbTask>;
   trigger: BotTrigger;
   requestedBy: string;
 }
@@ -57,7 +60,7 @@ export async function runBotEvaluation(
     assignment.submission,
   );
 
-  // ── 2. Snapshot for audit log (captured before the API call) ────────────────
+  // ── 2. Snapshot for audit log ────────────────────────────────────────────
 
   const inputPayload = {
     submissionText: assignment.submission.items
@@ -84,8 +87,6 @@ export async function runBotEvaluation(
   // ── 4a. FAILURE PATH ───────────────────────────────────────────────────────
 
   if (!geminiResult || callError) {
-    // Write failure log first (fire-and-forget on error is intentional; the
-    // assignment update below is the user-visible state change)
     await Collections.botActionLogs(db).insertOne({
       assignmentId,
       taskId,
@@ -104,7 +105,6 @@ export async function runBotEvaluation(
       updatedAt: now,
     });
 
-    // Move assignment to under_review so a human picks it up
     await Collections.assignments(db).updateOne(
       { _id: assignmentId },
       { $set: { status: "under_review", updatedAt: now } },
@@ -118,6 +118,42 @@ export async function runBotEvaluation(
   const { parsed, rawText, tokensUsed, modelVersion, processingMs } =
     geminiResult;
 
+  // ── 5. Compute time-decay points (submission tasks only, points > 0) ───────
+  // This is the new Phase 3 logic. We only attempt the calculation when:
+  //   - the task is a submission type (always true here, but checked for
+  //     safety since this service is submission-pipeline-specific)
+  //   - task.pointsReward > 0 (zero-point tasks skip scoring entirely)
+  //   - task.publishedAt is set (it must be, since an active task always has
+  //     this stamped — but we guard defensively in case of legacy data)
+  //   - assignment.submission.submittedAt is set (always true post-submit)
+  let pointsAwarded: EvaluationResult["pointsAwarded"] | undefined;
+
+  if (
+    task.pointsReward > 0 &&
+    task.publishedAt &&
+    assignment.submission?.submittedAt
+  ) {
+    const decayResult = calculateSubmissionPoints({
+      pointsReward: task.pointsReward,
+      qualityWeight: task.qualityWeight ?? 80,
+      timeWeight: task.timeWeight ?? 20,
+      decayBaseHours: task.decayBaseHours ?? 4,
+      passThresholdPercent: task.passThresholdPercent ?? 50,
+      evaluationPercentage: parsed.percentageScore,
+      publishedAt: task.publishedAt,
+      submittedAt: assignment.submission.submittedAt,
+    });
+
+    pointsAwarded = {
+      passed: decayResult.passed,
+      qualityPoints: decayResult.qualityPoints,
+      timeBonusPoints: decayResult.timeBonusPoints,
+      totalPoints: decayResult.totalPoints,
+      timeMultiplier: decayResult.timeMultiplier,
+      hoursElapsed: decayResult.hoursElapsed,
+    };
+  }
+
   const evaluation: EvaluationResult = {
     totalScore: parsed.totalScore,
     maxScore: task.maxScore,
@@ -129,13 +165,15 @@ export async function runBotEvaluation(
     evaluatedAt: now,
     flaggedForHumanReview: parsed.flaggedForHumanReview,
     reviewNote: parsed.reviewNote ?? undefined,
+    ...(pointsAwarded && { pointsAwarded }),
   };
 
   // Flagged submissions stay under_review for human confirmation;
   // clean evaluations go straight to evaluated.
   const newStatus = parsed.flaggedForHumanReview ? "under_review" : "evaluated";
 
-  // Atomic parallel writes: assignment update + log insert
+  // ── 6. Atomic parallel writes: assignment update + log insert ─────────────
+
   const [, logInsert] = await Promise.all([
     Collections.assignments(db).updateOne(
       { _id: assignmentId },
@@ -165,6 +203,40 @@ export async function runBotEvaluation(
       updatedAt: now,
     }),
   ]);
+
+  // ── 7. Credit points (fire-and-forget, non-blocking) ────────────────────────
+  // Only credit if NOT flagged for human review — a flagged submission's
+  // evaluation isn't final yet, so points wait until a human confirms or
+  // overrides via the manual evaluate route. Once confirmed there, that
+  // route credits points using the SAME pointsAwarded snapshot computed here
+  // (it does not recompute the time multiplier, since the multiplier was
+  // already frozen at the original submission's submittedAt).
+  if (
+    pointsAwarded &&
+    pointsAwarded.totalPoints > 0 &&
+    !parsed.flaggedForHumanReview
+  ) {
+    void (async () => {
+      try {
+        await creditTaskPoints({
+          db,
+          userId,
+          assignmentId,
+          taskId,
+          taskTitle: task.title,
+          amount: pointsAwarded!.totalPoints,
+          source: "task_completion",
+          taskScore: parsed.totalScore,
+          taskMaxScore: task.maxScore,
+        });
+      } catch (err) {
+        console.error(
+          "[botEvaluationService] Points credit failed (non-fatal):",
+          err,
+        );
+      }
+    })();
+  }
 
   return {
     evaluation,

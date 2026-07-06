@@ -1,6 +1,6 @@
 // src/lib/db/dbTypes.ts
 // ─── Native MongoDB document shapes (ObjectId, not string) ───────────────────
-// Used by both collections.ts and taskService.ts.
+// Used by collections.ts and taskService.ts.
 // Kept separate from @/types/tasks which uses string IDs for client serialisation.
 
 import { ObjectId } from "mongodb";
@@ -16,6 +16,7 @@ import type {
   TaskDeliverable,
   PollConfig,
   SurveyConfig,
+  LearningConfig,
 } from "@/types/tasks";
 
 export type DbTask = {
@@ -24,38 +25,45 @@ export type DbTask = {
   description: string;
   committeeSlug: string;
   createdBy: ObjectId;
+  scope: TaskScope;
 
-  // ── Replaces specificAssignees ──────────────────────────────────────────────
-  // Flattened from the discriminated union in ITask — both arrays always present,
-  // mode is the discriminator for which one is meaningful.
   assignmentTarget: {
     mode: "broadcast" | "specific" | "role";
-    userIds: ObjectId[]; // populated when mode === "specific"
-    roles: string[]; // populated when mode === "role"
+    userIds: ObjectId[];
+    roles: string[];
   };
-
-  scope: TaskScope;
-  taskType: TaskType; // ← new: "submission" | "poll" | "survey" | "acknowledgement"
-
-  // ── Type-specific config — only one present per task ───────────────────────
-  pollConfig?: PollConfig;
-  surveyConfig?: SurveyConfig;
 
   priority: TaskPriority;
   priorityWeight: number;
   status: TaskStatus;
   deadline: Date;
+  taskType: TaskType;
 
-  // Only populated when taskType === "submission"
+  // Set on transition to "active" — the clock-start for time-decay scoring.
+  // Absent while status is "draft" or "pending_approval".
+  publishedAt?: Date;
+
+  pollConfig?: PollConfig;
+  surveyConfig?: SurveyConfig;
+  learningConfig?: LearningConfig;
+
   deliverables: TaskDeliverable[];
-
-  tags: string[];
-
-  // Only meaningful when taskType === "submission"
   maxScore: number;
   autoEvaluate: boolean;
   evaluationCriteria: string;
 
+  // ── Points + time-decay configuration ──────────────────────────────────────
+  pointsReward: number;
+  qualityWeight?: number; // 0-100, submission tasks only
+  timeWeight?: number; // 0-100, submission tasks only
+  decayBaseHours?: number; // hours, submission/instant tasks, default 4
+  passThresholdPercent?: number; // 0-100, submission tasks only, default 50
+
+  // ── Instant-complete lateness config (poll, survey, acknowledgement) ──────
+  acceptResponsesAfterDeadline?: boolean; // default false
+  latenessStretchFactor?: number; // 0-1, default 0.5
+
+  tags: string[];
   isVisible: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -72,6 +80,28 @@ export type DbAssignment = {
     submittedAt: Date;
     additionalNotes?: string;
   };
+
+  // ── Instant-complete response payloads (poll, survey, acknowledgement) ────
+  pollResponse?: {
+    selectedOptionIds: string[];
+    votedAt: Date;
+  };
+  surveyResponse?: {
+    answers: { questionId: string; value: string | string[] }[];
+    submittedAt: Date;
+  };
+  acknowledgedAt?: Date;
+
+  // Snapshot of the lateness decay calculation at response time.
+  instantPointsResult?: {
+    accepted: boolean;
+    pointsEarned: number;
+    isLate: boolean;
+    hoursPastDeadline: number;
+    effectiveHoursPastDeadline: number;
+    timeMultiplier: number;
+  };
+
   evaluation?: {
     totalScore: number;
     maxScore: number;
@@ -88,6 +118,17 @@ export type DbAssignment = {
     evaluatedAt: Date;
     flaggedForHumanReview: boolean;
     reviewNote?: string | null;
+
+    // Time-decay scoring snapshot — frozen at evaluation time.
+    // Only present for submission tasks with pointsReward > 0.
+    pointsAwarded?: {
+      passed: boolean;
+      qualityPoints: number;
+      timeBonusPoints: number;
+      totalPoints: number;
+      timeMultiplier: number;
+      hoursElapsed: number;
+    };
   };
   revisionHistory: {
     requestedAt: Date;

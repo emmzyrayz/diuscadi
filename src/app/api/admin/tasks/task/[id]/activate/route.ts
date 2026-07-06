@@ -2,9 +2,15 @@
 // ─── POST /api/admin/tasks/task/[id]/activate ─────────────────────────────────────
 // Transitions a draft task → active and spawns its assignment documents.
 //
-// This is the explicit "Publish" endpoint that pairs with the
-// publishImmediately=false (draft) creation path. It wraps activateTask()
-// from taskService — same spawn logic, explicit route-level permission gate.
+// This is the "Publish" endpoint for draft tasks created with
+// publishImmediately=false. It wraps activateTask() from taskService.
+//
+// CHANGED for Phase 3: pending_approval tasks are explicitly rejected here
+// with a 409 pointing to the dedicated /approve route. This route only
+// ever transitions draft → active; it never approves a global task draft.
+// Keeping the two paths separate avoids a confused state where a committee
+// HEAD could accidentally hit "activate" on their own pending global task
+// and have it silently fail or behave unexpectedly.
 //
 // Permission matrix:
 //   admin | webmaster   →  any task, any committee
@@ -36,11 +42,6 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
     const { vaultId, role } = req.auth;
 
     // ── 1. Fetch the task first ───────────────────────────────────────────────
-    // Needed for:
-    //   (a) Permission check — HEAD/COORDINATOR need to verify the task's
-    //       committeeSlug matches their own membership
-    //   (b) Status validation — cancelled/archived tasks must not be re-activated
-    //   (c) Response enrichment — return the updated task to the caller
 
     const task = await Collections.tasks(db).findOne({
       _id: new ObjectId(id),
@@ -50,9 +51,27 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    // ── 2. Status guard ───────────────────────────────────────────────────────
-    // Only draft tasks are activatable. Active tasks return a no-op response.
-    // Cancelled and archived tasks are permanently closed — cannot be re-activated.
+    // ── 2. Reject pending_approval tasks — wrong endpoint ──────────────────────
+    // A global task awaiting approval must go through
+    // POST /api/admin/tasks/task/[id]/approve, never this route. This keeps
+    // the two activation paths cleanly separated and prevents a committee
+    // HEAD/COORDINATOR (who has activate access for their own committee
+    // tasks) from accidentally trying to self-activate a global draft.
+
+    if (task.status === "pending_approval") {
+      return NextResponse.json(
+        {
+          error:
+            "This task is pending approval. Use POST " +
+            "/api/admin/tasks/task/[id]/approve (webmaster/head-admin only) " +
+            "to publish a global task awaiting approval.",
+          currentStatus: task.status,
+        },
+        { status: 409 },
+      );
+    }
+
+    // ── 3. Status guard ───────────────────────────────────────────────────────
 
     const inactivatableStatuses = new Set(["cancelled", "archived"]);
 
@@ -66,13 +85,11 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
       );
     }
 
-    // ── 3. Permission check ───────────────────────────────────────────────────
+    // ── 4. Permission check ───────────────────────────────────────────────────
 
     const isSystemAdmin = role === "admin" || role === "webmaster";
 
     if (!isSystemAdmin) {
-      // Non-system-admins must be approved members with HEAD or COORDINATOR role
-      // in the exact committee this task belongs to
       const userData = await Collections.userData(db).findOne({
         vaultId: new ObjectId(vaultId),
       });
@@ -103,9 +120,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
       }
     }
 
-    // ── 4. Already active — idempotent no-op ──────────────────────────────────
-    // Return 200 rather than 409 so the frontend can call this safely on retry
-    // without treating it as an error.
+    // ── 5. Already active — idempotent no-op ──────────────────────────────────
 
     if (task.status === "active") {
       return NextResponse.json({
@@ -116,13 +131,9 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context) => {
       });
     }
 
-    // ── 5. Activate + spawn ───────────────────────────────────────────────────
-    // activateTask() handles the draft → active transition and creates
-    // Assignment documents for all targeted members in a single service call.
+    // ── 6. Activate + spawn (also stamps publishedAt) ─────────────────────────
 
     const spawnResult = await activateTask(db, new ObjectId(id));
-
-    // ── 6. Re-fetch the updated task to return its new status ─────────────────
 
     const updatedTask = await Collections.tasks(db).findOne({
       _id: new ObjectId(id),

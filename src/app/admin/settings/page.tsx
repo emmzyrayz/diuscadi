@@ -18,8 +18,8 @@ import {
   LuShield,
   LuBug,
   LuChevronRight,
-  LuLayoutTemplate, // ← Landing Page
-  LuInfo, // ← About Page
+  LuLayoutTemplate,
+  LuInfo,
   LuMegaphone,
   LuImages,
   LuSparkles,
@@ -39,12 +39,12 @@ const SUB_PAGES = [
   },
   {
     label: "Landing Page",
-    icon: LuLayoutTemplate, // ← was LuBuilding2
+    icon: LuLayoutTemplate,
     path: "/admin/settings/landing",
     desc: "Manage landing page data and information",
   },
   {
-    label: "About Page", // ← new entry
+    label: "About Page",
     icon: LuInfo,
     path: "/admin/settings/about",
     desc: "Manage about page sections and content",
@@ -280,10 +280,10 @@ export default function AdminSettingsPage() {
         </div>
       </SettingsSection>
 
-      {/* ── Section: Registration + Referral Config ── */}
+      {/* ── Section: Registration & Referral ── */}
       <SettingsSection
         title="Registration & Referral"
-        desc="Fee and referral incentive configuration"
+        desc="Fee configuration and referral reward ladder"
       >
         <NumberRow
           label="Registration Fee (₦)"
@@ -291,19 +291,49 @@ export default function AdminSettingsPage() {
           value={config.registrationFee as number}
           onChange={(v) => set("registrationFee", v)}
         />
+
+        <div className="pt-2 pb-1">
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+            Referral Reward Ladder
+          </p>
+          <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-widest mt-0.5">
+            Points credited to the referrer at each depth level
+          </p>
+        </div>
+
         <NumberRow
-          label="Referral Discount (%)"
-          desc="% discount given to user who uses a referral code"
+          label="Depth 1 — Direct Referral (pts)"
+          desc="Credited when someone signs up using this user's invite code"
+          value={config.referralBonusPoints as number}
+          onChange={(v) => set("referralBonusPoints", v)}
+        />
+        <NumberRow
+          label="Depth 2 — Indirect Referral (pts)"
+          desc="Credited when a direct referral refers someone else"
+          value={config.referralDepth2BonusPoints as number}
+          onChange={(v) => set("referralDepth2BonusPoints", v)}
+        />
+        <NumberRow
+          label="Depth 3 — Deep Indirect Referral (pts)"
+          desc="Credited one level deeper down the referral tree"
+          value={config.referralDepth3BonusPoints as number}
+          onChange={(v) => set("referralDepth3BonusPoints", v)}
+        />
+        <NumberRow
+          label="Max Referral Depth"
+          desc="How many levels deep rewards propagate (1–3)"
+          value={config.referralMaxDepth as number}
+          onChange={(v) => set("referralMaxDepth", Math.min(3, Math.max(1, v)))}
+          min={1}
+          max={3}
+        />
+        <NumberRow
+          label="Referee Discount (%)"
+          desc="% discount on event ticket for the person who used a referral code"
           value={config.referralDiscountPercent as number}
           onChange={(v) => set("referralDiscountPercent", v)}
           min={0}
           max={100}
-        />
-        <NumberRow
-          label="Referral Bonus Points"
-          desc="Points credited to referrer on successful signup"
-          value={config.referralBonusPoints as number}
-          onChange={(v) => set("referralBonusPoints", v)}
         />
       </SettingsSection>
 

@@ -1,4 +1,4 @@
-// lib/models/PlatformConfig.ts
+// lib/models/platformConfig.ts
 // ─────────────────────────────────────────────────────────────────────────────
 // Documents for platform-managed lists: committees, skills, committeeRoles.
 // All three collections are webmaster-managed and publicly readable.
@@ -25,7 +25,7 @@ export interface CommitteeDocument {
    * One-liner shown in the selector deck on the public showcase.
    * Keep under ~80 chars. Full detail goes in `description`.
    */
-  shortDesc?: string; // ← NEW
+  shortDesc?: string;
 
   /** Full mandate — shown in the inspector panel on the public showcase */
   description: string; // shown on committee page + application form
@@ -46,18 +46,16 @@ export interface CommitteeDocument {
    * WhatsApp group invite link for this committee.
    * Shown only to approved members inside PrivateCommitteeDashboard.
    */
-  whatsappLink?: string; // ← NEW
+  whatsappLink?: string;
 
   /**
    * Display name of the current committee head.
    * Denormalised string — updated manually by webmaster when head changes.
-   * Keeping it as a string (not ObjectId) avoids a join on every public read.
    */
   headName?: string;
 
   /**
    * Live member count — maintained via $inc on membership assignment/removal.
-   * Stored for fast display without aggregation.
    */
   memberCount: number;
 
@@ -130,6 +128,8 @@ export interface CommitteeRoleDocument {
   updatedAt: Date;
 }
 
+// ─── Platform Config Keys ─────────────────────────────────────────────────────
+
 export type PlatformConfigKey =
   // ── Access control ─────────────────────────────────────────────────────
   | "inviteMode" // "open" | "lockdown" | "referral"
@@ -138,10 +138,22 @@ export type PlatformConfigKey =
   | "applicationsOpen" // boolean
   | "maintenanceMode" // boolean
 
-  // ── Registration fees + referral ───────────────────────────────────────
+  // ── Registration fees ──────────────────────────────────────────────────
   | "registrationFee" // number (NGN)
-  | "referralDiscountPercent" // number (0–100)
-  | "referralBonusPoints" // number
+
+  // ── Referral rewards ───────────────────────────────────────────────────
+  // Fixed point values per referral depth level.
+  // Depth 1 = direct referral (user signed up using this user's invite code).
+  // Depth 2 = indirect (the person this user referred, referred someone else).
+  // Depth 3 = one level deeper indirect.
+  // referralMaxDepth caps how far down the tree rewards propagate (1–3).
+  // referralDiscountPercent = % discount applied to the referee's event
+  //   ticket when they register using a referral code.
+  | "referralBonusPoints" // number — depth-1 reward for referrer
+  | "referralDepth2BonusPoints" // number — depth-2 reward for referrer
+  | "referralDepth3BonusPoints" // number — depth-3 reward for referrer
+  | "referralMaxDepth" // number — 1 | 2 | 3 (default 3)
+  | "referralDiscountPercent" // number (0–100) — applied to referee's ticket
 
   // ── UI toggles ─────────────────────────────────────────────────────────
   | "showBanners" // boolean
@@ -161,7 +173,11 @@ export interface PlatformConfigDocument {
   updatedBy: ObjectId; // → Vault._id
 }
 
-// Default values — used when seeding or when a key is missing
+// ─── Defaults ────────────────────────────────────────────────────────────────
+// Used when seeding or when a key is missing from the DB.
+// Referral depth rewards decay: 50 → 25 → 10 points.
+// Admin can override all of these from the settings page.
+
 export const PLATFORM_CONFIG_DEFAULTS: Record<
   PlatformConfigKey,
   PlatformConfigValue
@@ -172,11 +188,16 @@ export const PLATFORM_CONFIG_DEFAULTS: Record<
   applicationsOpen: true,
   maintenanceMode: false,
   registrationFee: 0,
-  referralDiscountPercent: 10,
-  referralBonusPoints: 50,
+
+  // Referral reward ladder
+  referralBonusPoints: 50, // depth 1 — direct referral
+  referralDepth2BonusPoints: 25, // depth 2 — indirect
+  referralDepth3BonusPoints: 10, // depth 3 — deeper indirect
+  referralMaxDepth: 3, // propagate rewards up to 3 levels deep
+  referralDiscountPercent: 10, // 10% off event ticket for the referee
+
   showBanners: true,
   showGallery: true,
   debugMode: false,
   debugTargets: [],
 };
- 

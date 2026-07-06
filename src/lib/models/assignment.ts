@@ -1,4 +1,4 @@
-// src/lib/models/Assignment.ts
+// src/lib/models/assignment.ts
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import type {
   IAssignment,
@@ -6,15 +6,13 @@ import type {
   EvaluationResult,
   CriteriaScore,
   RevisionHistoryEntry,
+  PollResponse,
+  SurveyResponse,
 } from "@/types/tasks";
 
 // ─── Document Interface ───────────────────────────────────────────────────────
-// Omit the string fields that are actually stored as ObjectId at the DB layer.
-// IAssignment keeps them as string — correct for API serialization.
-// AssignmentDocument overrides them with Types.ObjectId — correct for Mongoose.
 export interface AssignmentDocument
-  extends Omit<IAssignment, "_id" | "taskId" | "userId">,
-    Document {
+  extends Omit<IAssignment, "_id" | "taskId" | "userId">, Document {
   taskId: Types.ObjectId;
   userId: Types.ObjectId;
 }
@@ -44,6 +42,20 @@ const CriteriaScoreSchema = new Schema<CriteriaScore>(
   { _id: false },
 );
 
+// Time-decay points snapshot for submission tasks — embedded inside
+// EvaluationResultSchema below.
+const PointsAwardedSchema = new Schema(
+  {
+    passed: { type: Boolean, required: true },
+    qualityPoints: { type: Number, required: true },
+    timeBonusPoints: { type: Number, required: true },
+    totalPoints: { type: Number, required: true },
+    timeMultiplier: { type: Number, required: true },
+    hoursElapsed: { type: Number, required: true },
+  },
+  { _id: false },
+);
+
 const EvaluationResultSchema = new Schema<EvaluationResult>(
   {
     totalScore: { type: Number, required: true, min: 0 },
@@ -51,21 +63,16 @@ const EvaluationResultSchema = new Schema<EvaluationResult>(
     percentageScore: { type: Number, required: true, min: 0, max: 100 },
     feedback: { type: String, required: true },
     criteriaBreakdown: { type: [CriteriaScoreSchema], default: [] },
-
-    // "GEMINI_BOT" (literal string) or a Vault ObjectId string for human evaluators
     evaluatorId: { type: String, required: true },
-
     evaluatorType: {
       type: String,
       enum: ["GEMINI_BOT", "MANUAL", "HYBRID"],
       required: true,
     },
-
     evaluatedAt: { type: Date, required: true },
-
-    // Gemini sets this to true when submission is ambiguous or needs human judgment
     flaggedForHumanReview: { type: Boolean, default: false },
     reviewNote: { type: String, default: null },
+    pointsAwarded: { type: PointsAwardedSchema, default: undefined },
   },
   { _id: false },
 );
@@ -73,9 +80,53 @@ const EvaluationResultSchema = new Schema<EvaluationResult>(
 const RevisionHistorySchema = new Schema<RevisionHistoryEntry>(
   {
     requestedAt: { type: Date, required: true },
-    requestedBy: { type: String, required: true }, // Vault ObjectId as string
+    requestedBy: { type: String, required: true },
     reason: { type: String, required: true },
     resubmittedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
+// ── Instant-complete response sub-schemas (Phase 4) ──────────────────────────
+
+const PollResponseSchema = new Schema<PollResponse>(
+  {
+    selectedOptionIds: { type: [String], required: true },
+    votedAt: { type: Date, required: true },
+  },
+  { _id: false },
+);
+
+const SurveyAnswerSchema = new Schema(
+  {
+    questionId: { type: String, required: true },
+    // value can be a single string or an array of strings (multi-choice) —
+    // Mixed handles both without two separate fields.
+    value: { type: Schema.Types.Mixed, required: true },
+  },
+  { _id: false },
+);
+
+const SurveyResponseSchema = new Schema<SurveyResponse>(
+  {
+    answers: { type: [SurveyAnswerSchema], required: true },
+    submittedAt: { type: Date, required: true },
+  },
+  { _id: false },
+);
+
+// Lateness decay snapshot for instant-complete tasks (poll/survey/ack) —
+// mirrors PointsAwardedSchema's role for submission tasks, but anchored to
+// deadline instead of publishedAt. See calculateInstantTaskPoints() in
+// timeDecayService.ts for the source of these values.
+const InstantPointsResultSchema = new Schema(
+  {
+    accepted: { type: Boolean, required: true },
+    pointsEarned: { type: Number, required: true },
+    isLate: { type: Boolean, required: true },
+    hoursPastDeadline: { type: Number, required: true },
+    effectiveHoursPastDeadline: { type: Number, required: true },
+    timeMultiplier: { type: Number, required: true },
   },
   { _id: false },
 );
@@ -91,7 +142,6 @@ const AssignmentSchema = new Schema<AssignmentDocument>(
       index: true,
     },
 
-    // UserData ObjectId — the member this assignment belongs to
     userId: {
       type: Schema.Types.ObjectId,
       ref: "UserData",
@@ -99,7 +149,6 @@ const AssignmentSchema = new Schema<AssignmentDocument>(
       index: true,
     },
 
-    // Denormalised from Task for fast per-committee queries (no join needed)
     committeeSlug: {
       type: String,
       required: true,
@@ -120,26 +169,38 @@ const AssignmentSchema = new Schema<AssignmentDocument>(
       default: "pending",
     },
 
-    // Optional — only present after member submits
+    // Optional — only present after member submits (submission tasks)
     submission: {
       items: { type: [SubmissionItemSchema], default: undefined },
       submittedAt: { type: Date },
       additionalNotes: { type: String, default: "" },
     },
 
-    // Optional — only present after evaluation
+    // ── Instant-complete response payloads (Phase 4) ───────────────────────────
+    // Only one of pollResponse / surveyResponse / acknowledgedAt is ever
+    // populated per assignment, matching the parent task's taskType.
+    pollResponse: { type: PollResponseSchema, default: undefined },
+    surveyResponse: { type: SurveyResponseSchema, default: undefined },
+    acknowledgedAt: { type: Date, default: undefined },
+
+    // Lateness decay snapshot — populated for poll/survey/acknowledgement
+    // tasks with pointsReward > 0. Frozen at response time, never recomputed.
+    instantPointsResult: {
+      type: InstantPointsResultSchema,
+      default: undefined,
+    },
+
+    // Optional — only present after evaluation (submission tasks)
     evaluation: {
       type: EvaluationResultSchema,
       default: undefined,
     },
 
-    // Append-only audit trail of revision cycles
     revisionHistory: {
       type: [RevisionHistorySchema],
       default: [],
     },
 
-    // Admin can set a member-specific deadline different from the task's
     overriddenDeadline: {
       type: Date,
       default: null,
@@ -153,23 +214,19 @@ const AssignmentSchema = new Schema<AssignmentDocument>(
 
 // ─── Indexes ──────────────────────────────────────────────────────────────────
 
-// CRITICAL: Enforce one assignment per user per task
 AssignmentSchema.index(
   { taskId: 1, userId: 1 },
   { unique: true, name: "unique_task_user_assignment" },
 );
 
-// Member dashboard query: "all my assignments in this committee by status"
 AssignmentSchema.index({ userId: 1, committeeSlug: 1, status: 1 });
 
-// Admin evaluation queue: "all submitted assignments for committee X"
 AssignmentSchema.index({
   committeeSlug: 1,
   status: 1,
   "submission.submittedAt": -1,
 });
 
-// Flagged assignments needing human review
 AssignmentSchema.index({ "evaluation.flaggedForHumanReview": 1, status: 1 });
 
 // ─── Model Export ─────────────────────────────────────────────────────────────

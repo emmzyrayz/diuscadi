@@ -20,6 +20,7 @@ import {
 import { VaultDocument } from "@/lib/models/vault";
 import { UserDataDocument } from "@/lib/models/UserData";
 import { sendVerificationEmail } from "@/lib/sendEmail";
+import { processReferralChain } from "@/lib/services/pointsService";
 
 export async function POST(req: NextRequest) {
   try {
@@ -96,7 +97,6 @@ export async function POST(req: NextRequest) {
     const db = await getDb();
 
     // ── Validate optional skills against live DB ──────────────────────────────
-    // SKILLS array removed from domain.ts — validate against the skills collection.
     if (skills !== undefined) {
       if (!Array.isArray(skills)) {
         return NextResponse.json(
@@ -160,13 +160,20 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Resolve referrer from invite code ─────────────────────────────────────
-    let referredBy: ObjectId | undefined;
+    // CHANGED from old schema: we store the referrer's signupInviteCode string
+    // (not their ObjectId) so the referral tree can be traversed by following
+    // signupInviteCode chains without extra joins.
+    let referredBy: string | undefined;
     if (inviteCode && typeof inviteCode === "string") {
+      const trimmedCode = inviteCode.trim();
       const referrer = await Collections.userData(db).findOne(
-        { signupInviteCode: inviteCode.trim() },
-        { projection: { _id: 1 } },
+        { signupInviteCode: trimmedCode },
+        { projection: { _id: 1, signupInviteCode: 1 } },
       );
-      if (referrer) referredBy = referrer._id as ObjectId;
+      // Only set referredBy if the code belongs to a real user.
+      if (referrer?.signupInviteCode) {
+        referredBy = referrer.signupInviteCode;
+      }
     }
 
     // ── Prepare IDs + tokens ──────────────────────────────────────────────────
@@ -236,7 +243,24 @@ export async function POST(req: NextRequest) {
       profileCompleted: false,
       membershipStatus: "pending",
       signupInviteCode: generateInviteCode(),
+      // Store the referrer's invite code string (not their ObjectId).
+      // Absent for organic signups — never stored as null to keep the
+      // sparse index clean.
       ...(referredBy && { referredBy }),
+      // Initialise points sub-document at zero for all new users.
+      // Written here so $inc operations in pointsService never fail on
+      // a missing path.
+      points: {
+        current: 0,
+        lifetime: 0,
+      },
+      // Initialise referral counters at zero.
+      referralMeta: {
+        directCount: 0,
+        indirectCount: 0,
+        totalEarned: 0,
+        treeDepthReached: 0,
+      },
       analytics: {
         eventsRegistered: 0,
         eventsAttended: 0,
@@ -248,6 +272,18 @@ export async function POST(req: NextRequest) {
     };
 
     await Collections.userData(db).insertOne(userDataDoc);
+
+    // ── Fire referral chain (fire-and-forget) ─────────────────────────────────
+    // Walks up the referral tree and credits points to the referrer and
+    // their ancestors. Never throws — a rewards failure must not block
+    // account creation or the verification email.
+    if (referredBy) {
+      void processReferralChain(db, {
+        newUserId: userDataId,
+        source: "referral_signup",
+        eventDate: now,
+      });
+    }
 
     // ── Send verification email ───────────────────────────────────────────────
     await sendVerificationEmail({

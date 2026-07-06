@@ -9,6 +9,7 @@ import {
   PRIORITY_WEIGHTS,
   spawnAssignments,
   resolveAssignmentTarget,
+  validateTaskInput,
 } from "@/lib/services/taskService";
 import type {
   CreateTaskPayload,
@@ -17,6 +18,8 @@ import type {
   TaskStatus,
   TaskType,
 } from "@/types/tasks";
+
+const SYSTEM_ADMIN_ROLES = ["admin", "webmaster"];
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   try {
@@ -47,9 +50,17 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
-    // ── 3. Permission check ───────────────────────────────────────────────────
+    // ── 3. Resolve scope (default committee) ──────────────────────────────────
 
-    const isSystemAdmin = role === "admin" || role === "webmaster";
+    const scope = (body.scope ?? "committee") as TaskScope;
+    const isSystemAdmin = SYSTEM_ADMIN_ROLES.includes(role);
+
+    // ── 4. Permission check ───────────────────────────────────────────────────
+    // Committee-scope: HEAD/COORDINATOR of that exact committee, or system admin.
+    // Global-scope: ANY HEAD/COORDINATOR/MOD or system admin may DRAFT a global
+    //   task, but only system admins can publish it immediately — everyone
+    //   else's global task is forced into pending_approval regardless of what
+    //   publishImmediately says.
     const isCommitteeStaff =
       userData.membershipStatus === "approved" &&
       userData.committeeMembership?.committee === body.committeeSlug &&
@@ -57,18 +68,38 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         userData.committeeMembership?.role ?? "",
       );
 
-    if (!isSystemAdmin && !isCommitteeStaff) {
-      return NextResponse.json(
-        {
-          error:
-            "Insufficient permissions. Requires admin/webmaster role, " +
-            "or HEAD/COORDINATOR of the target committee.",
-        },
-        { status: 403 },
+    const isAnyCommitteeStaffOrMod =
+      userData.membershipStatus === "approved" &&
+      ["HEAD", "COORDINATOR", "MOD"].includes(
+        userData.committeeMembership?.role ?? "",
       );
+
+    if (scope === "committee") {
+      if (!isSystemAdmin && !isCommitteeStaff) {
+        return NextResponse.json(
+          {
+            error:
+              "Insufficient permissions. Requires admin/webmaster role, " +
+              "or HEAD/COORDINATOR of the target committee.",
+          },
+          { status: 403 },
+        );
+      }
+    } else {
+      // scope === "global"
+      if (!isSystemAdmin && !isAnyCommitteeStaffOrMod) {
+        return NextResponse.json(
+          {
+            error:
+              "Insufficient permissions to draft a global task. Requires " +
+              "admin/webmaster, or HEAD/COORDINATOR/MOD of any committee.",
+          },
+          { status: 403 },
+        );
+      }
     }
 
-    // ── 4. Required field validation ──────────────────────────────────────────
+    // ── 5. Required field validation ──────────────────────────────────────────
 
     if (!body.title?.trim()) {
       return NextResponse.json({ error: "title is required" }, { status: 400 });
@@ -81,7 +112,10 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     }
     if (!body.committeeSlug?.trim()) {
       return NextResponse.json(
-        { error: "committeeSlug is required" },
+        {
+          error:
+            "committeeSlug is required (attribution committee, even for global tasks)",
+        },
         { status: 400 },
       );
     }
@@ -106,7 +140,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
-    // ── 5. taskType-specific validation ──────────────────────────────────────
+    // ── 6. taskType-specific validation ──────────────────────────────────────
 
     const taskType = (body.taskType ?? "submission") as TaskType;
 
@@ -137,7 +171,38 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       }
     }
 
-    // ── 6. Validate committeeSlug exists ──────────────────────────────────────
+    if (taskType === "learning") {
+      // TODO: implement when PandaAcademy / UniArchive are ready. For now,
+      // block creation entirely so admins don't accidentally publish a task
+      // type with no working completion pipeline.
+      return NextResponse.json(
+        {
+          error:
+            "Learning tasks are not yet available — external platform " +
+            "integration is pending. This task type is scaffolded but " +
+            "not yet implemented.",
+        },
+        { status: 501 },
+      );
+    }
+
+    // ── 7. Points + time-decay weight validation (submission tasks only) ──────
+
+    const validationError = validateTaskInput({
+      taskType,
+      qualityWeight: body.qualityWeight,
+      timeWeight: body.timeWeight,
+    });
+    if (validationError) {
+      return NextResponse.json(
+        { error: validationError.message, field: validationError.field },
+        { status: 400 },
+      );
+    }
+
+    // ── 8. Validate committeeSlug exists ──────────────────────────────────────
+    // Required even for global tasks — it's the attribution committee of
+    // the creator, shown in the admin UI as "drafted by [committee]".
 
     const committee = await Collections.committees(db).findOne({
       slug: body.committeeSlug,
@@ -149,28 +214,47 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
-    // ── 7. Build and insert task document ─────────────────────────────────────
+    // ── 9. Resolve target status ───────────────────────────────────────────────
+    // This is the core of the approval gate:
+    //   committee scope + publishImmediately → "active"
+    //   committee scope + !publishImmediately → "draft"
+    //   global scope + isSystemAdmin + publishImmediately → "active"
+    //   global scope + !isSystemAdmin (regardless of publishImmediately)
+    //     → "pending_approval" — non-admins can NEVER publish a global task
+    //       directly, no matter what they pass in the request body.
+    //   global scope + isSystemAdmin + !publishImmediately → "draft"
+
+    let targetStatus: TaskStatus;
+    if (scope === "global" && !isSystemAdmin) {
+      targetStatus = "pending_approval";
+    } else if (body.publishImmediately) {
+      targetStatus = "active";
+    } else {
+      targetStatus = "draft";
+    }
+
+    // ── 10. Build and insert task document ─────────────────────────────────────
 
     const now = new Date();
     const priority = (body.priority ?? "medium") as TaskPriority;
-
-    // Resolve the discriminated union → flat DB shape
     const assignmentTarget = resolveAssignmentTarget(body.assignmentTarget);
+    const isSubmission = taskType === "submission";
 
     const newTask = {
       title: body.title.trim(),
       description: body.description.trim(),
       committeeSlug: body.committeeSlug.trim(),
       createdBy: new ObjectId(vaultId),
-      assignmentTarget, // ← replaces specificAssignees
-      scope: (body.scope ?? "individual") as TaskScope,
-      taskType, // ← new
-      pollConfig: taskType === "poll" ? body.pollConfig : undefined, // ← new
-      surveyConfig: taskType === "survey" ? body.surveyConfig : undefined, // ← new
+      scope,
+      assignmentTarget,
+      taskType,
+      pollConfig: taskType === "poll" ? body.pollConfig : undefined,
+      surveyConfig: taskType === "survey" ? body.surveyConfig : undefined,
       priority,
       priorityWeight: PRIORITY_WEIGHTS[priority],
-      status: (body.publishImmediately ? "active" : "draft") as TaskStatus,
+      status: targetStatus,
       deadline: deadlineDate,
+      // publishedAt is stamped only when targetStatus === "active" (below).
       deliverables: taskType === "submission" ? (body.deliverables ?? []) : [],
       tags: (body.tags ?? []).map((t) => t.toLowerCase().trim()),
       maxScore: body.maxScore ?? 100,
@@ -180,33 +264,58 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         taskType === "submission"
           ? (body.evaluationCriteria?.trim() ?? "")
           : "",
+
+      // Points config
+      pointsReward: body.pointsReward ?? 0,
+      ...(isSubmission && {
+        qualityWeight: body.qualityWeight ?? 80,
+        timeWeight: body.timeWeight ?? 20,
+        decayBaseHours: body.decayBaseHours ?? 4,
+        passThresholdPercent: body.passThresholdPercent ?? 50,
+      }),
+
       isVisible: true,
       createdAt: now,
       updatedAt: now,
+      ...(targetStatus === "active" && { publishedAt: now }),
     };
 
     const { insertedId } = await Collections.tasks(db).insertOne(newTask);
 
-    // ── 8. Spawn assignments if publishing immediately ────────────────────────
+    // ── 11. Spawn assignments only if publishing immediately ──────────────────
+    // pending_approval tasks NEVER spawn assignments — they have no
+    // assignees until approveGlobalTask() runs.
 
     let spawnResult = { spawned: 0, skipped: 0 };
-    if (body.publishImmediately) {
+    if (targetStatus === "active") {
       try {
         spawnResult = await spawnAssignments(db, {
           _id: insertedId,
+          scope: newTask.scope,
           committeeSlug: newTask.committeeSlug,
-          assignmentTarget: newTask.assignmentTarget, // ← replaces specificAssignees
+          assignmentTarget: newTask.assignmentTarget,
         });
       } catch (spawnErr) {
         console.error("[tasks/create] assignment spawn error:", spawnErr);
       }
     }
 
+    // ── 12. Build response message ──────────────────────────────────────────
+
+    let message: string;
+    if (targetStatus === "pending_approval") {
+      message =
+        "Global task submitted for approval. A webmaster or head-admin " +
+        "must approve it before it becomes visible to members.";
+    } else if (targetStatus === "active") {
+      message = `Task published. ${spawnResult.spawned} assignment(s) created.`;
+    } else {
+      message = "Task saved as draft.";
+    }
+
     return NextResponse.json(
       {
-        message: body.publishImmediately
-          ? `Task published. ${spawnResult.spawned} assignment(s) created.`
-          : "Task saved as draft.",
+        message,
         task: { ...newTask, _id: insertedId },
         assignments: spawnResult,
       },
