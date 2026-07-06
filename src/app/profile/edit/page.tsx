@@ -14,6 +14,8 @@ import { toast, Toaster } from "react-hot-toast";
 import { cn } from "../../../lib/utils";
 import { useUser } from "@/context/UserContext";
 import { SkillsSection } from "@/components/sections/profile/edit/SkillsSection";
+import { ReferralSection } from "@/components/sections/profile/Referralsection";
+import { LuShare2 } from "react-icons/lu";
 
 export default function EditProfilePage() {
   const { profile, updateProfile } = useUser();
@@ -178,6 +180,9 @@ export default function EditProfilePage() {
             {/* after the social section div */}
             <div id="skills" onChange={() => setHasChanges(true)}>
               <SkillsSection />
+            </div>
+            <div id="referral">
+              <ReferralSection />
             </div>
             <div id="prefs" onChange={() => setHasChanges(true)}>
               <PreferencesSection />

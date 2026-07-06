@@ -267,7 +267,7 @@ export const SignupForm: React.FC = () => {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       email: form.email.trim().toLowerCase(),
-      inviteCode: form.inviteCode.trim(),
+      inviteCode: inviteCode.trim(),
       password: form.password,
       confirmPassword: form.confirmPassword,
       eduStatus: form.eduStatus,

@@ -96,6 +96,36 @@ export async function POST(req: NextRequest) {
     const schoolEmailLower = schoolEmail?.toLowerCase().trim() ?? undefined;
     const db = await getDb();
 
+    // ── Referral gate: enforce invite code when platform is in "referral" mode ──
+    const inviteModeConfig = await Collections.platformConfig(db).findOne({
+      key: "inviteMode",
+    });
+    const inviteMode = (inviteModeConfig?.value as string) ?? "open";
+
+    if (inviteMode === "referral") {
+      const trimmedInvite =
+        typeof inviteCode === "string" ? inviteCode.trim() : "";
+
+      if (!trimmedInvite) {
+        return NextResponse.json(
+          { error: "An invite code is required to register at this time." },
+          { status: 400 },
+        );
+      }
+
+      const codeOwner = await Collections.userData(db).findOne(
+        { signupInviteCode: trimmedInvite, membershipStatus: "approved" },
+        { projection: { _id: 1 } },
+      );
+
+      if (!codeOwner) {
+        return NextResponse.json(
+          { error: "Invalid or inactive invite code." },
+          { status: 400 },
+        );
+      }
+    }
+
     // ── Validate optional skills against live DB ──────────────────────────────
     if (skills !== undefined) {
       if (!Array.isArray(skills)) {

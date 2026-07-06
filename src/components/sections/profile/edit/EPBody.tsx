@@ -15,6 +15,7 @@ const navItems = [
   { id: "photo", label: "Profile Photo", icon: LuCamera },
   { id: "basic", label: "Basic Info", icon: LuUser },
   { id: "pro", label: "Professional", icon: LuBriefcase },
+  { id: "referral", label: "Referral", icon: LuShare2 },
   { id: "contact", label: "Contact Info", icon: LuContact },
   { id: "social", label: "Social Links", icon: LuShare2 },
   { id: "prefs", label: "Preferences", icon: LuSettings },
