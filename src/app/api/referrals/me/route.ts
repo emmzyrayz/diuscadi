@@ -160,6 +160,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
     const activityFeed = recentLogs.map((log) => ({
       logId: (log._id as ObjectId).toString(),
+      id: (log._id as ObjectId).toString(),
       source: log.source as string,
       amount: log.amount as number,
       depth: (log.referralDepth as number | undefined) ?? null,
