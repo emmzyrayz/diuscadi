@@ -352,11 +352,13 @@ export default function ReferralPage() {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-xs font-black text-muted-foreground shrink-0">
-                        {ref.fullName.firstname.charAt(0).toUpperCase()}
+                        {ref.fullName?.firstname?.charAt(0)?.toUpperCase() ??
+                          "?"}
                       </div>
                       <div>
                         <p className="text-[11px] font-black text-foreground">
-                          {ref.fullName.firstname} {ref.fullName.lastname}
+                          {ref.fullName?.firstname ?? "Unknown"}{" "}
+                          {ref.fullName?.lastname ?? ""}
                         </p>
                         <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                           Joined {formatRelative(ref.joinedAt)}

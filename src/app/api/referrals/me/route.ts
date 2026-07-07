@@ -62,6 +62,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
           projection: {
             _id: 1,
             fullName: 1,
+            signupInviteCode: 1,
             createdAt: 1,
             "points.lifetime": 1,
             referralMeta: 1,
@@ -106,13 +107,26 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       const fn = r.fullName as
         | { firstname?: string; lastname?: string }
         | undefined;
+    const meta = r.referralMeta as
+      | {
+          directCount?: number;
+          indirectCount?: number;
+          treeDepthReached?: number;
+        }
+      | undefined;
       return {
         userId: id,
-        name:
-          [fn?.firstname, fn?.lastname].filter(Boolean).join(" ") || "Member",
+        fullName: {
+          firstname: fn?.firstname ?? "Member",
+          lastname: fn?.lastname ?? "",
+        },
+        inviteCode: (r.signupInviteCode as string) ?? "",
         joinedAt: (r.createdAt as Date).toISOString(),
         theirDirectReferrals: r.referralMeta?.directCount ?? 0,
         pointsEarnedFromThem: earnedMap.get(id) ?? 0,
+        theirDirectCount: meta?.directCount ?? 0,
+        theirIndirectCount: meta?.indirectCount ?? 0,
+        treeDepthReached: meta?.treeDepthReached ?? 0,
       };
     });
 
@@ -148,6 +162,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       logId: (log._id as ObjectId).toString(),
       source: log.source as string,
       amount: log.amount as number,
+      depth: (log.referralDepth as number | undefined) ?? null,
       referralDepth: (log.referralDepth as number | undefined) ?? null,
       refereeName: log.refereeUserId
         ? (nameMap.get((log.refereeUserId as ObjectId).toString()) ?? "Member")
