@@ -13,6 +13,7 @@ import {
   LuCheck,
   LuCoins,
   LuTrophy,
+  LuGift,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -73,6 +74,12 @@ export const ProfileSidebar = ({
       href: "/profile/points",
       active: false,
     },
+    {
+      label: "Your Referrals",
+      icon: LuGift,
+      href: "/profile/referral",
+      active: false,
+    },
     { label: "Settings", icon: LuSettings, href: "/settings", active: false },
   ];
 
@@ -83,21 +90,21 @@ export const ProfileSidebar = ({
   };
 
   return (
-    <aside className="w-full space-y-6">
+    <aside className={cn('w-full', 'space-y-6')}>
       {/* ── Identity card ── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
-        className="glass rounded-[2.5rem] p-8"
+        className={cn('glass', 'rounded-[2.5rem]', 'p-8')}
       >
-        <div className="flex flex-col items-center text-center">
+        <div className={cn('flex', 'flex-col', 'items-center', 'text-center')}>
           {/* Avatar */}
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="relative group mb-4"
+            className={cn('relative', 'group', 'mb-4')}
           >
             <motion.div
               whileHover={{ scale: 1.05 }}
@@ -113,11 +120,11 @@ export const ProfileSidebar = ({
                   alt={displayName}
                   width={128}
                   height={128}
-                  className="w-full h-full object-cover"
+                  className={cn('w-full', 'h-full', 'object-cover')}
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                  <LuUser className="w-12 h-12" />
+                <div className={cn('w-full', 'h-full', 'flex', 'items-center', 'justify-center', 'text-muted-foreground')}>
+                  <LuUser className={cn('w-12', 'h-12')} />
                 </div>
               )}
             </motion.div>
@@ -133,7 +140,7 @@ export const ProfileSidebar = ({
               )}
               aria-label="Change avatar"
             >
-              <LuUserRoundCog className="w-4 h-4" />
+              <LuUserRoundCog className={cn('w-4', 'h-4')} />
             </motion.button>
           </motion.div>
 
@@ -142,17 +149,17 @@ export const ProfileSidebar = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="space-y-1 mb-4"
+            className={cn('space-y-1', 'mb-4')}
           >
-            <h2 className="text-xl font-black text-foreground tracking-tight">
+            <h2 className={cn('text-xl', 'font-black', 'text-foreground', 'tracking-tight')}>
               {displayName}
             </h2>
-            <p className="text-xs font-bold text-muted-foreground flex items-center justify-center gap-1.5">
-              <LuMail className="w-3.5 h-3.5" />
+            <p className={cn('text-xs', 'font-bold', 'text-muted-foreground', 'flex', 'items-center', 'justify-center', 'gap-1.5')}>
+              <LuMail className={cn('w-3.5', 'h-3.5')} />
               {profile.email}
             </p>
             {lifetimePoints > 0 && (
-              <p className="text-[10px] font-mono font-bold text-primary mt-1">
+              <p className={cn('text-[10px]', 'font-mono', 'font-bold', 'text-primary', 'mt-1')}>
                 {lifetimePoints.toLocaleString()} career pts
               </p>
             )}
@@ -172,9 +179,9 @@ export const ProfileSidebar = ({
               animate={{ rotate: [0, 10, -10, 0] }}
               transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
             >
-              <LuCrown className="w-4 h-4 text-amber-500 fill-amber-500" />
+              <LuCrown className={cn('w-4', 'h-4', 'text-amber-500', 'fill-amber-500')} />
             </motion.div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-foreground">
+            <span className={cn('text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'text-foreground')}>
               {statusLabel[profile.membershipStatus] ??
                 profile.membershipStatus}{" "}
               Member
@@ -200,22 +207,22 @@ export const ProfileSidebar = ({
                   "rounded-2xl transition-all group",
                 )}
               >
-                <div className="flex items-center gap-2">
-                  <LuCoins className="w-4 h-4 text-primary" />
+                <div className={cn('flex', 'items-center', 'gap-2')}>
+                  <LuCoins className={cn('w-4', 'h-4', 'text-primary')} />
                   <div className="text-left">
-                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
+                    <p className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
                       Current Balance
                     </p>
-                    <p className="text-sm font-black text-primary">
+                    <p className={cn('text-sm', 'font-black', 'text-primary')}>
                       {currentPoints.toLocaleString()} pts
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
+                  <p className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
                     Career Score
                   </p>
-                  <p className="text-sm font-black text-foreground">
+                  <p className={cn('text-sm', 'font-black', 'text-foreground')}>
                     {lifetimePoints.toLocaleString()}
                   </p>
                 </div>
@@ -231,14 +238,14 @@ export const ProfileSidebar = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
-          className="bg-foreground rounded-[2rem] p-6 text-background relative overflow-hidden group"
+          className={cn('bg-foreground', 'rounded-[2rem]', 'p-6', 'text-background', 'relative', 'overflow-hidden', 'group')}
         >
-          <div className="relative z-10 space-y-4">
+          <div className={cn('relative', 'z-10', 'space-y-4')}>
             <div className="space-y-1">
-              <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em]">
+              <p className={cn('text-[9px]', 'font-black', 'text-primary', 'uppercase', 'tracking-[0.2em]')}>
                 Referral Program
               </p>
-              <h4 className="font-bold text-sm">Invite your network</h4>
+              <h4 className={cn('font-bold', 'text-sm')}>Invite your network</h4>
             </div>
 
             <motion.div
@@ -249,7 +256,7 @@ export const ProfileSidebar = ({
                 "border border-background/10 group-hover:border-background/30 transition-all",
               )}
             >
-              <span className="font-mono text-xs font-black tracking-widest text-primary uppercase">
+              <span className={cn('font-mono', 'text-xs', 'font-black', 'tracking-widest', 'text-primary', 'uppercase')}>
                 {profile.signupInviteCode}
               </span>
 
@@ -257,7 +264,7 @@ export const ProfileSidebar = ({
                 onClick={handleCopyCode}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                className="p-1.5 hover:bg-background/10 rounded-lg text-background/50 hover:text-background transition-all cursor-pointer"
+                className={cn('p-1.5', 'hover:bg-background/10', 'rounded-lg', 'text-background/50', 'hover:text-background', 'transition-all', 'cursor-pointer')}
                 aria-label="Copy invite code"
               >
                 <AnimatePresence mode="wait">
@@ -273,7 +280,7 @@ export const ProfileSidebar = ({
                         damping: 20,
                       }}
                     >
-                      <LuCheck className="w-4 h-4 text-emerald-400" />
+                      <LuCheck className={cn('w-4', 'h-4', 'text-emerald-400')} />
                     </motion.div>
                   ) : (
                     <motion.div
@@ -282,14 +289,14 @@ export const ProfileSidebar = ({
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
                     >
-                      <LuCopy className="w-4 h-4" />
+                      <LuCopy className={cn('w-4', 'h-4')} />
                     </motion.div>
                   )}
                 </AnimatePresence>
               </motion.button>
             </motion.div>
 
-            <p className="text-[9px] text-muted-foreground font-medium leading-relaxed">
+            <p className={cn('text-[9px]', 'text-muted-foreground', 'font-medium', 'leading-relaxed')}>
               Share this code to earn credits and exclusive event invites.
             </p>
           </div>
@@ -297,7 +304,7 @@ export const ProfileSidebar = ({
           <motion.div
             animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.3, 0.2] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -top-10 -right-10 w-24 h-24 bg-primary/20 rounded-full blur-2xl"
+            className={cn('absolute', '-top-10', '-right-10', 'w-24', 'h-24', 'bg-primary/20', 'rounded-full', 'blur-2xl')}
           />
         </motion.div>
       )}
@@ -316,16 +323,16 @@ export const ProfileSidebar = ({
             "hover:bg-amber-500/10 transition-all group",
           )}
         >
-          <LuTrophy className="w-4 h-4 text-amber-500 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-black text-foreground uppercase tracking-wide">
+          <LuTrophy className={cn('w-4', 'h-4', 'text-amber-500', 'shrink-0')} />
+          <div className={cn('flex-1', 'min-w-0')}>
+            <p className={cn('text-[11px]', 'font-black', 'text-foreground', 'uppercase', 'tracking-wide')}>
               Leaderboard
             </p>
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+            <p className={cn('text-[9px]', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'mt-0.5')}>
               See where you rank platform-wide
             </p>
           </div>
-          <LuTrophy className="w-3.5 h-3.5 text-amber-500/40 group-hover:text-amber-500 transition-colors" />
+          <LuTrophy className={cn('w-3.5', 'h-3.5', 'text-amber-500/40', 'group-hover:text-amber-500', 'transition-colors')} />
         </Link>
       </motion.div>
 
@@ -334,7 +341,7 @@ export const ProfileSidebar = ({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.3 }}
-        className="glass rounded-[2.5rem] p-4 space-y-1"
+        className={cn('glass', 'rounded-[2.5rem]', 'p-4', 'space-y-1')}
       >
         {menuItems.map((item, index) => (
           <motion.div

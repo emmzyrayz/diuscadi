@@ -25,6 +25,8 @@ import {
   LuActivity,
   LuTrophy,
   LuCoins,
+  LuGift,
+  LuListTodo,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -73,6 +75,7 @@ const ADMIN_CONSOLE_LINKS = [
   { name: "Users", href: "/admin/users" },
   { name: "Tickets", href: "/admin/tickets" },
   { name: "Invites", href: "/admin/invites" },
+  { name: "Tasks", href: "/admin/tasks" },
   { name: "Analytics", href: "/admin/analytics" },
   { name: "Applications", href: "/admin/applications" },
   { name: "Settings", href: "/admin/settings" },
@@ -123,6 +126,7 @@ const LINK_ICONS: Record<string, React.ElementType> = {
   "/admin/users": LuUsers,
   "/admin/tickets": LuTicket,
   "/admin/invites": LuMail,
+  "/admin/tasks": LuListTodo,
   "/admin/analytics": LuChartBar,
   "/admin/applications": LuFileText,
   "/admin/settings": LuSettings,
@@ -438,6 +442,12 @@ export default function Navbar() {
                           icon={LuCoins}
                           label="Career Points"
                           href="/profile/points"
+                          onClick={() => setUserMenuOpen(false)}
+                        />
+                        <UserMenuItem
+                          icon={LuGift}
+                          label="Referrals"
+                          href="/profile/Referral"
                           onClick={() => setUserMenuOpen(false)}
                         />
                         <UserMenuItem
