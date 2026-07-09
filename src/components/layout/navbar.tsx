@@ -227,8 +227,8 @@ export default function Navbar() {
   }
 
   return (
-    <header className="fixed top-0 left-0 w-full z-[100] flex justify-center px-4 py-4 transition-all duration-300">
-      <div className="w-full max-w-7xl">
+    <header className={cn('fixed', 'top-0', 'left-0', 'w-full', 'z-[100]', 'flex', 'justify-center', 'px-4', 'py-4', 'transition-all', 'duration-300')}>
+      <div className={cn('w-full', 'max-w-7xl')}>
         {/* ── Glass pill ─────────────────────────────────────────────────── */}
         <div
           className={cn(
@@ -239,14 +239,14 @@ export default function Navbar() {
           )}
         >
           {/* ── Left: back or logo ─────────────────────────────────────── */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className={cn('flex', 'items-center', 'gap-3', 'shrink-0')}>
             {showBack ? (
               <button
                 onClick={() => router.back()}
-                className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors"
+                className={cn('flex', 'items-center', 'gap-2', 'text-[10px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest', 'hover:text-foreground', 'transition-colors')}
               >
-                <LuArrowLeft className="w-4 h-4" />
-                <span className="hidden sm:block">Back</span>
+                <LuArrowLeft className={cn('w-4', 'h-4')} />
+                <span className={cn('hidden', 'sm:block')}>Back</span>
               </button>
             ) : (
               <Link
@@ -258,14 +258,14 @@ export default function Navbar() {
                     : "/"
                 }
               >
-                <div className="flex items-center gap-2.5">
+                <div className={cn('flex', 'items-center', 'gap-2.5')}>
                   <Image
                     alt="DIUSCADI"
                     src={logo}
-                    className="w-7 h-7"
+                    className={cn('w-7', 'h-7')}
                     priority
                   />
-                  <span className="text-xl font-bold text-primary hidden sm:block">
+                  <span className={cn('text-xl', 'font-bold', 'text-primary', 'hidden', 'sm:block')}>
                     DIUSCADI
                   </span>
                   {/* Mode badge */}
@@ -287,7 +287,7 @@ export default function Navbar() {
           </div>
 
           {/* ── Center: desktop nav links (progressive collapse) ───────── */}
-          <nav className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2 z-10">
+          <nav className={cn('hidden', 'md:flex', 'items-center', 'gap-1', 'absolute', 'left-1/2', '-translate-x-1/2', 'z-10')}>
             {/* md: show up to 4 links */}
             {inlineLinksMd.map((link) => (
               <Link
@@ -334,13 +334,13 @@ export default function Navbar() {
               <OverflowMenu
                 links={overflowLinksLg}
                 isActive={isActive}
-                className="hidden lg:block"
+                className={cn('hidden', 'lg:block')}
               />
             )}
           </nav>
 
           {/* ── Right: actions ─────────────────────────────────────────── */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className={cn('flex', 'items-center', 'gap-2', 'shrink-0')}>
             {isAuthenticated ? (
               <>
                 {/* Console ↔ Main Site switch — admin/webmaster only */}
@@ -348,16 +348,16 @@ export default function Navbar() {
                   (mode === "console" ? (
                     <Link
                       href="/home"
-                      className="hidden md:flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:border-foreground hover:text-foreground transition-all"
+                      className={cn('hidden', 'md:flex', 'items-center', 'gap-1.5', 'px-3', 'py-2', 'border', 'border-border', 'rounded-xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'text-muted-foreground', 'hover:border-foreground', 'hover:text-foreground', 'transition-all')}
                     >
                       ← Main Site
                     </Link>
                   ) : (
                     <Link
                       href="/admin"
-                      className="hidden md:flex items-center gap-1.5 px-3 py-2 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-foreground transition-all"
+                      className={cn('hidden', 'md:flex', 'items-center', 'gap-1.5', 'px-3', 'py-2', 'bg-foreground', 'text-background', 'rounded-xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'hover:bg-primary', 'hover:text-foreground', 'transition-all')}
                     >
-                      <LuShieldCheck className="w-3.5 h-3.5" />
+                      <LuShieldCheck className={cn('w-3.5', 'h-3.5')} />
                       Console
                     </Link>
                   ))}
@@ -366,11 +366,11 @@ export default function Navbar() {
                 <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenuOpen((v) => !v)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border hover:border-foreground transition-all"
+                    className={cn('flex', 'items-center', 'gap-2', 'px-3', 'py-2', 'rounded-xl', 'border', 'border-border', 'hover:border-foreground', 'transition-all')}
                     aria-label="User menu"
                     aria-expanded={userMenuOpen}
                   >
-                    <LuUser className="w-4 h-4 text-muted-foreground" />
+                    <LuUser className={cn('w-4', 'h-4', 'text-muted-foreground')} />
                     <LuChevronDown
                       className={cn(
                         "w-3 h-3 text-muted-foreground transition-transform duration-200",
@@ -390,40 +390,40 @@ export default function Navbar() {
                           stiffness: 350,
                           damping: 28,
                         }}
-                        className="absolute right-0 top-12 w-56 bg-background border border-border rounded-2xl shadow-2xl z-50 p-2 space-y-0.5"
+                        className={cn('absolute', 'right-0', 'top-12', 'w-56', 'bg-background', 'border', 'border-border', 'rounded-2xl', 'shadow-2xl', 'z-50', 'p-2', 'space-y-0.5')}
                       >
                         {/* Identity header */}
-                        <div className="px-3 py-2 mb-1">
-                          <p className="text-[10px] font-black text-foreground uppercase tracking-widest truncate">
+                        <div className={cn('px-3', 'py-2', 'mb-1')}>
+                          <p className={cn('text-[10px]', 'font-black', 'text-foreground', 'uppercase', 'tracking-widest', 'truncate')}>
                             {user?.fullName
                               ? typeof user.fullName === "string"
                                 ? user.fullName
                                 : `${(user.fullName as { firstname?: string }).firstname ?? ""}`
                               : "My Account"}
                           </p>
-                          <p className="text-muted-foreground text-xs">
+                          <p className={cn('text-muted-foreground', 'text-xs')}>
                             {user?.email}
                           </p>
                           {(lifetimePoints > 0 || currentPoints > 0) && (
-                            <div className="flex items-center gap-2 mt-1">
-                              <p className="text-[10px] font-mono font-bold text-primary">
+                            <div className={cn('flex', 'items-center', 'gap-2', 'mt-1')}>
+                              <p className={cn('text-[10px]', 'font-mono', 'font-bold', 'text-primary')}>
                                 {lifetimePoints.toLocaleString()} career pts
                               </p>
-                              <span className="text-muted-foreground/30 text-[10px]">
+                              <span className={cn('text-muted-foreground/30', 'text-[10px]')}>
                                 ·
                               </span>
-                              <p className="text-[10px] font-mono text-muted-foreground">
+                              <p className={cn('text-[10px]', 'font-mono', 'text-muted-foreground')}>
                                 {currentPoints.toLocaleString()} current
                               </p>
                             </div>
                           )}
-                          <p className="text-[9px] text-muted-foreground mt-0.5 capitalize">
+                          <p className={cn('text-[9px]', 'text-muted-foreground', 'mt-0.5', 'capitalize')}>
                             {role ?? "member"} ·{" "}
                             {mode === "console" ? "Console" : "Main Site"}
                           </p>
                         </div>
 
-                        <div className="h-px bg-border mx-1" />
+                        <div className={cn('h-px', 'bg-border', 'mx-1')} />
 
                         {/* Quick links — always shown */}
                         <UserMenuItem
@@ -472,7 +472,7 @@ export default function Navbar() {
                         {/* Console link — only admin/webmaster, only in main mode */}
                         {canSwitchMode && mode === "main" && (
                           <>
-                            <div className="h-px bg-border mx-1 my-1" />
+                            <div className={cn('h-px', 'bg-border', 'mx-1', 'my-1')} />
                             <UserMenuItem
                               icon={LuLayoutDashboard}
                               label="Admin Console"
@@ -486,7 +486,7 @@ export default function Navbar() {
                         {/* Main site link — only in console mode */}
                         {mode === "console" && (
                           <>
-                            <div className="h-px bg-border mx-1 my-1" />
+                            <div className={cn('h-px', 'bg-border', 'mx-1', 'my-1')} />
                             <UserMenuItem
                               icon={LuHouse}
                               label="Main Site"
@@ -496,15 +496,15 @@ export default function Navbar() {
                           </>
                         )}
 
-                        <div className="h-px bg-border mx-1 my-1" />
+                        <div className={cn('h-px', 'bg-border', 'mx-1', 'my-1')} />
 
                         {/* Sign out */}
                         <button
                           onClick={handleLogout}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 transition-colors group"
+                          className={cn('w-full', 'flex', 'items-center', 'gap-3', 'px-3', 'py-2.5', 'rounded-xl', 'hover:bg-rose-50', 'dark:hover:bg-rose-950/30', 'text-rose-500', 'transition-colors', 'group')}
                         >
-                          <LuLogOut className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                          <span className="text-[10px] font-black uppercase tracking-widest">
+                          <LuLogOut className={cn('w-4', 'h-4', 'group-hover:translate-x-0.5', 'transition-transform')} />
+                          <span className={cn('text-[10px]', 'font-black', 'uppercase', 'tracking-widest')}>
                             Sign Out
                           </span>
                         </button>
@@ -515,7 +515,7 @@ export default function Navbar() {
 
                 {/* Mobile hamburger */}
                 <button
-                  className="md:hidden p-2 rounded-xl hover:bg-muted transition-colors"
+                  className={cn('md:hidden', 'p-2', 'rounded-xl', 'hover:bg-muted', 'transition-colors')}
                   onClick={() => setMobileOpen((v) => !v)}
                   aria-label={mobileOpen ? "Close menu" : "Open menu"}
                 >
@@ -526,12 +526,12 @@ export default function Navbar() {
               <>
                 <Link
                   href={`/auth?redirect=${encodeURIComponent(pathname ?? "/home")}`}
-                  className="hidden md:flex items-center px-5 py-2.5 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-foreground transition-all"
+                  className={cn('hidden', 'md:flex', 'items-center', 'px-5', 'py-2.5', 'bg-foreground', 'text-background', 'rounded-xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'hover:bg-primary', 'hover:text-foreground', 'transition-all')}
                 >
                   Register
                 </Link>
                 <button
-                  className="md:hidden p-2 rounded-xl hover:bg-muted transition-colors"
+                  className={cn('md:hidden', 'p-2', 'rounded-xl', 'hover:bg-muted', 'transition-colors')}
                   onClick={() => setMobileOpen((v) => !v)}
                   aria-label={mobileOpen ? "Close menu" : "Open menu"}
                 >
@@ -557,8 +557,8 @@ export default function Navbar() {
             >
               {/* Mode badge */}
               {isAuthenticated && (
-                <div className="px-4 py-2 flex items-center justify-between">
-                  <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
+                <div className={cn('px-4', 'py-2', 'flex', 'items-center', 'justify-between')}>
+                  <span className={cn('text-[9px]', 'font-black', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
                     {mode === "console" ? "🖥 Console Mode" : "🌐 Main Site"}
                   </span>
                   {canSwitchMode && (
@@ -576,7 +576,7 @@ export default function Navbar() {
                         <>← Main Site</>
                       ) : (
                         <>
-                          <LuShieldCheck className="w-3 h-3" /> Console
+                          <LuShieldCheck className={cn('w-3', 'h-3')} /> Console
                         </>
                       )}
                     </Link>
@@ -599,29 +599,29 @@ export default function Navbar() {
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
-                    <Icon className="w-4 h-4 shrink-0" />
+                    <Icon className={cn('w-4', 'h-4', 'shrink-0')} />
                     {link.name}
                   </Link>
                 );
               })}
 
               {/* Bottom actions */}
-              <div className="h-px bg-border mx-2 my-2" />
+              <div className={cn('h-px', 'bg-border', 'mx-2', 'my-2')} />
 
               {!isAuthenticated ? (
                 <Link
                   href={`/auth?redirect=${encodeURIComponent(pathname ?? "/home")}`}
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center justify-center w-full py-3 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-foreground transition-all"
+                  className={cn('flex', 'items-center', 'justify-center', 'w-full', 'py-3', 'bg-foreground', 'text-background', 'rounded-xl', 'text-[10px]', 'font-black', 'uppercase', 'tracking-widest', 'hover:bg-primary', 'hover:text-foreground', 'transition-all')}
                 >
                   Register / Sign In
                 </Link>
               ) : (
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors group"
+                  className={cn('flex', 'items-center', 'gap-3', 'w-full', 'px-4', 'py-3', 'rounded-xl', 'text-[11px]', 'font-black', 'uppercase', 'tracking-widest', 'text-rose-500', 'hover:bg-rose-50', 'dark:hover:bg-rose-950/30', 'transition-colors', 'group')}
                 >
-                  <LuLogOut className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  <LuLogOut className={cn('w-4', 'h-4', 'group-hover:translate-x-0.5', 'transition-transform')} />
                   Sign Out
                 </button>
               )}
@@ -685,7 +685,7 @@ function OverflowMenu({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -8 }}
             transition={{ type: "spring", stiffness: 350, damping: 28 }}
-            className="absolute left-0 top-10 w-44 bg-background border border-border rounded-2xl shadow-2xl z-[999999] p-2 space-y-0.5"
+            className={cn('absolute', 'left-0', 'top-10', 'w-44', 'bg-background', 'border', 'border-border', 'rounded-2xl', 'shadow-2xl', 'z-[999999]', 'p-2', 'space-y-0.5')}
           >
             {links.map((link) => {
               const Icon = LINK_ICONS[link.href] ?? LuFileText;
@@ -701,7 +701,7 @@ function OverflowMenu({
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
-                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <Icon className={cn('w-3.5', 'h-3.5', 'shrink-0')} />
                   {link.name}
                 </Link>
               );
@@ -732,8 +732,8 @@ const UserMenuItem: React.FC<{
         : "text-muted-foreground hover:bg-muted hover:text-foreground",
     )}
   >
-    <Icon className="w-4 h-4 shrink-0" />
-    <span className="text-[10px] font-black uppercase tracking-widest">
+    <Icon className={cn('w-4', 'h-4', 'shrink-0')} />
+    <span className={cn('text-[10px]', 'font-black', 'uppercase', 'tracking-widest')}>
       {label}
     </span>
   </Link>
