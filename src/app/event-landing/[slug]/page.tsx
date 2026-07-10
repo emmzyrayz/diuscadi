@@ -355,7 +355,7 @@ export default async function EventLandingPage({
   // Render
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="landing-root">
+    <div className="landing-root w-full h-full">
       <style>{`
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -369,6 +369,7 @@ export default async function EventLandingPage({
           --land-font:    'DM Sans', 'Segoe UI', system-ui, sans-serif;
 
           min-height: 100vh;
+          min-weight: 98vw;
           background: var(--land-bg);
           font-family: var(--land-font);
           color: var(--land-text);
@@ -394,6 +395,7 @@ export default async function EventLandingPage({
 
         .landing-layout {
           max-width: 1080px;
+          width: 100%;
           margin: 0 auto;
           padding: 2.5rem 1.5rem 4rem;
           display: grid;

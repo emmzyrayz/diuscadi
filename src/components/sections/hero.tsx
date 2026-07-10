@@ -4,7 +4,7 @@ import { Button } from "../ui/button";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { GraduationCap, CalendarCheck } from "lucide-react";
-import student from "@/assets/img/downloads/Esther-Chiamaka.webp";
+import student from "@/assets/img/downloads/_CES7970.jpg";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
@@ -256,7 +256,7 @@ export const Hero = () => {
               src={student}
               alt="DIUSCADI Student at LASCADSS"
               fill
-              className="object-cover"
+              className={cn('object-fill', 'w-full', 'h-full')}
               priority
             />
           </div>

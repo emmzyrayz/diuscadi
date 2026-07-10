@@ -52,9 +52,9 @@ export default function LandingPage() {
       )}
     >
       <Banner />
-      <Hero />
       <TrustBar />
       <AboutSection />
+      <Hero />
       <ProgramsSection />
       <UpcomingEvent />
       <PastEventsSection />

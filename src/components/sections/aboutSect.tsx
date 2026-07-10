@@ -64,8 +64,8 @@ export const AboutSection = () => {
     <section
       className={cn("w-full rounded-2xl py-24 bg-background overflow-hidden")}
     >
-      <div className="container mx-auto px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <div className={cn('container', 'mx-auto', 'px-6')}>
+        <div className={cn('grid', 'grid-cols-1', 'lg:grid-cols-2', 'gap-16', 'items-center')}>
           {/* LEFT: Founder image */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
@@ -73,41 +73,41 @@ export const AboutSection = () => {
             viewport={{ once: true }}
             className="relative"
           >
-            <div className="relative w-full aspect-4/5 rounded-[2.5rem] overflow-hidden shadow-2xl group">
+            <div className={cn('relative', 'w-full h-full', 'aspect-2/3', 'rounded-[2.5rem] bg-black', 'overflow-hidden', 'shadow-2xl', 'group')}>
               <Image
                 src={mentor}
                 alt="Prof. Ikechukwu I. Umeh, Founder of DIUSCADI"
                 fill
-                className="object-stretch transition-transform duration-700 group-hover:scale-105"
+                className={cn('object-cover h-full w-full', 'transition-transform', 'duration-700', 'scale-95 group-hover:scale-105')}
               />
             </div>
 
-            <div className="absolute -bottom-8 -right-4 md:-right-8 p-6 max-w-xs rounded-2xl bg-background/10 backdrop-blur-xl border border-background/20 shadow-2xl transition-all duration-500 bg-neutral-900/80">
-              <p className="text-white font-bold text-lg leading-tight">
+            <div className={cn('absolute', '-bottom-8', '-right-4', 'md:-right-8', 'p-6', 'max-w-xs', 'rounded-2xl', 'bg-background/10', 'backdrop-blur-xl', 'border', 'border-background/20', 'shadow-2xl', 'transition-all', 'duration-500', 'bg-neutral-900/80')}>
+              <p className={cn('text-white', 'font-bold', 'text-lg', 'leading-tight')}>
                 Prof. Ikechukwu Umeh
               </p>
-              <p className="text-white/50 text-xs mt-1">
+              <p className={cn('text-white/50', 'text-xs', 'mt-1')}>
                 Professor of Information Technology and Data Science, UNIZIK
               </p>
-              <p className="text-white/70 text-sm mt-1">
+              <p className={cn('text-white/70', 'text-sm', 'mt-1')}>
                 FNCS, FIPMD · Founder & Convener, DIUSCADI
               </p>
-              <div className="mt-3 h-1 w-12 bg-primary rounded-full" />
+              <div className={cn('mt-3', 'h-1', 'w-12', 'bg-primary', 'rounded-full')} />
             </div>
           </motion.div>
 
           {/* RIGHT: Content with Summarized Layout & Animations */}
           <div className="space-y-8">
             <div className="space-y-4">
-              <h4 className="text-primary font-bold tracking-widest uppercase text-sm">
+              <h4 className={cn('text-primary', 'font-bold', 'tracking-widest', 'uppercase', 'text-sm')}>
                 Founded 2020 · UNIZIK, Awka
               </h4>
-              <h2 className="text-3xl md:text-5xl font-extrabold text-foreground leading-tight">
+              <h2 className={cn('text-3xl', 'md:text-5xl', 'font-extrabold', 'text-foreground', 'leading-tight')}>
                 Turn Your Skills into Wealth for{" "}
                 <span className="text-primary">Life After School</span>
               </h2>
               {/* The Summarized Sentence */}
-              <p className="text-muted-foreground text-lg leading-relaxed">
+              <p className={cn('text-muted-foreground', 'text-lg', 'leading-relaxed')}>
                 DIUSCADI bridges the gap between academia and industry—equipping
                 final-year students and fresh graduates with the practical
                 digital skills, mentorship, and entrepreneurial support needed
@@ -121,7 +121,7 @@ export const AboutSection = () => {
               initial="hidden"
               whileInView="show"
               viewport={{ once: true }}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+              className={cn('grid', 'grid-cols-1', 'sm:grid-cols-2', 'gap-4')}
             >
               {CARD_DATA.map((card, idx) => {
                 const IconComponent = card.icon;
@@ -136,7 +136,7 @@ export const AboutSection = () => {
                       card.color,
                     )}
                   >
-                    <div className="flex items-start justify-between">
+                    <div className={cn('flex', 'items-start', 'justify-between')}>
                       {/* Animated Icon Wrapper */}
                       <motion.div
                         variants={iconVariants}
@@ -145,16 +145,16 @@ export const AboutSection = () => {
                           card.iconColor,
                         )}
                       >
-                        <IconComponent className="w-6 h-6" />
+                        <IconComponent className={cn('w-6', 'h-6')} />
                       </motion.div>
 
-                      <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300" />
+                      <ArrowUpRight className={cn('w-4', 'h-4', 'text-muted-foreground', 'opacity-0', 'group-hover:opacity-100', 'group-hover:translate-x-0.5', 'group-hover:-translate-y-0.5', 'transition-all', 'duration-300')} />
                     </div>
 
-                    <h3 className="font-bold text-base mt-4 text-foreground group-hover:text-primary transition-colors duration-300">
+                    <h3 className={cn('font-bold', 'text-base', 'mt-4', 'text-foreground', 'group-hover:text-primary', 'transition-colors', 'duration-300')}>
                       {card.title}
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                    <p className={cn('text-xs', 'text-muted-foreground', 'mt-1.5', 'leading-relaxed')}>
                       {card.desc}
                     </p>
                   </motion.div>
@@ -168,9 +168,9 @@ export const AboutSection = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.6 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted border border-border text-xs text-muted-foreground font-medium"
+              className={cn('inline-flex', 'items-center', 'gap-2', 'px-4', 'py-2', 'rounded-full', 'bg-muted', 'border', 'border-border', 'text-xs', 'text-muted-foreground', 'font-medium')}
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className={cn('w-2', 'h-2', 'rounded-full', 'bg-emerald-500', 'animate-pulse')} />
               Empowering the Next Generation:{" "}
               <strong className="text-foreground">
                 5,000+ Students Trained

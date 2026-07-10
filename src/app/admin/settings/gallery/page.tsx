@@ -231,29 +231,29 @@ export default function GallerySettingsPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="max-w-6xl mx-auto mt-20 p-6 space-y-6"
+      className={cn('max-w-[95vw] w-full', 'mx-auto', 'mt-20', 'p-6', 'space-y-6')}
     >
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className={cn('flex', 'w-full', 'h-full', 'items-center', 'gap-4')}>
         <button
           onClick={() => router.push("/admin/settings")}
-          className="p-2 rounded-xl hover:bg-muted transition-colors cursor-pointer"
+          className={cn('p-2', 'rounded-xl', 'hover:bg-muted', 'transition-colors', 'cursor-pointer')}
         >
-          <LuChevronLeft className="w-5 h-5" />
+          <LuChevronLeft className={cn('w-5', 'h-5')} />
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <LuImages className="w-6 h-6 text-primary" />
+          <h1 className={cn('text-2xl', 'font-bold', 'flex', 'items-center', 'gap-2')}>
+            <LuImages className={cn('w-6', 'h-6', 'text-primary')} />
             Gallery Manager
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className={cn('text-muted-foreground', 'text-sm', 'mt-1')}>
             Bulk upload photos, add YouTube videos, and manage the public gallery.
           </p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-border pb-3">
+      <div className={cn('flex w-full justify-start', 'gap-2 md:gap-4', 'border-b', 'border-border', 'pb-3')}>
         {([
           { key: "upload", label: "📸 Upload Photos" },
           { key: "video", label: "🎬 Add Video" },
@@ -285,15 +285,15 @@ export default function GallerySettingsPage() {
 
       {/* Video tab */}
       {tab === "video" && (
-        <div className="max-w-xl space-y-4">
-          <div className="bg-background border-2 border-border rounded-2xl p-6 space-y-4">
-            <h2 className="font-bold text-lg flex items-center gap-2">
-              <LuYoutube className="w-5 h-5 text-red-600" />
+        <div className={cn('max-w-xl', 'space-y-4')}>
+          <div className={cn('bg-background', 'border-2', 'border-border', 'rounded-2xl', 'p-6', 'space-y-4')}>
+            <h2 className={cn('font-bold', 'text-lg', 'flex', 'items-center', 'gap-2')}>
+              <LuYoutube className={cn('w-5', 'h-5', 'text-red-600')} />
               Add YouTube Video
             </h2>
 
             <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+              <label className={cn('text-xs', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
                 YouTube URL *
               </label>
               <input
@@ -301,13 +301,13 @@ export default function GallerySettingsPage() {
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
                 placeholder="https://youtube.com/watch?v=..."
-                className="w-full mt-1 rounded-xl border px-3 py-2 text-sm bg-background focus:border-primary outline-none"
+                className={cn('w-full', 'mt-1', 'rounded-xl', 'border', 'px-3', 'py-2', 'text-sm', 'bg-background', 'focus:border-primary', 'outline-none')}
               />
               {videoUrl && extractYoutubeId(videoUrl) && (
-                <div className="mt-2 rounded-xl overflow-hidden aspect-video bg-muted">
+                <div className={cn('mt-2', 'rounded-xl', 'overflow-hidden', 'aspect-video', 'bg-muted')}>
                   <iframe
                     src={`https://www.youtube.com/embed/${extractYoutubeId(videoUrl)}`}
-                    className="w-full h-full"
+                    className={cn('w-full', 'h-full')}
                     allowFullScreen
                   />
                 </div>
@@ -315,13 +315,13 @@ export default function GallerySettingsPage() {
             </div>
 
             <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+              <label className={cn('text-xs', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
                 Category
               </label>
               <select
                 value={videoCategory}
                 onChange={(e) => setVideoCategory(e.target.value as GalleryCategory)}
-                className="w-full mt-1 rounded-xl border px-3 py-2 text-sm bg-background focus:border-primary outline-none"
+                className={cn('w-full', 'mt-1', 'rounded-xl', 'border', 'px-3', 'py-2', 'text-sm', 'bg-background', 'focus:border-primary', 'outline-none')}
               >
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
@@ -330,7 +330,7 @@ export default function GallerySettingsPage() {
             </div>
 
             <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+              <label className={cn('text-xs', 'font-bold', 'text-muted-foreground', 'uppercase', 'tracking-widest')}>
                 Caption (optional)
               </label>
               <input
@@ -338,11 +338,11 @@ export default function GallerySettingsPage() {
                 value={videoCaption}
                 onChange={(e) => setVideoCaption(e.target.value)}
                 placeholder="Brief description…"
-                className="w-full mt-1 rounded-xl border px-3 py-2 text-sm bg-background focus:border-primary outline-none"
+                className={cn('w-full', 'mt-1', 'rounded-xl', 'border', 'px-3', 'py-2', 'text-sm', 'bg-background', 'focus:border-primary', 'outline-none')}
               />
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className={cn('flex', 'items-center', 'gap-3')}>
               <button
                 onClick={() => setVideoPublished(!videoPublished)}
                 className={cn(
@@ -355,15 +355,15 @@ export default function GallerySettingsPage() {
                   videoPublished ? "left-5" : "left-0.5",
                 )} />
               </button>
-              <span className="text-sm font-bold text-foreground">Published</span>
+              <span className={cn('text-sm', 'font-bold', 'text-foreground')}>Published</span>
             </div>
 
             <button
               onClick={handleAddVideo}
               disabled={savingVideo || !videoUrl.trim()}
-              className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+              className={cn('w-full', 'py-3', 'bg-primary', 'text-primary-foreground', 'rounded-xl', 'font-bold', 'text-sm', 'hover:opacity-90', 'transition-opacity', 'disabled:opacity-50', 'cursor-pointer', 'flex', 'items-center', 'justify-center', 'gap-2')}
             >
-              {savingVideo ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuPlus className="w-4 h-4" />}
+              {savingVideo ? <LuLoader className={cn('w-4', 'h-4', 'animate-spin')} /> : <LuPlus className={cn('w-4', 'h-4')} />}
               {savingVideo ? "Adding…" : "Add Video to Gallery"}
             </button>
           </div>
@@ -374,7 +374,7 @@ export default function GallerySettingsPage() {
       {tab === "manage" && (
         <div className="space-y-4">
           {/* Category filter */}
-          <div className="flex flex-wrap gap-2">
+          <div className={cn('flex', 'flex-wrap', 'gap-2')}>
             {(["all", ...CATEGORIES] as const).map((cat) => (
               <button
                 key={cat}
@@ -392,16 +392,16 @@ export default function GallerySettingsPage() {
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <LuLoader className="w-8 h-8 text-primary animate-spin" />
+            <div className={cn('flex', 'items-center', 'justify-center', 'py-20')}>
+              <LuLoader className={cn('w-8', 'h-8', 'text-primary', 'animate-spin')} />
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border rounded-2xl gap-3">
-              <LuImages className="w-10 h-10 text-slate-300" />
-              <p className="text-sm font-bold text-muted-foreground">No items yet</p>
+            <div className={cn('flex', 'flex-col', 'items-center', 'justify-center', 'py-20', 'border', 'border-dashed', 'border-border', 'rounded-2xl', 'gap-3')}>
+              <LuImages className={cn('w-10', 'h-10', 'text-slate-300')} />
+              <p className={cn('text-sm', 'font-bold', 'text-muted-foreground')}>No items yet</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className={cn('grid', 'grid-cols-2', 'sm:grid-cols-3', 'md:grid-cols-4', 'lg:grid-cols-5', 'gap-3')}>
               {filteredItems.map((item) => (
                 <div
                   key={item.id}
@@ -411,7 +411,7 @@ export default function GallerySettingsPage() {
                   )}
                 >
                   {/* Thumbnail */}
-                  <div className="aspect-[4/3] relative">
+                  <div className={cn('aspect-[4/3]', 'relative')}>
                     {item.mediaType === "image" && item.imageUrl ? (
                       <Image
                         src={item.imageUrl}
@@ -427,22 +427,22 @@ export default function GallerySettingsPage() {
                         className="object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                      <div className={cn('w-full', 'h-full', 'flex', 'items-center', 'justify-center', 'text-muted-foreground')}>
                         No preview
                       </div>
                     )}
 
                     {/* Category badge */}
-                    <div className="absolute top-1.5 left-1.5">
-                      <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-black/50 text-white rounded-full">
+                    <div className={cn('absolute', 'top-1.5', 'left-1.5')}>
+                      <span className={cn('text-[8px]', 'font-black', 'uppercase', 'tracking-widest', 'px-1.5', 'py-0.5', 'bg-black/50', 'text-white', 'rounded-full')}>
                         {item.category}
                       </span>
                     </div>
 
                     {/* Featured star */}
                     {item.featured && (
-                      <div className="absolute top-1.5 right-1.5 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-[8px]">★</span>
+                      <div className={cn('absolute', 'top-1.5', 'right-1.5', 'w-5', 'h-5', 'bg-amber-500', 'rounded-full', 'flex', 'items-center', 'justify-center')}>
+                        <span className={cn('text-white', 'text-[8px]')}>★</span>
                       </div>
                     )}
                   </div>
@@ -450,39 +450,39 @@ export default function GallerySettingsPage() {
                   {/* Caption row */}
                   <div className="p-2">
                     {editingId === item.id ? (
-                      <div className="flex gap-1">
+                      <div className={cn('flex', 'gap-1')}>
                         <input
                           autoFocus
                           value={editCaption}
                           onChange={(e) => setEditCaption(e.target.value)}
-                          className="flex-1 text-[10px] bg-background border border-border rounded px-1.5 py-1 outline-none"
+                          className={cn('flex-1', 'text-[10px]', 'bg-background', 'border', 'border-border', 'rounded', 'px-1.5', 'py-1', 'outline-none')}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") saveCaption(item.id);
                             if (e.key === "Escape") setEditingId(null);
                           }}
                         />
                         <button onClick={() => saveCaption(item.id)}>
-                          <LuCheck className="w-3 h-3 text-emerald-600" />
+                          <LuCheck className={cn('w-3', 'h-3', 'text-emerald-600')} />
                         </button>
                         <button onClick={() => setEditingId(null)}>
-                          <LuX className="w-3 h-3 text-muted-foreground" />
+                          <LuX className={cn('w-3', 'h-3', 'text-muted-foreground')} />
                         </button>
                       </div>
                     ) : (
-                      <p className="text-[10px] text-muted-foreground truncate">
+                      <p className={cn('text-[10px]', 'text-muted-foreground', 'truncate')}>
                         {item.caption ?? "No caption"}
                       </p>
                     )}
                   </div>
 
                   {/* Action buttons — visible on hover */}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <div className={cn('absolute', 'inset-0', 'bg-black/60', 'opacity-0', 'group-hover:opacity-100', 'transition-opacity', 'flex', 'items-center', 'justify-center', 'gap-2')}>
                     <button
                       onClick={() => togglePublished(item)}
                       title={item.published ? "Unpublish" : "Publish"}
-                      className="w-8 h-8 bg-white/20 hover:bg-white/40 rounded-xl flex items-center justify-center text-white transition-colors"
+                      className={cn('w-8', 'h-8', 'bg-white/20', 'hover:bg-white/40', 'rounded-xl', 'flex', 'items-center', 'justify-center', 'text-white', 'transition-colors')}
                     >
-                      {item.published ? <LuEyeOff className="w-4 h-4" /> : <LuEye className="w-4 h-4" />}
+                      {item.published ? <LuEyeOff className={cn('w-4', 'h-4')} /> : <LuEye className={cn('w-4', 'h-4')} />}
                     </button>
                     <button
                       onClick={() => toggleFeatured(item)}
@@ -496,15 +496,15 @@ export default function GallerySettingsPage() {
                     </button>
                     <button
                       onClick={() => { setEditingId(item.id); setEditCaption(item.caption ?? ""); }}
-                      className="w-8 h-8 bg-white/20 hover:bg-white/40 rounded-xl flex items-center justify-center text-white transition-colors"
+                      className={cn('w-8', 'h-8', 'bg-white/20', 'hover:bg-white/40', 'rounded-xl', 'flex', 'items-center', 'justify-center', 'text-white', 'transition-colors')}
                     >
-                      <LuPencil className="w-4 h-4" />
+                      <LuPencil className={cn('w-4', 'h-4')} />
                     </button>
                     <button
                       onClick={() => handleDelete(item.id)}
-                      className="w-8 h-8 bg-red-500/80 hover:bg-red-600 rounded-xl flex items-center justify-center text-white transition-colors"
+                      className={cn('w-8', 'h-8', 'bg-red-500/80', 'hover:bg-red-600', 'rounded-xl', 'flex', 'items-center', 'justify-center', 'text-white', 'transition-colors')}
                     >
-                      <LuTrash2 className="w-4 h-4" />
+                      <LuTrash2 className={cn('w-4', 'h-4')} />
                     </button>
                   </div>
                 </div>
