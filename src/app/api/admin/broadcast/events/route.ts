@@ -42,7 +42,12 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
             localField: "_id",
             foreignField: "eventId",
             pipeline: [
-              { $match: { verifiedAt: { $exists: true, $ne: null } } },
+              {
+                $match: {
+                  verifiedAt: { $exists: true, $ne: null },
+                  migratedToUserId: { $exists: false }, // ← ADDED: exclude migrated
+                },
+              },
               { $count: "n" },
             ],
             as: "_guestRegs",

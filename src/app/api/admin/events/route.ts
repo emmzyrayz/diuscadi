@@ -59,6 +59,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
               eventId: { $in: eventIds },
               status: "registered",
               verifiedAt: { $exists: true },
+              migratedToUserId: { $exists: false },
             },
           },
           { $group: { _id: "$eventId", count: { $sum: 1 } } },

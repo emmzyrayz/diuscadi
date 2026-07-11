@@ -96,6 +96,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     // Unverified (pending OTP) records are not admin-actionable.
     const filter: Filter<IGuestEventRegistrationDocument> = {
       verifiedAt: { $exists: true },
+      migratedToUserId: { $exists: false },
     };
 
     if (
@@ -249,7 +250,12 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const [statsResult] = await db
       .collection("guestEventRegistrations")
       .aggregate([
-        { $match: { verifiedAt: { $exists: true } } },
+        {
+          $match: {
+            verifiedAt: { $exists: true },
+            migratedToUserId: { $exists: false }, // ← ADDED: exclude migrated
+          },
+        },
         {
           $group: {
             _id: null,
