@@ -23,6 +23,7 @@ import { EventReviewsSection } from "@/components/sections/events/event/eReviews
 import { RelatedEvents } from "@/components/sections/events/event/eRelated";
 import { FinalCTA } from "@/components/sections/events/event/eCTA";
 import { ObjectId } from "mongodb";
+import { ACTIVE_UNMIGRATED_GUEST_FILTER } from "@/lib/db/guestRegistrationFilter";
 
 // ── Shared detail type (exported for child components) ────────────────────────
 
@@ -126,8 +127,7 @@ async function fetchEventDetail(
       }),
       Collections.guestEventRegistrations(db).countDocuments({
         eventId: doc._id,
-        status: { $ne: "cancelled" },
-        verifiedAt: { $exists: true },
+        ...ACTIVE_UNMIGRATED_GUEST_FILTER,
       }),
       Collections.ticketTypes(db)
         .find({ eventId: doc._id, isActive: true })

@@ -271,8 +271,8 @@ export const TicketProvider = ({ children }: { children: ReactNode }) => {
       registrationId: string,
     ): Promise<{ success: boolean; error?: string }> => {
       try {
-        const res = await fetch(`/api/tickets/${registrationId}/cancel`, {
-          method: "PATCH",
+        const res = await fetch(`/api/events/register/${registrationId}`, {
+          method: "DELETE",
           headers: authHeaders(),
         });
         const data = await res.json();

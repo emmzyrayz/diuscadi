@@ -167,6 +167,7 @@ async function fetchEvents(): Promise<{
                   ],
                 },
                 verifiedAt: { $exists: true },
+                migratedToUserId: { $exists: false },
               },
             },
             { $count: "total" },

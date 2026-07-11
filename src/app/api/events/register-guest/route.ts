@@ -332,6 +332,7 @@ export async function POST(req: NextRequest) {
       Collections.guestEventRegistrations(db).countDocuments({
         eventId: eventObjId,
         status: { $ne: "cancelled" },
+        migratedToUserId: { $exists: false },
       }),
     ]);
 
@@ -353,6 +354,7 @@ export async function POST(req: NextRequest) {
         eventId: eventObjId,
         ticketTypeId: ticketObjId,
         status: { $ne: "cancelled" },
+        migratedToUserId: { $exists: false },
       }),
     ]);
 

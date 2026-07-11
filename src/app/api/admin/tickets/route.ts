@@ -33,6 +33,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const accountMatch: Record<string, unknown> = {};
     const guestMatch: Record<string, unknown> = {
       verifiedAt: { $exists: true },
+      migratedToUserId: { $exists: false },
     };
 
     if (status) {
@@ -340,7 +341,12 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         .toArray(),
       Collections.guestEventRegistrations(db)
         .aggregate([
-          { $match: { verifiedAt: { $exists: true } } },
+          {
+            $match: {
+              verifiedAt: { $exists: true },
+              migratedToUserId: { $exists: false },
+            },
+          },
           {
             $group: {
               _id: null,

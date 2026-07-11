@@ -143,6 +143,9 @@ export async function createIndexes() {
     {
       key: { userId: 1, eventId: 1 },
       unique: true,
+      partialFilterExpression: {
+        status: { $in: ["registered", "checked-in"] },
+      },
       name: "reg_user_event_unique",
     },
     { key: { inviteCode: 1 }, unique: true, name: "reg_inviteCode_unique" },
