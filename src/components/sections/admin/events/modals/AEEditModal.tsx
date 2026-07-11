@@ -497,7 +497,7 @@ const IdentityStep: React.FC<StepProps> = ({ formData, setFormData }) => {
       <div className={cn('grid', 'grid-cols-1', 'md:grid-cols-2', 'gap-4')}>
         <InputGroup
           label="Event Title" required icon={LuInfo}
-          placeholder="e.g. LASCADSS 7.0"
+          placeholder="e.g. LASCADSS"
           value={formData.title}
           onChange={(e) => handleTitleChange(e.target.value)}
         />

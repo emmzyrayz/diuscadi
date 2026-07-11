@@ -6,8 +6,8 @@ export const defaultBannerSlides = [
     id: "default-1",
     type: "custom" as const,
     imageUrl: "", // banner.tsx will fall back to its local static import
-    title: "LASCADSS 7.0 — Coming 2026",
-    subtitle: "Life After School Career Development Seminar Series",
+    title: "LASCADSS — Coming 2026",
+    subtitle: "Life After School Career Development Seminar Series 7",
     ctaLabel: "Register Now",
     ctaHref: "/auth",
     hidden: false,

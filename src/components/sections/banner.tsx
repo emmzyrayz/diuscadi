@@ -27,7 +27,7 @@ interface SlideShape {
 const FALLBACK_SLIDES: SlideShape[] = [
   {
     id: "1",
-    title: "LASCADSS 7.0 — Coming 2026",
+    title: "LASCADSS — Coming 2026",
     subtitle: "Life After School Career Development Seminar Series",
     imageUrl: banner1.src,
     ctaLabel: "Register Now",

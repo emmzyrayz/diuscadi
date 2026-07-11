@@ -199,13 +199,16 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
       Collections.guestEventRegistrations(db).countDocuments({
         verifiedAt: { $exists: true },
+        migratedToUserId: { $exists: false },
       }),
       Collections.guestEventRegistrations(db).countDocuments({
         verifiedAt: { $exists: true },
         registeredAt: { $gte: thirtyDaysAgo },
+        migratedToUserId: { $exists: false },
       }),
       Collections.guestEventRegistrations(db).countDocuments({
         status: "checked-in",
+        migratedToUserId: { $exists: false },
       }),
     ]);
 

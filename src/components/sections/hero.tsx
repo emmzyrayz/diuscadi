@@ -45,7 +45,7 @@ export const Hero = () => {
     event && isUpcoming(event.eventDate) ? "Coming Soon" : "Recently Held";
 
   // Floating card label
-  const floatingLabel = event?.title ?? "LASCADSS 7.0";
+  const floatingLabel = event?.title ?? "LASCADSS";
 
   // ── Auth-aware CTA href ────────────────────────────────────────────────────
   // Authenticated  → send directly to the event registration page
