@@ -446,14 +446,14 @@ export default function Navbar() {
                         />
                         <UserMenuItem
                           icon={LuGift}
-                          label="Referrals"
-                          href="/profile/Referral"
+                          label="My Referrals"
+                          href="/profile/referral"
                           onClick={() => setUserMenuOpen(false)}
                         />
                         <UserMenuItem
                           icon={LuTrophy}
                           label="leaderboard"
-                          href="/tickets"
+                          href="/leaderboard"
                           onClick={() => setUserMenuOpen(false)}
                         />
                         <UserMenuItem
