@@ -1,7 +1,7 @@
 "use client";
 // src/components/sections/tasks/ScreenshotUploadModal.tsx
 
-import React, { useState, useCallback } from "react";
+import React, { useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,12 +13,12 @@ import {
   LuUpload,
   LuLoader,
   LuCheck,
-  LuX,
   LuImage,
   LuCircleAlert,
 } from "react-icons/lu";
 import { ImageCropper } from "@/components/ui/ImageCropper";
 import { useMedia } from "@/context/MediaContext";
+import { useImageCropper, CROP_ASPECT } from "@/hooks/useImageCropper";
 
 interface ScreenshotUploadModalProps {
   open: boolean;
@@ -28,8 +28,6 @@ interface ScreenshotUploadModalProps {
   disabled?: boolean;
 }
 
-type Step = "select" | "crop" | "upload" | "done";
-
 export function ScreenshotUploadModal({
   open,
   onOpenChange,
@@ -37,72 +35,63 @@ export function ScreenshotUploadModal({
   onComplete,
   disabled,
 }: ScreenshotUploadModalProps) {
-  const { uploadMedia } = useMedia();
-  const [step, setStep] = useState<Step>("select");
-  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const { uploading, uploadError, uploadImage, clearUploadError } = useMedia();
+  const cropper = useImageCropper("task-screenshot");
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) {
-      setStep("select");
-      setRawImageSrc(null);
-      setUploadError(null);
-    }
-    onOpenChange(nextOpen);
-  };
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        cropper.reset();
+        clearUploadError();
+      }
+      onOpenChange(nextOpen);
+    },
+    [cropper, clearUploadError, onOpenChange],
+  );
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      if (!file.type.startsWith("image/")) {
-        setUploadError("Please select an image file");
-        return;
-      }
-      if (file.size > 15 * 1024 * 1024) {
-        setUploadError("File too large — max 15MB");
-        return;
-      }
-      setUploadError(null);
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setRawImageSrc(ev.target?.result as string);
-        setStep("crop");
-      };
-      reader.readAsDataURL(file);
+      if (!file.type.startsWith("image/")) return;
+      if (file.size > 15 * 1024 * 1024) return;
+      cropper.selectFile(file);
       e.target.value = "";
     },
-    [],
+    [cropper],
   );
 
-  const handleCropComplete = useCallback(
-    async (file: File) => {
-      setStep("upload");
-      try {
-        const result = await uploadMedia(file, "task_screenshot", {
-          purpose: "task_submission",
-        });
-        if (!result.success || !result.url || !result.publicId) {
-          throw new Error(result.error ?? "Upload failed");
-        }
-        setStep("done");
-        onComplete({ url: result.url, publicId: result.publicId });
-        setTimeout(() => handleOpenChange(false), 1200);
-      } catch (err) {
-        setUploadError(err instanceof Error ? err.message : "Upload failed");
-        setStep("select");
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleCropConfirm = useCallback(
+    async (imgEl: HTMLImageElement) => {
+      await cropper.confirmCrop(imgEl);
     },
-    [uploadMedia, onComplete],
+    [cropper],
   );
 
-  const stepTitles: Record<Step, string> = {
-    select: "Upload Screenshot",
-    crop: "Crop Screenshot",
-    upload: "Uploading…",
-    done: "Uploaded",
-  };
+  // Once cropped, upload immediately — mirrors the original modal's flow.
+  const handleUpload = useCallback(async () => {
+    if (!cropper.croppedBlob) return;
+    const image = await uploadImage(
+      cropper.croppedBlob,
+      "task-screenshot",
+      undefined,
+      deliverableLabel,
+    );
+    if (image) {
+      onComplete({ url: image.imageUrl, publicId: image.imagePublicId });
+      cropper.reset();
+      setTimeout(() => handleOpenChange(false), 1200);
+    }
+  }, [cropper, uploadImage, deliverableLabel, onComplete, handleOpenChange]);
+
+  const stepTitle =
+    cropper.state === "idle"
+      ? "Upload Screenshot"
+      : cropper.state === "selected" || cropper.state === "cropping"
+        ? "Crop Screenshot"
+        : uploading
+          ? "Uploading…"
+          : "Uploaded";
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -110,7 +99,7 @@ export function ScreenshotUploadModal({
         <DialogHeader>
           <DialogTitle className="text-base font-black uppercase tracking-tight flex items-center gap-2">
             <LuImage className="w-4 h-4 text-primary shrink-0" />
-            {stepTitles[step]}
+            {stepTitle}
           </DialogTitle>
           <p className="text-[11px] text-muted-foreground mt-1">
             Deliverable:{" "}
@@ -121,7 +110,7 @@ export function ScreenshotUploadModal({
         </DialogHeader>
 
         <div className="mt-2">
-          {step === "select" && (
+          {cropper.state === "idle" && (
             <div className="space-y-4">
               <label
                 className={cn(
@@ -163,28 +152,49 @@ export function ScreenshotUploadModal({
             </div>
           )}
 
-          {step === "crop" && rawImageSrc && (
-            <div className="space-y-3">
-              <p className="text-[11px] text-muted-foreground">
-                Adjust the crop if needed. The full screenshot is selected by
-                default.
-              </p>
-              <ImageCropper
-                imageSrc={rawImageSrc}
-                onCropComplete={handleCropComplete}
-                onCancel={() => {
-                  setStep("select");
-                  setRawImageSrc(null);
-                }}
-                // No aspect prop = freeform for screenshots
-                outputFileName="task-screenshot.jpg"
-                outputMimeType="image/jpeg"
-                outputQuality={0.92}
-              />
+          {(cropper.state === "selected" || cropper.state === "cropping") &&
+            cropper.srcUrl && (
+              <div className="space-y-3">
+                <p className="text-[11px] text-muted-foreground">
+                  Adjust the crop if needed. The full screenshot is selected by
+                  default.
+                </p>
+                <ImageCropper
+                  srcUrl={cropper.srcUrl}
+                  crop={cropper.crop}
+                  aspect={CROP_ASPECT["task-screenshot"]}
+                  onCropChange={cropper.setCrop}
+                  onConfirm={handleCropConfirm}
+                  onCancel={cropper.reset}
+                  uploading={uploading}
+                  label="Crop screenshot"
+                />
+              </div>
+            )}
+
+          {cropper.state === "cropped" && !uploading && (
+            <div className="space-y-4">
+              <button
+                onClick={handleUpload}
+                className={cn(
+                  "w-full flex items-center justify-center gap-2",
+                  "px-4 py-2.5 rounded-xl bg-primary text-primary-foreground",
+                  "text-[10px] font-black uppercase tracking-widest",
+                  "hover:opacity-90 transition-opacity cursor-pointer",
+                )}
+              >
+                <LuUpload className="w-3.5 h-3.5" /> Confirm & upload
+              </button>
+              {uploadError && (
+                <p className="flex items-center gap-2 text-[11px] text-red-500 font-bold">
+                  <LuCircleAlert className="w-3.5 h-3.5 shrink-0" />
+                  {uploadError}
+                </p>
+              )}
             </div>
           )}
 
-          {step === "upload" && (
+          {uploading && (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <LuLoader className="w-8 h-8 text-primary animate-spin" />
               <p className="text-sm font-bold text-muted-foreground">
@@ -193,18 +203,6 @@ export function ScreenshotUploadModal({
               <p className="text-[10px] text-muted-foreground/60">
                 Please don&apos;t close this window
               </p>
-            </div>
-          )}
-
-          {step === "done" && (
-            <div className="flex flex-col items-center justify-center py-8 gap-3">
-              <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                <LuCheck className="w-7 h-7 text-emerald-500" />
-              </div>
-              <p className="text-sm font-black text-foreground">
-                Screenshot uploaded
-              </p>
-              <p className="text-[10px] text-muted-foreground">Closing…</p>
             </div>
           )}
         </div>

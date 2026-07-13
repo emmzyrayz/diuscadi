@@ -100,12 +100,19 @@ const DEFAULT_CROPS: Record<UploadType, PercentCrop> = {
   "gallery-conference": { unit: "%", x: 0, y: 12.5, width: 100, height: 75 },
   "gallery-workshop": { unit: "%", x: 0, y: 12.5, width: 100, height: 75 },
   "gallery-celebration": { unit: "%", x: 0, y: 12.5, width: 100, height: 75 },
+  "task-screenshot": {
+    unit: "%",
+    x: 0,
+    y: 0,
+    width: 100,
+    height: 100,
+  },
 };
 
 // ─── Aspect ratios ────────────────────────────────────────────────────────────
 // Passed to react-image-crop's `aspect` prop to lock the crop handle ratio.
 
-export const CROP_ASPECT: Record<UploadType, number> = {
+export const CROP_ASPECT: Record<UploadType, number | undefined> = {
   avatar: 1, // 1:1
   "event-logo": 1, // 1:1
   "inst-logo": 1, // 1:1 — pad transform handles non-square logos
@@ -124,6 +131,7 @@ export const CROP_ASPECT: Record<UploadType, number> = {
   "gallery-conference": 1200 / 900,
   "gallery-workshop": 1200 / 900,
   "gallery-celebration": 1200 / 900,
+  "task-screenshot": undefined,
 };
 
 // ─── Output canvas dimensions ─────────────────────────────────────────────────
@@ -150,6 +158,7 @@ const OUTPUT_DIMS: Record<UploadType, { width: number; height: number }> = {
   "gallery-conference": { width: 1200, height: 900 },
   "gallery-workshop": { width: 1200, height: 900 },
   "gallery-celebration": { width: 1200, height: 900 },
+  "task-screenshot": { width: 0, height: 0 },
 };
 
 // ─── Types that use a white background fill ───────────────────────────────────
@@ -193,9 +202,7 @@ export function useImageCropper(uploadType: UploadType): CropperResult {
 
       setState("cropping");
 
-      const { width: outW, height: outH } = OUTPUT_DIMS[uploadType];
-
-      // Convert percent crop → pixel crop relative to the natural image size
+      const dims = OUTPUT_DIMS[uploadType];
       const naturalW = imgEl.naturalWidth;
       const naturalH = imgEl.naturalHeight;
 
@@ -203,6 +210,19 @@ export function useImageCropper(uploadType: UploadType): CropperResult {
       const pixelY = (crop.y / 100) * naturalH;
       const pixelW = (crop.width / 100) * naturalW;
       const pixelH = (crop.height / 100) * naturalH;
+
+      let outW = dims.width;
+      let outH = dims.height;
+
+      if (outW === 0 || outH === 0) {
+        // Freeform type (e.g. task-screenshot): preserve the crop's own
+        // aspect ratio instead of forcing it into a fixed box, capped so
+        // we don't upload an oversized canvas.
+        const MAX_DIM = 1600;
+        const scale = Math.min(1, MAX_DIM / Math.max(pixelW, pixelH));
+        outW = Math.round(pixelW * scale);
+        outH = Math.round(pixelH * scale);
+      }
 
       const canvas = document.createElement("canvas");
       canvas.width = outW;
@@ -214,16 +234,13 @@ export function useImageCropper(uploadType: UploadType): CropperResult {
         return;
       }
 
-      // White background fill for logo types (replicates Cloudinary's c_pad,b_white)
       if (WHITE_BG_TYPES.has(uploadType)) {
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, outW, outH);
       }
 
-      // Draw the cropped region scaled to output dimensions
       ctx.drawImage(imgEl, pixelX, pixelY, pixelW, pixelH, 0, 0, outW, outH);
 
-      // Produce a Blob (webp preferred — matches Cloudinary eager f_webp output)
       const blob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob(resolve, "image/webp", 0.92);
       });

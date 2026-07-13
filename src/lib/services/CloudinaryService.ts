@@ -159,6 +159,11 @@ const TRANSFORM_PRESETS: Record<UploadType, UploadPreset> = {
     folder: "diuscadi/events/sponsors",
     maxFileSize: 3 * 1024 * 1024,
   },
+  "task-screenshot": {
+    eager: "c_limit,w_1600,h_1600,f_webp,q_auto:good",
+    folder: "diuscadi/tasks/screenshots",
+    maxFileSize: 15 * 1024 * 1024, // matches your modal's 15MB copy
+  },
 };
 
 // ─── Public ID generator ──────────────────────────────────────────────────────
@@ -302,5 +307,7 @@ export function allowedRolesForType(type: UploadType): string[] {
     case "speaker-photo":
     case "sponsor-logo":
       return ["admin", "webmaster"];
+    case "task-screenshot":
+      return ["participant", "moderator", "admin", "webmaster"];
   }
 }
