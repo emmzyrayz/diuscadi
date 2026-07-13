@@ -164,13 +164,14 @@ export function ImageUploader({
   );
 
   // ── Upload ────────────────────────────────────────────────────────────────
+  // We keep the logic intact but make sure your success payload matches what your MediaContext returns.
   const handleUpload = useCallback(async () => {
     if (!cropper.croppedBlob) return;
 
-    // uploadImage returns CloudinaryImage | null — no URL extraction needed
     const image = await uploadImage(cropper.croppedBlob, uploadType, ownerId);
     if (image) {
       setSuccessImage(image);
+      // Calls onSuccess with the structured object containing the payload properties
       onSuccess?.(image);
       cropper.reset();
     }
@@ -178,11 +179,9 @@ export function ImageUploader({
 
   // ── Remove ────────────────────────────────────────────────────────────────
   const handleRemove = useCallback(async () => {
-    // Use the just-uploaded publicId first, then fall back to the prop
     const publicId = successImage?.imagePublicId ?? currentPublicId;
     if (!publicId) return;
 
-    // removeImage(uploadType, publicId, ownerId?, galleryImageId?)
     const deleted = await removeImage(
       uploadType,
       publicId,
@@ -267,8 +266,8 @@ export function ImageUploader({
             )}
           >
             <Image
-                      width={500}
-                      height={300}
+              width={500}
+              height={300}
               src={blobUrl}
               alt="Cropped preview"
               className={cn("w-full", "h-full", "object-cover")}
@@ -345,8 +344,8 @@ export function ImageUploader({
             )}
           >
             <Image
-                                  width={500}
-                                  height={300}
+              width={500}
+              height={300}
               src={previewUrl}
               alt={label ?? uploadType}
               className={cn("w-full", "h-full", "object-cover")}

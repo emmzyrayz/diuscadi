@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
+import { ObjectId } from "mongodb";
 
 const ALLOWED_ROLES = ["admin", "webmaster"];
 
@@ -23,7 +24,12 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    
+    // Extract dynamic filters introduced in the update
+    const { searchParams } = new URL(req.url);
+    const committeeParam = searchParams.get("committee");
+    const committeeFilter = committeeParam
+      ? { committeeSlug: committeeParam }
+      : {};
 
     const [
       totalUsers,
@@ -51,6 +57,23 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       guestTotal, // ← ADD
       guestThisMonth, // ← ADD
       guestCheckedIn, // ← ADD
+
+      totalGuestProfiles,
+      migratedGuestCount,
+      pendingMigrationCount,
+      committeeBreakdown,
+      skillsData,
+      topDirectReferrers,
+      referralStats,
+      referralPointsDistributed,
+      taskTypeBreakdown,
+      taskStatusBreakdown,
+      flaggedAssignments,
+      pendingApprovalTasks,
+      totalPointsDistributed,
+      pointsBySource,
+      topPointsEarners,
+      pointsThisMonth,
     ] = await Promise.all([
       // Users
       Collections.userData(db).countDocuments(),
@@ -210,6 +233,194 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         status: "checked-in",
         migratedToUserId: { $exists: false },
       }),
+      Collections.guestProfiles(db).countDocuments({}),
+      Collections.guestProfiles(db).countDocuments({
+        migratedToUserId: { $exists: true },
+      }),
+      Collections.guestProfiles(db).countDocuments({
+        migratedToUserId: { $exists: false },
+        mergeStatus: { $ne: "migrated" },
+      }),
+
+      Collections.userData(db)
+        .aggregate([
+          {
+            $match: {
+              "committeeMembership.committee": { $exists: true, $ne: null },
+            },
+          },
+          {
+            $group: {
+              _id: "$committeeMembership.committee",
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { count: -1 } },
+        ])
+        .toArray(),
+
+      Collections.userData(db)
+        .aggregate([
+          { $unwind: "$skills" },
+          { $group: { _id: "$skills", count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 10 },
+        ])
+        .toArray(),
+
+      Collections.userData(db)
+        .aggregate([
+          { $match: { "referralMeta.directCount": { $gt: 0 } } },
+          { $sort: { "referralMeta.directCount": -1 } },
+          { $limit: 10 },
+          {
+            $project: {
+              _id: 1,
+              fullName: 1,
+              referralMeta: 1,
+              "committeeMembership.committee": 1,
+            },
+          },
+        ])
+        .toArray(),
+
+      Collections.userData(db)
+        .aggregate([
+          {
+            $group: {
+              _id: null,
+              totalWithReferrer: {
+                $sum: { $cond: [{ $ifNull: ["$referredBy", false] }, 1, 0] },
+              },
+              totalDirectReferrals: {
+                $sum: { $ifNull: ["$referralMeta.directCount", 0] },
+              },
+              totalIndirectReferrals: {
+                $sum: { $ifNull: ["$referralMeta.indirectCount", 0] },
+              },
+              maxDepthReached: {
+                $max: { $ifNull: ["$referralMeta.treeDepthReached", 0] },
+              },
+            },
+          },
+        ])
+        .toArray(),
+
+      db
+        .collection("pointsLog")
+        .aggregate([
+          {
+            $match: {
+              source: { $in: ["referral_signup", "referral_event_reg"] },
+            },
+          },
+          {
+            $group: {
+              _id: "$source",
+              total: { $sum: "$amount" },
+              count: { $sum: 1 },
+            },
+          },
+        ])
+        .toArray(),
+
+      Collections.assignments(db)
+        .aggregate([
+          { $match: { status: "evaluated", ...committeeFilter } },
+          {
+            $lookup: {
+              from: "tasks",
+              localField: "taskId",
+              foreignField: "_id",
+              as: "task",
+            },
+          },
+          { $unwind: { path: "$task", preserveNullAndEmptyArrays: true } },
+          {
+            $group: {
+              _id: "$task.taskType",
+              completions: { $sum: 1 },
+              avgScore: { $avg: "$evaluation.percentageScore" },
+              totalPoints: {
+                $sum: { $ifNull: ["$evaluation.pointsAwarded.totalPoints", 0] },
+              },
+            },
+          },
+        ])
+        .toArray(),
+
+      Collections.tasks(db)
+        .aggregate([
+          { $match: committeeFilter },
+          { $group: { _id: "$status", count: { $sum: 1 } } },
+        ])
+        .toArray(),
+
+      Collections.assignments(db).countDocuments({
+        "evaluation.flaggedForHumanReview": true,
+        status: "under_review",
+      }),
+      Collections.tasks(db).countDocuments({ status: "pending_approval" }),
+
+      db
+        .collection("pointsLog")
+        .aggregate([
+          { $match: { amount: { $gt: 0 } } },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: "$amount" },
+              count: { $sum: 1 },
+            },
+          },
+        ])
+        .toArray(),
+
+      db
+        .collection("pointsLog")
+        .aggregate([
+          { $match: { amount: { $gt: 0 } } },
+          {
+            $group: {
+              _id: "$source",
+              total: { $sum: "$amount" },
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { total: -1 } },
+        ])
+        .toArray(),
+
+      Collections.userData(db)
+        .aggregate([
+          { $match: { "points.lifetime": { $gt: 0 } } },
+          { $sort: { "points.lifetime": -1 } },
+          { $limit: 10 },
+          {
+            $project: {
+              _id: 1,
+              fullName: 1,
+              points: 1,
+              "committeeMembership.committee": 1,
+            },
+          },
+        ])
+        .toArray(),
+
+      db
+        .collection("pointsLog")
+        .aggregate([
+          {
+            $match: {
+              amount: { $gt: 0 },
+              createdAt: {
+                $gte: new Date(now.getFullYear(), now.getMonth(), 1),
+              },
+            },
+          },
+          { $group: { _id: null, total: { $sum: "$amount" } } },
+        ])
+        .toArray(),
     ]);
 
     const hourlyVisitMap = Object.fromEntries(
@@ -226,6 +437,53 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       volume: Math.round(((hourlyVisitMap[hour] ?? 0) / maxVisits) * 100),
     }));
 
+    const refPointsMap: Record<string, { total: number; count: number }> = {};
+    for (const r of referralPointsDistributed)
+      refPointsMap[r._id as string] = {
+        total: r.total as number,
+        count: r.count as number,
+      };
+
+    const taskTypeMap: Record<
+      string,
+      { completions: number; avgScore: number; totalPoints: number }
+    > = {};
+    for (const t of taskTypeBreakdown)
+      taskTypeMap[t._id as string] = {
+        completions: t.completions as number,
+        avgScore: Math.round((t.avgScore as number) ?? 0),
+        totalPoints: t.totalPoints as number,
+      };
+
+    const taskStatusMap: Record<string, number> = {};
+    for (const t of taskStatusBreakdown)
+      taskStatusMap[t._id as string] = t.count as number;
+
+    const pointsSourceMap: Record<string, { total: number; count: number }> =
+      {};
+    for (const p of pointsBySource)
+      pointsSourceMap[p._id as string] = {
+        total: p.total as number,
+        count: p.count as number,
+      };
+
+    const refStats = referralStats[0] ?? {
+      totalWithReferrer: 0,
+      totalDirectReferrals: 0,
+      totalIndirectReferrals: 0,
+      maxDepthReached: 0,
+    };
+
+    const nameFromDoc = (doc: Record<string, unknown>) => {
+      const fn = doc.fullName as
+        | { firstname?: string; lastname?: string }
+        | undefined;
+      return (
+        [fn?.firstname, fn?.lastname].filter(Boolean).join(" ").trim() ||
+        "Member"
+      );
+    };
+
     return NextResponse.json({
       users: {
         total: totalUsers,
@@ -237,6 +495,11 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         byEduStatus: Object.fromEntries(
           usersByEduStatus.map((r) => [r._id ?? "unknown", r.count]),
         ),
+        committeeBreakdown: committeeBreakdown.map((c) => ({
+          committee: c._id,
+          count: c.count,
+        })),
+        topSkills: skillsData.map((s) => ({ skill: s._id, count: s.count })),
       },
       events: {
         total: totalEvents,
@@ -253,9 +516,12 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
           totalRegistrations > 0
             ? Math.round((checkedInCount / totalRegistrations) * 100)
             : 0,
-        guestTotal, // ← ADD
-        guestThisMonth, // ← ADD
-        guestCheckedIn, // ← ADD
+        guestTotal,
+        guestThisMonth,
+        guestCheckedIn,
+        guestProfilesTotal: totalGuestProfiles,
+        migratedGuestsCount: migratedGuestCount,
+        pendingMigrationsCount: pendingMigrationCount,
       },
       topEvents: topEvents.map((e) => ({
         eventId: e.eventId.toString(),
@@ -300,6 +566,79 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
               ? Math.round((profileCompleted / totalUsers) * 100)
               : 0,
         },
+      },
+
+      referrals: {
+        platform: {
+          usersWithReferrer: refStats.totalWithReferrer,
+          totalDirectReferrals: refStats.totalDirectReferrals,
+          totalIndirectReferrals: refStats.totalIndirectReferrals,
+          maxTreeDepthReached: refStats.maxDepthReached,
+          signupReferralPoints: refPointsMap["referral_signup"]?.total ?? 0,
+          signupReferralCount: refPointsMap["referral_signup"]?.count ?? 0,
+          eventReferralPoints: refPointsMap["referral_event_reg"]?.total ?? 0,
+          eventReferralCount: refPointsMap["referral_event_reg"]?.count ?? 0,
+        },
+        topReferrers: topDirectReferrers.map((u) => ({
+          userId: (u._id as ObjectId).toString(),
+          name: nameFromDoc(u as Record<string, unknown>),
+          committee: u.committeeMembership?.committee ?? null,
+          directCount: u.referralMeta?.directCount ?? 0,
+          indirectCount: u.referralMeta?.indirectCount ?? 0,
+          totalEarned: u.referralMeta?.totalEarned ?? 0,
+        })),
+      },
+      tasks: {
+        statusBreakdown: {
+          draft: taskStatusMap["draft"] ?? 0,
+          pendingApproval: taskStatusMap["pending_approval"] ?? 0,
+          active: taskStatusMap["active"] ?? 0,
+          completed: taskStatusMap["completed"] ?? 0,
+          cancelled: taskStatusMap["cancelled"] ?? 0,
+          archived: taskStatusMap["archived"] ?? 0,
+        },
+        pendingApprovalCount: pendingApprovalTasks,
+        flaggedAssignmentsCount: flaggedAssignments,
+        byType: {
+          submission: taskTypeMap["submission"] ?? {
+            completions: 0,
+            avgScore: 0,
+            totalPoints: 0,
+          },
+          poll: taskTypeMap["poll"] ?? {
+            completions: 0,
+            avgScore: 0,
+            totalPoints: 0,
+          },
+          survey: taskTypeMap["survey"] ?? {
+            completions: 0,
+            avgScore: 0,
+            totalPoints: 0,
+          },
+          acknowledgement: taskTypeMap["acknowledgement"] ?? {
+            completions: 0,
+            avgScore: 0,
+            totalPoints: 0,
+          },
+          learning: taskTypeMap["learning"] ?? {
+            completions: 0,
+            avgScore: 0,
+            totalPoints: 0,
+          },
+        },
+      },
+      points: {
+        totalDistributed: (totalPointsDistributed[0]?.total as number) ?? 0,
+        totalTransactions: (totalPointsDistributed[0]?.count as number) ?? 0,
+        thisMonth: (pointsThisMonth[0]?.total as number) ?? 0,
+        bySource: pointsSourceMap,
+        leaderboard: topPointsEarners.map((u) => ({
+          userId: (u._id as ObjectId).toString(),
+          name: nameFromDoc(u as Record<string, unknown>),
+          committee: u.committeeMembership?.committee ?? null,
+          lifetimePoints: u.points?.lifetime ?? 0,
+          currentPoints: u.points?.current ?? 0,
+        })),
       },
       generatedAt: now.toISOString(),
     });

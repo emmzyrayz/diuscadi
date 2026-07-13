@@ -15,6 +15,9 @@ import { AdminAnalyticsEventPerformanceSection } from "@/components/sections/adm
 import { AdminAnalyticsRecentActivitySection } from "@/components/sections/admin/analytics/AARecentActivity";
 import { AdminAnalyticsConversionSection } from "@/components/sections/admin/analytics/AAConversion";
 import { cn } from "../../../lib/utils";
+import { AAPointsSection } from "@/components/sections/admin/analytics/AAPoints";
+import { AATaskSection } from "@/components/sections/admin/analytics/AATask";
+import { AAReferralSection } from "@/components/sections/admin/analytics/AAReferrals";
 
 export default function AnalyticsDashboardPage() {
   const { token } = useAuth();
@@ -83,6 +86,51 @@ export default function AnalyticsDashboardPage() {
 
       <section className={cn("max-w-4xl", "mx-auto")}>
         <AdminAnalyticsRecentActivitySection analytics={analytics} />
+      </section>
+
+      <hr className="border-border" />
+
+      {/* ── New: Referral analytics ───────────────────────────────────────── */}
+      <section
+        className={cn(
+          "bg-muted/50",
+          "p-8",
+          "rounded-[3rem]",
+          "border",
+          "border-border",
+        )}
+      >
+        <AAReferralSection referral={analytics?.referral} />
+      </section>
+
+      <hr className="border-border" />
+
+      {/* ── New: Task analytics ───────────────────────────────────────────── */}
+      <section
+        className={cn(
+          "bg-muted/50",
+          "p-8",
+          "rounded-[3rem]",
+          "border",
+          "border-border",
+        )}
+      >
+        <AATaskSection tasks={analytics?.tasks} />
+      </section>
+
+      <hr className="border-border" />
+
+      {/* ── New: Points analytics ─────────────────────────────────────────── */}
+      <section
+        className={cn(
+          "bg-muted/50",
+          "p-8",
+          "rounded-[3rem]",
+          "border",
+          "border-border",
+        )}
+      >
+        <AAPointsSection points={analytics?.points} />
       </section>
     </div>
   );

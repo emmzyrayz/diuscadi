@@ -1,6 +1,9 @@
 "use client";
+// src/components/sections/tasks/submissionSheet.tsx
+// CHANGED: image_url and file_url deliverables now open ScreenshotUploadModal
+// instead of plain text input. publicIds stored alongside URLs.
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -12,42 +15,23 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
-  LuClock,
   LuSend,
-  LuCircleAlert,
-  LuLink,
-  LuType,
-  LuImage,
-  LuFileText,
   LuLoader,
+  LuCircleAlert,
+  LuClock,
+  LuImage,
+  LuCheck,
+  LuUpload,
   LuRotateCcw,
 } from "react-icons/lu";
-import { useTasks } from "@/context/TaskContext";
+import { useTasks, type EnrichedTask } from "@/context/TaskContext";
 import { useToast } from "@/hooks/useToast";
-import { EvaluationCard } from "./EvaluationCard";
-import type { EnrichedTask } from "@/context/TaskContext";
+import { ScreenshotUploadModal } from "./ScreenshotUploadModal";
 import type { SubmissionItem } from "@/types/tasks";
-
-const TYPE_ICONS = {
-  text: LuType,
-  url: LuLink,
-  file_url: LuFileText,
-  image_url: LuImage,
-} as const;
-
-function formatDate(dateStr: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(dateStr));
-}
 
 export type SheetMode = "submit" | "view";
 
@@ -58,109 +42,169 @@ interface SubmissionSheetProps {
   mode: SheetMode;
 }
 
+interface DeliverableState {
+  value: string;
+  publicId?: string;
+}
+
 export function SubmissionSheet({
   task,
   open,
   onOpenChange,
   mode,
 }: SubmissionSheetProps) {
-  const {
-    submitAssignment,
-    triggerBotEvaluate,
-    selectedAssignment,
-    selectedAssignmentLoading,
-    loadAssignmentDetail,
-    clearSelectedAssignment,
-  } = useTasks();
+  const { submitAssignment } = useTasks();
   const { toast } = useToast();
 
-  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [deliverableValues, setDeliverableValues] = useState<
+    Record<string, DeliverableState>
+  >({});
   const [additionalNotes, setAdditionalNotes] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [reEvaluating, setReEvaluating] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [screenshotModalOpen, setScreenshotModalOpen] = useState(false);
+  const [activeDeliverableLabel, setActiveDeliverableLabel] = useState<
+    string | null
+  >(null);
 
-  // ── Sheet open/close ────────────────────────────────────────────────────────
-  // Phase 3 change: trigger loadAssignmentDetail on view mode open,
-  // and clear selectedAssignment on close.
-
-  const handleOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      if (nextOpen) {
-        setFieldValues({});
-        setAdditionalNotes("");
-        setFieldErrors({});
-        // Phase 3: fetch full evaluation breakdown when viewing
-        if (mode === "view" && task?.assignment?._id) {
-          loadAssignmentDetail(task.assignment._id);
-        }
-      } else {
-        clearSelectedAssignment();
-      }
-      onOpenChange(nextOpen);
-    },
-    [onOpenChange, mode, task, loadAssignmentDetail, clearSelectedAssignment],
-  );
+  useEffect(() => {
+    if (open && task) {
+      const initial: Record<string, DeliverableState> = {};
+      for (const d of task.deliverables ?? []) initial[d.label] = { value: "" };
+      setDeliverableValues(initial);
+      setAdditionalNotes("");
+      setErrors({});
+    }
+  }, [open, task]);
 
   if (!task) return null;
 
   const assignment = task.assignment;
+  const deliverables = task.deliverables ?? [];
   const isResubmission = assignment?.status === "revision_requested";
-  const deadlineStr = assignment?.effectiveDeadline ?? task.deadline;
-  const isOverdue = new Date(deadlineStr) < new Date();
+  const effectiveDeadline = assignment?.effectiveDeadline ?? task.deadline;
+  const isOverdue = new Date(effectiveDeadline) < new Date();
 
-  function validateFields(): boolean {
-    if (!task) return false;
-    const errors: Record<string, string> = {};
-    for (const d of task.deliverables) {
-      if (d.required && !fieldValues[d.label]?.trim()) {
-        errors[d.label] = `${d.label} is required`;
+  if (mode === "view") {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-lg overflow-y-auto flex flex-col gap-0 p-0"
+        >
+          <SheetHeader className="p-6 pb-4 space-y-2 border-b border-border">
+            <SheetTitle className="text-base font-black uppercase tracking-tight">
+              {task.title}
+            </SheetTitle>
+            <SheetDescription className="text-xs text-muted-foreground">
+              Submitted work — read only
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {assignment?.score && (
+              <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15 space-y-1">
+                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                  Evaluation Score
+                </p>
+                <p className="text-2xl font-black text-emerald-600">
+                  {assignment.score.total}/{assignment.score.max}
+                  <span className="text-sm ml-2 font-bold">
+                    ({assignment.score.percentage.toFixed(0)}%)
+                  </span>
+                </p>
+              </div>
+            )}
+            <div className="space-y-4">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                Submitted Deliverables
+              </p>
+              {deliverables.map((d) => (
+                <div key={d.label} className="space-y-1">
+                  <Label className="text-[10px] font-black uppercase tracking-widest">
+                    {d.label}
+                  </Label>
+                  <div className="p-3 bg-muted/30 rounded-xl border border-border text-sm text-muted-foreground">
+                    {d.type === "image_url" || d.type === "file_url"
+                      ? "[Screenshot submitted — removed after evaluation]"
+                      : "—"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <SheetFooter className="p-6 pt-4 border-t border-border">
+            <SheetClose asChild>
+              <Button
+                variant="ghost"
+                className="w-full text-[11px] font-black uppercase tracking-widest"
+              >
+                Close
+              </Button>
+            </SheetClose>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  const setDeliverableValue = (
+    label: string,
+    value: string,
+    publicId?: string,
+  ) => {
+    setDeliverableValues((prev) => ({
+      ...prev,
+      [label]: { value, ...(publicId && { publicId }) },
+    }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[label];
+      return next;
+    });
+  };
+
+  const handleScreenshotComplete = (result: {
+    url: string;
+    publicId: string;
+  }) => {
+    if (!activeDeliverableLabel) return;
+    setDeliverableValue(activeDeliverableLabel, result.url, result.publicId);
+    setScreenshotModalOpen(false);
+    setActiveDeliverableLabel(null);
+  };
+
+  function validate(): boolean {
+    const newErrors: Record<string, string> = {};
+    for (const d of deliverables) {
+      if (d.required && !deliverableValues[d.label]?.value?.trim()) {
+        newErrors[d.label] = "This deliverable is required";
       }
     }
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   }
 
   async function handleSubmit() {
-    if (!task || !assignment || isOverdue) return;
-    if (!validateFields()) {
-      toast({
-        title: "Missing Fields",
-        description: "Please fill in all required deliverables.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    if (!assignment || !validate()) return;
     setSubmitting(true);
-
-    const items: SubmissionItem[] = task.deliverables
-      .map((d) => ({
-        deliverableLabel: d.label,
-        type: d.type,
-        value: fieldValues[d.label]?.trim() ?? "",
-      }))
-      .filter((item) => item.value.length > 0);
-
+    const items: SubmissionItem[] = deliverables.map((d) => ({
+      deliverableLabel: d.label,
+      type: d.type,
+      value: deliverableValues[d.label]?.value ?? "",
+    }));
     const result = await submitAssignment(assignment._id, {
       items,
       additionalNotes: additionalNotes.trim() || undefined,
     });
-
     setSubmitting(false);
-
     if (result.success) {
-      let description: string;
-      if (result.botTriggered && result.evaluationPreview) {
-        description = result.evaluationPreview.flaggedForHumanReview
-          ? "Submitted and flagged for human review."
-          : `AI evaluated: ${result.evaluationPreview.score}/${result.evaluationPreview.maxScore} (${result.evaluationPreview.percentage.toFixed(0)}%)`;
-      } else {
-        description = "Your work has been submitted for review.";
-      }
       toast({
         title: isResubmission ? "Resubmitted" : "Submitted",
-        description,
+        description: result.evaluationPreview
+          ? result.evaluationPreview.flaggedForHumanReview
+            ? "Submitted and queued for review."
+            : `Score: ${result.evaluationPreview.score}/${result.evaluationPreview.maxScore}`
+          : "Your work has been submitted for evaluation.",
         variant: "success",
       });
       onOpenChange(false);
@@ -173,427 +217,219 @@ export function SubmissionSheet({
     }
   }
 
-  async function handleReEvaluate() {
-    if (!assignment) return;
-    setReEvaluating(true);
-
-    const result = await triggerBotEvaluate(assignment._id, "RE_EVALUATE");
-    setReEvaluating(false);
-
-    if (result.success) {
-      toast({
-        title: result.flaggedForHumanReview
-          ? "Flagged for Review"
-          : "Re-evaluation Complete",
-        description: result.flaggedForHumanReview
-          ? "The AI flagged this submission for human review."
-          : `Score: ${result.evaluation?.totalScore}/${result.evaluation?.maxScore} · ${result.evaluation?.percentageScore.toFixed(0)}%`,
-        variant: result.flaggedForHumanReview ? "default" : "success",
-      });
-    } else {
-      toast({
-        title: "Re-evaluation Failed",
-        description: result.error ?? "AI service temporarily unavailable.",
-        variant: "destructive",
-      });
-    }
-  }
-
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-lg overflow-y-auto flex flex-col gap-0 p-0"
-      >
-        {/* ── Header ──────────────────────────────────────────────────────── */}
-        <SheetHeader className="p-6 pb-4 space-y-3 border-b border-border">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className={cn(
-                "text-[9px]",
-                "font-mono",
-                "font-bold",
-                "uppercase",
-                "tracking-widest",
-                "px-2",
-                "py-0.5",
-                "rounded",
-                "bg-primary/10",
-                "text-primary",
-              )}
-            >
-              {task.priority} priority
-            </span>
-            <span
-              className={cn(
-                "text-[9px]",
-                "font-mono",
-                "uppercase",
-                "tracking-widest",
-                "px-2",
-                "py-0.5",
-                "rounded",
-                "bg-foreground/5",
-                "text-muted-foreground",
-              )}
-            >
-              {task.taskType}
-            </span>
-            {task.autoEvaluate && (
-              <span
-                className={cn(
-                  "text-[9px]",
-                  "font-mono",
-                  "uppercase",
-                  "tracking-widest",
-                  "px-2",
-                  "py-0.5",
-                  "rounded",
-                  "bg-blue-500/10",
-                  "text-blue-500",
-                )}
-              >
-                ✦ AI Graded
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-lg overflow-y-auto flex flex-col gap-0 p-0"
+        >
+          <SheetHeader className="p-6 pb-4 space-y-3 border-b border-border">
+            {isResubmission && (
+              <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-orange-500/10 text-orange-500 border border-orange-500/20 inline-flex items-center gap-1 w-fit">
+                <LuRotateCcw className="w-2.5 h-2.5" /> Revision
               </span>
             )}
-          </div>
-
-          <SheetTitle className="text-base font-black uppercase tracking-tight leading-snug">
-            {task.title}
-          </SheetTitle>
-          <SheetDescription className="text-xs leading-relaxed text-muted-foreground">
-            {task.description}
-          </SheetDescription>
-          <div
-            className={cn(
-              "flex",
-              "items-center",
-              "gap-1.5",
-              "text-xs",
-              "font-mono",
-              isOverdue ? "text-red-500" : "text-muted-foreground/60",
+            <SheetTitle className="text-base font-black uppercase tracking-tight leading-snug">
+              {task.title}
+            </SheetTitle>
+            {task.description && (
+              <SheetDescription className="text-xs leading-relaxed text-muted-foreground">
+                {task.description}
+              </SheetDescription>
             )}
-          >
-            <LuClock className="w-3.5 h-3.5" />
-            {isOverdue ? "Overdue · " : "Deadline · "}
-            {formatDate(deadlineStr)}
-          </div>
-        </SheetHeader>
-
-        {/* ── Body ────────────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* VIEW MODE — evaluated (Phase 3: loads full breakdown) */}
-          {mode === "view" && assignment?.status === "evaluated" && (
-            <>
-              {selectedAssignmentLoading && (
-                <div className="flex items-center justify-center py-12 gap-3">
-                  <LuLoader className="w-5 h-5 animate-spin text-primary" />
-                  <span className="text-sm text-muted-foreground">
-                    Loading evaluation…
-                  </span>
-                </div>
-              )}
-
-              {!selectedAssignmentLoading && selectedAssignment?.evaluation && (
-                <EvaluationCard
-                  evaluation={{
-                    totalScore: selectedAssignment.evaluation.totalScore,
-                    maxScore: selectedAssignment.evaluation.maxScore,
-                    percentageScore:
-                      selectedAssignment.evaluation.percentageScore,
-                    feedback: selectedAssignment.evaluation.feedback,
-                    criteriaBreakdown:
-                      selectedAssignment.evaluation.criteriaBreakdown,
-                    evaluatorType: selectedAssignment.evaluation.evaluatorType,
-                    flaggedForHumanReview:
-                      selectedAssignment.evaluation.flaggedForHumanReview,
-                    evaluatedAt: selectedAssignment.evaluation.evaluatedAt,
-                    reviewNote:
-                      selectedAssignment.evaluation.reviewNote ?? undefined,
-                  }}
-                />
-              )}
-
-              {/* Fallback: show score summary if full detail fetch failed */}
-              {!selectedAssignmentLoading &&
-                !selectedAssignment?.evaluation &&
-                assignment.score && (
-                  <EvaluationCard
-                    evaluation={{
-                      totalScore: assignment.score.total,
-                      maxScore: assignment.score.max,
-                      percentageScore: assignment.score.percentage,
-                      flaggedForHumanReview: assignment.flaggedForHumanReview,
-                      evaluatedAt: assignment.evaluatedAt ?? undefined,
-                    }}
-                  />
-                )}
-            </>
-          )}
-
-          {/* VIEW MODE — submitted */}
-          {mode === "view" && assignment?.status === "submitted" && (
             <div
               className={cn(
-                "p-4",
-                "rounded-xl",
-                "bg-primary/5",
-                "border",
-                "border-primary/15",
-                "space-y-2",
+                "flex items-center gap-1.5 text-xs font-mono",
+                isOverdue ? "text-red-500" : "text-muted-foreground/60",
               )}
             >
-              <p className="text-xs font-bold text-primary">
-                Submission Received
-              </p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Your work has been received and is in the evaluation queue.
-                {task.autoEvaluate
-                  ? " AI evaluation will run shortly."
-                  : " A committee head or admin will review it."}
-              </p>
-              {assignment.submittedAt && (
-                <p className="text-[10px] font-mono text-muted-foreground/50">
-                  Submitted {formatDate(assignment.submittedAt)}
-                </p>
-              )}
+              <LuClock className="w-3.5 h-3.5" />
+              {isOverdue ? "Overdue · " : "Due · "}
+              {new Date(effectiveDeadline).toLocaleString()}
             </div>
-          )}
+          </SheetHeader>
 
-          {/* VIEW MODE — under review */}
-          {mode === "view" && assignment?.status === "under_review" && (
-            <div
-              className={cn(
-                "p-4",
-                "rounded-xl",
-                "bg-yellow-500/5",
-                "border",
-                "border-yellow-500/20",
-                "space-y-3",
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <LuCircleAlert className="w-4 h-4 text-yellow-500 shrink-0" />
-                <p className="text-xs font-bold text-yellow-500">
-                  Under Review
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {isOverdue && (
+              <div className="flex items-center gap-2 p-3 bg-red-500/5 border border-red-500/20 rounded-xl">
+                <LuCircleAlert className="w-4 h-4 text-red-500 shrink-0" />
+                <p className="text-[11px] text-red-600 font-bold">
+                  Deadline has passed — your submission may not be accepted.
                 </p>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Your submission is in the manual review queue.
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full h-8 text-[11px] font-bold uppercase tracking-wider border-yellow-500/30 hover:bg-yellow-500/5"
-                onClick={handleReEvaluate}
-                disabled={reEvaluating}
-              >
-                {reEvaluating ? (
-                  <>
-                    <LuLoader className="w-3.5 h-3.5 mr-1.5 animate-spin" />{" "}
-                    Re-evaluating...
-                  </>
-                ) : (
-                  <>
-                    <LuRotateCcw className="w-3.5 h-3.5 mr-1.5" /> Request
-                    Re-evaluation
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
+            )}
 
-          {/* SUBMIT MODE */}
-          {mode === "submit" && (
-            <div className="space-y-5">
-              {isOverdue && (
-                <div
-                  className={cn(
-                    "flex",
-                    "items-center",
-                    "gap-2",
-                    "p-3",
-                    "rounded-lg",
-                    "bg-red-500/10",
-                    "border",
-                    "border-red-500/20",
+            {deliverables.map((d) => {
+              const isImage = d.type === "image_url" || d.type === "file_url";
+              const currentValue = deliverableValues[d.label]?.value ?? "";
+              const hasValue = currentValue.trim().length > 0;
+              const hasError = !!errors[d.label];
+
+              return (
+                <div key={d.label} className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest">
+                    {d.label}
+                    {d.required && <span className="ml-1 text-red-500">*</span>}
+                  </Label>
+                  {d.description && (
+                    <p className="text-[10px] text-muted-foreground">
+                      {d.description}
+                    </p>
                   )}
-                >
-                  <LuCircleAlert className="w-4 h-4 text-red-500 shrink-0" />
-                  <p className="text-xs text-red-500 font-semibold">
-                    The submission deadline has passed. Contact a committee head
-                    if you need an extension.
-                  </p>
-                </div>
-              )}
 
-              {task.evaluationCriteria && (
-                <div
-                  className={cn(
-                    "p-3",
-                    "rounded-lg",
-                    "bg-primary/5",
-                    "border",
-                    "border-primary/10",
-                  )}
-                >
-                  <h5
-                    className={cn(
-                      "text-[10px]",
-                      "font-mono",
-                      "font-bold",
-                      "uppercase",
-                      "tracking-widest",
-                      "text-primary",
-                      "mb-1.5",
-                    )}
-                  >
-                    Evaluation Criteria
-                  </h5>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {task.evaluationCriteria}
-                  </p>
-                </div>
-              )}
-
-              {task.deliverables.length > 0 ? (
-                <div className="space-y-4">
-                  {task.deliverables.map((d) => {
-                    const Icon = TYPE_ICONS[d.type] ?? LuType;
-                    const hasError = !!fieldErrors[d.label];
-
-                    return (
-                      <div key={d.label} className="space-y-1.5">
-                        <Label
-                          htmlFor={`field-${d.label}`}
-                          className="flex items-center gap-2 text-xs font-bold"
-                        >
-                          <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-                          {d.label}
-                          {d.required ? (
-                            <span className="text-[10px] text-red-500 font-normal">
-                              required
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-muted-foreground/40 font-normal">
-                              optional
-                            </span>
-                          )}
-                        </Label>
-
-                        {d.description && (
-                          <p className="text-[11px] text-muted-foreground pl-5">
-                            {d.description}
-                          </p>
+                  {isImage ? (
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveDeliverableLabel(d.label);
+                          setScreenshotModalOpen(true);
+                        }}
+                        disabled={submitting}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all text-left",
+                          hasValue
+                            ? "border-emerald-500/40 bg-emerald-500/5"
+                            : hasError
+                              ? "border-red-500/40 bg-red-500/5"
+                              : "border-dashed border-border hover:border-primary/40 hover:bg-muted/30",
+                          submitting && "pointer-events-none opacity-60",
                         )}
-
-                        {d.type === "text" ? (
-                          <Textarea
-                            id={`field-${d.label}`}
-                            placeholder={
-                              d.placeholder ?? `Enter ${d.label.toLowerCase()}…`
-                            }
-                            value={fieldValues[d.label] ?? ""}
-                            onChange={(e) =>
-                              setFieldValues((prev) => ({
-                                ...prev,
-                                [d.label]: e.target.value,
-                              }))
-                            }
-                            rows={4}
-                            className={cn(
-                              "text-sm resize-none",
-                              hasError &&
-                                "border-red-500/50 focus-visible:ring-red-500/30",
-                            )}
-                          />
+                      >
+                        {hasValue ? (
+                          <>
+                            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+                              <LuCheck className="w-5 h-5 text-emerald-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-black text-emerald-600">
+                                Screenshot uploaded
+                              </p>
+                              <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                                Click to replace
+                              </p>
+                            </div>
+                          </>
                         ) : (
-                          <Input
-                            id={`field-${d.label}`}
-                            type="url"
-                            placeholder={d.placeholder ?? "https://…"}
-                            value={fieldValues[d.label] ?? ""}
-                            onChange={(e) =>
-                              setFieldValues((prev) => ({
-                                ...prev,
-                                [d.label]: e.target.value,
-                              }))
-                            }
-                            className={cn(
-                              "text-sm",
-                              hasError &&
-                                "border-red-500/50 focus-visible:ring-red-500/30",
-                            )}
-                          />
+                          <>
+                            <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                              <LuImage className="w-5 h-5 text-muted-foreground/50" />
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-bold text-foreground">
+                                Upload screenshot
+                              </p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {d.placeholder ?? "Click to select an image"}
+                              </p>
+                            </div>
+                            <LuUpload className="w-4 h-4 text-muted-foreground/40 ml-auto shrink-0" />
+                          </>
                         )}
-
-                        {hasError && (
-                          <p className="text-[11px] text-red-500 flex items-center gap-1 pl-0.5">
-                            <LuCircleAlert className="w-3 h-3 shrink-0" />
-                            {fieldErrors[d.label]}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold">
-                      Additional Notes{" "}
-                      <span className="font-normal text-muted-foreground/40 text-[10px]">
-                        optional
-                      </span>
-                    </Label>
+                      </button>
+                      {hasError && (
+                        <p className="text-[11px] text-red-500 font-bold flex items-center gap-1">
+                          <LuCircleAlert className="w-3 h-3 shrink-0" />
+                          {errors[d.label]}
+                        </p>
+                      )}
+                    </div>
+                  ) : d.type === "text" ? (
                     <Textarea
-                      placeholder="Any context or clarifications for the reviewer…"
-                      value={additionalNotes}
-                      onChange={(e) => setAdditionalNotes(e.target.value)}
-                      rows={2}
-                      className="text-sm resize-none"
+                      rows={3}
+                      value={currentValue}
+                      onChange={(e) =>
+                        setDeliverableValue(d.label, e.target.value)
+                      }
+                      placeholder={d.placeholder ?? "Your response…"}
+                      disabled={submitting}
+                      className={cn(
+                        "text-sm resize-none",
+                        hasError && "border-red-500/50",
+                      )}
                     />
-                  </div>
+                  ) : (
+                    <Input
+                      value={currentValue}
+                      onChange={(e) =>
+                        setDeliverableValue(d.label, e.target.value)
+                      }
+                      placeholder={d.placeholder ?? "https://…"}
+                      disabled={submitting}
+                      className={cn(
+                        "text-sm font-mono",
+                        hasError && "border-red-500/50",
+                      )}
+                    />
+                  )}
+
+                  {hasError && !isImage && (
+                    <p className="text-[11px] text-red-500 font-bold flex items-center gap-1">
+                      <LuCircleAlert className="w-3 h-3 shrink-0" />
+                      {errors[d.label]}
+                    </p>
+                  )}
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  No deliverables defined for this task.
-                </p>
-              )}
+              );
+            })}
+
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest">
+                Additional Notes{" "}
+                <span className="font-normal text-muted-foreground normal-case tracking-normal">
+                  (optional)
+                </span>
+              </Label>
+              <Textarea
+                rows={3}
+                value={additionalNotes}
+                onChange={(e) => setAdditionalNotes(e.target.value)}
+                placeholder="Any context for the evaluator…"
+                disabled={submitting}
+                className="text-sm resize-none"
+              />
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* ── Footer ──────────────────────────────────────────────────────── */}
-        <SheetFooter className="p-6 pt-4 border-t border-border flex flex-row gap-2">
-          <SheetClose asChild>
+          <SheetFooter className="p-6 pt-4 border-t border-border flex flex-row gap-2">
+            <SheetClose asChild>
+              <Button
+                variant="ghost"
+                className="flex-1 h-9 text-[11px] font-black uppercase tracking-wider"
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+            </SheetClose>
             <Button
-              variant="ghost"
-              className="flex-1 h-9 text-[11px] font-bold uppercase tracking-wider"
-            >
-              {mode === "submit" ? "Cancel" : "Close"}
-            </Button>
-          </SheetClose>
-
-          {mode === "submit" && (
-            <Button
-              className="flex-1 h-9 text-[11px] font-bold uppercase tracking-wider"
+              className="flex-1 h-9 text-[11px] font-black uppercase tracking-wider"
               onClick={handleSubmit}
-              disabled={submitting || isOverdue}
+              disabled={submitting}
             >
               {submitting ? (
                 <>
-                  <LuLoader className="w-3.5 h-3.5 mr-1.5 animate-spin" />{" "}
+                  <LuLoader className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                   Submitting…
                 </>
               ) : (
                 <>
                   <LuSend className="w-3.5 h-3.5 mr-1.5" />
-                  {isResubmission ? "Resubmit" : "Submit Work"}
+                  {isResubmission ? "Resubmit" : "Submit"}
                 </>
               )}
             </Button>
-          )}
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <ScreenshotUploadModal
+        open={screenshotModalOpen}
+        onOpenChange={setScreenshotModalOpen}
+        deliverableLabel={activeDeliverableLabel ?? ""}
+        onComplete={handleScreenshotComplete}
+        disabled={submitting}
+      />
+    </>
   );
 }

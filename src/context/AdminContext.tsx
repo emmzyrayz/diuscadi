@@ -208,6 +208,77 @@ export interface Analytics {
       profileCompletionRate: number;
     };
   };
+  referral?: {
+    platform: {
+      usersWithReferrer: number;
+      totalDirectReferrals: number;
+      totalIndirectReferrals: number;
+      maxTreeDepthReached: number;
+      signupReferralPoints: number;
+      signupReferralCount: number;
+      eventReferralPoints: number;
+      eventReferralCount: number;
+    };
+    topReferrers: {
+      userId: string;
+      name: string;
+      committee: string | null;
+      directCount: number;
+      indirectCount: number;
+      totalEarned: number;
+      treeDepthReached: number;
+    }[];
+  };
+
+  tasks?: {
+    statusBreakdown: {
+      draft: number;
+      pendingApproval: number;
+      active: number;
+      completed: number;
+      cancelled: number;
+      archived: number;
+    };
+    pendingApprovalCount: number;
+    flaggedAssignmentsCount: number;
+    byType: {
+      submission: {
+        completions: number;
+        avgScore: number;
+        totalPoints: number;
+      };
+      poll: { completions: number; avgScore: number; totalPoints: number };
+      survey: { completions: number; avgScore: number; totalPoints: number };
+      acknowledgement: {
+        completions: number;
+        avgScore: number;
+        totalPoints: number;
+      };
+      learning: { completions: number; avgScore: number; totalPoints: number };
+    };
+    topPerformers: {
+      userId: string;
+      name: string;
+      committee: string | null;
+      lifetimePoints: number;
+      currentPoints: number;
+      directReferrals: number;
+    }[];
+  };
+
+  points?: {
+    totalDistributed: number;
+    totalTransactions: number;
+    thisMonth: number;
+    bySource: Record<string, { total: number; count: number }>;
+    leaderboard: {
+      userId: string;
+      name: string;
+      committee: string | null;
+      lifetimePoints: number;
+      currentPoints: number;
+    }[];
+  };
   generatedAt: string;
 }
 

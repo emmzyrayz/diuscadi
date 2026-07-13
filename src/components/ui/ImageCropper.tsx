@@ -23,7 +23,7 @@ import Image from "next/image";
 interface ImageCropperProps {
   srcUrl: string;
   crop: PercentCrop;
-  aspect: number;
+  aspect?: number;
   onCropChange: (c: PercentCrop) => void;
   onConfirm: (imgEl: HTMLImageElement) => Promise<void>;
   onCancel: () => void;
@@ -51,8 +51,15 @@ export function ImageCropper({
   return (
     <div className={cn("flex flex-col gap-4 w-full")}>
       {/* Header */}
-      <div className={cn('flex', 'items-center', 'justify-between')}>
-        <p className={cn('text-sm', 'font-bold', 'text-foreground', 'tracking-tight')}>
+      <div className={cn("flex", "items-center", "justify-between")}>
+        <p
+          className={cn(
+            "text-sm",
+            "font-bold",
+            "text-foreground",
+            "tracking-tight",
+          )}
+        >
           {label ?? "Adjust crop"}
         </p>
         <button
@@ -65,12 +72,20 @@ export function ImageCropper({
           )}
           aria-label="Cancel crop"
         >
-          <LuX className={cn('w-3.5', 'h-3.5')} />
+          <LuX className={cn("w-3.5", "h-3.5")} />
         </button>
       </div>
 
       {/* Crop area */}
-      <div className={cn('relative', 'w-full', 'overflow-hidden', 'rounded-2xl', 'bg-muted/50')}>
+      <div
+        className={cn(
+          "relative",
+          "w-full",
+          "overflow-hidden",
+          "rounded-2xl",
+          "bg-muted/50",
+        )}
+      >
         <ReactCrop
           crop={crop}
           onChange={(_, percentCrop) => onCropChange(percentCrop)}
@@ -80,24 +95,35 @@ export function ImageCropper({
           keepSelection
         >
           <Image
-                      width={500}
-                      height={300}
+            width={500}
+            height={300}
             ref={imgRef}
             src={srcUrl}
             alt="Crop preview"
-            className={cn('max-h-[420px]', 'w-full', 'object-contain')}
+            className={cn("max-h-[420px]", "w-full", "object-contain")}
             style={{ display: "block" }}
           />
         </ReactCrop>
       </div>
 
       {/* Hint */}
-      <p className={cn('text-[10px]', 'font-medium', 'text-muted-foreground', 'text-center', 'tracking-wide', 'uppercase')}>
-        Drag to reposition · Resize from corners
+      <p
+        className={cn(
+          "text-[10px]",
+          "font-medium",
+          "text-muted-foreground",
+          "text-center",
+          "tracking-wide",
+          "uppercase",
+        )}
+      >
+        {aspect
+          ? "Drag to reposition · Resize from corners"
+          : "Freeform crop · Drag handles to adjust freely"}
       </p>
 
       {/* Actions */}
-      <div className={cn('flex', 'gap-2')}>
+      <div className={cn("flex", "gap-2")}>
         <button
           onClick={onCancel}
           disabled={uploading}
@@ -109,7 +135,7 @@ export function ImageCropper({
             "hover:bg-border transition-colors disabled:opacity-50 cursor-pointer",
           )}
         >
-          <LuX className={cn('w-3.5', 'h-3.5')} /> Cancel
+          <LuX className={cn("w-3.5", "h-3.5")} /> Cancel
         </button>
 
         <button
@@ -124,9 +150,9 @@ export function ImageCropper({
           )}
         >
           {uploading ? (
-            <LuLoader className={cn('w-3.5', 'h-3.5', 'animate-spin')} />
+            <LuLoader className={cn("w-3.5", "h-3.5", "animate-spin")} />
           ) : (
-            <LuCheck className={cn('w-3.5', 'h-3.5')} />
+            <LuCheck className={cn("w-3.5", "h-3.5")} />
           )}
           {uploading ? "Uploading…" : "Use this crop"}
         </button>
