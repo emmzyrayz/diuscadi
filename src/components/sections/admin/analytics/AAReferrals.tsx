@@ -67,7 +67,8 @@ function StatCard({
 export function AAReferralSection({ referral }: AAReferralSectionProps) {
   if (!referral) return null;
 
-  const { platform, topReferrers } = referral;
+  const { platform, topReferrers = [] } = referral;
+  if (!platform) return null;
   const totalReferralPoints =
     platform.signupReferralPoints + platform.eventReferralPoints;
 

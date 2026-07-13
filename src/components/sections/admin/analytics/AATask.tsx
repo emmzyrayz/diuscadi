@@ -69,6 +69,13 @@ const TASK_TYPE_CONFIG = [
     bg: "bg-violet-500/10",
   },
   {
+    key: "learning" as const,
+    label: "Learning",
+    icon: LuClock, // pick an appropriate icon
+    color: "text-fuchsia-500",
+    bg: "bg-fuchsia-500/10",
+  },
+  {
     key: "survey" as const,
     label: "Survey",
     icon: LuClipboardList,
@@ -87,7 +94,7 @@ const TASK_TYPE_CONFIG = [
 export function AATaskSection({ tasks }: AATaskSectionProps) {
   if (!tasks) return null;
 
-  const { statusBreakdown, byType, topPerformers } = tasks;
+  const { statusBreakdown, byType, topPerformers = [] } = tasks;
 
     if (!statusBreakdown || !byType) return null;
     

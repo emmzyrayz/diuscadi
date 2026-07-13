@@ -84,11 +84,11 @@ export function AAPointsSection({ points }: AAPointsSectionProps) {
   if (!points) return null;
 
   const {
-    totalDistributed,
-    totalTransactions,
-    thisMonth,
-    bySource,
-    leaderboard,
+    totalDistributed = 0,
+    totalTransactions = 0,
+    thisMonth = 0,
+    bySource = {},
+    leaderboard = [],
   } = points;
 
   // Sort sources by total descending
