@@ -501,12 +501,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     if (uploadType === "speaker-photo" || uploadType === "sponsor-logo") {
       return NextResponse.json({ image: cloudinaryImage });
     }
-
-    return NextResponse.json(
-      { error: "Unhandled uploadType" },
-      { status: 400 },
-    );
-
+    
     // ── task-screenshot ──────────────────────────────────────────────────────────
     // Not persisted here — the member's screenshot only gets attached to the
     // assignment when they hit "Submit" on the deliverable form, which sends
