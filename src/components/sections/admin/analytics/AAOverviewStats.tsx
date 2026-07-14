@@ -35,12 +35,28 @@ export const AdminAnalyticsOverviewStats = ({ analytics }: Props) => {
     // Revenue is not in Analytics type — show registrations as proxy
     {
       title: "Total Registrations",
-      value: a ? String(a.registrations.total) : "—",
+      value: a
+        ? `${a.registrations.total}` +
+          (a.registrations.guestTotalUnmigrated
+            ? ` (${a.registrations.userTotal} users, ${a.registrations.guestTotalUnmigrated} guests)`
+            : "")
+        : "—",
       trend: "Live",
       isPositive: true,
       icon: LuTicket,
       color: "text-blue-600",
       bg: "bg-blue-50",
+    },
+    {
+      title: "Guest Registrations",
+      value: a ? String(a.registrations.guestTotalUnmigrated ?? 0) : "—",
+      trend: a?.registrations.hasMigratedGuests
+        ? `${a.registrations.migratedGuestPercentage}% migrated`
+        : "Active",
+      isPositive: true,
+      icon: LuUsers,
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
     },
     {
       title: "Tickets This Month",

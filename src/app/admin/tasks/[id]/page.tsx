@@ -34,6 +34,7 @@ import {
 //   type ManualEvaluateSheetProps,
 } from "@/components/sections/tasks/ManualEvaluateSheet";
 import type { AssignmentWithMemberInfo } from "@/context/TaskAdminContext";
+import { PollConfig, SurveyConfig, TaskDeliverable } from "@/types/tasks";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,9 +58,9 @@ interface TaskDetail {
   autoEvaluate: boolean;
   evaluationCriteria?: string;
   maxScore: number;
-  deliverables?: { label: string; type: string; required: boolean }[];
-  pollConfig?: { question: string; options: { id: string; label: string }[] };
-  surveyConfig?: { questions: { id: string; label: string; type: string }[]; anonymous: boolean };
+  deliverables?: TaskDeliverable[];
+  pollConfig?: PollConfig[];
+  surveyConfig?: SurveyConfig;
   tags: string[];
 }
 
@@ -131,7 +132,7 @@ export default function AdminTaskDetailPage() {
     if (!token || !taskId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/tasks/task/${taskId}`, {
+      const res = await fetch(`/api/admin/tasks/task/${taskId}/get`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -313,9 +314,52 @@ export default function AdminTaskDetailPage() {
             <h1 className="text-2xl font-black text-foreground tracking-tight">
               {task.title}
             </h1>
-            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-              {task.description}
-            </p>
+            {task.description && (
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                {task.description}
+              </p>
+            )}
+
+            {/* ← ADD THIS: Show deliverables with social URLs */}
+            {task.deliverables && task.deliverables.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border/50">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">
+                  Deliverables
+                </p>
+                <div className="space-y-1.5">
+                  {task.deliverables.map((d, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0">
+                        {i + 1}.
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold text-foreground">
+                          {d.label}
+                          {d.required && (
+                            <span className="text-red-500 ml-1">*</span>
+                          )}
+                        </p>
+                        {d.description && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {d.description}
+                          </p>
+                        )}
+                        {d.socialMediaUrl && (
+                          <a
+                            href={d.socialMediaUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-primary hover:underline mt-1 inline-block"
+                          >
+                            → Visit {new URL(d.socialMediaUrl).hostname}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <button

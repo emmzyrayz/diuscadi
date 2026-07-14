@@ -159,9 +159,26 @@ export interface Analytics {
     thisMonth: number;
     checkedIn: number;
     attendanceRate: number;
-    guestTotal?: number; // ← ADD
-    guestThisMonth?: number; // ← ADD
-    guestCheckedIn?: number; // ← ADD
+
+    // User breakdown
+    userTotal?: number;
+    userThisMonth?: number;
+    userCheckedIn?: number;
+
+    // Guest breakdown (unmigrated only)
+    guestTotalAll?: number;
+    guestTotalUnmigrated?: number;
+    guestThisMonth?: number;
+    guestCheckedIn?: number;
+
+    // Guest profile tracking
+    guestProfilesTotal?: number;
+    guestProfilesMigrated?: number;
+    guestProfilesPending?: number;
+
+    // Analytics flags
+    hasMigratedGuests?: boolean;
+    migratedGuestPercentage?: number;
   };
   topEvents: Array<{
     eventId: string;

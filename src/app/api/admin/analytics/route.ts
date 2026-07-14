@@ -54,9 +54,10 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       dropoffEmailUnverified,
       dropoffProfileIncomplete,
       profileCompleted,
-      guestTotal, // ← ADD
-      guestThisMonth, // ← ADD
-      guestCheckedIn, // ← ADD
+      guestTotalAll, // Total ever (including migrated)
+      guestTotalUnmigrated, // Active unmigrated only
+      guestThisMonth, // Unmigrated, registered last 30 days
+      guestCheckedIn, // Unmigrated, checked-in status
 
       totalGuestProfiles,
       migratedGuestCount,
@@ -222,16 +223,23 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
       Collections.guestEventRegistrations(db).countDocuments({
         verifiedAt: { $exists: true },
-        migratedToUserId: { $exists: false },
+        // COUNT ALL (including migrated) for total guest registrations
       }),
+
+      Collections.guestEventRegistrations(db).countDocuments({
+        verifiedAt: { $exists: true },
+        migratedToUserId: { $exists: false }, // ← EXCLUDE MIGRATED
+      }),
+
       Collections.guestEventRegistrations(db).countDocuments({
         verifiedAt: { $exists: true },
         registeredAt: { $gte: thirtyDaysAgo },
-        migratedToUserId: { $exists: false },
+        migratedToUserId: { $exists: false }, // ← EXCLUDE MIGRATED
       }),
+
       Collections.guestEventRegistrations(db).countDocuments({
         status: "checked-in",
-        migratedToUserId: { $exists: false },
+        migratedToUserId: { $exists: false }, // ← EXCLUDE MIGRATED
       }),
       Collections.guestProfiles(db).countDocuments({}),
       Collections.guestProfiles(db).countDocuments({
@@ -509,19 +517,38 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         ),
       },
       registrations: {
-        total: totalRegistrations,
-        thisMonth: registrationsThisMonth,
-        checkedIn: checkedInCount,
+        total: totalRegistrations + guestTotalUnmigrated, // Only active guests
+        thisMonth: registrationsThisMonth + guestThisMonth,
+        checkedIn: checkedInCount + guestCheckedIn,
         attendanceRate:
-          totalRegistrations > 0
-            ? Math.round((checkedInCount / totalRegistrations) * 100)
+          totalRegistrations + guestTotalUnmigrated > 0
+            ? Math.round(
+                ((checkedInCount + guestCheckedIn) /
+                  (totalRegistrations + guestTotalUnmigrated)) *
+                  100,
+              )
             : 0,
-        guestTotal,
+
+        // ── Detailed breakdown ──────────────────────────────────────────────────
+        userTotal: totalRegistrations,
+        userThisMonth: registrationsThisMonth,
+        userCheckedIn: checkedInCount,
+
+        guestTotalAll, // All guests ever (including migrated)
+        guestTotalUnmigrated, // Active unmigrated
         guestThisMonth,
         guestCheckedIn,
+
+        // ── Guest profile migration tracking ────────────────────────────────────
         guestProfilesTotal: totalGuestProfiles,
-        migratedGuestsCount: migratedGuestCount,
-        pendingMigrationsCount: pendingMigrationCount,
+        guestProfilesMigrated: migratedGuestCount, // Now excluded from counts
+        guestProfilesPending: pendingMigrationCount,
+        // ── Clarity flags for frontend ──────────────────────────────────────────
+        hasMigratedGuests: migratedGuestCount > 0,
+        migratedGuestPercentage:
+          totalGuestProfiles > 0
+            ? Math.round((migratedGuestCount / totalGuestProfiles) * 100)
+            : 0,
       },
       topEvents: topEvents.map((e) => ({
         eventId: e.eventId.toString(),

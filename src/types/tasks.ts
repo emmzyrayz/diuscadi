@@ -95,6 +95,7 @@ export interface TaskDeliverable {
   type: "text" | "url" | "file_url" | "image_url";
   required: boolean;
   placeholder?: string;
+  socialMediaUrl?: string;
 }
 
 export interface SubmissionItem {
