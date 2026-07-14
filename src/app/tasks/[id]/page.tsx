@@ -267,7 +267,9 @@ export default function TaskDetailPage() {
                           : "bg-primary text-primary-foreground",
                       )}
                     >
-                      {deliverableValues[d.label] ? "Uploaded ✓ — Replace" : "Upload"}
+                      {deliverableValues[d.label]
+                        ? "Uploaded ✓ — Replace"
+                        : "Upload"}
                     </button>
                     <ScreenshotUploadModal
                       open={activeUploadLabel === d.label}
@@ -278,6 +280,7 @@ export default function TaskDetailPage() {
                       onComplete={(result) =>
                         handleDeliverableUpload(d.label, result)
                       }
+                      ownerId={assignmentId}
                     />
                   </>
                 )}
@@ -285,7 +288,9 @@ export default function TaskDetailPage() {
                 {(d.type === "text" || d.type === "url") && (
                   <input
                     type="text"
-                    placeholder={d.placeholder ?? (d.type === "url" ? "https://…" : "")}
+                    placeholder={
+                      d.placeholder ?? (d.type === "url" ? "https://…" : "")
+                    }
                     value={deliverableValues[d.label]?.value ?? ""}
                     onChange={(e) =>
                       setDeliverableValues((prev) => ({
@@ -335,95 +340,108 @@ export default function TaskDetailPage() {
       )}
 
       {/* ── Poll type ─────────────────────────────────────────────────────── */}
-      {task.taskType === "poll" && task.pollConfig && !hasResponded && !submitted && (
-        <div className="space-y-3">
-          <p className="text-sm font-bold text-foreground">
-            {task.pollConfig.question}
-          </p>
-          {task.pollConfig.options.map((opt) => (
-            <label
-              key={opt.id}
-              className="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer"
+      {task.taskType === "poll" &&
+        task.pollConfig &&
+        !hasResponded &&
+        !submitted && (
+          <div className="space-y-3">
+            <p className="text-sm font-bold text-foreground">
+              {task.pollConfig.question}
+            </p>
+            {task.pollConfig.options.map((opt) => (
+              <label
+                key={opt.id}
+                className="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer"
+              >
+                <input
+                  type={task.pollConfig?.allowMultiple ? "checkbox" : "radio"}
+                  name="poll"
+                  checked={selectedOptions.includes(opt.id)}
+                  onChange={() =>
+                    setSelectedOptions((prev) =>
+                      task.pollConfig?.allowMultiple
+                        ? prev.includes(opt.id)
+                          ? prev.filter((id) => id !== opt.id)
+                          : [...prev, opt.id]
+                        : [opt.id],
+                    )
+                  }
+                />
+                <span className="text-[12px] text-foreground">{opt.label}</span>
+              </label>
+            ))}
+            <button
+              onClick={handleSubmitPoll}
+              disabled={submitting || selectedOptions.length === 0}
+              className="w-full px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-widest disabled:opacity-60"
             >
-              <input
-                type={task.pollConfig?.allowMultiple ? "checkbox" : "radio"}
-                name="poll"
-                checked={selectedOptions.includes(opt.id)}
-                onChange={() =>
-                  setSelectedOptions((prev) =>
-                    task.pollConfig?.allowMultiple
-                      ? prev.includes(opt.id)
-                        ? prev.filter((id) => id !== opt.id)
-                        : [...prev, opt.id]
-                      : [opt.id],
-                  )
-                }
-              />
-              <span className="text-[12px] text-foreground">{opt.label}</span>
-            </label>
-          ))}
-          <button
-            onClick={handleSubmitPoll}
-            disabled={submitting || selectedOptions.length === 0}
-            className="w-full px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-widest disabled:opacity-60"
-          >
-            {submitting ? "Submitting…" : "Vote"}
-          </button>
-        </div>
-      )}
+              {submitting ? "Submitting…" : "Vote"}
+            </button>
+          </div>
+        )}
 
       {/* ── Survey type ───────────────────────────────────────────────────── */}
-      {task.taskType === "survey" && task.surveyConfig && !hasResponded && !submitted && (
-        <div className="space-y-4">
-          {task.surveyConfig.questions.map((q) => (
-            <div key={q.id} className="space-y-2">
-              <p className="text-[12px] font-bold text-foreground">
-                {q.label}
-                {q.required && <span className="text-red-500 ml-1">*</span>}
-              </p>
-              {(q.type === "short_text" || q.type === "long_text") && (
-                <input
-                  type="text"
-                  value={(surveyAnswers[q.id] as string) ?? ""}
-                  onChange={(e) =>
-                    setSurveyAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
-                  }
-                  className="w-full text-[11px] px-3 py-2 rounded-lg border border-border bg-background"
-                />
-              )}
-              {(q.type === "single_choice" || q.type === "multi_choice") &&
-                q.options?.map((opt) => (
-                  <label key={opt} className="flex items-center gap-2 text-[11px]">
-                    <input
-                      type={q.type === "single_choice" ? "radio" : "checkbox"}
-                      name={q.id}
-                      onChange={() =>
-                        setSurveyAnswers((prev) => {
-                          if (q.type === "single_choice") return { ...prev, [q.id]: opt };
-                          const current = (prev[q.id] as string[]) ?? [];
-                          return {
-                            ...prev,
-                            [q.id]: current.includes(opt)
-                              ? current.filter((o) => o !== opt)
-                              : [...current, opt],
-                          };
-                        })
-                      }
-                    />
-                    {opt}
-                  </label>
-                ))}
-            </div>
-          ))}
-          <button
-            onClick={handleSubmitSurvey}
-            disabled={submitting}
-            className="w-full px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-widest disabled:opacity-60"
-          >
-            {submitting ? "Submitting…" : "Submit survey"}
-          </button>
-        </div>
-      )}
+      {task.taskType === "survey" &&
+        task.surveyConfig &&
+        !hasResponded &&
+        !submitted && (
+          <div className="space-y-4">
+            {task.surveyConfig.questions.map((q) => (
+              <div key={q.id} className="space-y-2">
+                <p className="text-[12px] font-bold text-foreground">
+                  {q.label}
+                  {q.required && <span className="text-red-500 ml-1">*</span>}
+                </p>
+                {(q.type === "short_text" || q.type === "long_text") && (
+                  <input
+                    type="text"
+                    value={(surveyAnswers[q.id] as string) ?? ""}
+                    onChange={(e) =>
+                      setSurveyAnswers((prev) => ({
+                        ...prev,
+                        [q.id]: e.target.value,
+                      }))
+                    }
+                    className="w-full text-[11px] px-3 py-2 rounded-lg border border-border bg-background"
+                  />
+                )}
+                {(q.type === "single_choice" || q.type === "multi_choice") &&
+                  q.options?.map((opt) => (
+                    <label
+                      key={opt}
+                      className="flex items-center gap-2 text-[11px]"
+                    >
+                      <input
+                        type={q.type === "single_choice" ? "radio" : "checkbox"}
+                        name={q.id}
+                        onChange={() =>
+                          setSurveyAnswers((prev) => {
+                            if (q.type === "single_choice")
+                              return { ...prev, [q.id]: opt };
+                            const current = (prev[q.id] as string[]) ?? [];
+                            return {
+                              ...prev,
+                              [q.id]: current.includes(opt)
+                                ? current.filter((o) => o !== opt)
+                                : [...current, opt],
+                            };
+                          })
+                        }
+                      />
+                      {opt}
+                    </label>
+                  ))}
+              </div>
+            ))}
+            <button
+              onClick={handleSubmitSurvey}
+              disabled={submitting}
+              className="w-full px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-widest disabled:opacity-60"
+            >
+              {submitting ? "Submitting…" : "Submit survey"}
+            </button>
+          </div>
+        )}
 
       {/* ── Acknowledgement type ─────────────────────────────────────────── */}
       {task.taskType === "acknowledgement" && !hasResponded && !submitted && (

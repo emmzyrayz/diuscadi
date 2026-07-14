@@ -81,6 +81,7 @@ export function ImageCropper({
         className={cn(
           "relative",
           "w-full",
+          "max-h-[60vh]",
           "overflow-hidden",
           "rounded-2xl",
           "bg-muted/50",

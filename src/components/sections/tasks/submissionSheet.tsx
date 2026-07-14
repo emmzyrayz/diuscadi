@@ -3,7 +3,7 @@
 // CHANGED: image_url and file_url deliverables now open ScreenshotUploadModal
 // instead of plain text input. publicIds stored alongside URLs.
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -67,15 +67,27 @@ export function SubmissionSheet({
     string | null
   >(null);
 
-  useEffect(() => {
-    if (open && task) {
+  // Tracks which task/open "instance" we've already initialized state for.
+  const [initializedKey, setInitializedKey] = useState<string | null>(null);
+
+  // Derive a stable key for the currently-open task. Adjust the fallback
+  // chain below to whatever unique id your EnrichedTask actually has.
+  const taskKey = task ? task._id : null;
+  const currentKey = open && task ? taskKey : null;
+
+  // "Adjusting state during render" pattern (React-docs sanctioned):
+  // this runs synchronously as part of render, not as a post-commit effect,
+  // so it doesn't trigger the cascading-render warning.
+  if (currentKey !== initializedKey) {
+    setInitializedKey(currentKey);
+    if (currentKey && task) {
       const initial: Record<string, DeliverableState> = {};
       for (const d of task.deliverables ?? []) initial[d.label] = { value: "" };
       setDeliverableValues(initial);
       setAdditionalNotes("");
       setErrors({});
     }
-  }, [open, task]);
+  }
 
   if (!task) return null;
 
@@ -429,6 +441,7 @@ export function SubmissionSheet({
         deliverableLabel={activeDeliverableLabel ?? ""}
         onComplete={handleScreenshotComplete}
         disabled={submitting}
+        ownerId={assignment?._id}
       />
     </>
   );
