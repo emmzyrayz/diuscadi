@@ -11,6 +11,7 @@ import {
   LuClock,
   LuCoins,
   LuCircleAlert,
+  LuRefreshCw,
 } from "react-icons/lu";
 
 const STATUS_TABS = [
@@ -26,6 +27,7 @@ export default function TasksPage() {
     tasksError,
     activeStatus,
     loadTasks,
+    refreshTasks,
     committee,
     pagination,
   } = useTasks();
@@ -52,22 +54,41 @@ export default function TasksPage() {
         )}
       </div>
 
-      {/* Status tabs */}
-      <div className="flex items-center gap-2 border-b border-border/40 pb-2">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => loadTasks(tab.key, 1)}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-colors",
-              activeStatus === tab.key
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted",
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Status tabs + refresh */}
+      <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+        <div className="flex items-center gap-2">
+          {STATUS_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => loadTasks(tab.key, 1)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-colors",
+                activeStatus === tab.key
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={() => refreshTasks()}
+          disabled={tasksLoading}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg",
+            "text-[11px] font-black uppercase tracking-widest",
+            "text-muted-foreground hover:bg-muted hover:text-foreground transition-colors",
+            "disabled:opacity-50",
+          )}
+          aria-label="Refresh tasks"
+        >
+          <LuRefreshCw
+            className={cn("w-3.5 h-3.5", tasksLoading && "animate-spin")}
+          />
+          Refresh
+        </button>
       </div>
 
       {tasksError && (
