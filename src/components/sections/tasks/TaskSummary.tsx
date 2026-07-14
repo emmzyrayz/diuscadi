@@ -26,8 +26,7 @@ export function TaskSummary() {
     if (tasks.length === 0 && !tasksLoading) {
       loadTasks("active", 1);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadTasks, tasks.length, tasksLoading]);
 
   const { ongoing, available } = useMemo(() => {
     const ongoing = tasks.filter(
@@ -68,7 +67,7 @@ export function TaskSummary() {
   return (
     <div
       className={cn(
-        "glass-subtle rounded-2xl border border-border/40 p-5 space-y-4",
+        "max-w-[96vh] w-full glass-subtle rounded-2xl border border-border/40 p-5 space-y-4",
       )}
     >
       <div className="flex items-center justify-between gap-3">

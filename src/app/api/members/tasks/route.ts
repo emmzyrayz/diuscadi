@@ -47,12 +47,12 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         ? userData.temporaryAssignment.committee
         : (userData.committeeMembership?.committee ?? null);
 
-    if (!effectiveSlug) {
-      return NextResponse.json(
-        { error: "No active committee membership found for this account" },
-        { status: 400 },
-      );
-    }
+    // if (!effectiveSlug) {
+    //   return NextResponse.json(
+    //     { error: "No active committee membership found for this account" },
+    //     { status: 400 },
+    //   );
+    // }
 
     // ── 3. Query params ───────────────────────────────────────────────────────
 
@@ -68,10 +68,12 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     // any global tasks the platform has published.
 
     const taskQuery: Record<string, unknown> = {
-      $or: [
-        { committeeSlug: effectiveSlug, scope: "committee" },
-        { scope: "global" },
-      ],
+      $or: effectiveSlug
+        ? [
+            { committeeSlug: effectiveSlug, scope: "committee" },
+            { scope: "global" },
+          ]
+        : [{ scope: "global" }],
       isVisible: true,
     };
     if (statusFilter !== "all") taskQuery.status = statusFilter;
@@ -188,16 +190,18 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
     // ── 9. Fetch committee display metadata ───────────────────────────────────
 
-    const committee = await Collections.committees(db).findOne(
+    const committee = effectiveSlug
+  ? await Collections.committees(db).findOne(
       { slug: effectiveSlug },
       { projection: { slug: 1, name: 1, color: 1, icon: 1 } },
-    );
+    )
+  : null;
 
-    return NextResponse.json({
-      tasks: enriched,
-      committee: committee ?? { slug: effectiveSlug },
-      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
-    });
+return NextResponse.json({
+  tasks: enriched,
+  committee,
+  pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+});
   } catch (err) {
     console.error("[GET /api/members/tasks]", err);
     return NextResponse.json(

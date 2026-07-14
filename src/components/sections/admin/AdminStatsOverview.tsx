@@ -33,7 +33,7 @@ interface Props {
 export const AdminStatsOverview = ({ analytics }: Props) => {
   // ── Combined totals ───────────────────────────────────────────────────────
   const accountTickets = analytics?.registrations.total ?? 0;
-  const guestTickets = analytics?.registrations.guestTotal ?? 0;
+  const guestTickets = analytics?.registrations.guestTotalUnmigrated ?? 0;
   const combinedTickets = accountTickets + guestTickets;
 
   const accountCheckedIn = analytics?.registrations.checkedIn ?? 0;

@@ -28,6 +28,8 @@ import { UpcomingEvents } from "@/components/sections/homepage/upcomingEvents";
 import { RecentActivity } from "@/components/sections/homepage/recentActivity";
 import { Announcements } from "@/components/sections/homepage/announcement";
 import { HomeCTAOptional } from "@/components/sections/homepage/CTA";
+import { TaskSummary } from "@/components/sections/tasks/TaskSummary";
+
 
 async function getAuthPayload() {
   const cookieStore = await cookies();
@@ -159,6 +161,7 @@ export default async function HomePage() {
       <HomeHero featuredEvent={heroEvent} currentTask={currentTask} />
       <QuickActions actions={quickActions} />
       <ContinueSection items={[]} />
+      <TaskSummary />
       <RecommendedSection recommendations={[]} />
       <UpcomingEvents events={mappedEvents} />
       <RecentActivity activities={activities} />
