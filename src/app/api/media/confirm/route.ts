@@ -506,6 +506,19 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       { error: "Unhandled uploadType" },
       { status: 400 },
     );
+
+    // ── task-screenshot ──────────────────────────────────────────────────────────
+    // Not persisted here — the member's screenshot only gets attached to the
+    // assignment when they hit "Submit" on the deliverable form, which sends
+    // the returned imageUrl/imagePublicId along as the deliverable's value.
+    if (uploadType === "task-screenshot") {
+      return NextResponse.json({ image: cloudinaryImage });
+    }
+
+    return NextResponse.json(
+      { error: "Unhandled uploadType" },
+      { status: 400 },
+    );
   } catch (err) {
     console.error("[POST /api/media/confirm]", err);
     return NextResponse.json(
