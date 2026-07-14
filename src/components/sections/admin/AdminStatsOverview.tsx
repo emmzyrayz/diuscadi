@@ -31,23 +31,20 @@ interface Props {
 }
 
 export const AdminStatsOverview = ({ analytics }: Props) => {
-  // ── Combined totals ───────────────────────────────────────────────────────
-  const accountTickets = analytics?.registrations.total ?? 0;
+  // ── Totals ────────────────────────────────────────────────────────────────
+  // registrations.total / checkedIn / thisMonth / attendanceRate are already
+  // combined (account + unmigrated guests) in routes's contract — do NOT re-add
+  // guest figures on top of them, or guests get counted twice.
+  const combinedTickets = analytics?.registrations.total ?? 0;
+  const combinedCheckedIn = analytics?.registrations.checkedIn ?? 0;
+  const combinedThisMonth = analytics?.registrations.thisMonth ?? 0;
+  const attendanceRate = analytics?.registrations.attendanceRate ?? 0;
+
+  // Account-only and guest-only figures, kept separate for the breakdown row.
+  const accountTickets = analytics?.registrations.userTotal ?? 0;
+  const accountCheckedIn = analytics?.registrations.userCheckedIn ?? 0;
   const guestTickets = analytics?.registrations.guestTotalUnmigrated ?? 0;
-  const combinedTickets = accountTickets + guestTickets;
-
-  const accountCheckedIn = analytics?.registrations.checkedIn ?? 0;
   const guestCheckedIn = analytics?.registrations.guestCheckedIn ?? 0;
-  const combinedCheckedIn = accountCheckedIn + guestCheckedIn;
-
-  const attendanceRate =
-    combinedTickets > 0
-      ? Math.round((combinedCheckedIn / combinedTickets) * 100)
-      : 0;
-
-  const combinedThisMonth =
-    (analytics?.registrations.thisMonth ?? 0) +
-    (analytics?.registrations.guestThisMonth ?? 0);
 
   // ── Main 4 stat cards ─────────────────────────────────────────────────────
   const mainStats: StatCardProps[] = [
@@ -152,7 +149,7 @@ export const AdminStatsOverview = ({ analytics }: Props) => {
       </div>
     </motion.div>
   );
-};
+};;
 
 // ── Color map ─────────────────────────────────────────────────────────────────
 
