@@ -1,8 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAdmin } from "@/context/AdminContext";
 import { useAuth } from "@/context/AuthContext";
 import { useUser } from "@/context/UserContext";
+import { canAccessAdminPanel, getConsoleLinkAccess } from "@/lib/roles";
 import { AdminHeader } from "@/components/sections/admin/adminHeader";
 import { AdminSidebar } from "@/components/sections/admin/AdminSidebar";
 import { AdminStatsOverview } from "@/components/sections/admin/AdminStatsOverview";
@@ -10,12 +12,14 @@ import { AdminQuickActions } from "@/components/sections/admin/AdminQuickActions
 import { AdminRecentActivity } from "@/components/sections/admin/AdminRecentActivity";
 import { AdminUpcomingEventsPreview } from "@/components/sections/admin/AUEventsPreview";
 import { BroadcastModal } from "@/components/sections/admin/broadcast/BroadcastModal";
-import { LuMenu, LuX, LuLoader, LuMegaphone } from "react-icons/lu";
+import { LuMenu, LuX, LuLoader, LuMegaphone, LuEye } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 
 export default function AdminDashboard() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const role = user?.role ?? null;
   const { profile } = useUser();
+  const router = useRouter();
   const {
     analytics,
     loadingAnalytics,
@@ -26,11 +30,37 @@ export default function AdminDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
 
+  // Defense-in-depth: the server-side layout gate runs once at navigation.
+  // This catches a role change mid-session (stale cache, token refresh
+  // downgrading access, tampered client state) without needing a reload.
+  useEffect(() => {
+    if (!role) return;
+    if (!canAccessAdminPanel(role)) {
+      router.replace("/home");
+    }
+  }, [role, router]);
+
+  const access = role ? getConsoleLinkAccess(role) : "none";
+  const isReadOnly = access === "readonly";
+
   useEffect(() => {
     if (!token) return;
     loadAnalytics(token);
     loadAdminEvents({ status: "published", page: 1 }, token);
   }, [token, loadAnalytics, loadAdminEvents]);
+
+  // Don't flash admin content if the reactive check above is about to redirect.
+  if (role && !canAccessAdminPanel(role)) {
+    return (
+      <div
+        className={cn("flex", "items-center", "justify-center", "min-h-screen")}
+      >
+        <LuLoader
+          className={cn("w-8", "h-8", "text-primary", "animate-spin")}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -127,28 +157,52 @@ export default function AdminDashboard() {
             </div>
           ) : (
             <>
-              {/* Broadcast Button */}
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setShowBroadcastModal(true)}
+              {/* Read-only banner — shown to moderators only */}
+              {isReadOnly && (
+                <div
                   className={cn(
                     "flex",
                     "items-center",
-                    "gap-2",
-                    "px-6",
-                    "py-2",
-                    "bg-primary",
-                    "text-background",
-                    "rounded-lg",
-                    "font-bold",
-                    "hover:opacity-90",
-                    "transition",
+                    "gap-3",
+                    "p-4",
+                    "bg-violet-500/5",
+                    "border",
+                    "border-violet-500/20",
+                    "rounded-2xl",
                   )}
                 >
-                  <LuMegaphone className="w-4 h-4" />
-                  Send Broadcast
-                </button>
-              </div>
+                  <LuEye className="w-5 h-5 text-violet-500 shrink-0" />
+                  <p className="text-[11px] text-violet-600 font-bold">
+                    Moderator access — read-only dashboard. Ticket scanning is
+                    available under Tickets.
+                  </p>
+                </div>
+              )}
+
+              {/* Broadcast Button — mutating action, hidden for read-only (mod) access */}
+              {!isReadOnly && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowBroadcastModal(true)}
+                    className={cn(
+                      "flex",
+                      "items-center",
+                      "gap-2",
+                      "px-6",
+                      "py-2",
+                      "bg-primary",
+                      "text-background",
+                      "rounded-lg",
+                      "font-bold",
+                      "hover:opacity-90",
+                      "transition",
+                    )}
+                  >
+                    <LuMegaphone className="w-4 h-4" />
+                    Send Broadcast
+                  </button>
+                </div>
+              )}
 
               <AdminStatsOverview analytics={analytics} />
               <AdminQuickActions />
@@ -175,15 +229,18 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-      {/* Broadcast Modal */}
-      <BroadcastModal
-        open={showBroadcastModal}
-        onClose={() => setShowBroadcastModal(false)}
-        onSuccess={() => {
-          if (token) loadAnalytics(token);
-        }}
-        token={token ?? undefined}
-      />
+      {/* Broadcast Modal — mounted only when accessible; guarded here too in
+          case isReadOnly flips mid-session while the modal is open */}
+      {!isReadOnly && (
+        <BroadcastModal
+          open={showBroadcastModal}
+          onClose={() => setShowBroadcastModal(false)}
+          onSuccess={() => {
+            if (token) loadAnalytics(token);
+          }}
+          token={token ?? undefined}
+        />
+      )}
     </div>
   );
 }

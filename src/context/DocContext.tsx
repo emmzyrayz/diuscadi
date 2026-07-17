@@ -22,6 +22,7 @@ import React, {
   useRef,
   ReactNode,
 } from "react";
+import { authFetch } from "@/lib/authFetch";
 import type {
   FileDocument,
   FileOwnerType,
@@ -107,21 +108,6 @@ interface DocContextType {
 
 const DocContext = createContext<DocContextType | undefined>(undefined);
 
-// ─── Auth helper ──────────────────────────────────────────────────────────────
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("diuscadi_token");
-}
-
-function authHeaders(): HeadersInit {
-  const token = getToken();
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function DocProvider({ children }: { children: ReactNode }) {
@@ -136,9 +122,12 @@ export function DocProvider({ children }: { children: ReactNode }) {
 
   // ── Step 1: get presigned PUT URL ─────────────────────────────────────────
   const signUpload = useCallback(async (options: UploadDocOptions) => {
-    const res = await fetch("/api/docs/sign", {
+    return authFetch<{
+      uploadUrl: string;
+      fileKey: string;
+      expiresIn: number;
+    }>("/api/docs/sign", {
       method: "POST",
-      headers: authHeaders(),
       body: JSON.stringify({
         fileName: options.fileName,
         mimeType: options.mimeType,
@@ -147,20 +136,12 @@ export function DocProvider({ children }: { children: ReactNode }) {
         ownerId: options.ownerId,
       }),
     });
-
-    if (!res.ok) {
-      const data = (await res.json()) as { error?: string };
-      throw new Error(data.error ?? "Failed to get upload URL");
-    }
-
-    return res.json() as Promise<{
-      uploadUrl: string;
-      fileKey: string;
-      expiresIn: number;
-    }>;
   }, []);
 
   // ── Step 2: PUT directly to B2 with XHR (supports progress) ──────────────
+  // NEVER route through authFetch: this is a binary PUT straight to a
+  // presigned Backblaze B2 URL, not our backend. No auth header belongs
+  // here, and we need XHR (not fetch) for the progress event stream.
   const putToB2 = useCallback(
     (
       uploadUrl: string,
@@ -209,9 +190,8 @@ export function DocProvider({ children }: { children: ReactNode }) {
       fileKey: string,
       options: UploadDocOptions,
     ): Promise<UploadDocResult> => {
-      const res = await fetch("/api/docs/confirm", {
+      return authFetch<UploadDocResult>("/api/docs/confirm", {
         method: "POST",
-        headers: authHeaders(),
         body: JSON.stringify({
           fileKey,
           fileName: options.fileName,
@@ -225,13 +205,6 @@ export function DocProvider({ children }: { children: ReactNode }) {
           isPublic: options.isPublic,
         }),
       });
-
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "Failed to confirm upload");
-      }
-
-      return res.json() as Promise<UploadDocResult>;
     },
     [],
   );
@@ -292,6 +265,9 @@ export function DocProvider({ children }: { children: ReactNode }) {
   );
 
   // ── Poll processing status ─────────────────────────────────────────────────
+  // authFetch throws on non-OK — the original loop just `break`s on a bad
+  // response and falls through to the timed-out return, so we replicate
+  // that by catching the throw and breaking the same way.
   const pollStatus = useCallback(
     async (
       fileId: string,
@@ -301,13 +277,12 @@ export function DocProvider({ children }: { children: ReactNode }) {
       const deadline = Date.now() + maxWait;
 
       while (Date.now() < deadline) {
-        const res = await fetch(`/api/docs/${fileId}/status`, {
-          headers: authHeaders(),
-        });
-
-        if (!res.ok) break;
-
-        const data = (await res.json()) as PollResult;
+        let data: PollResult;
+        try {
+          data = await authFetch<PollResult>(`/api/docs/${fileId}/status`);
+        } catch {
+          break;
+        }
 
         if (
           data.processingStatus !== "processing" &&
@@ -336,12 +311,9 @@ export function DocProvider({ children }: { children: ReactNode }) {
       format = "original",
     ): Promise<DownloadUrlResult | null> => {
       try {
-        const res = await fetch(`/api/docs/${fileId}/url?format=${format}`, {
-          headers: authHeaders(),
-        });
-
-        if (!res.ok) return null;
-        return res.json() as Promise<DownloadUrlResult>;
+        return await authFetch<DownloadUrlResult>(
+          `/api/docs/${fileId}/url?format=${format}`,
+        );
       } catch {
         return null;
       }
@@ -352,16 +324,9 @@ export function DocProvider({ children }: { children: ReactNode }) {
   // ── Delete ────────────────────────────────────────────────────────────────
   const deleteDoc = useCallback(async (fileId: string): Promise<boolean> => {
     try {
-      const res = await fetch(`/api/docs/${fileId}`, {
-        method: "DELETE",
-        headers: authHeaders(),
-      });
-
-      if (res.ok) {
-        fileCache.current.delete(fileId);
-        return true;
-      }
-      return false;
+      await authFetch(`/api/docs/${fileId}`, { method: "DELETE" });
+      fileCache.current.delete(fileId);
+      return true;
     } catch {
       return false;
     }
@@ -376,13 +341,9 @@ export function DocProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const res = await fetch(`/api/docs/${fileId}`, {
-          headers: authHeaders(),
-        });
-
-        if (!res.ok) return null;
-
-        const data = (await res.json()) as { file: FileDocument };
+        const data = await authFetch<{ file: FileDocument }>(
+          `/api/docs/${fileId}`,
+        );
         fileCache.current.set(fileId, data.file);
         return data.file;
       } catch {

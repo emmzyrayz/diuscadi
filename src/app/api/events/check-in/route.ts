@@ -9,8 +9,8 @@ import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
 import type { AccountRole } from "@/types/domain";
+import { CHECKIN_ROLES } from "@/lib/roles";
 
-const ALLOWED_ROLES: AccountRole[] = ["admin", "moderator", "webmaster"];
 const CHECK_IN_OPENS_HOURS_BEFORE = 2;
 
 // ── Time window validator ─────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ function checkTimeWindow(
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   try {
     const role = req.auth.role as AccountRole;
-    if (!ALLOWED_ROLES.includes(role)) {
+    if (!(CHECKIN_ROLES as readonly string[]).includes(role)) {
       return NextResponse.json(
         {
           error:

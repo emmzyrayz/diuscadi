@@ -12,6 +12,7 @@ import React, {
   ReactNode,
 } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { authFetch } from "@/lib/authFetch";
 import type {
   EduStatus,
   AccountRole,
@@ -162,20 +163,7 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// ─── Token Helpers ────────────────────────────────────────────────────────────
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("diuscadi_token");
-}
-
-function authHeaders(): HeadersInit {
-  const token = getToken();
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
+// ─── Parsing Helpers ──────────────────────────────────────────────────────────
 
 function parseFullName(raw: unknown): UserProfile["fullName"] {
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
@@ -263,18 +251,14 @@ async function callPatch(
   setIsLoading(true);
   setError(null);
   try {
-    const res = await fetch(endpoint, {
-      method: "PATCH",
-      headers: authHeaders(),
-      body: JSON.stringify(body),
-    });
-    const data = (await res.json()) as Record<string, unknown>;
-    if (!res.ok) {
-      const msg = String(data.error ?? "Update failed");
-      setError(msg);
-      return { success: false, error: msg };
-    }
-    setProfile(parseProfile(data.profile as Record<string, unknown>));
+    const data = await authFetch<{ profile: Record<string, unknown> }>(
+      endpoint,
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      },
+    );
+    setProfile(parseProfile(data.profile));
     return { success: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Update failed";
@@ -337,11 +321,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/users/profile", { headers: authHeaders() });
-      const data = (await res.json()) as Record<string, unknown>;
-      if (!res.ok)
-        throw new Error(String(data.error ?? "Failed to load profile"));
-      setProfile(parseProfile(data.profile as Record<string, unknown>));
+      const data = await authFetch<{ profile: Record<string, unknown> }>(
+        "/api/users/profile",
+      );
+      setProfile(parseProfile(data.profile));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load profile");
     } finally {
@@ -420,16 +403,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/users/preferences", {
-          method: "PATCH",
-          headers: authHeaders(),
-          body: JSON.stringify(prefs),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.error ?? "Failed to update preferences");
-          return { success: false, error: data.error };
-        }
+        const data = await authFetch<{ preferences: UserPreferences }>(
+          "/api/users/preferences",
+          {
+            method: "PATCH",
+            body: JSON.stringify(prefs),
+          },
+        );
         setProfile((prev) =>
           prev ? { ...prev, preferences: data.preferences } : prev,
         );
@@ -446,9 +426,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
-   const updateProfileLocal = useCallback((patch: Partial<UserProfile>) => {
-     setProfile((prev) => (prev ? { ...prev, ...patch } : prev));
-   }, []);
+  const updateProfileLocal = useCallback((patch: Partial<UserProfile>) => {
+    setProfile((prev) => (prev ? { ...prev, ...patch } : prev));
+  }, []);
 
   const effectiveCommittee = profile
     ? ((profile.temporaryAssignment &&

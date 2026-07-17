@@ -1,14 +1,5 @@
 "use client";
 // context/TicketContext.tsx
-//
-// Owns the user's tickets (event registrations) and check-in state.
-// Lazy — nothing fetched on mount. Pages call loadTickets() / loadTicket()
-// explicitly when they mount.
-//
-// TicketContext handles:
-//   - All user tickets   (GET /api/tickets)
-//   - Single ticket + QR (GET /api/tickets/[id])
-//   - Check-in           (POST /api/events/check-in) — for admin/moderator UI
 
 import React, {
   createContext,
@@ -19,9 +10,10 @@ import React, {
   ReactNode,
 } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { authFetch } from "@/lib/authFetch";
 import type { RegistrationStatus } from "@/lib/models/EventRegistration";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────────── (unchanged)
 
 export interface TicketEventSummary {
   id: string;
@@ -79,25 +71,21 @@ export interface CheckInResult {
 }
 
 interface TicketContextType {
-  // All tickets list
   tickets: Ticket[];
   ticketsLoading: boolean;
   ticketsError: string | null;
   loadTickets: (status?: RegistrationStatus) => Promise<void>;
   refreshTickets: () => Promise<void>;
-  // In TicketContextType interface, add:
   cancelRegistration: (
     registrationId: string,
   ) => Promise<{ success: boolean; error?: string }>;
 
-  // Single ticket detail (for QR page)
   currentTicket: TicketDetail | null;
   currentTicketLoading: boolean;
   currentTicketError: string | null;
   loadTicket: (id: string) => Promise<void>;
   clearCurrentTicket: () => void;
 
-  // Check-in (admin / moderator / webmaster)
   checkIn: (inviteCode: string) => Promise<CheckInResult>;
   checkInLoading: boolean;
 
@@ -108,45 +96,24 @@ interface TicketContextType {
 
 const TicketContext = createContext<TicketContextType | undefined>(undefined);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("diuscadi_token");
-}
-
-function authHeaders(): HeadersInit {
-  const token = getToken();
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export const TicketProvider = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated, sessionStatus } = useAuth();
 
-  // Tickets list state
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [ticketsError, setTicketsError] = useState<string | null>(null);
-  const [lastStatusFilter, setLastStatusFilter] = useState<
-    RegistrationStatus | undefined
-  >(undefined);
+  const [lastStatusFilter, setLastStatusFilter] = useState<RegistrationStatus | undefined > (undefined);
 
-  // Current ticket state
   const [currentTicket, setCurrentTicket] = useState<TicketDetail | null>(null);
   const [currentTicketLoading, setCurrentTicketLoading] = useState(false);
   const [currentTicketError, setCurrentTicketError] = useState<string | null>(
     null,
   );
 
-  // Check-in state
   const [checkInLoading, setCheckInLoading] = useState(false);
 
-  // Clear state on logout
   useEffect(() => {
     if (sessionStatus === "unauthenticated") {
       setTickets([]);
@@ -165,11 +132,9 @@ export const TicketProvider = ({ children }: { children: ReactNode }) => {
       setLastStatusFilter(status);
       try {
         const params = status ? `?status=${status}` : "";
-        const res = await fetch(`/api/tickets${params}`, {
-          headers: authHeaders(),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load tickets");
+        const data = await authFetch<{ tickets: Ticket[] }>(
+          `/api/tickets${params}`,
+        );
         setTickets(data.tickets);
       } catch (err) {
         setTicketsError(
@@ -194,11 +159,9 @@ export const TicketProvider = ({ children }: { children: ReactNode }) => {
       setCurrentTicketLoading(true);
       setCurrentTicketError(null);
       try {
-        const res = await fetch(`/api/tickets/${id}`, {
-          headers: authHeaders(),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Ticket not found");
+        const data = await authFetch<{ ticket: TicketDetail }>(
+          `/api/tickets/${id}`,
+        );
         setCurrentTicket(data.ticket);
       } catch (err) {
         setCurrentTicketError(
@@ -214,20 +177,24 @@ export const TicketProvider = ({ children }: { children: ReactNode }) => {
   const clearCurrentTicket = useCallback(() => setCurrentTicket(null), []);
 
   // ── Check-in (admin / moderator / webmaster) ───────────────────────────────
+  // NOTE: does not use authFetch's throw-on-non-OK behavior directly, because
+  // callers expect a { success: false, error } result for expected failure
+  // cases (already checked in, cancelled, outside time window) rather than a
+  // thrown exception. authFetch still fires the 401 signal internally before
+  // throwing, so session expiry is caught the same way — we just catch the
+  // throw here and translate it into the existing CheckInResult shape.
   const checkIn = useCallback(
     async (inviteCode: string): Promise<CheckInResult> => {
       setCheckInLoading(true);
       try {
-        const res = await fetch("/api/events/check-in", {
+        const data = await authFetch<{
+          attendee: CheckInResult["attendee"];
+          registration: { checkedInAt: string };
+        }>("/api/events/check-in", {
           method: "POST",
-          headers: authHeaders(),
           body: JSON.stringify({ inviteCode }),
         });
-        const data = await res.json();
-        if (!res.ok)
-          return { success: false, error: data.error ?? "Check-in failed" };
 
-        // Update local ticket state if loaded
         setCurrentTicket((prev) =>
           prev?.inviteCode === inviteCode
             ? {
@@ -271,15 +238,10 @@ export const TicketProvider = ({ children }: { children: ReactNode }) => {
       registrationId: string,
     ): Promise<{ success: boolean; error?: string }> => {
       try {
-        const res = await fetch(`/api/events/register/${registrationId}`, {
+        await authFetch(`/api/events/register/${registrationId}`, {
           method: "DELETE",
-          headers: authHeaders(),
         });
-        const data = await res.json();
-        if (!res.ok)
-          return { success: false, error: data.error ?? "Cancellation failed" };
 
-        // Optimistic update — mark cancelled in both lists
         setTickets((prev) =>
           prev.map((t) =>
             t.id === registrationId ? { ...t, status: "cancelled" } : t,

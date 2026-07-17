@@ -1,4 +1,6 @@
-export type UserRole = "participant" | "moderator" | "admin" | "webmaster";
+import { AccountRole } from "@/types/domain";
+
+export type UserRole = AccountRole
 
 interface RouteConfig {
   path: string;
@@ -8,8 +10,7 @@ interface RouteConfig {
 }
 
 export const ROUTE_MANIFEST: RouteConfig[] = [
-  { path: "/admin", authRequired: true, roles: ["admin", "webmaster"] },
-  { path: "/admin/analytics", authRequired: true, roles: ["admin", "webmaster"] },
+  { path: "/admin", authRequired: true, roles: ["admin", "webmaster", "moderator"] },
   { path: "/profile", authRequired: true },
   { path: "/settings", authRequired: true },
   { path: "/tickets", authRequired: true },

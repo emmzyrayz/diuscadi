@@ -8,6 +8,7 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
+import { authFetch } from "@/lib/authFetch";
 import type {
   UploadType,
   SignedUploadParams,
@@ -34,20 +35,6 @@ interface MediaContextType {
 
 const MediaContext = createContext<MediaContextType | undefined>(undefined);
 
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("diuscadi_token");
-}
-
-function authHeaders(extra?: Record<string, string>): HeadersInit {
-  const token = getToken();
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...extra,
-  };
-}
-
 // Shape of what Cloudinary returns on a successful upload
 interface CloudinaryUploadResponse {
   asset_id: string;
@@ -69,27 +56,25 @@ export function MediaProvider({ children }: { children: ReactNode }) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  // ── Goes through our backend — safe to use authFetch ────────────────────
   const fetchSignedParams = useCallback(
     async (
       uploadType: UploadType,
       ownerId?: string,
     ): Promise<SignedUploadParams> => {
-      const res = await fetch("/api/media/sign", {
+      return authFetch<SignedUploadParams>("/api/media/sign", {
         method: "POST",
-        headers: authHeaders(),
         body: JSON.stringify({ uploadType, ownerId }),
       });
-
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "Failed to get upload params");
-      }
-
-      return res.json() as Promise<SignedUploadParams>;
     },
     [],
   );
 
+  // ── Hits Cloudinary directly — NEVER route through authFetch. ───────────
+  // No bearer token belongs on this request, and Cloudinary's own error
+  // convention (200 status + `error` field in the body) isn't something
+  // authFetch understands, so we keep the explicit res.ok / data.error
+  // check here exactly as before.
   const uploadToCloudinary = useCallback(
     async (
       file: Blob | File,
@@ -124,11 +109,11 @@ export function MediaProvider({ children }: { children: ReactNode }) {
           data.error?.message ?? `Cloudinary upload failed (${res.status})`,
         );
       }
-      
+
       // Cloudinary does NOT echo timestamp back — inject it from signed params
-    if (!data.timestamp) {
-      data.timestamp = params.timestamp;
-    }
+      if (!data.timestamp) {
+        data.timestamp = params.timestamp;
+      }
 
       // Validate all fields the confirm route requires are actually present
       const required: (keyof CloudinaryUploadResponse)[] = [
@@ -158,6 +143,7 @@ export function MediaProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  // ── Goes through our backend — safe to use authFetch ────────────────────
   const confirmUpload = useCallback(
     async (
       uploadType: UploadType,
@@ -165,34 +151,29 @@ export function MediaProvider({ children }: { children: ReactNode }) {
       ownerId?: string,
       imageAlt?: string,
     ): Promise<CloudinaryImage> => {
-      const res = await fetch("/api/media/confirm", {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({
-          uploadType,
-          ownerId,
-          imageAlt,
-          // Spread only the fields confirm route needs — avoids noise
-          asset_id: cloudinaryResponse.asset_id,
-          public_id: cloudinaryResponse.public_id,
-          secure_url: cloudinaryResponse.secure_url,
-          signature: cloudinaryResponse.signature,
-          timestamp: cloudinaryResponse.timestamp,
-          format: cloudinaryResponse.format,
-          bytes: cloudinaryResponse.bytes,
-          width: cloudinaryResponse.width,
-          height: cloudinaryResponse.height,
-          created_at: cloudinaryResponse.created_at,
-          etag: cloudinaryResponse.etag,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "Failed to confirm upload");
-      }
-
-      const data = (await res.json()) as { image: CloudinaryImage };
+      const data = await authFetch<{ image: CloudinaryImage }>(
+        "/api/media/confirm",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            uploadType,
+            ownerId,
+            imageAlt,
+            // Spread only the fields confirm route needs — avoids noise
+            asset_id: cloudinaryResponse.asset_id,
+            public_id: cloudinaryResponse.public_id,
+            secure_url: cloudinaryResponse.secure_url,
+            signature: cloudinaryResponse.signature,
+            timestamp: cloudinaryResponse.timestamp,
+            format: cloudinaryResponse.format,
+            bytes: cloudinaryResponse.bytes,
+            width: cloudinaryResponse.width,
+            height: cloudinaryResponse.height,
+            created_at: cloudinaryResponse.created_at,
+            etag: cloudinaryResponse.etag,
+          }),
+        },
+      );
       return data.image;
     },
     [],
@@ -241,23 +222,18 @@ export function MediaProvider({ children }: { children: ReactNode }) {
       setUploadError(null);
 
       try {
-        const res = await fetch("/api/media/remove", {
-          method: "DELETE",
-          headers: authHeaders(),
-          body: JSON.stringify({
-            uploadType,
-            publicId,
-            ownerId,
-            galleryImageId,
-          }),
-        });
-
-        if (!res.ok) {
-          const data = (await res.json()) as { error?: string };
-          throw new Error(data.error ?? "Failed to remove image");
-        }
-
-        const data = (await res.json()) as { deleted: boolean };
+        const data = await authFetch<{ deleted: boolean }>(
+          "/api/media/remove",
+          {
+            method: "DELETE",
+            body: JSON.stringify({
+              uploadType,
+              publicId,
+              ownerId,
+              galleryImageId,
+            }),
+          },
+        );
         return data.deleted;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Remove failed";

@@ -15,6 +15,7 @@ import React, {
 } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useUser } from "@/context/UserContext";
+import { authFetch } from "@/lib/authFetch";
 import type {
   SubmitAssignmentPayload,
   BotTrigger,
@@ -144,6 +145,7 @@ export interface BotEvaluateResult {
     percentageScore: number;
     feedback: string;
     flaggedForHumanReview: boolean;
+    evaluatedAt: string | null;
   };
 }
 
@@ -282,21 +284,6 @@ interface TaskContextType {
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("diuscadi_token");
-}
-
-function authHeaders(): HeadersInit {
-  const token = getToken();
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 interface TaskProviderProps {
@@ -320,9 +307,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
     useState<FullAssignmentDetail | null>(null);
   const [selectedAssignmentLoading, setSelectedAssignmentLoading] =
     useState(false);
-  const [selectedAssignmentError, setSelectedAssignmentError] = useState<
-    string | null
-  >(null);
+  const [selectedAssignmentError, setSelectedAssignmentError] = useState<  string | null > (null);
 
   // ── Load tasks ─────────────────────────────────────────────────────────────
 
@@ -341,12 +326,11 @@ export function TaskProvider({ children }: TaskProviderProps) {
           limit: "20",
         });
 
-        const res = await fetch(`/api/members/tasks?${params.toString()}`, {
-          headers: authHeaders(),
-        });
-        const data = await res.json();
-
-        if (!res.ok) throw new Error(data.error ?? "Failed to load tasks");
+        const data = await authFetch<{
+          tasks?: EnrichedTask[];
+          pagination?: TaskPagination;
+          committee?: CommitteeMeta;
+        }>(`/api/members/tasks?${params.toString()}`);
 
         setTasks(data.tasks ?? []);
         setPagination(data.pagination ?? null);
@@ -377,18 +361,17 @@ export function TaskProvider({ children }: TaskProviderProps) {
       payload: SubmitAssignmentPayload,
     ): Promise<SubmitResult> => {
       try {
-        const res = await fetch(
-          `/api/members/assignments/${assignmentId}/submit`,
-          {
-            method: "POST",
-            headers: authHeaders(),
-            body: JSON.stringify(payload),
-          },
-        );
-        const data = await res.json();
-
-        if (!res.ok)
-          return { success: false, error: data.error ?? "Submission failed" };
+        const data = await authFetch<{
+          assignment?: {
+            status?: string;
+            submission?: { submittedAt?: string };
+          };
+          botTriggered?: boolean;
+          evaluationPreview?: SubmitResult["evaluationPreview"];
+        }>(`/api/members/assignments/${assignmentId}/submit`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
 
         setTasks((prev) =>
           prev.map((task) => {
@@ -397,7 +380,9 @@ export function TaskProvider({ children }: TaskProviderProps) {
               ...task,
               assignment: {
                 ...task.assignment,
-                status: data.assignment?.status ?? "submitted",
+                status:
+                  (data.assignment
+                    ?.status as TaskAssignmentSummary["status"]) ?? "submitted",
                 submittedAt:
                   data.assignment?.submission?.submittedAt ??
                   new Date().toISOString(),
@@ -439,15 +424,14 @@ export function TaskProvider({ children }: TaskProviderProps) {
       trigger?: BotTrigger,
     ): Promise<BotEvaluateResult> => {
       try {
-        const res = await fetch("/api/members/bot/evaluate", {
+        const data = await authFetch<{
+          assignment?: { status?: string };
+          evaluation?: BotEvaluateResult["evaluation"];
+          flaggedForHumanReview?: boolean;
+        }>("/api/members/bot/evaluate", {
           method: "POST",
-          headers: authHeaders(),
           body: JSON.stringify({ assignmentId, trigger }),
         });
-        const data = await res.json();
-
-        if (!res.ok)
-          return { success: false, error: data.error ?? "Evaluation failed" };
 
         setTasks((prev) =>
           prev.map((task) => {
@@ -456,7 +440,10 @@ export function TaskProvider({ children }: TaskProviderProps) {
               ...task,
               assignment: {
                 ...task.assignment,
-                status: data.assignment?.status ?? task.assignment.status,
+                status:
+                  (data.assignment
+                    ?.status as TaskAssignmentSummary["status"]) ??
+                  task.assignment.status,
                 score: data.evaluation
                   ? {
                       total: data.evaluation.totalScore,
@@ -497,18 +484,12 @@ export function TaskProvider({ children }: TaskProviderProps) {
       selectedOptionIds: string[],
     ): Promise<InstantSubmitResult> => {
       try {
-        const res = await fetch(
-          `/api/members/assignments/${assignmentId}/submit`,
-          {
-            method: "POST",
-            headers: authHeaders(),
-            body: JSON.stringify({ selectedOptionIds }),
-          },
-        );
-        const data = await res.json();
-
-        if (!res.ok)
-          return { success: false, error: data.error ?? "Vote failed" };
+        const data = await authFetch<{
+          pointsResult?: InstantPointsResultClient | null;
+        }>(`/api/members/assignments/${assignmentId}/submit`, {
+          method: "POST",
+          body: JSON.stringify({ selectedOptionIds }),
+        });
 
         setTasks((prev) =>
           prev.map((task) => {
@@ -544,18 +525,12 @@ export function TaskProvider({ children }: TaskProviderProps) {
       answers: { questionId: string; value: string | string[] }[],
     ): Promise<InstantSubmitResult> => {
       try {
-        const res = await fetch(
-          `/api/members/assignments/${assignmentId}/submit`,
-          {
-            method: "POST",
-            headers: authHeaders(),
-            body: JSON.stringify({ answers }),
-          },
-        );
-        const data = await res.json();
-
-        if (!res.ok)
-          return { success: false, error: data.error ?? "Submission failed" };
+        const data = await authFetch<{
+          pointsResult?: InstantPointsResultClient | null;
+        }>(`/api/members/assignments/${assignmentId}/submit`, {
+          method: "POST",
+          body: JSON.stringify({ answers }),
+        });
 
         setTasks((prev) =>
           prev.map((task) => {
@@ -588,24 +563,15 @@ export function TaskProvider({ children }: TaskProviderProps) {
   const submitAcknowledgement = useCallback(
     async (assignmentId: string): Promise<InstantSubmitResult> => {
       try {
-        const res = await fetch(
-          `/api/members/assignments/${assignmentId}/submit`,
-          {
-            method: "POST",
-            headers: authHeaders(),
-            // No body needed — the route's acknowledgement handler doesn't
-            // read one, but we send an empty object to keep Content-Type
-            // consistent and avoid any body-parsing edge cases server-side.
-            body: JSON.stringify({}),
-          },
-        );
-        const data = await res.json();
-
-        if (!res.ok)
-          return {
-            success: false,
-            error: data.error ?? "Confirmation failed",
-          };
+        const data = await authFetch<{
+          pointsResult?: InstantPointsResultClient | null;
+        }>(`/api/members/assignments/${assignmentId}/submit`, {
+          method: "POST",
+          // No body needed — the route's acknowledgement handler doesn't
+          // read one, but we send an empty object to keep Content-Type
+          // consistent and avoid any body-parsing edge cases server-side.
+          body: JSON.stringify({}),
+        });
 
         setTasks((prev) =>
           prev.map((task) => {
@@ -640,12 +606,10 @@ export function TaskProvider({ children }: TaskProviderProps) {
     setSelectedAssignmentError(null);
 
     try {
-      const res = await fetch(`/api/members/assignments/${assignmentId}`, {
-        headers: authHeaders(),
-      });
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error ?? "Failed to load assignment");
+      const data = await authFetch<{
+        assignment: FullAssignmentDetail;
+        task?: FullAssignmentDetail["task"];
+      }>(`/api/members/assignments/${assignmentId}`);
 
       setSelectedAssignment({
         ...data.assignment,

@@ -24,6 +24,7 @@ import {
   ReactNode,
 } from "react";
 import { useHealthReporter } from "@/hooks/useHealthReporter";
+import { signalSessionExpired } from "@/lib/sessionEvents";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -175,6 +176,7 @@ export function useHealth(): HealthContextValue {
 
 async function handleResponse<T>(res: Response): Promise<T> {
   const data = await res.json();
+  if (res.status === 401) signalSessionExpired();
   if (!res.ok) throw new Error(data.error ?? "Request failed");
   return data as T;
 }

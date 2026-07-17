@@ -22,7 +22,11 @@ export function useAdminAuth() {
       return;
     }
 
-    if (user.role !== "admin" && user.role !== "webmaster") {
+    if (
+      user.role !== "admin" &&
+      user.role !== "webmaster" &&
+      user.role !== "moderator"
+    ) {
       router.replace("/home");
     }
   }, [user, sessionStatus, router]);

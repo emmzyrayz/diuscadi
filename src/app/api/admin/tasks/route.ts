@@ -16,16 +16,16 @@ import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
+import { canAccessAdminPanel } from "@/lib/roles";
 
 const MAX_LIMIT = 50;
 const DEFAULT_LIMIT = 20;
-const SYSTEM_ADMIN_ROLES = ["admin", "webmaster"];
 
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
     const db = await getDb();
     const { vaultId, role } = req.auth;
-    const isSystemAdmin = SYSTEM_ADMIN_ROLES.includes(role);
+    const hasFullTaskVisibility = canAccessAdminPanel(role);
 
     // ── 1. Parse query params ──────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     // ── 2. Resolve caller's committee (for staff) ──────────────────────────────
 
     let callerCommitteeSlug: string | null = null;
-    if (!isSystemAdmin) {
+    if (!hasFullTaskVisibility) {
       const userData = await Collections.userData(db).findOne(
         { vaultId: new ObjectId(vaultId) },
         {
@@ -89,7 +89,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     if (scopeFilter !== "all") query.scope = scopeFilter;
 
     // Committee filter — system admins can filter by any; staff locked to own
-    if (!isSystemAdmin) {
+    if (!hasFullTaskVisibility) {
       query.committeeSlug = callerCommitteeSlug;
     } else if (committeeFilter) {
       query.committeeSlug = committeeFilter;

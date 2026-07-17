@@ -5,6 +5,7 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import type { AccountRole } from "@/types/domain";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const BCRYPT_ROUNDS = 12;
@@ -14,7 +15,7 @@ const BCRYPT_ROUNDS = 12;
 export interface JWTPayload {
   vaultId: string;
   sessionId: string;
-  role: string;
+  role: AccountRole;
   tokenVersion: number;
 }
 

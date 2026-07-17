@@ -156,7 +156,7 @@ function buildMembershipTask(
     type: "Membership",
     title: "Apply for Membership",
     status: "Unlock full platform access by applying for DIUSCADI membership.",
-    link: "/apply/membership",
+    link: "/profile/applications",
     action: "Apply Now",
     badge: { label: "Action Required", variant: "info" },
   };

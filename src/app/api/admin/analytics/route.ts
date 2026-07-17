@@ -7,12 +7,12 @@ import { withAuth, AuthenticatedRequest } from "@/middleware/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
+import { canAccessAdminPanel } from "@/lib/roles";
 
-const ALLOWED_ROLES = ["admin", "webmaster"];
 
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
-    if (!ALLOWED_ROLES.includes(req.auth.role)) {
+    if (!canAccessAdminPanel(req.auth.role)) {
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 403 },

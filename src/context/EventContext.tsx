@@ -14,8 +14,7 @@ import React, {
   useEffect,
 } from "react";
 import { useAuth } from "@/context/AuthContext";
-
-// const IS_DEV = process.env.NODE_ENV === "development";
+import { authFetch } from "@/lib/authFetch";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -126,21 +125,6 @@ interface EventContextType {
 
 const EventContext = createContext<EventContextType | undefined>(undefined);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("diuscadi_token");
-}
-
-function authHeaders(): HeadersInit {
-  const token = getToken();
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export const EventProvider = ({ children }: { children: ReactNode }) => {
@@ -171,11 +155,10 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
       setFeedLoading(true);
       setFeedError(null);
       try {
-        const res = await fetch(`/api/events/feed?page=${page}&limit=10`, {
-          headers: authHeaders(),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load events");
+        const data = await authFetch<{
+          events: EventSummary[];
+          pagination: Pagination;
+        }>(`/api/events/feed?page=${page}&limit=10`);
         setFeed(data.events);
         setFeedPagination(data.pagination);
         setCurrentFeedPage(page);
@@ -209,12 +192,9 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
     try {
       const params = new URLSearchParams({ limit: String(limit) });
       if (category) params.set("category", category);
-      const res = await fetch(`/api/events/public?${params.toString()}`);
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error ?? "Failed to load events");
-
-      // LOGIC: Fallback handling
+      const data = await authFetch<{ events: EventSummary[] }>(
+        `/api/events/public?${params.toString()}`,
+      );
       setPublicEvents(data.events);
     } catch (err) {
       setPublicEventsError(
@@ -230,11 +210,9 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
     setCurrentEventLoading(true);
     setCurrentEventError(null);
     try {
-      const res = await fetch(`/api/events/${slug}`, {
-        headers: authHeaders(),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Event not found");
+      const data = await authFetch<{ event: EventDetail }>(
+        `/api/events/${slug}`,
+      );
       setCurrentEvent(data.event);
     } catch (err) {
       setCurrentEventError(
@@ -257,9 +235,10 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
       selectedSkills?: string[],
     ): Promise<RegisterResult> => {
       try {
-        const res = await fetch("/api/events/register", {
+        const data = await authFetch<{
+          registration: { id: string; inviteCode: string };
+        }>("/api/events/register", {
           method: "POST",
-          headers: authHeaders(),
           body: JSON.stringify({
             eventId,
             ticketTypeId,
@@ -269,9 +248,6 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
               selectedSkills.length > 0 && { selectedSkills }),
           }),
         });
-        const data = await res.json();
-        if (!res.ok)
-          return { success: false, error: data.error ?? "Registration failed" };
 
         // Optimistic update
         setFeed((prev) =>
@@ -316,13 +292,9 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
   const cancelRegistration = useCallback(
     async (registrationId: string): Promise<CancelResult> => {
       try {
-        const res = await fetch(`/api/events/register/${registrationId}`, {
+        await authFetch(`/api/events/register/${registrationId}`, {
           method: "DELETE",
-          headers: authHeaders(),
         });
-        const data = await res.json();
-        if (!res.ok)
-          return { success: false, error: data.error ?? "Cancellation failed" };
 
         setFeed((prev) =>
           prev.map((e) =>
@@ -390,7 +362,7 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </EventContext.Provider>
   );
-};;
+};
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 

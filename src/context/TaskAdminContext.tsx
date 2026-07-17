@@ -18,6 +18,7 @@ import type {
   TaskDeliverableClient,
   TaskPagination,
 } from "@/context/TaskContext";
+import { authFetch } from "@/lib/authFetch";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -161,20 +162,7 @@ const TaskAdminContext = createContext<TaskAdminContextType | undefined>(
   undefined,
 );
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("diuscadi_token");
-}
-
-function authHeaders(): HeadersInit {
-  const token = getToken();
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
@@ -219,12 +207,11 @@ export function TaskAdminProvider({ children }: TaskAdminProviderProps) {
       if (opts.priority) params.set("priority", opts.priority);
       if (opts.page) params.set("page", String(opts.page));
 
-      const res = await fetch(`/api/admin/tasks?${params.toString()}`, {
-        headers: authHeaders(),
-      });
-      const data = await res.json();
+      const data = await authFetch<{
+        tasks: AdminEnrichedTask[];
+        pagination: TaskPagination;
+      }>(`/api/admin/tasks?${params.toString()}`);
 
-      if (!res.ok) throw new Error(data.error ?? "Failed to load tasks");
 
       setAdminTasks(data.tasks ?? []);
       setAdminPagination(data.pagination ?? null);
@@ -247,15 +234,10 @@ export function TaskAdminProvider({ children }: TaskAdminProviderProps) {
   const updateTaskStatus = useCallback(
     async (taskId: string, status: string): Promise<AdminActionResult> => {
       try {
-        const res = await fetch(`/api/admin/tasks/task/${taskId}`, {
+        await authFetch(`/api/admin/tasks/task/${taskId}`, {
           method: "PATCH",
-          headers: authHeaders(),
           body: JSON.stringify({ status }),
         });
-        const data = await res.json();
-
-        if (!res.ok)
-          return { success: false, error: data.error ?? "Update failed" };
 
         // Optimistic update — patch the task in the list
         setAdminTasks((prev) =>
@@ -286,12 +268,9 @@ export function TaskAdminProvider({ children }: TaskAdminProviderProps) {
     setTaskAssignmentsError(null);
 
     try {
-      const res = await fetch(`/api/admin/tasks/task/${task._id}/assignments`, {
-        headers: authHeaders(),
-      });
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error ?? "Failed to load assignments");
+       const data = await authFetch<{
+         assignments: AssignmentWithMemberInfo[];
+       }>(`/api/admin/tasks/task/${task._id}/assignments`);
 
       setTaskAssignments(data.assignments ?? []);
     } catch (err) {
@@ -317,18 +296,13 @@ export function TaskAdminProvider({ children }: TaskAdminProviderProps) {
       reason: string,
     ): Promise<AdminActionResult> => {
       try {
-        const res = await fetch(
+        await authFetch(
           `/api/admin/assignments/assignment/${assignmentId}/request-revision`,
           {
             method: "POST",
-            headers: authHeaders(),
             body: JSON.stringify({ reason }),
           },
         );
-        const data = await res.json();
-
-        if (!res.ok)
-          return { success: false, error: data.error ?? "Request failed" };
 
         // Update the assignment in the panel list
         setTaskAssignments((prev) =>
@@ -356,18 +330,12 @@ export function TaskAdminProvider({ children }: TaskAdminProviderProps) {
       payload: ManualEvalPayload,
     ): Promise<AdminActionResult> => {
       try {
-        const res = await fetch(
-          `/api/admin/assignments/assignment/${assignmentId}/evaluate`,
-          {
-            method: "PATCH",
-            headers: authHeaders(),
-            body: JSON.stringify(payload),
-          },
-        );
-        const data = await res.json();
-
-        if (!res.ok)
-          return { success: false, error: data.error ?? "Evaluation failed" };
+         const data = await authFetch<{
+           evaluation: AssignmentWithMemberInfo["evaluation"];
+         }>(`/api/admin/assignments/assignment/${assignmentId}/evaluate`, {
+           method: "PATCH",
+           body: JSON.stringify(payload),
+         });
 
         // Update the assignment in the panel list
         setTaskAssignments((prev) =>

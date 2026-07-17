@@ -7,12 +7,14 @@ import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
 
-const ALLOWED_ROLES = ["admin", "webmaster"];
+import { canAccessAdminPanel } from "@/lib/roles";
+
+const SYSTEM_ADMIN_ROLES = ["admin", "webmaster"];
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
-    if (!ALLOWED_ROLES.includes(req.auth.role)) {
+    if (!canAccessAdminPanel(req.auth.role)) {
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 403 },
@@ -127,7 +129,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 // ── POST ──────────────────────────────────────────────────────────────────────
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   try {
-    if (!ALLOWED_ROLES.includes(req.auth.role)) {
+    if (!SYSTEM_ADMIN_ROLES.includes(req.auth.role)) {
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 403 },

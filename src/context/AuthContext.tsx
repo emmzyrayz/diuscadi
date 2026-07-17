@@ -20,6 +20,7 @@ import type {
 import { DEFAULT_PREFERENCES } from "@/types/domain";
 import type { CloudinaryImage } from "@/types/cloudinary";
 import type { GuestMergeInfo } from "@/components/guest/guestMergePopup";
+import { SESSION_EXPIRED_EVENT } from "@/lib/sessionEvents";
 
 export type { EduStatus, AccountRole, Committee, CommitteeMembership, Skill };
 
@@ -295,6 +296,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     restoreSession();
   }, [checkGuestMerge]);
+
+  useEffect(() => {
+    function handleExpired() {
+      clearStoredSession();
+      setToken(null);
+      setUser(null);
+      setSessionStatus("unauthenticated");
+    }
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleExpired);
+    return () =>
+      window.removeEventListener(SESSION_EXPIRED_EVENT, handleExpired);
+  }, []);
 
   
 

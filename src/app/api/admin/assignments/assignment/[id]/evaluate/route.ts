@@ -34,6 +34,7 @@ import { ObjectId } from "mongodb";
 import type { EvaluationResult } from "@/types/tasks";
 import { calculateSubmissionPoints } from "@/lib/services/timeDecayService";
 import { creditTaskPoints } from "@/lib/services/pointsService";
+import { canEvaluate } from "@/lib/roles";
 
 interface ManualEvaluationPayload {
   totalScore: number;
@@ -85,27 +86,28 @@ export const PATCH = withAuth(async (req: AuthenticatedRequest, context) => {
 
     // ── 3. Permission check ───────────────────────────────────────────────────
 
-    const isSystemAdmin = role === "admin" || role === "webmaster";
+     const isEvaluator = canEvaluate(role);
 
-    if (!isSystemAdmin) {
-      const userData = await Collections.userData(db).findOne({
-        vaultId: new ObjectId(vaultId),
-      });
+     if (!isEvaluator) {
+       const userData = await Collections.userData(db).findOne({
+         vaultId: new ObjectId(vaultId),
+       });
 
-      const isCommitteeStaff =
-        userData?.membershipStatus === "approved" &&
-        userData?.committeeMembership?.committee === assignment.committeeSlug &&
-        ["HEAD", "COORDINATOR"].includes(
-          userData?.committeeMembership?.role ?? "",
-        );
+       const isCommitteeStaff =
+         userData?.membershipStatus === "approved" &&
+         userData?.committeeMembership?.committee ===
+           assignment.committeeSlug &&
+         ["HEAD", "COORDINATOR"].includes(
+           userData?.committeeMembership?.role ?? "",
+         );
 
-      if (!isCommitteeStaff) {
-        return NextResponse.json(
-          { error: "Insufficient permissions" },
-          { status: 403 },
-        );
-      }
-    }
+       if (!isCommitteeStaff) {
+         return NextResponse.json(
+           { error: "Insufficient permissions" },
+           { status: 403 },
+         );
+       }
+     }
 
     // ── 4. Fetch parent task ──────────────────────────────────────────────────
 

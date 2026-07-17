@@ -65,7 +65,13 @@ const MEMBER_LINKS = [
 // Main site — moderator sees member links + applications shortcut
 const MODERATOR_MAIN_LINKS = [
   ...MEMBER_LINKS,
-  { name: "Applications", href: "/admin/applications" },
+];
+
+// Console — moderator sees dashboard + ticket scanning only, for now.
+// Expand this as more mod-permitted admin pages come online.
+const MODERATOR_CONSOLE_LINKS = [
+  { name: "Dashboard", href: "/admin" },
+  { name: "Tickets", href: "/admin/tickets" },
 ];
 
 // Console — admin
@@ -97,10 +103,9 @@ function resolveLinks(
   if (!isAuthenticated) return PUBLIC_LINKS;
 
   if (mode === "console") {
-    // Only admin/webmaster can reach console mode
     if (role === "webmaster") return WEBMASTER_CONSOLE_LINKS;
     if (role === "admin") return ADMIN_CONSOLE_LINKS;
-    // Moderators shouldn't be in console mode, fall through to main
+    if (role === "moderator") return MODERATOR_CONSOLE_LINKS;
   }
 
   // Main site mode
@@ -175,7 +180,8 @@ export default function Navbar() {
     if (userMenuOpen) setUserMenuOpen(false);
   }
 
-  const canSwitchMode = role === "admin" || role === "webmaster";
+  const canSwitchMode =
+    role === "admin" || role === "webmaster" || role === "moderator";
   const allLinks = resolveLinks(role, isAuthenticated, mode);
   const showBack = isAuthenticated && !ROOT_PAGES.has(pathname ?? "");
 

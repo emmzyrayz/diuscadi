@@ -9,6 +9,7 @@ import {
   ReactNode,
 } from "react";
 import type { AvailabilityCategory } from "@/lib/models/Application";
+import { signalSessionExpired } from "@/lib/sessionEvents";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,7 @@ function authHeaders(token: string): HeadersInit {
 
 async function handleResponse<T>(res: Response): Promise<T> {
   const data = await res.json();
+  if (res.status === 401) signalSessionExpired();
   if (!res.ok) throw new Error(data.error ?? "Request failed");
   return data as T;
 }
