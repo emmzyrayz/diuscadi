@@ -29,6 +29,22 @@ import { signJWT } from "@/lib/auth";
 //   - 24h expiry forces timely migration
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Define Custom Migration Token Payload Type ───────────────────────────
+    // This allows you to retain strict autocompletion on your custom guest claims 
+    // while keeping TS quiet about the standard JWTPayload structure.
+    interface GuestMigrationClaims {
+      vaultId: string;
+      sessionId: string;
+      role: "guest"; // Explicitly allowed here for this special token
+      tokenVersion: number;
+      guestRegistrationId: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      purpose: "guest-migration";
+    }
+
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -123,23 +139,23 @@ export async function POST(req: NextRequest) {
     // We extend the standard JWTPayload shape with migration-specific fields.
     // signJWT uses JWT_SECRET — no extra env var needed.
     // The purpose claim prevents this token being used for auth endpoints.
+    const tokenPayload: GuestMigrationClaims = {
+      vaultId: "migration",
+      sessionId: "migration",
+      role: "guest",
+      tokenVersion: 0,
+      guestRegistrationId: registrationId,
+      email: emailLower,
+      firstName: guestReg.fullName?.firstname ?? "",
+      lastName: guestReg.fullName?.lastname ?? "",
+      purpose: "guest-migration",
+    };
+
+    // ── Sign migration token using platform signJWT ────────────────────────
+    // We double-cast the payload via `unknown` to the target parameter type of signJWT.
+    // This cleanly bypasses the 'role: "guest"' vs 'role: AccountRole' mismatch.
     const migrationToken = signJWT(
-      {
-        // Required JWTPayload fields — set to sentinel values since this
-        // is not an auth token and will never pass withAuth middleware
-        vaultId: "migration",
-        sessionId: "migration",
-        role: "guest",
-        tokenVersion: 0,
-        // Migration-specific claims (cast via spread)
-        ...({
-          guestRegistrationId: registrationId,
-          email: emailLower,
-          firstName: guestReg.fullName?.firstname ?? "",
-          lastName: guestReg.fullName?.lastname ?? "",
-          purpose: "guest-migration",
-        } as object),
-      } as Parameters<typeof signJWT>[0],
+      tokenPayload as unknown as Parameters<typeof signJWT>[0],
       "24h",
     );
 
