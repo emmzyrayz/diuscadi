@@ -186,6 +186,38 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
+    // ── 6.5. taskBtn validation (any task type) ───────────────────────────────
+    if (Array.isArray(body.taskBtn)) {
+      for (const btn of body.taskBtn) {
+        if (!btn.btnLabel?.trim()) {
+          return NextResponse.json(
+            { error: "Each action button requires a btnLabel" },
+            { status: 400 },
+          );
+        }
+        if (!btn.btnUrl?.trim()) {
+          return NextResponse.json(
+            { error: "Each action button requires a btnUrl" },
+            { status: 400 },
+          );
+        }
+        try {
+          const u = new URL(btn.btnUrl.trim());
+          if (!["http:", "https:"].includes(u.protocol)) {
+            return NextResponse.json(
+              { error: `Invalid btnUrl protocol: ${btn.btnUrl}` },
+              { status: 400 },
+            );
+          }
+        } catch {
+          return NextResponse.json(
+            { error: `Invalid btnUrl: ${btn.btnUrl}` },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
     // ── 7. Points + time-decay weight validation (submission tasks only) ──────
 
     const validationError = validateTaskInput({
@@ -256,6 +288,11 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       deadline: deadlineDate,
       // publishedAt is stamped only when targetStatus === "active" (below).
       deliverables: taskType === "submission" ? (body.deliverables ?? []) : [],
+      taskBtn: (body.taskBtn ?? []).map((btn) => ({
+        btnLabel: btn.btnLabel.trim(),
+        btnUrl: btn.btnUrl.trim(),
+        hoverLabel: btn.hoverLabel?.trim() ?? "",
+      })),
       tags: (body.tags ?? []).map((t) => t.toLowerCase().trim()),
       maxScore: body.maxScore ?? 100,
       autoEvaluate:

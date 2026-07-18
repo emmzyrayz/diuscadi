@@ -91,7 +91,11 @@ export const PATCH = withAuth(async (req: AuthenticatedRequest, context) => {
 
     // ── 3. Parse body ─────────────────────────────────────────────────────────
 
-    let body: { status?: string; isVisible?: boolean };
+    let body: {
+      status?: string;
+      isVisible?: boolean;
+      taskBtn?: { btnLabel: string; btnUrl: string; hoverLabel?: string }[]; 
+    };
     try {
       body = await req.json();
     } catch {
@@ -142,6 +146,42 @@ export const PATCH = withAuth(async (req: AuthenticatedRequest, context) => {
       }
 
       updateFields.status = body.status;
+    }
+
+    if (body.taskBtn !== undefined) {
+      if (!Array.isArray(body.taskBtn)) {
+        return NextResponse.json(
+          { error: "taskBtn must be an array" },
+          { status: 400 },
+        );
+      }
+      for (const btn of body.taskBtn) {
+        if (!btn.btnLabel?.trim() || !btn.btnUrl?.trim()) {
+          return NextResponse.json(
+            { error: "Each action button requires btnLabel and btnUrl" },
+            { status: 400 },
+          );
+        }
+        try {
+          const u = new URL(btn.btnUrl.trim());
+          if (!["http:", "https:"].includes(u.protocol)) {
+            return NextResponse.json(
+              { error: `Invalid btnUrl protocol: ${btn.btnUrl}` },
+              { status: 400 },
+            );
+          }
+        } catch {
+          return NextResponse.json(
+            { error: `Invalid btnUrl: ${btn.btnUrl}` },
+            { status: 400 },
+          );
+        }
+      }
+      updateFields.taskBtn = body.taskBtn.map((btn) => ({
+        btnLabel: btn.btnLabel.trim(),
+        btnUrl: btn.btnUrl.trim(),
+        hoverLabel: btn.hoverLabel?.trim() ?? "",
+      }));
     }
 
     if (body.isVisible !== undefined) {

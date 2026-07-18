@@ -11,6 +11,7 @@ import type {
   TaskPriority,
   TaskScope,
   TaskDeliverable,
+  TaskButton,
   PollConfig,
   SurveyConfig,
   AssignmentTarget,
@@ -30,6 +31,8 @@ export interface TaskFormState {
   autoEvaluate: boolean;
   tags: string;
   deliverables: TaskDeliverable[];
+  taskBtn: TaskButton[];
+  hasActionButtons: boolean;
   pollConfig: PollConfig;
   surveyConfig: SurveyConfig;
   points: PointsConfig;
@@ -89,6 +92,8 @@ export function useTaskForm(defaults?: Partial<TaskFormState>) {
     autoEvaluate: false,
     tags: "",
     deliverables: [],
+    taskBtn: [],
+    hasActionButtons: false,
     pollConfig: DEFAULT_POLL_CONFIG,
     surveyConfig: DEFAULT_SURVEY_CONFIG,
     points: DEFAULT_POINTS,
@@ -210,6 +215,12 @@ export function useTaskForm(defaults?: Partial<TaskFormState>) {
         maxScore: form.maxScore,
         autoEvaluate: form.autoEvaluate,
       }),
+
+      // Task button
+      ...(form.hasActionButtons &&
+        form.taskBtn.length > 0 && {
+          taskBtn: form.taskBtn,
+        }),
 
       // Poll-specific
       ...(form.taskType === "poll" && {

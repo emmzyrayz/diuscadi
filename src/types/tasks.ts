@@ -78,6 +78,12 @@ export interface SurveyConfig {
   anonymous: boolean;
 }
 
+export interface TaskButton {
+  btnLabel: string;
+  btnUrl: string;
+  hoverLabel: string;
+}
+
 // ── Learning task config (scaffold — TODO when edu platforms ready) ───────────
 
 export interface LearningConfig {
@@ -95,7 +101,6 @@ export interface TaskDeliverable {
   type: "text" | "url" | "file_url" | "image_url";
   required: boolean;
   placeholder?: string;
-  socialMediaUrl?: string;
 }
 
 export interface SubmissionItem {
@@ -180,6 +185,7 @@ export interface ITask {
 
   // submission-specific
   deliverables: TaskDeliverable[];
+  taskBtn?: TaskButton[];
   maxScore: number;
   autoEvaluate: boolean;
   evaluationCriteria: string;
@@ -314,6 +320,7 @@ export interface CreateTaskPayload {
   surveyConfig?: SurveyConfig;
   learningConfig?: LearningConfig;
   deliverables?: TaskDeliverable[];
+  taskBtn?: TaskButton[];
   tags?: string[];
   maxScore?: number;
   autoEvaluate?: boolean;

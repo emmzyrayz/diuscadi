@@ -14,6 +14,7 @@ import type {
   EvaluatorType,
   SubmissionItem,
   TaskDeliverable,
+  TaskButton,
   PollConfig,
   SurveyConfig,
   LearningConfig,
@@ -48,6 +49,7 @@ export type DbTask = {
   learningConfig?: LearningConfig;
 
   deliverables: TaskDeliverable[];
+  taskBtn?: TaskButton[];
   maxScore: number;
   autoEvaluate: boolean;
   evaluationCriteria: string;

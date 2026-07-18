@@ -34,6 +34,7 @@ import { PointsConfigPanel } from "@/components/sections/tasks/admin/PointConfig
 import { DecayPreviewWidget } from "@/components/sections/tasks/admin/DecayPreviewWidget";
 import { useTaskForm } from "@/hooks/useTaskForm";
 import { toast } from "react-hot-toast";
+import { TaskButtonBuilder } from "@/components/sections/tasks/admin/TaskButtonBuilder";
 
 const PRIORITY_OPTIONS = [
   { value: "low", label: "Low" },
@@ -154,10 +155,7 @@ export default function AdminTaskCreatePage() {
 
       <div className="space-y-8">
         {/* ── Scope ─────────────────────────────────────────────────────────── */}
-        <Section
-          title="Scope"
-          desc="Who this task targets"
-        >
+        <Section title="Scope" desc="Who this task targets">
           <div className="grid grid-cols-2 gap-3">
             {(["committee", "global"] as const).map((s) => {
               const isSelected = form.scope === s;
@@ -310,13 +308,53 @@ export default function AdminTaskCreatePage() {
           </div>
         </Section>
 
+        <Section
+          title="Action Buttons"
+          desc="Optional — buttons that redirect members to a third-party platform"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => set("hasActionButtons", !form.hasActionButtons)}
+              disabled={submitting}
+              className={cn(
+                "relative w-10 h-5 rounded-full transition-all cursor-pointer",
+                form.hasActionButtons
+                  ? "bg-primary"
+                  : "bg-muted border border-border",
+              )}
+            >
+              <div
+                className={cn(
+                  "absolute top-0.5 w-4 h-4 bg-background rounded-full shadow-sm transition-all",
+                  form.hasActionButtons ? "left-5" : "left-0.5",
+                )}
+              />
+            </button>
+            <div>
+              <p className="text-[11px] font-black text-foreground">
+                Add action buttons
+              </p>
+              <p className="text-[9px] font-bold text-muted-foreground mt-0.5">
+                e.g. &quot;Follow on Facebook&quot; linking out for members to complete
+                before submitting proof
+              </p>
+            </div>
+          </div>
+
+          {form.hasActionButtons && (
+            <TaskButtonBuilder
+              value={form.taskBtn}
+              onChange={(b) => set("taskBtn", b)}
+              disabled={submitting}
+            />
+          )}
+        </Section>
+
         {/* ── Submission-specific ───────────────────────────────────────────── */}
         {form.taskType === "submission" && (
           <>
-            <Section
-              title="Deliverables"
-              error={errors.deliverables}
-            >
+            <Section title="Deliverables" error={errors.deliverables}>
               <DeliverableBuilder
                 value={form.deliverables}
                 onChange={(d) => set("deliverables", d)}
@@ -334,9 +372,7 @@ export default function AdminTaskCreatePage() {
                   <Textarea
                     rows={5}
                     value={form.evaluationCriteria}
-                    onChange={(e) =>
-                      set("evaluationCriteria", e.target.value)
-                    }
+                    onChange={(e) => set("evaluationCriteria", e.target.value)}
                     placeholder="Describe the rubric. Fed directly to the AI evaluator..."
                     disabled={submitting}
                     className={cn(
@@ -373,9 +409,7 @@ export default function AdminTaskCreatePage() {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() =>
-                      set("autoEvaluate", !form.autoEvaluate)
-                    }
+                    onClick={() => set("autoEvaluate", !form.autoEvaluate)}
                     disabled={submitting}
                     className={cn(
                       "relative w-10 h-5 rounded-full transition-all cursor-pointer",

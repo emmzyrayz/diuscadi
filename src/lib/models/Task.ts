@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import type {
   ITask,
   TaskDeliverable,
+  TaskButton,
   PollConfig,
   SurveyQuestion,
   SurveyConfig,
@@ -49,6 +50,30 @@ const TaskDeliverableSchema = new Schema<TaskDeliverable>(
     },
     required: { type: Boolean, default: true },
     placeholder: { type: String, default: "" },
+  },
+  { _id: false },
+);
+
+const TaskButtonSchema = new Schema<TaskButton>(
+  {
+    btnLabel: { type: String, required: true, trim: true },
+    btnUrl: {
+      type: String,
+      required: true,
+      trim: true,
+      validate: {
+        validator: (v: string) => {
+          try {
+            const u = new URL(v);
+            return ["http:", "https:"].includes(u.protocol);
+          } catch {
+            return false;
+          }
+        },
+        message: "btnUrl must be a valid http(s) URL",
+      },
+    },
+    hoverLabel: { type: String, default: "", trim: true },
   },
   { _id: false },
 );
@@ -229,6 +254,11 @@ const TaskSchema = new Schema<TaskDocument>(
 
     deliverables: {
       type: [TaskDeliverableSchema],
+      default: [],
+    },
+
+    taskBtn: {
+      type: [TaskButtonSchema],
       default: [],
     },
 
