@@ -198,6 +198,25 @@ export default function TaskDetailPage() {
             </span>
           )}
         </div>
+
+        {/* ← ADD: Action buttons */}
+        {task.taskBtn && task.taskBtn.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {task.taskBtn.map((btn, i) => (
+              <a
+                key={i}
+                href={btn.btnUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={btn.hoverLabel || undefined}
+                className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest px-3 py-2 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                <LuExternalLink className="w-3.5 h-3.5" />
+                {btn.btnLabel}
+              </a>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Already evaluated / responded ─────────────────────────────────── */}
@@ -300,18 +319,6 @@ export default function TaskDetailPage() {
                     }
                     className="w-full text-[11px] px-3 py-2 rounded-lg border border-border bg-background"
                   />
-                )}
-
-                {d.socialMediaUrl && (
-                  <a
-                    href={d.socialMediaUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[10px] text-primary hover:underline font-bold mt-2 inline-flex items-center gap-1"
-                  >
-                    <LuExternalLink className="w-3 h-3" />
-                    Open Link
-                  </a>
                 )}
               </div>
             </div>

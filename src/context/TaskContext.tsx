@@ -21,6 +21,7 @@ import type {
   BotTrigger,
   PollConfig,
   SurveyConfig,
+  TaskButton,
 } from "@/types/tasks";
 
 // ─── Phase 2 types (unchanged) ────────────────────────────────────────────────
@@ -63,7 +64,6 @@ export interface TaskDeliverableClient {
   type: "text" | "url" | "file_url" | "image_url";
   required: boolean;
   placeholder?: string;
-  socialMediaUrl?: string;
 }
 
 export interface EnrichedTask {
@@ -83,6 +83,7 @@ export interface EnrichedTask {
   taskType: "submission" | "poll" | "survey" | "acknowledgement" | "learning";
   deadline: string;
   deliverables: TaskDeliverableClient[];
+  taskBtn?: TaskButton[];
   tags: string[];
   maxScore: number;
   autoEvaluate: boolean;

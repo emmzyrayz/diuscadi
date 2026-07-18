@@ -74,6 +74,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest, context) => {
       evaluationCriteria: task.evaluationCriteria,
       maxScore: task.maxScore,
       deliverables: task.deliverables,
+      taskBtn: task.taskBtn ?? [],
       pollConfig: task.pollConfig,
       surveyConfig: task.surveyConfig,
       tags: task.tags,

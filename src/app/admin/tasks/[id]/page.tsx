@@ -25,6 +25,7 @@ import {
   LuCoins,
   LuTriangleAlert,
   LuEye,
+  LuExternalLink,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,12 @@ import {
 //   type ManualEvaluateSheetProps,
 } from "@/components/sections/tasks/ManualEvaluateSheet";
 import type { AssignmentWithMemberInfo } from "@/context/TaskAdminContext";
-import { PollConfig, SurveyConfig, TaskDeliverable } from "@/types/tasks";
+import {
+  PollConfig,
+  SurveyConfig,
+  TaskDeliverable,
+  TaskButton,
+} from "@/types/tasks";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,6 +65,7 @@ interface TaskDetail {
   evaluationCriteria?: string;
   maxScore: number;
   deliverables?: TaskDeliverable[];
+  taskBtn?: TaskButton[];
   pollConfig?: PollConfig[];
   surveyConfig?: SurveyConfig;
   tags: string[];
@@ -344,18 +351,32 @@ export default function AdminTaskDetailPage() {
                             {d.description}
                           </p>
                         )}
-                        {d.socialMediaUrl && (
-                          <a
-                            href={d.socialMediaUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] text-primary hover:underline mt-1 inline-block"
-                          >
-                            → Visit {new URL(d.socialMediaUrl).hostname}
-                          </a>
-                        )}
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+             {/* ← ADD: Action buttons block, right after deliverables */}
+            {task.taskBtn && task.taskBtn.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border/50">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">
+                  Action Buttons
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {task.taskBtn.map((btn, i) => (
+                    <a
+                      key={i}
+                      href={btn.btnUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={btn.hoverLabel || undefined}
+                      className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all"
+                    >
+                      <LuExternalLink className="w-3 h-3" />
+                      {btn.btnLabel}
+                    </a>
                   ))}
                 </div>
               </div>
