@@ -169,9 +169,13 @@ export default function ProfileApplicationsPage() {
 
   // ── Role gate ─────────────────────────────────────────────────────────────
   // isMember = approved member OR any elevated role
-  const isMember =
-    profile?.membershipStatus === "approved" ||
-    (profile?.role !== "participant" && profile?.role !== undefined);
+   const isMember =
+     profile?.membershipStatus === "approved" ||
+     (profile?.role !== "participant" && profile?.role !== undefined);
+
+   // Committee applications require actual approved membership —
+   // elevated platform roles alone do not qualify.
+   const canApplyCommittee = profile?.membershipStatus === "approved";
 
   // Visible application types based on membership status
   const visibleTypes = APP_TYPE_CONFIGS.filter((cfg) =>
@@ -560,26 +564,43 @@ export default function ProfileApplicationsPage() {
                           Pending
                         </span>
                       )}
-                      {!isPending && !isApproved && (
-                        <button
-                          onClick={() =>
-                            setActiveForm(isActive ? null : cfg.type)
-                          }
-                          className={cn(
-                            "flex items-center gap-2 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
-                            isActive
-                              ? "bg-muted text-muted-foreground"
-                              : "bg-foreground text-background hover:bg-primary hover:text-foreground",
-                          )}
-                        >
-                          {isActive ? (
-                            <LuX className="w-3.5 h-3.5" />
-                          ) : (
-                            <LuPlus className="w-3.5 h-3.5" />
-                          )}
-                          {isActive ? "Cancel" : "Apply"}
-                        </button>
-                      )}
+                      {!isPending &&
+                        !isApproved &&
+                        (() => {
+                          const canApply =
+                            cfg.type !== "committee" || canApplyCommittee;
+                          const handleClick = () => {
+                            if (!canApply) {
+                              toast.error(
+                                "Only approved DIUSCADI members may apply to committees.",
+                              );
+                              setActiveForm(isActive ? null : cfg.type);
+                              return;
+                            }
+                            setActiveForm(isActive ? null : cfg.type);
+                          };
+                          return (
+                            <button
+                              onClick={handleClick}
+                              disabled={!canApply}
+                              className={cn(
+                                "flex items-center gap-2 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                isActive
+                                  ? "bg-muted text-muted-foreground cursor-pointer"
+                                  : canApply
+                                    ? "bg-foreground text-background hover:bg-primary hover:text-foreground cursor-pointer"
+                                    : "bg-muted/30 text-muted-foreground cursor-not-allowed",
+                              )}
+                            >
+                              {isActive ? (
+                                <LuX className="w-3.5 h-3.5" />
+                              ) : (
+                                <LuPlus className="w-3.5 h-3.5" />
+                              )}
+                              {isActive ? "Cancel" : "Apply"}
+                            </button>
+                          );
+                        })()}
                     </div>
                   </div>
 
@@ -621,6 +642,24 @@ export default function ProfileApplicationsPage() {
                             {/* ── COMMITTEE form ─────────────────────────── */}
                             {activeForm === "committee" && (
                               <div className="space-y-5">
+                                {!canApplyCommittee && (
+                                  <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl">
+                                    <div className="flex items-start gap-3">
+                                      <LuInfo className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                                      <div>
+                                        <p className="text-[11px] font-black text-amber-700 uppercase tracking-widest">
+                                          Membership Required to Apply
+                                        </p>
+                                        <p className="text-[10px] font-bold text-amber-600 mt-1 leading-relaxed">
+                                          Only approved DIUSCADI members may
+                                          apply to join committees. Your
+                                          platform role doesn&apos;t grant this
+                                          on its own.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                                 {/* Committee selector — unchanged */}
                                 <div className="space-y-2">
                                   <label
@@ -1043,7 +1082,11 @@ export default function ProfileApplicationsPage() {
                               </button>
                               <button
                                 onClick={handleSubmit}
-                                disabled={submitting}
+                                disabled={
+                                  submitting ||
+                                  (activeForm === "committee" &&
+                                    !canApplyCommittee)
+                                }
                                 className={cn(
                                   "flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-foreground text-background hover:bg-primary hover:text-foreground transition-all shadow-xl cursor-pointer disabled:opacity-60",
                                 )}

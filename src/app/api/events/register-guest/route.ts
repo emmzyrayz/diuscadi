@@ -13,6 +13,10 @@ import {
 import { creditReferralPoints } from "@/lib/services/pointsService";
 import type { IGuestEventRegistration } from "@/lib/models/GuestEventRegistration";
 import { getRegisteredCount } from "@/lib/services/capacityService";
+import {
+  findActiveGuestRegistration,
+  findReferrerByInviteCode,
+} from "@/lib/db/guestRegistrationQueries";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -260,16 +264,11 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 8. Guard: existing GUEST registration ─────────────────────────────────
-    const existingGuest = await Collections.guestEventRegistrations(db).findOne(
-      {
-        email: emailLower,
-        eventId: eventObjId,
-        status: { $ne: "cancelled" },
-      },
-      {
-        projection: { _id: 1, verifiedAt: 1, inviteCode: 1, guestProfileId: 1 },
-      },
-    );
+       const existingGuest = await findActiveGuestRegistration(
+         db,
+         { email: emailLower, eventId: eventObjId },
+         { _id: 1, verifiedAt: 1, inviteCode: 1, guestProfileId: 1 },
+       );
 
     if (existingGuest) {
       if (!existingGuest.guestProfileId) {
@@ -352,18 +351,12 @@ export async function POST(req: NextRequest) {
     let referrerUserDataId: ObjectId | null = null;
 
     if (referralCodeUsed) {
-      const [referrerAccount, referrerGuest] = await Promise.all([
-        Collections.eventRegistrations(db).findOne(
-          { inviteCode: referralCodeUsed, eventId: eventObjId },
-          { projection: { _id: 1, userId: 1 } },
-        ),
-        Collections.guestEventRegistrations(db).findOne(
-          { inviteCode: referralCodeUsed, eventId: eventObjId },
-          { projection: { _id: 1 } },
-        ),
-      ]);
+      const { accountReferrer, guestReferrer } = await findReferrerByInviteCode(
+        db,
+        { inviteCode: referralCodeUsed, eventId: eventObjId },
+      );
 
-      if (!referrerAccount && !referrerGuest) {
+      if (!accountReferrer && !guestReferrer) {
         return NextResponse.json(
           { error: "Referral code is invalid for this event" },
           { status: 400 },
@@ -371,8 +364,8 @@ export async function POST(req: NextRequest) {
       }
 
       // Only credit a registered account referrer (guests earn on migration).
-      if (referrerAccount?.userId) {
-        referrerUserDataId = referrerAccount.userId as ObjectId;
+      if (accountReferrer?.userId) {
+        referrerUserDataId = accountReferrer.userId as ObjectId;
       }
     }
 
