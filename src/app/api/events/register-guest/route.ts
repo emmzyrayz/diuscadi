@@ -12,6 +12,7 @@ import {
 } from "@/lib/sendEmail";
 import { creditReferralPoints } from "@/lib/services/pointsService";
 import type { IGuestEventRegistration } from "@/lib/models/GuestEventRegistration";
+import { getRegisteredCount } from "@/lib/services/capacityService";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -324,19 +325,9 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 9. Total event capacity check ─────────────────────────────────────────
-    const [accountCount, guestCount] = await Promise.all([
-      Collections.eventRegistrations(db).countDocuments({
-        eventId: eventObjId,
-        status: { $ne: "cancelled" },
-      }),
-      Collections.guestEventRegistrations(db).countDocuments({
-        eventId: eventObjId,
-        status: { $ne: "cancelled" },
-        migratedToUserId: { $exists: false },
-      }),
-    ]);
+    const totalRegistered = await getRegisteredCount(db, eventObjId);
 
-    if (accountCount + guestCount >= event.capacity) {
+    if (totalRegistered >= event.capacity) {
       return NextResponse.json(
         { error: "This event is fully booked" },
         { status: 400 },
@@ -344,21 +335,13 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 10. Ticket-tier capacity check ────────────────────────────────────────
-    const [tierAccountCount, tierGuestCount] = await Promise.all([
-      Collections.eventRegistrations(db).countDocuments({
-        eventId: eventObjId,
-        ticketTypeId: ticketObjId,
-        status: { $ne: "cancelled" },
-      }),
-      Collections.guestEventRegistrations(db).countDocuments({
-        eventId: eventObjId,
-        ticketTypeId: ticketObjId,
-        status: { $ne: "cancelled" },
-        migratedToUserId: { $exists: false },
-      }),
-    ]);
+    const tierRegistered = await getRegisteredCount(
+      db,
+      eventObjId,
+      ticketObjId,
+    );
 
-    if (tierAccountCount + tierGuestCount >= ticketType.maxQuantity) {
+    if (tierRegistered >= ticketType.maxQuantity) {
       return NextResponse.json(
         { error: "This ticket tier is sold out" },
         { status: 400 },

@@ -10,6 +10,7 @@ import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
 import { generateInviteCode } from "@/lib/auth";
 import { sendEventRegistrationEmail } from "@/lib/sendEmail";
+import { getRegisteredCount } from "@/lib/services/capacityService";
 import { processReferralChain } from "@/lib/services/pointsService";
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
@@ -119,12 +120,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     }
 
     // Check overall event capacity
-    const totalRegistered = await Collections.eventRegistrations(
-      db,
-    ).countDocuments({
-      eventId: eventObjId,
-      status: { $ne: "cancelled" },
-    });
+    const totalRegistered = await getRegisteredCount(db, eventObjId);
     if (totalRegistered >= event.capacity) {
       return NextResponse.json(
         { error: "Event is fully booked" },
@@ -133,19 +129,17 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     }
 
     // Check ticket tier capacity
-    const tierRegistered = await Collections.eventRegistrations(
-      db,
-    ).countDocuments({
-      eventId: eventObjId,
-      ticketTypeId: ticketObjId,
-      status: { $ne: "cancelled" },
-    });
-    if (tierRegistered >= ticketType.maxQuantity) {
-      return NextResponse.json(
-        { error: "This ticket tier is sold out" },
-        { status: 400 },
-      );
-    }
+     const tierRegistered = await getRegisteredCount(
+       db,
+       eventObjId,
+       ticketObjId,
+     );
+     if (tierRegistered >= ticketType.maxQuantity) {
+       return NextResponse.json(
+         { error: "This ticket tier is sold out" },
+         { status: 400 },
+       );
+     }
 
     // ── Validate referral code + resolve referrer ──────────────────────────
     // The referral code is another attendee's inviteCode for this specific
