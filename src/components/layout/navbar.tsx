@@ -53,6 +53,7 @@ const MEMBER_LINKS = [
   { name: "Events", href: "/events" },
   { name: "Tickets", href: "/tickets" },
   { name: "Profile", href: "/profile" },
+  { name: "Tasks", href: "/tasks" },
   { name: "Apply", href: "/profile/applications" },
   { name: "Leaderboard", href: "/leaderboard" },
   { name: "Landing Page", href: "/" },

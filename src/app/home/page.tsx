@@ -9,11 +9,7 @@ import {
   fetchHomeUser,
   fetchFeaturedEvent,
   fetchUpcomingEvents,
-  fetchRecommendations,
   getStaticQuickActions,
-  getStaticAnnouncements,
-  getStaticActivities,
-  getStaticContinueItems,
   fetchUserActivity,
   fetchUserAnnouncements,
 } from "@/lib/homeData";
@@ -70,7 +66,7 @@ export default async function HomePage() {
   //   : [];
 
   const quickActions = getStaticQuickActions();
-  const announcements = getStaticAnnouncements();
+  // const announcements = getStaticAnnouncements();
   // const activities = getStaticActivities();
   // const continueItems = getStaticContinueItems();
 

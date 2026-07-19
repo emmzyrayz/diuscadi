@@ -67,7 +67,7 @@ export function TaskSummary() {
   return (
     <div
       className={cn(
-        "max-w-[96vh] w-full glass-subtle rounded-2xl border border-border/40 p-5 space-y-4",
+        "max-w-[96vh] w-full glass-subtle rounded-2xl border border-border/40 p-5 space-y-4 mt-[20px] md:mt-[50px]",
       )}
     >
       <div className="flex items-center justify-between gap-3">

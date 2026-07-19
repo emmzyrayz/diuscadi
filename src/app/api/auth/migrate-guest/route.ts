@@ -1,6 +1,6 @@
 // src/app/api/auth/migrate-guest/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/mongodb";
+import { getDb, getMongoClient } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { ObjectId } from "mongodb";
 import { verifyJWT, hashPassword, generateInviteCode } from "@/lib/auth";
@@ -26,6 +26,14 @@ import { processReferralChain } from "@/lib/services/pointsService";
 //     phone: { countryCode: number, phoneNumber: number },
 //     eduStatus: "STUDENT" | "GRADUATE"
 //   }
+//
+// IMPORTANT: steps 9-14 (vault/userData/eventRegistrations creation + the
+// migratedToUserId stamping on guestProfiles/guestEventRegistrations) run
+// inside a single Mongo transaction. These MUST commit together — a partial
+// commit leaves a real seat counted on both the "account" and "guest" sides
+// of capacity math (see /api/events/register-guest's capacity check), and
+// since step 5 blocks re-migration once the vault exists, a partial failure
+// here is otherwise unrecoverable without a manual DB fix.
 // ─────────────────────────────────────────────────────────────────────────────
 
 function generateTempPassword(): string {
@@ -195,22 +203,12 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 7. Resolve referrer from the guest registration ────────────────────
-    // The guest registration may have been made with a referral code
-    // (referralCodeUsed = the referrer's inviteCode on the event registration).
-    // We look that up and set referredBy on the new UserData so the
-    // referral chain gets credited correctly.
-    //
-    // The guest's referralCodeUsed is stored on the source registration —
-    // we fetch it from the guestEventRegistration document.
     let referredBy: string | undefined;
     const sourceRegFull = await Collections.guestEventRegistrations(db).findOne(
       { _id: new ObjectId(guestRegistrationId) },
       { projection: { referralCodeUsed: 1 } },
     );
     if (sourceRegFull?.referralCodeUsed) {
-      // referralCodeUsed is the inviteCode of whoever referred them to the
-      // event — that same user's signupInviteCode is their platform referral code.
-      // Look up the userData whose inviteCode matches.
       const eventReferrer = await Collections.eventRegistrations(db).findOne(
         { inviteCode: sourceRegFull.referralCodeUsed },
         { projection: { userId: 1 } },
@@ -238,7 +236,6 @@ export async function POST(req: NextRequest) {
       phoneNumber: phone.phoneNumber,
     };
 
-    // ── 9. Create Vault document ─────────────────────────────────────────────
     const vaultDoc = {
       _id: vaultId,
       email: emailLower,
@@ -257,137 +254,169 @@ export async function POST(req: NextRequest) {
       updatedAt: now,
     };
 
-    await Collections.vault(db).insertOne(vaultDoc as unknown as VaultDocument);
+    // ── 9-14. Atomic migration ────────────────────────────────────────────────
+    const mongoClient = await getMongoClient();
+    const session = mongoClient.startSession();
 
-    // ── 10. Create UserData document ──────────────────────────────────────────
-    const userDataDoc: UserDataDocument = {
-      _id: userDataId,
-      vaultId,
-      fullName: {
-        firstname: (firstName ?? profile.fullName.firstname).trim(),
-        lastname: (lastName ?? profile.fullName.lastname).trim(),
-      },
-      email: emailLower,
-      phone: phoneData,
-      role: "participant",
-      eduStatus: eduStatus as EduStatus,
-      hasAvatar: false,
-      Institution: {
-        verifiedSchoolEmail: false,
-        gpaRecord: [],
-        cgpa: null,
-      },
-      committeeMembership: null,
-      skills: [],
-      profileCompleted: false,
-      membershipStatus: "pending",
-      signupInviteCode: generateInviteCode(),
-      // Store the referrer's invite code string — absent for organic migrations.
-      ...(referredBy && { referredBy }),
-      // Initialise points sub-document at zero.
-      points: {
-        current: 0,
-        lifetime: 0,
-      },
-      // Initialise referral counters at zero.
-      referralMeta: {
-        directCount: 0,
-        indirectCount: 0,
-        totalEarned: 0,
-        treeDepthReached: 0,
-      },
-      analytics: {
-        eventsRegistered: 0,
-        eventsAttended: 0,
-        lastActiveAt: now,
-      },
-      preferences: DEFAULT_PREFERENCES,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await Collections.userData(db).insertOne(userDataDoc);
-
-    // ── 11. Resolve all linked registrations via guestProfileId ─────────────
-    const allGuestRegs = await getLinkedRegistrations(db, guestProfileObjId);
-
-    // ── 12. Create EventRegistration records for each guest ticket ──────────
     let migratedCount = 0;
+    let checkedInCount = 0;
 
-    for (const guestReg of allGuestRegs) {
-      try {
-        const existing = await Collections.eventRegistrations(db).findOne(
-          { userId: userDataId, eventId: guestReg.eventId },
-          { projection: { _id: 1 } },
+    try {
+      await session.withTransaction(async () => {
+        await Collections.vault(db).insertOne(
+          vaultDoc as unknown as VaultDocument,
+          { session },
         );
-        if (existing) continue;
 
-        await Collections.eventRegistrations(db).insertOne({
-          userId: userDataId,
-          eventId: guestReg.eventId,
-          ticketTypeId: guestReg.ticketTypeId,
-          inviteCode: guestReg.inviteCode,
-          referralCodeUsed: guestReg.referralCodeUsed ?? null,
-          status: guestReg.status as "registered" | "checked-in" | "cancelled",
-          registeredAt: guestReg.registeredAt ?? now,
-          ...(guestReg.checkedInAt && { checkedInAt: guestReg.checkedInAt }),
-          ...(guestReg.reminders && { reminders: guestReg.reminders }),
+        const userDataDoc: UserDataDocument = {
+          _id: userDataId,
+          vaultId,
+          fullName: {
+            firstname: (firstName ?? profile.fullName.firstname).trim(),
+            lastname: (lastName ?? profile.fullName.lastname).trim(),
+          },
+          email: emailLower,
+          phone: phoneData,
+          role: "participant",
+          eduStatus: eduStatus as EduStatus,
+          hasAvatar: false,
+          Institution: {
+            verifiedSchoolEmail: false,
+            gpaRecord: [],
+            cgpa: null,
+          },
+          committeeMembership: null,
+          skills: [],
+          profileCompleted: false,
+          membershipStatus: "pending",
+          signupInviteCode: generateInviteCode(),
+          ...(referredBy && { referredBy }),
+          points: {
+            current: 0,
+            lifetime: 0,
+          },
+          referralMeta: {
+            directCount: 0,
+            indirectCount: 0,
+            totalEarned: 0,
+            treeDepthReached: 0,
+          },
+          analytics: {
+            eventsRegistered: 0,
+            eventsAttended: 0,
+            lastActiveAt: now,
+          },
+          preferences: DEFAULT_PREFERENCES,
           createdAt: now,
           updatedAt: now,
-        });
+        };
 
-        migratedCount++;
-      } catch (ticketErr) {
-        console.error(
-          `[migrate-guest] Failed to migrate ticket ${guestReg._id}:`,
-          ticketErr,
+        await Collections.userData(db).insertOne(userDataDoc, { session });
+
+        // NOTE: getLinkedRegistrations does its own read — if it doesn't
+        // accept a session, it reads outside the transaction's snapshot.
+        // That's fine here since it's just resolving which docs to touch,
+        // not itself a write that needs atomicity with the rest.
+        const allGuestRegs = await getLinkedRegistrations(
+          db,
+          guestProfileObjId,
         );
-      }
+
+        for (const guestReg of allGuestRegs) {
+          const existing = await Collections.eventRegistrations(db).findOne(
+            { userId: userDataId, eventId: guestReg.eventId },
+            { projection: { _id: 1 }, session },
+          );
+          if (existing) continue;
+
+          await Collections.eventRegistrations(db).insertOne(
+            {
+              userId: userDataId,
+              eventId: guestReg.eventId,
+              ticketTypeId: guestReg.ticketTypeId,
+              inviteCode: guestReg.inviteCode,
+              referralCodeUsed: guestReg.referralCodeUsed ?? null,
+              status: guestReg.status as
+                | "registered"
+                | "checked-in"
+                | "cancelled",
+              registeredAt: guestReg.registeredAt ?? now,
+              ...(guestReg.checkedInAt && {
+                checkedInAt: guestReg.checkedInAt,
+              }),
+              ...(guestReg.reminders && { reminders: guestReg.reminders }),
+              createdAt: now,
+              updatedAt: now,
+            },
+            { session },
+          );
+
+          migratedCount++;
+        }
+
+        checkedInCount = allGuestRegs.filter(
+          (r) => r.status === "checked-in",
+        ).length;
+
+        await Collections.userData(db).updateOne(
+          { _id: userDataId },
+          {
+            $set: {
+              "analytics.eventsRegistered": migratedCount,
+              "analytics.eventsAttended": checkedInCount,
+              updatedAt: now,
+            },
+          },
+          { session },
+        );
+
+        // Dual-stamp migration status — committed in the SAME transaction
+        // as the eventRegistrations inserts above. This pairing is what
+        // prevents the double-count bug.
+        await Collections.guestProfiles(db).updateOne(
+          { _id: guestProfileObjId },
+          {
+            $set: {
+              migratedToUserId: userDataId,
+              migratedAt: now,
+              mergeStatus: "migrated",
+              updatedAt: now,
+            },
+          },
+          { session },
+        );
+
+        await Collections.guestEventRegistrations(db).updateMany(
+          { guestProfileId: guestProfileObjId },
+          {
+            $set: {
+              migratedToUserId: userDataId,
+              migratedAt: now,
+              updatedAt: now,
+            },
+          },
+          { session },
+        );
+      });
+    } catch (txErr) {
+      console.error(
+        "[migrate-guest] Transaction failed, nothing committed:",
+        txErr,
+      );
+      return NextResponse.json(
+        {
+          error:
+            "Migration failed. Please try again — no partial account was created.",
+        },
+        { status: 500 },
+      );
+    } finally {
+      await session.endSession();
     }
 
-    // ── 13. Update UserData analytics ─────────────────────────────────────────
-    const checkedInCount = allGuestRegs.filter(
-      (r) => r.status === "checked-in",
-    ).length;
-
-    await Collections.userData(db).updateOne(
-      { _id: userDataId },
-      {
-        $set: {
-          "analytics.eventsRegistered": migratedCount,
-          "analytics.eventsAttended": checkedInCount,
-          updatedAt: now,
-        },
-      },
-    );
-
-    // ── 14. Dual-stamp migration status ───────────────────────────────────────
-    await Collections.guestProfiles(db).updateOne(
-      { _id: guestProfileObjId },
-      {
-        $set: {
-          migratedToUserId: userDataId,
-          migratedAt: now,
-          mergeStatus: "migrated",
-          updatedAt: now,
-        },
-      },
-    );
-
-    await Collections.guestEventRegistrations(db).updateMany(
-      { guestProfileId: guestProfileObjId },
-      {
-        $set: {
-          migratedToUserId: userDataId,
-          migratedAt: now,
-          updatedAt: now,
-        },
-      },
-    );
-
     // ── 15. Fire referral chain (fire-and-forget) ─────────────────────────────
-    // If this migrating guest was referred, credit the referrer's points chain.
-    // Never throws — a rewards failure must not block the migration response.
+    // Safe outside the transaction — this only affects points, not seat
+    // counting, and must never block or roll back the migration itself.
     if (referredBy) {
       void processReferralChain(db, {
         newUserId: userDataId,
