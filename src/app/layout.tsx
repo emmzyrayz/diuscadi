@@ -8,6 +8,8 @@ import Footer from "@/components/layout/footer";
 import { ProvidersWrapper } from "./providers";
 import { RouteGuard } from "@/components/RouteGuard";
 import GuestMergeMount from "@/components/guest/GuestMergeMount";
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -79,6 +81,9 @@ export default function RootLayout({
           </RouteGuard>
           <GuestMergeMount />
         </ProvidersWrapper>
+
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
