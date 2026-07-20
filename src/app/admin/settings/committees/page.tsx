@@ -1,9 +1,11 @@
 "use client";
 // app/admin/settings/committees/page.tsx
-// Fixed infinite loop: loadCommittees is now called with a ref guard
-// so it only fires once on mount, not on every state.committees change.
+//
+// Fetches from the ADMIN endpoint (/api/admin/platform?resource=committees),
+// not the public one — so inactive committees are visible here and the
+// status badge reflects real data instead of being hardcoded.
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   LuUsers,
@@ -11,9 +13,9 @@ import {
   LuChevronLeft,
   LuLoader,
   LuPencil,
+  LuPower,
 } from "react-icons/lu";
 import { useRouter } from "next/navigation";
-import { usePlatform } from "@/context/PlatformContext";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -25,21 +27,80 @@ import type { CommitteeItem } from "@/context/PlatformContext";
 export default function CommitteesSettingsPage() {
   const router = useRouter();
   const { token } = useAuth();
-  const { committees, loadingLists, loadCommittees } = usePlatform();
+
+  const [committees, setCommittees] = useState<CommitteeItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<CommitteeItem | null>(null);
+  const [togglingSlug, setTogglingSlug] = useState<string | null>(null);
 
-  // ── Fix: run loadCommittees exactly once on mount ──────────────────────────
-  // The previous [loadCommittees] dependency caused an infinite loop because
-  // loadCommittees is a useCallback that depends on state.committees —
-  // loading sets committees → recreates loadCommittees → fires useEffect again.
-  // A ref guard breaks the cycle cleanly without touching PlatformContext.
-  const loaded = useRef(false);
+  // ── Fetch full list (active + inactive) from the admin-only endpoint ──────
+  const fetchCommittees = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/platform?resource=committees", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to load committees");
+      setCommittees(data.committees ?? []);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to load committees",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
   useEffect(() => {
-    if (loaded.current) return;
-    loaded.current = true;
-    loadCommittees();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    fetchCommittees();
+  }, [fetchCommittees]);
+
+  // ── Deactivate / reactivate ────────────────────────────────────────────────
+  const handleToggleStatus = async (c: CommitteeItem) => {
+    if (!token) return;
+    const activating = c.isActive === false;
+    const confirmed = window.confirm(
+      activating
+        ? `Reactivate "${c.name}"? It will become visible again on the public showcase.`
+        : `Deactivate "${c.name}"? It will be hidden from the public showcase and new applications. Existing members are not affected.`,
+    );
+    if (!confirmed) return;
+
+    setTogglingSlug(c.slug);
+    try {
+      if (activating) {
+        const res = await fetch("/api/admin/platform?resource=committees", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ slug: c.slug, isActive: true }),
+        });
+        if (!res.ok) throw new Error("Failed to reactivate");
+        toast.success("Committee reactivated");
+      } else {
+        const res = await fetch("/api/admin/platform?resource=committees", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ slug: c.slug }),
+        });
+        if (!res.ok) throw new Error("Failed to deactivate");
+        toast.success("Committee deactivated");
+      }
+      fetchCommittees();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setTogglingSlug(null);
+    }
+  };
 
   return (
     <motion.div
@@ -65,7 +126,9 @@ export default function CommitteesSettingsPage() {
               Committees
             </h1>
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">
-              {committees?.length ?? 0} committees
+              {committees.length} committee{committees.length !== 1 ? "s" : ""}
+              {" · "}
+              {committees.filter((c) => c.isActive !== false).length} active
             </p>
           </div>
         </div>
@@ -77,14 +140,14 @@ export default function CommitteesSettingsPage() {
         </button>
       </div>
 
-      {loadingLists ? (
+      {loading ? (
         <div className="flex items-center justify-center py-20">
           <LuLoader className="w-8 h-8 text-primary animate-spin" />
         </div>
       ) : (
         <div className="bg-background border-2 border-border rounded-[2.5rem] overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[600px]">
+            <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
                   {[
@@ -107,7 +170,7 @@ export default function CommitteesSettingsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {(committees ?? []).length === 0 ? (
+                {committees.length === 0 ? (
                   <tr>
                     <td
                       colSpan={5}
@@ -117,62 +180,90 @@ export default function CommitteesSettingsPage() {
                     </td>
                   </tr>
                 ) : (
-                  (committees ?? []).map((c, index) => (
-                    <motion.tr
-                      key={c.slug}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.03 }}
-                      className="group hover:bg-muted/50 transition-all"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-background shrink-0"
-                            style={{ backgroundColor: c.color }}
+                  committees.map((c, index) => {
+                    const isActive = c.isActive !== false;
+                    return (
+                      <motion.tr
+                        key={c.slug}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className={cn(
+                          "group hover:bg-muted/50 transition-all",
+                          !isActive && "opacity-60",
+                        )}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-background shrink-0"
+                              style={{ backgroundColor: c.color }}
+                            >
+                              {c.name.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors">
+                                {c.name}
+                              </p>
+                              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                                {c.slug}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 max-w-[240px]">
+                          <p className="text-[11px] font-medium text-muted-foreground line-clamp-2">
+                            {c.shortDesc || c.description}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-black text-foreground">
+                            {c.memberCount}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={cn(
+                              "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border",
+                              isActive
+                                ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                : "bg-muted text-muted-foreground border-border",
+                            )}
                           >
-                            {c.name.charAt(0)}
+                            {isActive ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => setEditing(c)}
+                              className="p-2 hover:bg-background border border-transparent hover:border-border rounded-lg text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                              title="Edit"
+                            >
+                              <LuPencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleToggleStatus(c)}
+                              disabled={togglingSlug === c.slug}
+                              className={cn(
+                                "p-2 hover:bg-background border border-transparent hover:border-border rounded-lg transition-all cursor-pointer disabled:opacity-50",
+                                isActive
+                                  ? "text-muted-foreground hover:text-rose-600"
+                                  : "text-muted-foreground hover:text-emerald-600",
+                              )}
+                              title={isActive ? "Deactivate" : "Reactivate"}
+                            >
+                              {togglingSlug === c.slug ? (
+                                <LuLoader className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <LuPower className="w-4 h-4" />
+                              )}
+                            </button>
                           </div>
-                          <div>
-                            <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors">
-                              {c.name}
-                            </p>
-                            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
-                              {c.slug}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 max-w-[200px]">
-                        <p className="text-[11px] font-medium text-muted-foreground line-clamp-2">
-                          {c.description}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm font-black text-foreground">
-                          {c.memberCount}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={cn(
-                            "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border",
-                            "bg-emerald-50 text-emerald-600 border-emerald-100",
-                          )}
-                        >
-                          Active
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => setEditing(c)}
-                          className="p-2 hover:bg-background border border-transparent hover:border-border rounded-lg text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-                        >
-                          <LuPencil className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </motion.tr>
-                  ))
+                        </td>
+                      </motion.tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -196,8 +287,15 @@ export default function CommitteesSettingsPage() {
               placeholder: "e.g. socials",
             },
             {
+              key: "shortDesc",
+              label: "Short Description",
+              type: "text",
+              placeholder:
+                "One-liner shown on the public showcase deck (~80 chars)",
+            },
+            {
               key: "description",
-              label: "Description",
+              label: "Full Description",
               type: "textarea",
               required: true,
             },
@@ -215,6 +313,20 @@ export default function CommitteesSettingsPage() {
               required: true,
               placeholder: "megaphone",
             },
+            {
+              key: "whatsappLink",
+              label: "WhatsApp Group Link",
+              type: "text",
+              placeholder:
+                "https://chat.whatsapp.com/... (shown only to members)",
+            },
+            {
+              key: "displayOrder",
+              label: "Display Order",
+              type: "number",
+              defaultValue: 99,
+              placeholder: "Lower = shown first",
+            },
           ]}
           onConfirm={async (data) => {
             if (!token) return;
@@ -227,11 +339,7 @@ export default function CommitteesSettingsPage() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                   },
-                  body: JSON.stringify({
-                    ...data,
-                    memberCount: 0,
-                    displayOrder: 99,
-                  }),
+                  body: JSON.stringify(data),
                 },
               );
               if (!res.ok) {
@@ -240,8 +348,7 @@ export default function CommitteesSettingsPage() {
               }
               toast.success("Committee created");
               setShowCreate(false);
-              loaded.current = false; // allow re-fetch
-              loadCommittees();
+              fetchCommittees();
             } catch (err) {
               toast.error(err instanceof Error ? err.message : "Failed");
             }
@@ -265,8 +372,16 @@ export default function CommitteesSettingsPage() {
                 defaultValue: editing.name,
               },
               {
+                key: "shortDesc",
+                label: "Short Description",
+                type: "text",
+                defaultValue: editing.shortDesc ?? "",
+                placeholder:
+                  "One-liner shown on the public showcase deck (~80 chars)",
+              },
+              {
                 key: "description",
-                label: "Description",
+                label: "Full Description",
                 type: "textarea",
                 required: true,
                 defaultValue: editing.description,
@@ -286,10 +401,22 @@ export default function CommitteesSettingsPage() {
                 defaultValue: editing.icon,
               },
               {
+                key: "whatsappLink",
+                label: "WhatsApp Group Link",
+                type: "text",
+                defaultValue: editing.whatsappLink ?? "",
+              },
+              {
                 key: "headName",
                 label: "Head Name",
                 type: "text",
                 defaultValue: editing.headName ?? "",
+              },
+              {
+                key: "displayOrder",
+                label: "Display Order",
+                type: "number",
+                defaultValue: editing.displayOrder,
               },
             ]}
             onConfirm={async (data) => {
@@ -309,8 +436,7 @@ export default function CommitteesSettingsPage() {
                 if (!res.ok) throw new Error("Failed to update");
                 toast.success("Committee updated");
                 setEditing(null);
-                loaded.current = false;
-                loadCommittees();
+                fetchCommittees();
               } catch (err) {
                 toast.error(err instanceof Error ? err.message : "Failed");
               }

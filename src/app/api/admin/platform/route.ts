@@ -140,20 +140,22 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         );
       }
 
-      const { insertedId } = await col.insertOne({
-        slug: slug.trim().toLowerCase(),
-        name: name.trim(),
-        description: description.trim(),
-        color: color.trim(),
-        icon: icon.trim(),
-        headName: body.headName?.trim() ?? undefined,
-        memberCount: 0,
-        isActive: true,
-        displayOrder: typeof displayOrder === "number" ? displayOrder : 99,
-        createdBy: new ObjectId(req.auth.vaultId),
-        createdAt: now,
-        updatedAt: now,
-      });
+       const { insertedId } = await col.insertOne({
+         slug: slug.trim().toLowerCase(),
+         name: name.trim(),
+         shortDesc: body.shortDesc?.trim() || undefined,
+         description: description.trim(),
+         color: color.trim(),
+         icon: icon.trim(),
+         whatsappLink: body.whatsappLink?.trim() || undefined,
+         headName: body.headName?.trim() ?? undefined,
+         memberCount: 0,
+         isActive: true,
+         displayOrder: typeof displayOrder === "number" ? displayOrder : 99,
+         createdBy: new ObjectId(req.auth.vaultId),
+         createdAt: now,
+         updatedAt: now,
+       });
 
       return NextResponse.json(
         { message: "Committee created", id: insertedId.toString() },

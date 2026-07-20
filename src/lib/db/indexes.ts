@@ -321,6 +321,13 @@ export async function createIndexes() {
     .collection("applications")
     .createIndex({ requestedCommittee: 1, status: 1 });
 
+  // ── committees ─────────────────────────────────────────────────────────────
+  await db.collection("committees").createIndexes([
+    { key: { slug: 1 }, unique: true, name: "committees_slug_unique" },
+    { key: { isActive: 1, displayOrder: 1 }, name: "committees_active_order" },
+  ]);
+  console.log("✓ committees");
+
   // ── broadcasts ─────────────────────────────────────────────────────────────
   await db.collection("broadcasts").createIndexes([
     { key: { status: 1, createdAt: -1 }, name: "broadcasts_status_createdAt" },

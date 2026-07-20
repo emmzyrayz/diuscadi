@@ -8,6 +8,7 @@ import { verifyJWT } from "@/lib/auth";
 import { getDb } from "@/lib/mongodb";
 import { Collections } from "@/lib/db/collections";
 import { canAccessAdminPanel } from "@/lib/roles";
+import ModConsole from "@/components/sections/admin/mod/modConsole";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -53,6 +54,10 @@ export default async function AdminLayout({
   if (!canAccessAdminPanel(vault.role)) {
     redirect("/home");
   }
+
+   if (vault.role === "moderator") {
+     return <ModConsole />;
+   }
 
   return <>{children}</>;
 }

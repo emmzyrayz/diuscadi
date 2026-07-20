@@ -49,12 +49,15 @@ export interface Institution {
 export interface CommitteeItem {
   slug: string;
   name: string;
+  shortDesc?: string;
   description: string;
   color: string;
   icon: string;
+  whatsappLink?: string;
   headName?: string;
   memberCount: number;
   displayOrder: number;
+  isActive?: boolean;
 }
 
 export interface SkillItem {
