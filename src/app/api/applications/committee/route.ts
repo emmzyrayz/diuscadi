@@ -140,6 +140,8 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       {
         message: "Application submitted successfully",
         applicationId: result.insertedId.toString(),
+        type: "committee",
+        status: "pending",
       },
       { status: 201 },
     );

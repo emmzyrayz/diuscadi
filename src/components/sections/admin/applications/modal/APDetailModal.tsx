@@ -46,7 +46,10 @@ export const APDetailModal: React.FC<Props> = ({
   const initial = app.user?.fullName
     ? resolveAdminInitial(app.user.fullName as never)
     : "?";
-  const avatarSrc = app.user?.avatar ?? null;
+  const avatarSrc =
+    app.user?.avatar && app.user.avatar.trim().length > 0
+      ? app.user.avatar
+      : null;
 
   const TYPE_CONFIG: Record<
     ApplicationType,

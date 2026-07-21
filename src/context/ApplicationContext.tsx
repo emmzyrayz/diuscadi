@@ -202,14 +202,14 @@ export function ApplicationProvider({
         });
         const data = await handleResponse<{
           applicationId: string;
-          type: ApplicationType;
-          status: ApplicationStatus;
+          type?: ApplicationType;
+          status?: ApplicationStatus;
         }>(res);
 
         const newApp: Application = {
           id: data.applicationId,
-          type: data.type,
-          status: data.status,
+          type: data.type ?? payload.type,
+          status: data.status ?? "pending",
           requestedCommittee: payload.requestedCommittee,
           committeeSkills: payload.committeeSkills,
           availability: payload.availability,

@@ -212,7 +212,10 @@ const APRow: React.FC<{
   const initial = app.user?.fullName
     ? resolveAdminInitial(app.user.fullName as never)
     : "?";
-  const avatarSrc = app.user?.avatar ?? null;
+  const avatarSrc =
+    app.user?.avatar && app.user.avatar.trim().length > 0
+      ? app.user.avatar
+      : null;
   const typeConfig = TYPE_CONFIG[app.type] ?? TYPE_CONFIG.committee;
   const TypeIcon = typeConfig.icon;
 

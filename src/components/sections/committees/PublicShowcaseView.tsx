@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { LuChevronRight, LuUsers, LuSparkles, LuLayers, LuMenu } from "react-icons/lu";
 
 interface CommitteeListItem {
-  id: string;
   slug: string;
   name: string;
   shortDesc?: string;
@@ -97,14 +96,16 @@ export default function PublicShowcaseView() {
                 const isSelected = committee.slug === selectedSlug;
                 return (
                   <button
-                    key={committee.id}
+                    key={committee.slug}
                     onClick={() => {
                       setSelectedSlug(committee.slug);
                       setMobileMenuOpen(false);
                     }}
                     className={cn(
                       "w-full text-left p-3.5 rounded-xl text-xs transition-all duration-200 flex items-center justify-between",
-                      isSelected ? "bg-primary/10 text-primary font-bold" : "hover:bg-muted/40 text-foreground"
+                      isSelected
+                        ? "bg-primary/10 text-primary font-bold"
+                        : "hover:bg-muted/40 text-foreground",
                     )}
                   >
                     <span className="truncate pr-4">{committee.name}</span>
@@ -127,7 +128,7 @@ export default function PublicShowcaseView() {
             const isSelected = committee.slug === selectedSlug;
             return (
               <button
-                key={committee.id}
+                key={committee.slug}
                 onClick={() => setSelectedSlug(committee.slug)}
                 className={cn(
                   "w-full text-left p-4 rounded-2xl transition-all duration-300 flex items-center justify-between group",
@@ -145,7 +146,14 @@ export default function PublicShowcaseView() {
                   >
                     {committee.name}
                   </h3>
-                  <p className={cn('text-xs', 'text-muted-foreground', 'line-clamp-1', 'mt-0.5')}>
+                  <p
+                    className={cn(
+                      "text-xs",
+                      "text-muted-foreground",
+                      "line-clamp-1",
+                      "mt-0.5",
+                    )}
+                  >
                     {committee.shortDesc || "No summary provided"}
                   </p>
                 </div>

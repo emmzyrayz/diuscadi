@@ -67,7 +67,12 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
                 id: user._id!.toString(),
                 fullName: user.fullName,
                 email: user.email,
-                avatar: user.avatar ?? null,
+                avatar:
+                  user.avatar &&
+                  typeof user.avatar.imageUrl === "string" &&
+                  user.avatar.imageUrl.trim().length > 0
+                    ? user.avatar.imageUrl
+                    : null,
               }
             : null,
         };
