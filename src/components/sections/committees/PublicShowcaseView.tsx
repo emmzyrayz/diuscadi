@@ -205,8 +205,10 @@ export default function PublicShowcaseView() {
                   Ready to declare alignment with this operational group? Review carefully before submission.
                 </span>
                 <button
-                  onClick={() =>
-                    router.push(`/apply?committee=${currentSelection.slug}`)
+                 onClick={() =>
+                    router.push(
+                      `/profile/applications?committee=${currentSelection.slug}`,
+                    )
                   }
                   className={cn('bg-primary', 'hover:bg-primary/90', 'text-primary-foreground', 'font-bold', 'uppercase', 'tracking-wider', 'text-[11px]', 'sm:text-xs', 'px-5', 'py-3.5', 'rounded-xl', 'transition-all', 'duration-300', 'shadow-md', 'shadow-primary/10', 'select-none', 'w-full', 'sm:w-auto', 'text-center', 'shrink-0')}
                 >

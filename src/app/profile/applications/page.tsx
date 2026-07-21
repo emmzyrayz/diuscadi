@@ -6,7 +6,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useUser } from "@/context/UserContext";
 import { useApplications } from "@/context/ApplicationContext";
@@ -154,6 +154,7 @@ const APP_TYPE_CONFIGS: AppTypeConfig[] = [
 
 export default function ProfileApplicationsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { token } = useAuth();
   const { profile } = useUser();
   const {
@@ -169,13 +170,13 @@ export default function ProfileApplicationsPage() {
 
   // ── Role gate ─────────────────────────────────────────────────────────────
   // isMember = approved member OR any elevated role
-   const isMember =
-     profile?.membershipStatus === "approved" ||
-     (profile?.role !== "participant" && profile?.role !== undefined);
+  const isMember =
+    profile?.membershipStatus === "approved" ||
+    (profile?.role !== "participant" && profile?.role !== undefined);
 
-   // Committee applications require actual approved membership —
-   // elevated platform roles alone do not qualify.
-   const canApplyCommittee = profile?.membershipStatus === "approved";
+  // Committee applications require actual approved membership —
+  // elevated platform roles alone do not qualify.
+  const canApplyCommittee = profile?.membershipStatus === "approved";
 
   // Visible application types based on membership status
   const visibleTypes = APP_TYPE_CONFIGS.filter((cfg) =>
@@ -203,6 +204,27 @@ export default function ProfileApplicationsPage() {
     loadCommittees();
     loadSkills();
   }, [loadCommittees, loadMyApplications, loadSkills, token]);
+
+  // Prefill from ?committee=<slug> — set when arriving from the public
+  // committee showcase page ("Initiate Track Entry Placement").
+  // Adjusted during render (not in an Effect) per React's guidance for
+  // syncing state to a changed value — the `prefilledCommittee` guard
+  // makes this run at most once per slug, and it naturally waits for
+  // `canApplyCommittee` to become true once `profile` finishes loading,
+  // since the condition below is simply false on earlier renders.
+  const [prefilledCommittee, setPrefilledCommittee] = useState<string | null>(
+    null,
+  );
+  const committeeParam = searchParams.get("committee");
+  if (
+    committeeParam &&
+    committeeParam !== prefilledCommittee &&
+    canApplyCommittee
+  ) {
+    setPrefilledCommittee(committeeParam);
+    setActiveForm("committee");
+    setSelectedComm(committeeParam);
+  }
 
   const resetForm = () => {
     setActiveForm(null);

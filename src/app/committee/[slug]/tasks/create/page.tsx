@@ -5,7 +5,7 @@
 // All created tasks go to "pending_approval" regardless of role.
 // After submit: redirects back to the committee TaskManagementPanel.
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
