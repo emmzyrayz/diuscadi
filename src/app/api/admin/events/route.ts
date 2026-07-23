@@ -88,7 +88,9 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         registrationDeadline: e.registrationDeadline.toISOString(),
         capacity: e.capacity,
         registered: countMap.get(e._id!.toString()) ?? 0,
-        guestRegistered: guestCountMap.get(e._id!.toString()) ?? 0, // ← ADD
+        guestRegistered: guestCountMap.get(e._id!.toString()) ?? 0,
+        registrationClosed: e.registrationClosed === true,
+        registrationClosedReason: e.registrationClosedReason ?? null,
         targetEduStatus: e.targetEduStatus,
         requiredSkills: e.requiredSkills ?? [],
         createdAt: e.createdAt.toISOString(),
@@ -225,6 +227,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       tags: tags ?? [],
       status: status ?? "draft",
       createdBy: new ObjectId(req.auth.vaultId),
+      registrationClosed: false,
 
       // ── Media — initialised as empty at creation time ─────────────────────
       // Images are attached after creation via PATCH /api/admin/events/[id]/media.
