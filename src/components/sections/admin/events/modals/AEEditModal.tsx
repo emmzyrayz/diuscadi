@@ -110,17 +110,17 @@ interface EventFormData {
   locationScope: "local" | "state" | "national";
   whatsappGroupLink: string;
   // Hybrid-specific venue fields — only used when format === "Hybrid"
-  virtualVenueLink: string;          // Zoom/Meet/Teams URL for virtual attendees
+  virtualVenueLink: string; // Zoom/Meet/Teams URL for virtual attendees
   whatsappGroupLinkPhysical: string; // WhatsApp for physical attendees
-  whatsappGroupLinkVirtual: string;  // WhatsApp for virtual attendees
+  whatsappGroupLinkVirtual: string; // WhatsApp for virtual attendees
 
   // Step 3 — Audience
   targetEduStatus: "ALL" | "STUDENT" | "GRADUATE";
-  requiredSkills: string[];         // slugs of approved skills
-  pendingSkills: string[];          // free-text names pending suggestion
+  requiredSkills: string[]; // slugs of approved skills
+  pendingSkills: string[]; // free-text names pending suggestion
   learningOutcomes: string[];
   outcomeInput: string;
-  skillsOffered: string[];  
+  skillsOffered: string[];
   skillsOfferedInput: string;
   instructor: string;
   maxCapacity: number;
@@ -138,6 +138,8 @@ interface EventFormData {
   bannerBlob: Blob | null;
   bannerPreviewUrl: string | null;
   _originalStatus?: string;
+  registrationClosed: boolean;
+  registrationClosedReason: string;
 }
 
 type WizardStep = 1 | 2 | 3 | 4 | 5;
@@ -226,6 +228,8 @@ const DEFAULT_FORM: EventFormData = {
   bannerBlob: null,
   bannerPreviewUrl: null,
   _originalStatus: undefined,
+  registrationClosed: false,
+  registrationClosedReason: "",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -259,8 +263,10 @@ type RawInitialData = Partial<EventFormData> & {
     state?: string;
     country?: string;
   };
-  capacity?: number;           // DB uses capacity, form uses maxCapacity
-  status?: string;             // DB uses status, form uses visibility
+  capacity?: number; // DB uses capacity, form uses maxCapacity
+  status?: string; // DB uses status, form uses visibility
+  registrationClosed?: boolean;
+  registrationClosedReason?: string;
 };
 
 function toSlug(title: string): string {
@@ -2487,6 +2493,121 @@ const ContentStep: React.FC<StepProps & { ownerId: string }> = ({
   );
 };
 
+const RegistrationControlCard: React.FC<{
+  formData: EventFormData;
+  setFormData: React.Dispatch<React.SetStateAction<EventFormData>>;
+}> = ({ formData, setFormData }) => {
+  const handleToggle = () => {
+    // Confirm only when CLOSING — reopening needs no extra friction.
+    if (!formData.registrationClosed) {
+      const confirmed = window.confirm(
+        "Close registration for this event? No one will be able to register " +
+          "— including guests and account users — until you reopen it here.",
+      );
+      if (!confirmed) return;
+    }
+    setFormData((p) => ({
+      ...p,
+      registrationClosed: !p.registrationClosed,
+      // Clear any stale reason text on reopen — mirrors what the server
+      // does anyway (see PATCH_admin-events-route.txt), keeps the UI
+      // consistent with what will actually be saved.
+      ...(!p.registrationClosed ? {} : { registrationClosedReason: "" }),
+    }));
+  };
+
+  return (
+    <div
+      className={cn(
+        "p-6",
+        "rounded-[2rem]",
+        "border-2",
+        "transition-colors",
+        formData.registrationClosed
+          ? "bg-red-50 border-red-200"
+          : "bg-muted border-border",
+      )}
+    >
+      <div className={cn("flex", "items-center", "justify-between", "gap-4")}>
+        <div>
+          <p
+            className={cn(
+              "text-[11px]",
+              "font-black",
+              "uppercase",
+              "tracking-widest",
+              formData.registrationClosed ? "text-red-700" : "text-foreground",
+            )}
+          >
+            Registration Status
+          </p>
+          <p
+            className={cn(
+              "text-[9px]",
+              "font-bold",
+              "uppercase",
+              "tracking-widest",
+              "mt-0.5",
+              formData.registrationClosed
+                ? "text-red-500"
+                : "text-muted-foreground",
+            )}
+          >
+            {formData.registrationClosed
+              ? "Closed — no new registrations accepted"
+              : "Open — independent of Public/Invite-Only status below"}
+          </p>
+        </div>
+        <Toggle value={formData.registrationClosed} onChange={handleToggle} />
+      </div>
+
+      {formData.registrationClosed && (
+        <div className={cn("mt-4", "space-y-1.5")}>
+          <FieldLabel>Internal Reason (optional)</FieldLabel>
+          <textarea
+            value={formData.registrationClosedReason}
+            onChange={(e) =>
+              setFormData((p) => ({
+                ...p,
+                registrationClosedReason: e.target.value,
+              }))
+            }
+            placeholder="e.g. Budget cap reached — for admin reference only, never shown to registrants"
+            rows={2}
+            className={cn(
+              "w-full",
+              "p-3",
+              "rounded-xl",
+              "text-xs",
+              "font-medium",
+              "outline-none",
+              "border",
+              "bg-background",
+              "border-red-200",
+              "text-foreground",
+              "focus:border-red-400",
+              "resize-none",
+            )}
+          />
+          <p
+            className={cn(
+              "text-[9px]",
+              "text-red-500",
+              "font-bold",
+              "uppercase",
+              "tracking-widest",
+            )}
+          >
+            Visitors who attempt to register will be told to contact support —
+            this reason is internal only
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+ 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 5 — REVIEW
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2495,6 +2616,9 @@ const ReviewStep: React.FC<
   StepProps & { isEditing?: boolean; isRepublishing?: boolean }
 > = ({ formData, setFormData, isEditing, isRepublishing }) => (
   <div className="space-y-6">
+    {isEditing && !isRepublishing && (
+      <RegistrationControlCard formData={formData} setFormData={setFormData} />
+    )}
     {isRepublishing && (
       <motion.div
         initial={{ opacity: 0, y: -8 }}
@@ -2942,6 +3066,8 @@ export const AdminEventModal: React.FC<EventModalProps> = ({
      // ── Review ────────────────────────────────────────────────────────────
      visibility,
      _originalStatus: init.status ?? init._originalStatus,
+     registrationClosed: init.registrationClosed ?? false,
+     registrationClosedReason: init.registrationClosedReason ?? "",
 
      // ── Scratch fields — always reset ─────────────────────────────────────
      tagInput: "",
@@ -3058,6 +3184,8 @@ useEffect(() => {
       schedule: formData.schedule,
       faqs: formData.faqs,
       status: formData.visibility === "Public" ? "published" : "draft",
+      registrationClosed: formData.registrationClosed,
+      registrationClosedReason: formData.registrationClosedReason || undefined,
     };
   }
 

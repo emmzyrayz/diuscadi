@@ -115,6 +115,18 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+     if (event.registrationClosed === true) {
+       return NextResponse.json(
+         {
+           error:
+             "Registration for this event has been closed. Please contact " +
+             (process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@diuscadi.org") +
+             " for assistance.",
+           registrationClosed: true,
+         },
+         { status: 400 },
+       );
+     }
     if (new Date(event.eventDate) < now) {
       return NextResponse.json(
         { error: "This event has already taken place" },

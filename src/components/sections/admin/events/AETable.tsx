@@ -163,6 +163,53 @@ const AdminEventRow: React.FC<RowProps> = ({
     }
   };
 
+  const [togglingRegistration, setTogglingRegistration] = useState(false);
+  const isRegistrationClosed = event.registrationClosed === true;
+
+  const handleToggleRegistration = async () => {
+    if (!token) return;
+
+    const closing = !isRegistrationClosed;
+    if (closing) {
+      const confirmed = window.confirm(
+        `Close registration for "${event.title}"? No one will be able to ` +
+          `register until you reopen it.`,
+      );
+      if (!confirmed) return;
+    }
+
+    setTogglingRegistration(true);
+    setShowMenu(false);
+    try {
+      const res = await fetch(`/api/admin/events/${event.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ registrationClosed: closing }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to update registration status");
+      }
+      toast.success(
+        closing
+          ? `Registration closed for "${event.title}"`
+          : `Registration reopened for "${event.title}"`,
+      );
+      onMutation?.();
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Failed to update registration status",
+      );
+    } finally {
+      setTogglingRegistration(false);
+    }
+  };
+
   const STATUS_STYLES: Record<string, string> = {
     published: "bg-blue-50 text-blue-600 border-blue-100",
     draft: "bg-muted text-muted-foreground border-border",
@@ -300,29 +347,51 @@ const AdminEventRow: React.FC<RowProps> = ({
 
         {/* Status */}
         <td className={cn("px-6", "py-6")}>
-          <span
-            className={cn(
-              "px-3",
-              "py-1",
-              "rounded-full",
-              "border",
-              "text-[9px]",
-              "font-black",
-              "uppercase",
-              "tracking-widest",
-              STATUS_STYLES[event.status] ??
-                "bg-muted text-muted-foreground border-border",
+          <div className={cn("flex", "flex-col", "gap-1.5", "items-start")}>
+            <span
+              className={cn(
+                "px-3",
+                "py-1",
+                "rounded-full",
+                "border",
+                "text-[9px]",
+                "font-black",
+                "uppercase",
+                "tracking-widest",
+                STATUS_STYLES[event.status] ??
+                  "bg-muted text-muted-foreground border-border",
+              )}
+            >
+              {event.status}
+            </span>
+            {isRegistrationClosed && (
+              <span
+                className={cn(
+                  "px-2.5",
+                  "py-0.5",
+                  "rounded-full",
+                  "border",
+                  "text-[8px]",
+                  "font-black",
+                  "uppercase",
+                  "tracking-widest",
+                  "bg-red-50",
+                  "text-red-600",
+                  "border-red-100",
+                )}
+                title={event.registrationClosedReason || undefined}
+              >
+                Registration Closed
+              </span>
             )}
-          >
-            {event.status}
-          </span>
+          </div>
         </td>
 
         {/* Actions */}
         <td className={cn("px-8", "py-6", "text-right", "relative")}>
           <button
             onClick={() => setShowMenu(!showMenu)}
-            disabled={republishing}
+            disabled={republishing || togglingRegistration}
             className={cn(
               "p-2",
               "border",
@@ -399,7 +468,6 @@ const AdminEventRow: React.FC<RowProps> = ({
                   <div className={cn("h-px", "bg-muted", "my-1")} />
 
                   {isCancelled ? (
-                    // ── Cancelled event: show Republish instead of Cancel ──
                     <MenuItem
                       icon={LuRefreshCcw}
                       label="Republish Event"
@@ -407,16 +475,31 @@ const AdminEventRow: React.FC<RowProps> = ({
                       onClick={handleRepublish}
                     />
                   ) : (
-                    // ── Active/draft event: show Cancel ───────────────────
-                    <MenuItem
-                      icon={LuCircleX}
-                      label="Cancel Event"
-                      color="text-amber-600"
-                      onClick={() => {
-                        setShowMenu(false);
-                        setShowCancelModal(true);
-                      }}
-                    />
+                    <>
+                      <MenuItem
+                        icon={isRegistrationClosed ? LuRefreshCcw : LuCircleX}
+                        label={
+                          isRegistrationClosed
+                            ? "Reopen Registration"
+                            : "Close Registration"
+                        }
+                        color={
+                          isRegistrationClosed
+                            ? "text-emerald-600"
+                            : "text-red-600"
+                        }
+                        onClick={handleToggleRegistration}
+                      />
+                      <MenuItem
+                        icon={LuCircleX}
+                        label="Cancel Event"
+                        color="text-amber-600"
+                        onClick={() => {
+                          setShowMenu(false);
+                          setShowCancelModal(true);
+                        }}
+                      />
+                    </>
                   )}
 
                   <MenuItem

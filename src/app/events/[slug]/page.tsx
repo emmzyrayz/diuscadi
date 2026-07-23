@@ -71,6 +71,7 @@ export interface EventDetail {
   galleryUrls: string[];
   status: string;
   locationScope: string;
+  registrationClosed: boolean;
 }
 
 export interface RelatedEventItem {
@@ -195,7 +196,9 @@ async function fetchEventDetail(
     eventDateIso: eventDateObj.toISOString(),
     endDate: endDateObj ? fmt(endDateObj) : "",
     endDateIso: endDateObj?.toISOString() ?? null,
-    registrationDeadline: new Date(doc.registrationDeadline as Date).toISOString(),
+    registrationDeadline: new Date(
+      doc.registrationDeadline as Date,
+    ).toISOString(),
     duration: doc.duration ?? "",
     capacity: doc.capacity,
     registered,
@@ -208,6 +211,7 @@ async function fetchEventDetail(
     galleryUrls,
     status: doc.status,
     locationScope: doc.locationScope ?? "local",
+    registrationClosed: doc.registrationClosed === true,
   };
 
   const related: RelatedEventItem[] = relatedDocs.map((e) => {

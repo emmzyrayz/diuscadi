@@ -92,29 +92,31 @@ export const PATCH = withAuth(
         "category",
         "format",
         "location",
-        "locationScope", // ← add
+        "locationScope",
         "image",
         "eventDate",
         "endDate",
         "registrationDeadline",
-        "duration", // ← add
+        "duration",
         "capacity",
         "targetEduStatus",
         "requiredSkills",
         "learningOutcomes",
         "skillsOffered",
         "tags",
-        "level", // ← add
-        "instructor", // ← add
+        "level",
+        "instructor",
         "status",
         "speakers",
         "sponsors",
         "schedule",
-        "faqs", // ← add
+        "faqs",
         "whatsappGroupLink",
-        "virtualVenueLink", // ← ADD
-        "whatsappGroupLinkPhysical", // ← ADD
-        "whatsappGroupLinkVirtual", // ← ADD
+        "virtualVenueLink",
+        "whatsappGroupLinkPhysical",
+        "whatsappGroupLinkVirtual",
+        "registrationClosed",
+        "registrationClosedReason",
       ];
       const DATE_FIELDS = ["eventDate", "endDate", "registrationDeadline"];
 
@@ -132,6 +134,21 @@ export const PATCH = withAuth(
           { error: "No valid fields to update" },
           { status: 400 },
         );
+      }
+
+      // Server-stamp who/when for registration open/close actions — never
+      // trust these from the client body.
+      if (typeof updates.registrationClosed === "boolean") {
+        if (updates.registrationClosed) {
+          updates.registrationClosedAt = new Date();
+          updates.registrationClosedBy = new ObjectId(req.auth.vaultId);
+        } else {
+          // Reopening — clear the closed metadata so a stale reason/timestamp
+          // doesn't linger and confuse a future admin looking at the record.
+          updates.registrationClosedAt = null;
+          updates.registrationClosedBy = null;
+          updates.registrationClosedReason = null;
+        }
       }
 
       // Slug uniqueness check if slug is being updated

@@ -137,6 +137,8 @@ export default function EventsManagementPage() {
       faqs: (raw.faqs as EventFAQ[]) ?? [],
       visibility: rawStatus === "draft" ? "Invite-Only" : "Public",
       _originalStatus: rawStatus,
+      registrationClosed: (raw.registrationClosed as boolean) ?? false,
+      registrationClosedReason: (raw.registrationClosedReason as string) ?? "",
     };
   }
 

@@ -75,6 +75,18 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
         { status: 400 },
       );
     }
+     if (event.registrationClosed === true) {
+       return NextResponse.json(
+         {
+           error:
+             "Registration for this event has been closed. Please contact " +
+             (process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "info@diuscadi.org.ng") +
+             " for assistance.",
+           registrationClosed: true,
+         },
+         { status: 400 },
+       );
+     }
     if (event.eventDate < now) {
       return NextResponse.json(
         { error: "Event has already passed" },

@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { AuthRequiredCard } from "@/components/sections/events/tickets/AuthReqCard";
 // import { CompleteProfilePrompt } from "@/components/sections/events/tickets/CompleteProfile";
 import { RegistrationShell } from "@/components/sections/events/tickets/RegistrationShell";
+import { RegistrationClosedCard } from "@/components/sections/events/tickets/registrationClosedCard";
 
 // ── Types exported for child components ──────────────────────────────────────
 
@@ -30,6 +31,7 @@ export interface RegisterEventData {
   registrationDeadline: string;
   ticketTypes: TicketTypeOption[];
   skillsOffered?: string[];
+  registrationClosed: boolean;
 }
 
 export interface TicketTypeOption {
@@ -131,6 +133,7 @@ async function fetchRegisterData(
     registered,
     slotsRemaining: Math.max(0, doc.capacity - registered),
     registrationDeadline: deadline.toISOString(),
+    registrationClosed: doc.registrationClosed === true,
     ticketTypes: tickets.map((t) => ({
       id: t._id!.toString(),
       name: t.name,
@@ -156,7 +159,24 @@ export default async function RegisterPage({
 
   const event = await fetchRegisterData(slug);
   if (!event) notFound();
-  if (event.slotsRemaining === 0) notFound();
+   if (event.registrationClosed || event.slotsRemaining === 0) {
+     return (
+       <main
+         className={cn(
+           "min-h-screen w-full",
+           "bg-muted/50",
+           "pb-20",
+           "pt-[122px]",
+         )}
+       >
+         <RegistrationClosedCard
+           eventSlug={event.slug}
+           eventTitle={event.title}
+           reason={event.registrationClosed ? "closed" : "full"}
+         />
+       </main>
+     );
+   }
 
   let authUser: RegisterUserData | null = null;
   let staleToken = false;

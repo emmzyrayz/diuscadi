@@ -70,6 +70,8 @@ export interface AdminEvent {
   speakers?: EventSpeaker[];
   sponsors?: EventSponsor[];
   schedule?: EventScheduleItem[];
+  registrationClosed?: boolean;
+  registrationClosedReason?: string | null;
 }
 
 export interface CreateEventPayload {
