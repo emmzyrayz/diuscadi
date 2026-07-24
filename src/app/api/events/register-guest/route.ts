@@ -115,18 +115,6 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-     if (event.registrationClosed === true) {
-       return NextResponse.json(
-         {
-           error:
-             "Registration for this event has been closed. Please contact " +
-             (process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@diuscadi.org") +
-             " for assistance.",
-           registrationClosed: true,
-         },
-         { status: 400 },
-       );
-     }
     if (new Date(event.eventDate) < now) {
       return NextResponse.json(
         { error: "This event has already taken place" },
@@ -276,11 +264,11 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 8. Guard: existing GUEST registration ─────────────────────────────────
-       const existingGuest = await findActiveGuestRegistration(
-         db,
-         { email: emailLower, eventId: eventObjId },
-         { _id: 1, verifiedAt: 1, inviteCode: 1, guestProfileId: 1 },
-       );
+    const existingGuest = await findActiveGuestRegistration(
+      db,
+      { email: emailLower, eventId: eventObjId },
+      { _id: 1, verifiedAt: 1, inviteCode: 1, guestProfileId: 1 },
+    );
 
     if (existingGuest) {
       if (!existingGuest.guestProfileId) {
@@ -334,6 +322,19 @@ export async function POST(req: NextRequest) {
         { status: 200 },
       );
     }
+
+     if (event.registrationClosed === true) {
+       return NextResponse.json(
+         {
+           error:
+             "Registration for this event has been closed. Please contact " +
+             (process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@diuscadi.org") +
+             " for assistance.",
+           registrationClosed: true,
+         },
+         { status: 400 },
+       );
+     }
 
     // ── 9. Total event capacity check ─────────────────────────────────────────
     const totalRegistered = await getRegisteredCount(db, eventObjId);
